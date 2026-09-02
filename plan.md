@@ -215,14 +215,15 @@ The validator runs on every response before it reaches the user.
 
 | # | Role | Person(s) | Owns |
 |---|---|---|---|
-| 1 | **Team Lead + Backend Architect** | **Niranjan** | FastAPI gateway, orchestrator, integration glue, final demo narrative |
-| 2 | **Data / Met Engineer** | **Syed** | IMD ingestion, decoders, GRIB/xarray, PostGIS, cache strategy |
-| 3 | **AI / LLM Engineer** | **Mahesh** | NLU, function-calling, RAG, **the guardrail + validator** |
-| 4 | **Language / Voice Engineer** | **Niranjan** | Bhashini integration, ASR/TTS, IndicTrans2, IVR flow |
-| 5 | **Mobile Developer** | **Chelsea** | Flutter app, maps, voice UI, offline cache, push |
-| 6 | **Frontend/Web** | **Gargi** | Web dashboard, UI/UX for web surfaces |
-| 7 | **DevOps** | **Mahesh + Niranjan** (Syed backup) | Docker/K8s, deployment, Grafana, CI/CD |
-| 8 | **Security Engineer** | **Abel** | Auth, API rate limiting, securing the alert pipeline against spoofed CAP/warning messages, data privacy for location/phone data |
+| 1 | **Team Lead** | **Mahesh** | Integration glue, final demo narrative |
+| 2 | **Backend Architect** | **Niranjan** | FastAPI gateway, orchestrator |
+| 3 | **Data / Met Engineer** | **Syed** | IMD ingestion, decoders, GRIB/xarray, PostGIS, cache strategy |
+| 4 | **AI / LLM Engineer** | **Mahesh** | NLU, function-calling, RAG, **the guardrail + validator** |
+| 5 | **Language / Voice Engineer** | **Niranjan** | Bhashini integration, ASR/TTS, IndicTrans2, IVR flow |
+| 6 | **Mobile Developer** | **Chelsea** | Flutter app, maps, voice UI, offline cache, push |
+| 7 | **Frontend/Web** | **Gargi** | Web dashboard, UI/UX for web surfaces |
+| 8 | **DevOps** | **Mahesh + Niranjan** (Syed backup) | Docker/K8s, deployment, Grafana, CI/CD |
+| 9 | **Security Engineer** | **Abel** | Auth, API rate limiting, securing the alert pipeline against spoofed CAP/warning messages, data privacy for location/phone data |
 
 ---
 
