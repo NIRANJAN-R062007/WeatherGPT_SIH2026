@@ -14,24 +14,16 @@ A **grounded, multilingual, multi-channel conversational weather assistant** tha
 
 ---
 
-## 1. How this problem statement is actually judged
+## 1. Evaluation parameter → technical implementation mapping
 
-The PS lists six evaluation parameters. Map every design decision to one of them, and say so out loud in the PPT.
-
-| Evaluation parameter | What the jury is really testing | Our answer |
+| Evaluation parameter | Technical implementation | Where |
 |---|---|---|
-| Accuracy and relevance | Will it hallucinate a cyclone? | **Tool-grounded architecture** — LLM never emits numbers; provenance line on every answer |
-| Response latency | Does it feel real-time? | Redis hot cache + pre-ingested data; p95 < 2s target |
-| Multilingual capability | Real Indic support, not Google Translate | Bhashini / IndicTrans2 + AI4Bharat ASR, 10+ languages |
-| User interface and accessibility | Can a farmer use it? | App + WhatsApp + **IVR voice call** for feature phones |
-| Scalability and innovation | Will it survive a cyclone traffic spike? | Docker/K8s, async ingestion, push-based WIS 2.0 |
-| Integration with real-time met systems | **Are you actually using IMD, or OpenWeatherMap?** | Direct `api.imd.gov.in` integration + MQTT/WIS 2.0 |
-
-### The single biggest trap
-Most teams will build **OpenWeatherMap + GPT wrapper + pretty UI**. That fails the last row outright. IMD *is* the authoritative source in India; quoting a foreign aggregator to an IMD jury is disqualifying in spirit even if the demo works. **Our entire differentiation is that we integrate the national stack.**
-
-### The second biggest trap
-Letting the LLM speak numbers. A met department's nightmare is a bot inventing a rainfall figure or a cyclone track. Our architecture makes that *structurally impossible* — and we say that explicitly on a slide, because it reads as engineering maturity.
+| Accuracy and relevance | Grounding guardrail: LLM narrates only from typed tool-response objects; numeric validator rejects any number not present in the raw API response | §4 Architecture (grounding guardrail), §2 design principles 1–2 |
+| Response latency | Redis caching with per-product TTL (nowcast 15 min, forecast 3 h, climate 24 h); rule-based fast path skips the LLM for the top ~20 intents; p95 < 2s tracked in Grafana | §5 Cache/NLU/Observability rows, §8 Phase 6 |
+| Multilingual capability | Bhashini ASR/TTS/translate as primary; self-hosted IndicTrans2 + IndicConformer as fallback; English/Hindi/Tamil shipped in P0, full Indic set in P1 | §5 Multilingual row, §6 P0/P1, §8 Phase 3–4 |
+| User interface and accessibility | Flutter app + WhatsApp Cloud API + IVR via Exotel for feature-phone access | §5 Mobile/Channels rows, §8 Phase 4 |
+| Scalability and innovation | Docker Compose → k3s/kind → K8s+Helm deployment path; Celery+Redis async ingestion; WIS 2.0 MQTT push subscription instead of polling | §5 Deploy/Async jobs rows, §3.3, §8 Phase 6 |
+| Integration with real-time met systems | Direct `api.imd.gov.in` integration across every endpoint in §3.1; WIS 2.0/MQTT; CAP/SACHET alert listener — no third-party weather aggregator | §3.1, §3.3 |
 
 ---
 
@@ -42,7 +34,7 @@ Letting the LLM speak numbers. A met department's nightmare is a bot inventing a
 3. **Refuse rather than guess.** No data for a location/time → say so and offer nearest station. Never interpolate silently.
 4. **Warnings are never paraphrased loosely.** Colour-coded warnings (Red/Orange/Yellow/Green) are rendered with the official category text; the LLM only translates and explains, never re-grades severity.
 5. **Offline-degradable.** Last-known forecast cached on device; SMS/IVR fallback when data is down.
-6. **Attribution to IMD** on every surface — this is an IMD implementation guideline and it signals we read their docs.
+6. **Attribution to IMD** on every surface — this is an IMD implementation guideline.
 
 ---
 
@@ -71,32 +63,32 @@ Base: `https://api.imd.gov.in/api/v1/` · Reference: `https://api.imd.gov.in/pub
 | Marine | `seabulletin`, `coastalbulletin`, `portwarning` | **Fishermen use case** — Chennai ACWC issues these |
 | Rainfall forecast | `subdivision_rainfall_forecast`, `state_district_rainfall_forecast` | Widespread/Scattered distribution |
 | Sun/Moon | `sunmoon?lat=&lon=` | Aviation + agri context |
-| Also listed in ref index | Radar Image, Lightning Data, Agromet Advisory, Highway Nowcast/5-day (NHAI), Mausamgram | Confirm live status; **Agromet + Lightning are high-value, chase these** |
+| Also listed in ref index | Radar Image, Lightning Data, Agromet Advisory, Highway Nowcast/5-day (NHAI), Mausamgram | Confirm live status |
 
-**Decoder tables to hard-code** (these are our domain-credibility props):
+**Decoder tables to hard-code:**
 - Weather codes 01–99 (WMO present-weather)
 - Wind direction codes 0–360 → named directions
 - Nowcast Cat1–Cat19 → severity + colour (1 Green, 2–6 Yellow, 7–11 Orange, 12–19 Red)
 - Warning codes 1–17
 - Rainfall departure categories LE/E/N/D/LD/NR/ND
 
-> Turning `"Weather Code": "95", "Wind Direction": "230"` into *"இடியுடன் கூடிய மழை, தென்மேற்கு காற்று"* is a demo moment. Build the decoder module early; it's cheap and it looks expert.
+> Turning `"Weather Code": "95", "Wind Direction": "230"` into *"இடியுடன் கூடிய மழை, தென்மேற்கு காற்று"*. Build the decoder module early.
 
 ### 3.2 NWP model output (GFS / WRF — explicitly named in the PS)
 - **NCMRWF** (`rimes`/NCMRWF public products) and **NOAA NOMADS GFS** (0.25°, GRIB2) for raw model fields.
 - Parse with `xarray` + `cfgrib`, subset to India bbox, store as Zarr/NetCDF tiles.
-- **Scope honestly:** we do *not* run WRF in a hackathon. We **ingest and query pre-computed GFS output**, and optionally show one small pre-run WRF nested-domain case study for a past event. Say this plainly — jurors respect scoping, they punish fake claims.
+- **Scope:** we do *not* run WRF in a hackathon. We **ingest and query pre-computed GFS output**, and optionally show one small pre-run WRF nested-domain case study for a past event.
 
 ### 3.3 Alerts & disaster layer
 - **CAP (Common Alerting Protocol)** feeds — NDMA/SACHET is India's CAP aggregator. Parse CAP XML → geofence polygon → targeted push.
-- **WIS 2.0 / MQTT** — WMO's push-based real-time exchange (the PS names it, which is a strong hint). Subscribe to topic hierarchies instead of polling. Even a working demo subscriber against a WIS2 global broker is a major differentiator.
+- **WIS 2.0 / MQTT** — WMO's push-based real-time exchange. Subscribe to topic hierarchies instead of polling.
 
 ### 3.4 Climate / historical
 - IMD gridded rainfall & temperature datasets (0.25° rainfall, 1° temp) for trend analysis.
 - **Scope:** pre-load one state (Tamil Nadu) at district level, 30–40 years, for "has monsoon onset shifted in Chennai?" style queries.
 
 ### 3.5 Aviation & marine (bonus credibility)
-- **METAR / TAF / SIGMET** decoding for the aviation briefing use case. Decoding a live METAR into plain Tamil on stage beats a generic "will it rain tomorrow" demo by a mile.
+- **METAR / TAF / SIGMET** decoding for the aviation briefing use case.
 
 ---
 
@@ -162,7 +154,7 @@ Validator: every numeric token in output must exist in the tool response
    ↓  (fail → regenerate or fall back to template)
 Response + provenance footer
 ```
-That **validator step is the innovation claim.** Cheap to build, impossible to argue with.
+The validator runs on every response before it reaches the user.
 
 ---
 
@@ -199,7 +191,7 @@ That **validator step is the innovation claim.** Cheap to build, impossible to a
 
 ### P1 — This is what wins
 6. **Voice**: speech-in / speech-out in Indic languages via Bhashini.
-7. **IVR channel**: dial a number, speak in Tamil, hear the forecast. *Feature phone = real last mile.*
+7. **IVR channel**: dial a number, speak in Tamil, hear the forecast.
 8. **Proactive alerts**: CAP polygon → geofenced push, with "why you got this" explanation.
 9. **Cyclone map**: track + cone of uncertainty + wind-radii polygons rendered live.
 10. **Persona-aware advisories**: farmer / fisherman / aviation / city-official — same data, different framing, driven by a user profile flag.
@@ -223,7 +215,7 @@ That **validator step is the innovation claim.** Cheap to build, impossible to a
 
 | # | Role | Person(s) | Owns |
 |---|---|---|---|
-| 1 | **Team Lead + Backend Architect** | **Mahesh** | FastAPI gateway, orchestrator, integration glue, final demo narrative |
+| 1 | **Team Lead + Backend Architect** | **Niranjan** | FastAPI gateway, orchestrator, integration glue, final demo narrative |
 | 2 | **Data / Met Engineer** | **Syed** | IMD ingestion, decoders, GRIB/xarray, PostGIS, cache strategy |
 | 3 | **AI / LLM Engineer** | **Mahesh** | NLU, function-calling, RAG, **the guardrail + validator** |
 | 4 | **Language / Voice Engineer** | **Niranjan** | Bhashini integration, ASR/TTS, IndicTrans2, IVR flow |
@@ -231,17 +223,6 @@ That **validator step is the innovation claim.** Cheap to build, impossible to a
 | 6 | **Frontend/Web** | **Gargi** | Web dashboard, UI/UX for web surfaces |
 | 7 | **DevOps** | **Mahesh + Niranjan** (Syed backup) | Docker/K8s, deployment, Grafana, CI/CD |
 | 8 | **Security Engineer** | **Abel** | Auth, API rate limiting, securing the alert pipeline against spoofed CAP/warning messages, data privacy for location/phone data |
-
-SIH requires exactly 6 people from the same institution (with at least one female member) plus 1–2 mentors — the roster above is those 6 people (Mahesh, Chelsea, Gargi, Niranjan, Syed, Abel) covering 8 role-labels between them.
-
-**⚠️ Load-balancing flag:** Mahesh is currently on **3 of 8 role-labels** (Team Lead, AI/LLM, DevOps) — he's the single point of failure for most of the technical stack and also owns the demo narrative. If he's unavailable for even a day close to a deadline, several workstreams stall. Consider shifting DevOps fully to Niranjan + Syed, or pairing someone else into the AI/LLM guardrail work as backup.
-
-**Mentor pick matters:** if anyone on faculty has atmospheric science, remote sensing, or GIS background, take them over a generic CS mentor. Domain endorsement is worth a lot in a MoES jury room.
-
-**Practical notes**
-- Everyone must be able to *demo* their own module. Judges pick who answers.
-- Nobody owns a component alone with zero backup — bus factor kills hackathon teams.
-- Assign a **"jury questions" owner** (probably Syed or Mahesh) who prepares answers to met-domain questions.
 
 ---
 
@@ -252,13 +233,13 @@ Sequential build order — each phase should be working end-to-end before the ne
 ### Phase 0 — Verify the ground truth (1–2 days)
 - Curl every IMD endpoint by hand, save real JSON responses to `data/fixtures/`. — **Syed**
 - Confirm Bhashini access/quota works. — **Niranjan**
-- Spin up Docker Compose (Postgres+PostGIS, Redis, empty FastAPI shell). — **Mahesh**
+- Spin up Docker Compose (Postgres+PostGIS, Redis, empty FastAPI shell). — **Niranjan**
 - *Why first:* if an IMD endpoint is dead or shaped differently than expected, you need to know before anyone writes code against it.
 
 ### Phase 1 — Data layer
 - One ingestion module per IMD endpoint (forecast, current weather, nowcast, warnings, AWS). — **Syed**
 - Decoder tables (weather codes, wind directions, warning severities, rainfall categories). — **Syed**
-- Store into Postgres/Redis with TTLs. — **Syed**, with **Mahesh** on schema/infra support
+- Store into Postgres/Redis with TTLs. — **Syed**, with **Niranjan** on schema/infra support
 - *Output:* real, decoded weather facts queryable straight from the DB.
 
 ### Phase 2 — Grounding core
@@ -276,8 +257,8 @@ Sequential build order — each phase should be working end-to-end before the ne
 
 ### Phase 4 — Voice & last-mile
 - Bhashini ASR/TTS in the app. — **Niranjan**
-- IVR channel (phone call → speech → `/ask` → spoken answer). — **Niranjan**, with **Mahesh** on backend wiring
-- Proactive alerts (CAP → geofence → push). — **Syed** (CAP parsing) + **Mahesh** (alert engine)
+- IVR channel (phone call → speech → `/ask` → spoken answer). — **Niranjan**
+- Proactive alerts (CAP → geofence → push). — **Syed** (CAP parsing) + **Niranjan** (alert engine)
 - **Harden the alert pipeline against spoofed/malformed CAP messages** — a fake cyclone warning pushed to real users is the worst-case failure for this project. — **Abel**
 
 ### Phase 5 — Differentiators (only if time remains)
@@ -303,39 +284,39 @@ Sequential build order — each phase should be working end-to-end before the ne
 | Week | Deliverable |
 |---|---|
 | W1 | Verify every IMD endpoint by hand (curl each one, save sample JSON). Lock architecture. Repo + Docker Compose skeleton. Decoder tables done. |
-| W1 | Thin slice: `GET /ask` → "what's the weather in Chennai" → real IMD data → English answer with provenance. **Ugly is fine, real is mandatory.** |
+| W1 | Thin slice: `GET /ask` → "what's the weather in Chennai" → real IMD data → English answer with provenance. |
 | W2 | Flutter chat UI. Hindi + Tamil. District warnings with colour codes. Basic voice via Bhashini. |
 | W2 | Internal PPT + 3-min video. Demo script rehearsed 5×. |
-| W3 | Internal hackathon. Win it. |
+| W3 | Internal hackathon. |
 
 ### Phase 2 — Internal win → national submission (~30 Sept)
 - Polish the PPT to SIH's official template (SPOC uploads it — get the format from them, don't improvise).
 - Record a demo video showing **live data**, not mockups.
-- Add IVR proof-of-concept + one proactive alert demo — these are the "wow" items for screeners.
+- Add IVR proof-of-concept + one proactive alert demo.
 - Write the technical-approach slide around the **grounding guardrail** and **IMD integration**, not around "we use an LLM."
 
 ### Phase 3 — Screening result → Finale (Oct–Dec)
 - Harden: p95 latency < 2s, K8s manifests, Grafana dashboard.
 - Load test for a cyclone-day traffic spike; have the graph ready.
 - Build the P2 differentiators (METAR decoder, climate trends, WIS 2.0 subscriber).
-- **Offline-capable demo**: local Llama + snapshotted IMD data, so a dead venue Wi-Fi can't kill us. Non-negotiable.
-- Prepare for finale mentors' feedback rounds — they usually push on scalability and real deployment path.
+- **Offline-capable demo**: local Llama + snapshotted IMD data, so a dead venue Wi-Fi can't kill us.
+- Prepare for finale mentors' feedback rounds.
 
 ---
 
 ## 10. The demo script (design backwards from this)
 
-Five minutes. This is the actual deliverable; everything else supports it.
+Five minutes.
 
 1. **(0:00) Hook** — Open the app. Speak in Tamil: *"நாளைக்கு மழை வருமா?"* Answer comes back in spoken Tamil with an IMD provenance line on screen. *No typing, no English.*
 2. **(0:45) Grounding** — Tap "sources." Show it pulled IMD District Nowcast issued at a real timestamp. Say the line: **"Our LLM cannot produce a number. It routes; IMD answers."**
 3. **(1:30) Disaster** — Switch to a cyclone scenario. Live cone of uncertainty + wind radii on the map from `cyclone_cou` / `cyclone_wind`. Trigger a geofenced alert to a second phone on stage.
-4. **(2:30) Last mile** — **Call the IVR number from a feature phone.** Speak a district name. Hear the warning in Tamil. This is the moment that wins the room.
+4. **(2:30) Last mile** — **Call the IVR number from a feature phone.** Speak a district name. Hear the warning in Tamil.
 5. **(3:15) Depth** — One expert query: decode a live METAR into plain language, or a climate-trend chart of monsoon onset shift. Shows we're not a toy.
 6. **(4:00) Scale** — Grafana: p95 latency, requests/sec under load, K8s pod autoscaling. Then the impact slide: farmers, fishermen, aviation, disaster managers, smart cities.
 7. **(4:45) Close** — Deployment path: this runs on IMD's existing API surface today; no new data infrastructure needed on their side.
 
-**Demo rules:** live data or clearly-labelled recorded fallback, never hardcoded-and-pretended. Judges catch it, and it's fatal. Have a recorded video backup for network failure — labelled as a backup when you play it.
+**Demo rules:** live data or clearly-labelled recorded fallback, never hardcoded-and-pretended. Have a recorded video backup for network failure — labelled as a backup when you play it.
 
 ---
 
@@ -396,30 +377,11 @@ weathergpt/
 
 **Owner: whole team, by end of week 1.**
 
-- [ ] Lock the 6-member roster (≥1 female member — mandatory) + mentor. Register via SPOC.
 - [ ] **Curl every IMD endpoint in §3.1 and save the JSON into `data/fixtures/`.** Do this *first*. If something's dead, we need to know now, not in December.
 - [ ] Confirm Bhashini API access path and quota.
 - [ ] Stand up the repo, Docker Compose (Postgres+PostGIS, Redis, FastAPI), CI.
 - [ ] Build the decoder tables (weather codes, warning codes, nowcast categories, wind directions).
 - [ ] Ship the thin slice: text query → IMD data → grounded English answer with provenance.
-- [ ] Get the official SIH PPT template from your SPOC.
-- [ ] Confirm the real internal-hackathon and national-submission dates with your SPOC.
-
----
-
-## 14. PPT slide order (for the national submission)
-
-1. Title — team, PS ID **SIH26068**, PS title
-2. Problem — fragmented weather info, the "which portal do I check?" pain
-3. Proposed solution — one conversation, ten languages, four channels
-4. **Technical approach** — the architecture diagram
-5. **The grounding guardrail** — "the LLM routes, the data answers" *(this is the slide that differentiates us)*
-6. **IMD integration** — the actual endpoint table, our proof we read their docs
-7. Multilingual + accessibility — Bhashini, IVR, feature-phone reach
-8. Feasibility & challenges — honest scoping (we ingest NWP, we don't run WRF), R1–R8 with mitigations
-9. Impact — farmer, fisherman, aviation, disaster manager, smart city
-10. Scalability & deployment path — K8s, latency numbers, runs on IMD's existing APIs
-11. Research & references — IMD API reference, WIS 2.0, Bhashini, CAP/SACHET
 
 ---
 
