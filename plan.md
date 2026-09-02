@@ -219,27 +219,80 @@ That **validator step is the innovation claim.** Cheap to build, impossible to a
 
 ## 7. Team — 6 members, roles
 
-You're still assigning, so here's the split that maps to this build. SIH requires exactly 6 from the same institution with **at least one female member**, plus 1–2 mentors.
+**Confirmed roster:**
 
-| # | Role | Owns | Skills to look for |
+| # | Role | Person(s) | Owns |
 |---|---|---|---|
-| 1 | **Team Lead + Backend Architect** *(you)* | FastAPI gateway, orchestrator, integration glue, final demo narrative | Systems thinking, presentation |
-| 2 | **Data / Met Engineer** | IMD ingestion, decoders, GRIB/xarray, PostGIS, cache strategy | Python, data wrangling, patience with messy govt JSON |
-| 3 | **AI / LLM Engineer** | NLU, function-calling, RAG, **the guardrail + validator** | Prompt engineering, LangChain/LlamaIndex or raw SDKs |
-| 4 | **Language / Voice Engineer** | Bhashini integration, ASR/TTS, IndicTrans2, IVR flow | APIs, audio pipelines, an Indic language natively |
-| 5 | **Mobile Developer** | Flutter app, maps, voice UI, offline cache, push | Flutter/Dart, UX sense |
-| 6 | **DevOps + Frontend/Design** | Docker/K8s, deployment, Grafana, PPT & demo video, web dashboard | Docker, plus design taste |
+| 1 | **Team Lead + Backend Architect** | **Mahesh** | FastAPI gateway, orchestrator, integration glue, final demo narrative |
+| 2 | **Data / Met Engineer** | **Syed** | IMD ingestion, decoders, GRIB/xarray, PostGIS, cache strategy |
+| 3 | **AI / LLM Engineer** | **Mahesh** | NLU, function-calling, RAG, **the guardrail + validator** |
+| 4 | **Language / Voice Engineer** | **Niranjan** | Bhashini integration, ASR/TTS, IndicTrans2, IVR flow |
+| 5 | **Mobile Developer** | **Chelsea** | Flutter app, maps, voice UI, offline cache, push |
+| 6 | **Frontend/Web** | **Gargi** | Web dashboard, UI/UX for web surfaces |
+| 7 | **DevOps** | **Mahesh + Niranjan** (Syed backup) | Docker/K8s, deployment, Grafana, CI/CD |
+| 8 | **Security Engineer** | **Abel** | Auth, API rate limiting, securing the alert pipeline against spoofed CAP/warning messages, data privacy for location/phone data |
+
+SIH requires exactly 6 people from the same institution (with at least one female member) plus 1–2 mentors — the roster above is those 6 people (Mahesh, Chelsea, Gargi, Niranjan, Syed, Abel) covering 8 role-labels between them.
+
+**⚠️ Load-balancing flag:** Mahesh is currently on **3 of 8 role-labels** (Team Lead, AI/LLM, DevOps) — he's the single point of failure for most of the technical stack and also owns the demo narrative. If he's unavailable for even a day close to a deadline, several workstreams stall. Consider shifting DevOps fully to Niranjan + Syed, or pairing someone else into the AI/LLM guardrail work as backup.
 
 **Mentor pick matters:** if anyone on faculty has atmospheric science, remote sensing, or GIS background, take them over a generic CS mentor. Domain endorsement is worth a lot in a MoES jury room.
 
 **Practical notes**
 - Everyone must be able to *demo* their own module. Judges pick who answers.
 - Nobody owns a component alone with zero backup — bus factor kills hackathon teams.
-- Assign a **"jury questions" owner** (probably #2 or #3) who prepares answers to met-domain questions.
+- Assign a **"jury questions" owner** (probably Syed or Mahesh) who prepares answers to met-domain questions.
 
 ---
 
-## 8. Timeline
+## 8. Technical build phases & ownership
+
+Sequential build order — each phase should be working end-to-end before the next one starts, since later phases depend on earlier ones being real (not stubbed).
+
+### Phase 0 — Verify the ground truth (1–2 days)
+- Curl every IMD endpoint by hand, save real JSON responses to `data/fixtures/`. — **Syed**
+- Confirm Bhashini access/quota works. — **Niranjan**
+- Spin up Docker Compose (Postgres+PostGIS, Redis, empty FastAPI shell). — **Mahesh**
+- *Why first:* if an IMD endpoint is dead or shaped differently than expected, you need to know before anyone writes code against it.
+
+### Phase 1 — Data layer
+- One ingestion module per IMD endpoint (forecast, current weather, nowcast, warnings, AWS). — **Syed**
+- Decoder tables (weather codes, wind directions, warning severities, rainfall categories). — **Syed**
+- Store into Postgres/Redis with TTLs. — **Syed**, with **Mahesh** on schema/infra support
+- *Output:* real, decoded weather facts queryable straight from the DB.
+
+### Phase 2 — Grounding core
+- NLU: LLM → structured intent (location/time/parameter). — **Mahesh**
+- Tool router: intent → correct Phase 1 data call. — **Mahesh**
+- Guardrail/validator: every number in the answer must exist in the tool's raw response. — **Mahesh**
+- *Output:* working `/ask` endpoint — text in, grounded English answer with provenance out.
+
+### Phase 3 — Channels & UI
+- Flutter chat UI wired to `/ask`. — **Chelsea**
+- Web dashboard. — **Gargi**
+- Hindi + Tamil text translation layer. — **Niranjan**
+- Warning colour-code rendering. — **Chelsea** (mobile), **Gargi** (web)
+- **Security pass on the API surface** (auth, rate limiting on `/ask` and any public endpoints) before channels go live. — **Abel**
+
+### Phase 4 — Voice & last-mile
+- Bhashini ASR/TTS in the app. — **Niranjan**
+- IVR channel (phone call → speech → `/ask` → spoken answer). — **Niranjan**, with **Mahesh** on backend wiring
+- Proactive alerts (CAP → geofence → push). — **Syed** (CAP parsing) + **Mahesh** (alert engine)
+- **Harden the alert pipeline against spoofed/malformed CAP messages** — a fake cyclone warning pushed to real users is the worst-case failure for this project. — **Abel**
+
+### Phase 5 — Differentiators (only if time remains)
+- Cyclone map (track + cone of uncertainty). — **Gargi** (rendering) + **Syed** (data)
+- METAR decoder, climate trend charts, WIS 2.0 subscriber, WhatsApp bot. — **Syed / Mahesh**, split by availability
+
+### Phase 6 — Hardening (pre-finale)
+- K8s manifests, Grafana/Prometheus dashboards, CI/CD. — **Mahesh + Niranjan** (DevOps), **Syed** backup
+- Load testing for a cyclone-day traffic spike. — **Abel** (security/abuse angle) + **Mahesh + Niranjan** (infra)
+- Offline-mode fallback (local LLM + snapshotted data). — **Mahesh**
+- Data-privacy review (location data, phone numbers used for IVR/WhatsApp). — **Abel**
+
+---
+
+## 9. Timeline
 
 > **Indicative SIH 2026 schedule** (confirm exact dates with your SPOC — these move):
 > PS released ~25 Aug 2026 → internal hackathon Sept → **SPOC uploads national idea PPT + video by ~30 Sept 2026** → screening Oct → finalists announced Nov → **Grand Finale Dec 2026 (36-hour software sprint)**.
@@ -270,7 +323,7 @@ You're still assigning, so here's the split that maps to this build. SIH require
 
 ---
 
-## 9. The demo script (design backwards from this)
+## 10. The demo script (design backwards from this)
 
 Five minutes. This is the actual deliverable; everything else supports it.
 
@@ -286,7 +339,7 @@ Five minutes. This is the actual deliverable; everything else supports it.
 
 ---
 
-## 10. Risks & mitigations
+## 11. Risks & mitigations
 
 | ID | Risk | Mitigation |
 |---|---|---|
@@ -301,7 +354,7 @@ Five minutes. This is the actual deliverable; everything else supports it.
 
 ---
 
-## 11. Repo structure
+## 12. Repo structure
 
 ```
 weathergpt/
@@ -339,7 +392,7 @@ weathergpt/
 
 ---
 
-## 12. This week — concrete first actions
+## 13. This week — concrete first actions
 
 **Owner: whole team, by end of week 1.**
 
@@ -354,7 +407,7 @@ weathergpt/
 
 ---
 
-## 13. PPT slide order (for the national submission)
+## 14. PPT slide order (for the national submission)
 
 1. Title — team, PS ID **SIH26068**, PS title
 2. Problem — fragmented weather info, the "which portal do I check?" pain
