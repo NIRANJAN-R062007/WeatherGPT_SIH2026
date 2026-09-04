@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-and-syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install lint tools
+        run: pip install ruff
+
+      - name: Ruff lint
+        run: ruff check services/ ml/ --output-format=github
+
+      - name: Python syntax check (all Python packages)
+        run: |
+          python -m py_compile $(find services ml -name "*.py")
+
+  compose-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create .env from example (CI only, not a real secret source)
+        run: cp .env.example .env
+
+      - name: Validate docker-compose config
+        run: docker compose config
+
+      - name: Build gateway image
+        run: docker compose build gateway
