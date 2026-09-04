@@ -237,7 +237,7 @@ Sequential build order — each phase should be working end-to-end before the ne
 ### Phase 0 — Verify the ground truth (1–2 days)
 - Curl every IMD endpoint by hand, save real JSON responses to `data/fixtures/`. — **Syed**
 - Confirm Bhashini covers ASR + TTS + translate for all five languages (en/hi/ta/te/mr) at the quota we need; flag any weak language to route via self-hosted IndicTrans2/IndicConformer instead. — **Niranjan**
-- Spin up Docker Compose (Postgres+PostGIS, Redis, empty FastAPI shell). — **Niranjan**
+- ~~Spin up Docker Compose (Postgres+PostGIS, Redis, empty FastAPI shell).~~ ✅ done (Sep 4) — **Niranjan**
 - *Why first:* if an IMD endpoint is dead or shaped differently than expected, you need to know before anyone writes code against it.
 
 ### Phase 1 — Data layer
@@ -389,7 +389,7 @@ weathergpt/
 - [ ] **Curl every IMD endpoint in §3.1 and save the JSON into `data/fixtures/`.** Do this *first*. If something's dead, we need to know now, not in December.
 - [ ] Confirm Bhashini API access + quota, and that ASR / TTS / translate all work for the five languages (en/hi/ta/te/mr).
 - [ ] Line up a native Telugu speaker and a native Marathi speaker for translation QA — finding people has lead time, and all five ship as text in P0.
-- [ ] Stand up the repo, Docker Compose (Postgres+PostGIS, Redis, FastAPI), CI.
+- [x] ~~Stand up the repo, Docker Compose (Postgres+PostGIS, Redis, FastAPI), CI.~~ ✅ done (Sep 4)
 - [ ] Build the decoder tables (weather codes, warning codes, nowcast categories, wind directions).
 - [ ] Ship the thin slice: text query → IMD data → grounded English answer with provenance.
 
