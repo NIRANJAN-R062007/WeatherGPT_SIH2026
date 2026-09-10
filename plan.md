@@ -390,6 +390,8 @@ weathergpt/
 - **Text only.** No voice (ASR/TTS) — that's a P1 item (§6) requiring Bhashini setup time we don't have tonight.
 - **One data source, two intents.** Google Weather API current conditions + daily forecast only. Intents: *"what's the weather in `<city>`"* and *"will it rain in `<city>` `<day>`"*. No warnings, no cyclone map, no climate trends.
 - **Grounding guardrail stays non-negotiable** even in the cut-down build — it's the one thing the demo script and jury story depend on; skipping it defeats the point of the prototype.
+- **Frontend calls `prototype/ask_service` directly** (decided 2026-09-11), not through `services/gateway` — the gateway has no `/ask` route and a DB/Redis-dependent health check that adds demo-day risk. The prototype migrates into `services/orchestrator/` behind the gateway post-hackathon.
+- **Demo cities: Chennai, Madurai, Coimbatore.** Real Google Weather API responses for all three are snapshotted into `data/fixtures/google_weather/`.
 
 **Tonight — build tasks:**
 - [ ] Google Weather API ingestion module: current conditions + daily forecast for a small hardcoded set of demo cities (start with Chennai). — **Syed + Deepthi**
