@@ -1,14 +1,31 @@
-"""English/Tamil response rendering for the two §14 demo intents.
+"""English/Tamil response rendering for the two demo intents.
 
-Hand-written phrase templates, not live Bhashini translation — per §14 this
-is faster and safer for a stage demo than translating untested output live.
+Hand-written phrase templates, not live Bhashini translation — faster and
+safer for a stage demo than translating untested output live.
+
+CONDITION_* keys are the canonical decoder targets: lowercased Google
+Weather API weatherCondition.type. data/decoders/ maps raw type -> these.
+Tamil strings taken from the frontend's CITIES object where present;
+the rest need a native-speaker QA pass (team).
 """
 
 CONDITION_EN = {
     "partly_cloudy": "partly cloudy",
+    "cloudy": "cloudy",
+    "clear": "clear",
+    "mostly_clear": "mostly clear",
+    "light_rain": "light rain",
+    "thunderstorm_with_rain": "thunderstorm with rain",
+    "scattered_thunderstorms": "scattered thunderstorms",
 }
 CONDITION_TA = {
     "partly_cloudy": "பகுதி மேகமூட்டம்",
+    "cloudy": "மேகமூட்டம்",
+    "clear": "தெளிவான வானம்",
+    "mostly_clear": "பெரும்பாலும் தெளிவு",
+    "light_rain": "லேசான மழை",
+    "thunderstorm_with_rain": "இடியுடன் கூடிய மழை",
+    "scattered_thunderstorms": "சிதறலான இடியுடன் மழை",
 }
 
 

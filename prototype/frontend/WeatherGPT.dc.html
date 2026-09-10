@@ -246,7 +246,9 @@ a:hover{color:#1d5b7e}
   </main>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props="{&quot;apiBase&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;POST /ask&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;simulateFailure&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Demo states&quot;}}">
+<script type="text/x-dc" data-dc-script data-props="{&quot;apiBase&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;http://localhost:8001&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;simulateFailure&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Demo states&quot;}}">
+// Demo cities: data/cities.json is the source of truth (backend GET /cities).
+// Keep lat/lon + names here in sync until this fetches the endpoint.
 const CITIES = {
   chennai: {
     name: {en: "Chennai", ta: "சென்னை"}, region: {en: "Tamil Nadu", ta: "தமிழ்நாடு"}, lat: 13.0827, lon: 80.2707,
