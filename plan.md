@@ -42,6 +42,8 @@ A **grounded, multilingual, multi-channel conversational weather assistant** tha
 
 ## 3. Data sources — the real ones
 
+> **Note on data-source history:** the team switched the primary weather data source from IMD's public APIs to Google Weather API. This was implemented (not left pending) — §1's evaluation mapping, §2's design principle 6, and §11's R6 mitigation were all updated at the time of the switch to reflect Google Weather API rather than IMD. The tradeoff to keep in mind for jury framing: this PS (SIH26068) is scoped to MoES/IMD, and Google Weather API has no India-specific disaster products (district/subdivision warnings, cyclone track, river-basin QPF, marine bulletins, AWS network) — see the coverage-gap note in §3.1 and Risk R1b.
+
 ### 3.1 Google Weather API (PRIMARY)
 Base: `https://weather.googleapis.com/v1/` · Reference: Google Maps Platform Weather API docs.
 *(Requires an API key + billing account on Google Cloud — see Risk R1. Respect Google's rate limits and caching guidance during peak weather events.)*
@@ -195,7 +197,7 @@ The validator runs on every response before it reaches the user.
 
 ---
 
-## 7. Team — 6 members, roles
+## 7. Team — 6 members, roles (Gargi off the team; Deepthi added)
 
 **Confirmed roster:**
 
@@ -203,11 +205,11 @@ The validator runs on every response before it reaches the user.
 |---|---|---|---|
 | 1 | **Team Lead** | **Mahesh** | Integration glue, final demo narrative |
 | 2 | **Backend Architect** | **Niranjan** | FastAPI gateway, orchestrator |
-| 3 | **Data / Met Engineer** | **Syed** | Google Weather API ingestion, decoders, GRIB/xarray, PostGIS, cache strategy |
+| 3 | **Data / Met Engineer** | **Syed + Deepthi** | Google Weather API ingestion, decoders, GRIB/xarray, PostGIS, cache strategy. **Deepthi's slice:** decoder tables, rainfall/climate data structuring, cache-strategy tuning |
 | 4 | **AI / LLM Engineer** | **Mahesh** | NLU, function-calling, RAG, **the guardrail + validator** |
 | 5 | **Language / Voice Engineer** | **Niranjan** | Bhashini integration, ASR/TTS, IndicTrans2, IVR flow |
 | 6 | **Mobile Developer** | **Chelsea** | Flutter app, maps, voice UI, offline cache, push |
-| 7 | **Frontend/Web** | **Gargi** | Web dashboard, UI/UX for web surfaces |
+| 7 | **Frontend/Web** | **Mahesh + Chelsea** | Web dashboard, UI/UX for web surfaces, cyclone map rendering (reassigned from Gargi) |
 | 8 | **DevOps** | **Mahesh + Niranjan** (Syed backup) | Docker/K8s, deployment, Grafana, CI/CD |
 | 9 | **Security Engineer** | **Abel** | Auth, API rate limiting, securing the alert pipeline against spoofed CAP/warning messages, data privacy for location/phone data |
 
@@ -225,8 +227,8 @@ Sequential build order — each phase should be working end-to-end before the ne
 
 ### Phase 1 — Data layer
 - One ingestion module per Google Weather API endpoint (current conditions, hourly forecast, daily forecast, recent history). — **Syed**
-- Decoder tables (weather condition codes, wind directions, precipitation categories, UV bands). — **Syed**
-- Store into Postgres/Redis with TTLs. — **Syed**, with **Niranjan** on schema/infra support
+- Decoder tables (weather condition codes, wind directions, precipitation categories, UV bands). — **Syed + Deepthi**
+- Store into Postgres/Redis with TTLs. — **Syed**, with **Niranjan** on schema/infra support and **Deepthi** on cache-strategy tuning
 - *Output:* real, decoded weather facts queryable straight from the DB.
 
 ### Phase 2 — Grounding core
@@ -238,9 +240,9 @@ Sequential build order — each phase should be working end-to-end before the ne
 
 ### Phase 3 — Channels & UI
 - Flutter chat UI wired to `/ask`. — **Chelsea**
-- Web dashboard. — **Gargi**
-- Text translation layer + `data/i18n/` glossary (canonical keys, official warning category text, phrase templates) for all five languages; Telugu-script + Devanagari font bundles + layout check; native-speaker spot-check for any language no one on the team speaks. — **Niranjan** (translation) + **Chelsea / Gargi** (UI font & layout)
-- Warning colour-code rendering. — **Chelsea** (mobile), **Gargi** (web)
+- Web dashboard. — **Mahesh + Chelsea**
+- Text translation layer + `data/i18n/` glossary (canonical keys, official warning category text, phrase templates) for all five languages; Telugu-script + Devanagari font bundles + layout check; native-speaker spot-check for any language no one on the team speaks. — **Niranjan** (translation) + **Chelsea / Mahesh** (UI font & layout)
+- Warning colour-code rendering. — **Chelsea** (mobile), **Mahesh** (web)
 - **Security pass on the API surface** (auth, rate limiting on `/ask` and any public endpoints) before channels go live. — **Abel**
 
 ### Phase 4 — Voice & last-mile
@@ -250,7 +252,8 @@ Sequential build order — each phase should be working end-to-end before the ne
 - **Harden the alert pipeline against spoofed/malformed CAP messages** — a fake cyclone warning pushed to real users is the worst-case failure for this project. — **Abel**
 
 ### Phase 5 — Differentiators (only if time remains)
-- Cyclone map, METAR decoder, climate trend charts, WhatsApp bot. — **Syed / Mahesh**, split by availability. Cyclone map and climate trends need a supplementary government data source layered in alongside Google Weather API (see §6 P2).
+- Cyclone map. — **Mahesh + Chelsea** (rendering) + **Syed** (data)
+- METAR decoder, climate trend charts, WhatsApp bot. — **Syed + Deepthi** (climate trend data/analysis) / **Mahesh**, split by availability. Cyclone map and climate trends need a supplementary government data source layered in alongside Google Weather API (see §6 P2).
 
 ### Phase 6 — Hardening (pre-finale)
 - K8s manifests, Grafana/Prometheus dashboards, CI/CD. — **Mahesh + Niranjan** (DevOps), **Syed** backup
@@ -374,6 +377,38 @@ weathergpt/
 - [x] ~~Stand up the repo, Docker Compose (Postgres+PostGIS, Redis, FastAPI), CI.~~ ✅ done (Sep 4)
 - [ ] Build the decoder tables (weather condition codes, wind directions, precipitation categories, UV bands).
 - [ ] Ship the thin slice: text query → Google Weather API data → grounded English answer with provenance.
+
+---
+
+## 14. Internal hackathon — prototype plan (tomorrow)
+
+**Goal:** a working prototype, not the full product. Cut scope hard so something real is running end-to-end by demo time.
+
+**Shape of the prototype:**
+- **Web app only.** No Flutter mobile app, no IVR, no WhatsApp bot — those stay on the §9 timeline, not tomorrow.
+- **Two languages only: English + Tamil.** Drop Hindi, Telugu, Marathi for this prototype — Tamil is the team's home turf (native speaker on the team, matches the demo-script hook in §10), English is the link language. Re-expand to all five once the internal hackathon is done.
+- **Text only.** No voice (ASR/TTS) — that's a P1 item (§6) requiring Bhashini setup time we don't have tonight.
+- **One data source, two intents.** Google Weather API current conditions + daily forecast only. Intents: *"what's the weather in `<city>`"* and *"will it rain in `<city>` `<day>`"*. No warnings, no cyclone map, no climate trends.
+- **Grounding guardrail stays non-negotiable** even in the cut-down build — it's the one thing the demo script and jury story depend on; skipping it defeats the point of the prototype.
+
+**Tonight — build tasks:**
+- [ ] Google Weather API ingestion module: current conditions + daily forecast for a small hardcoded set of demo cities (start with Chennai). — **Syed + Deepthi**
+- [ ] Minimal decoder table: weather condition code → canonical English term (just enough for the two demo intents). — **Syed + Deepthi**
+- [ ] `/ask` FastAPI endpoint: intent parse (rule-based is fine, skip full LLM NLU if time-boxed) → tool call → typed response. — **Niranjan**
+- [ ] Grounding guardrail + numeric validator wired into `/ask`, even in minimal form. — **Mahesh**
+- [ ] LLM narration prompt: narrate only from the typed response object, English only for now. — **Mahesh**
+- [ ] English → Tamil rendering: if Bhashini text-translate is quick to wire up, use it; otherwise fall back to hand-written Tamil phrase templates for the two intents (faster, safer for a stage demo than live translation of untested quality). — **Niranjan**
+- [ ] Single-page web UI: text input + GPS/city field + language toggle (EN/TA) hitting `/ask`. — **Mahesh + Chelsea**
+- [ ] Provenance footer on every response (source + timestamp). — **Niranjan**
+
+**Tomorrow morning — before the demo:**
+- [ ] End-to-end smoke test: both intents, both languages, on the actual demo Wi-Fi.
+- [ ] Record a short backup video of the working flow in case of live network failure (per the demo rules in §10).
+- [ ] Rehearse a 2-minute cut-down version of the §10 demo script: hook in Tamil → grounding ("tap sources") → switch to English on screen. Skip the disaster/IVR/depth/scale beats — there's no time to build them tonight.
+
+**Explicitly out of scope for tomorrow (do not attempt):** mobile app, IVR, WhatsApp, voice ASR/TTS, warnings/CAP integration, cyclone map, climate trends, K8s/Grafana, Hindi/Telugu/Marathi.
+
+**Risk:** this is a compressed, single-night build — if Google Weather API key/billing (Risk R1) isn't already sorted, that blocks everything else here and should be resolved first, before any other task on this list starts.
 
 ---
 
