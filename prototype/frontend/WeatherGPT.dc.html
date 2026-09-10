@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Noto+Sans+Tamil:wght@400;500;600;700&display=swap">
+<style>
+html,body{height:100%}
+body{margin:0;background:#eef1f5;font-family:"Plus Jakarta Sans",system-ui,sans-serif;color:#1b2a3b}
+.ta{font-family:"Noto Sans Tamil","Plus Jakarta Sans",system-ui,sans-serif}
+@keyframes wg-spin{to{transform:rotate(360deg)}}
+.wg-spin{animation:wg-spin 1s linear infinite}
+a{color:#123047}
+a:hover{color:#1d5b7e}
+</style>
+</helmet>
+<div style="min-height:100vh;display:flex;flex-wrap:wrap;align-items:stretch;background:#e9edf2">
+
+  <aside style="flex:0 1 214px;min-width:190px;border-right:1px solid #e3e8ee;padding:22px 14px 18px;display:flex;flex-direction:column;background:#fbfcfd">
+    <div style="display:flex;align-items:center;gap:9px;padding:0 8px 20px">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#e0a83a" stroke-width="1.7" style="flex:none"><circle cx="9" cy="8.5" r="3"></circle><path d="M17.5 20a3.5 3.5 0 0 0 0-7 5 5 0 0 0-9.6-1.3A3.4 3.4 0 0 0 8 20Z" fill="#eef5fa" stroke="#7fa8c6"></path></svg>
+      <span style="font-size:16.5px;font-weight:700;letter-spacing:-.01em">WeatherGPT</span>
+    </div>
+    <div class="{{ uiFont }}" style="display:flex;align-items:center;gap:10px;padding:9px 12px;margin-bottom:10px;font-size:13px;color:#4a5c6f">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7fa8c6" stroke-width="1.7" style="flex:none"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+      <span>{{ nowCity }}</span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:4px">
+      <sc-for list="{{ navItems }}" as="n" hint-placeholder-count="3">
+        <div style="display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:9px;font-size:14px;font-weight:{{ n.weight }};color:{{ n.color }};background:{{ n.bg }};border-left:2px solid {{ n.rule }}">
+          <span style="width:6px;height:6px;border-radius:50%;background:{{ n.dot }};flex:none"></span>
+          <span class="{{ uiFont }}">{{ n.label }}</span>
+        </div>
+      </sc-for>
+    </div>
+    <div style="margin-top:auto;display:flex;align-items:center;gap:9px;padding:0 8px">
+      <span style="width:8px;height:8px;border-radius:50%;background:#3fb27f;flex:none"></span>
+      <span class="{{ uiFont }}" style="font-size:11px;line-height:1.35;color:#5b6b7d">{{ poweredBy }}</span>
+    </div>
+  </aside>
+
+  <main style="flex:1 1 660px;min-width:min(100%,340px);display:flex;flex-direction:column">
+
+    <div style="flex:1;overflow-y:auto;position:relative;background-image:linear-gradient(115deg,rgba(11,22,38,.78) 0%,rgba(11,22,38,.5) 38%,rgba(11,22,38,.12) 70%,rgba(11,22,38,.28) 100%),url('assets/hero-chennai.png');background-size:cover;background-position:center 55%;background-attachment:local">
+
+      <div style="padding:20px 40px 0;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+        <div class="{{ uiFont }}" style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:#fff;text-shadow:0 1px 5px rgba(0,0,0,.4)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7" style="flex:none"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+          <span>{{ nowCity }}</span>
+        </div>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <div style="display:flex;background:rgba(255,255,255,.9);border-radius:18px;padding:3px">
+            <button style="border:0;cursor:pointer;font:inherit;font-size:12px;font-weight:600;padding:5px 12px;border-radius:15px;background:{{ cBg }};color:{{ cColor }}" onClick="{{ setC }}">°C</button>
+            <button style="border:0;cursor:pointer;font:inherit;font-size:12px;font-weight:600;padding:5px 12px;border-radius:15px;background:{{ fBg }};color:{{ fColor }}" onClick="{{ setF }}">°F</button>
+          </div>
+          <div style="display:flex;background:rgba(255,255,255,.9);border-radius:18px;padding:3px">
+            <button style="border:0;cursor:pointer;font:inherit;font-size:12px;font-weight:600;padding:5px 13px;border-radius:15px;background:{{ enBg }};color:{{ enColor }}" onClick="{{ setEN }}">English</button>
+            <button class="ta" style="border:0;cursor:pointer;font:inherit;font-size:12px;font-weight:600;padding:5px 13px;border-radius:15px;background:{{ taBg }};color:{{ taColor }}" onClick="{{ setTA }}">தமிழ்</button>
+          </div>
+        </div>
+      </div>
+
+      <div style="position:relative;padding:26px 40px 0">
+        <div class="{{ uiFont }}" style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#cfdbe6;text-shadow:0 1px 4px rgba(0,0,0,.4)">{{ currentWeatherLabel }}</div>
+        <div style="display:flex;align-items:flex-start;gap:44px;flex-wrap:wrap;margin-top:10px">
+          <div style="min-width:220px">
+            <div class="{{ uiFont }}" style="display:flex;align-items:center;gap:8px;font-size:38px;font-weight:600;letter-spacing:-.02em;color:#fff;text-shadow:0 2px 10px rgba(0,0,0,.35)">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" style="flex:none;opacity:.85"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+              <span>{{ nowCity }}</span>
+            </div>
+            <div class="{{ uiFont }}" style="font-size:15px;color:#e2e9f0;margin-top:8px;text-shadow:0 1px 6px rgba(0,0,0,.35)">{{ nowCondition }}</div>
+            <div style="display:flex;align-items:flex-start;gap:2px;margin-top:2px">
+              <span style="font-size:80px;font-weight:600;letter-spacing:-.04em;line-height:1.05;color:#fff;font-variant-numeric:tabular-nums;text-shadow:0 3px 14px rgba(0,0,0,.35)">{{ nowTemp }}</span>
+              <span style="font-size:22px;font-weight:600;color:#e2e9f0;margin-top:14px">{{ unitLabel }}</span>
+            </div>
+            <div class="{{ uiFont }}" style="font-size:14px;color:#dbe4ec;margin-top:4px;text-shadow:0 1px 6px rgba(0,0,0,.35)">{{ nowFeels }}</div>
+          </div>
+
+          <svg width="118" height="98" viewBox="0 0 120 100" fill="none" style="flex:none;margin-top:14px;filter:drop-shadow(0 4px 14px rgba(0,0,0,.28))">
+            <circle cx="47" cy="34" r="17" fill="#f6c760"></circle>
+            <g stroke="#f6c760" stroke-width="4" stroke-linecap="round">
+              <path d="M47 6v7M47 55v7M19 34h7M68 34h7M27 14l5 5M62 49l5 5M67 14l-5 5M32 49l-5 5"></path>
+            </g>
+            <path d="M84 82a17 17 0 0 0 0-34 24 24 0 0 0-45.6-6.4A16 16 0 0 0 40 82Z" fill="#ffffff"></path>
+          </svg>
+
+          <div style="display:flex;flex-direction:column;gap:16px;padding:14px 20px 14px 26px;margin-top:6px;border-left:1px solid rgba(255,255,255,.28);background:rgba(11,22,38,.34);border-radius:10px">
+            <div style="display:flex;align-items:flex-start;gap:11px;white-space:nowrap">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#cfe1ef" stroke-width="1.7" style="flex:none;margin-top:2px"><path d="M12 3s6 6.4 6 10a6 6 0 0 1-12 0c0-3.6 6-10 6-10Z"></path></svg>
+              <div>
+                <div class="{{ uiFont }}" style="font-size:12px;color:#f0f5fa;text-shadow:0 1px 4px rgba(0,0,0,.45)">{{ humidityLabel }}</div>
+                <div style="font-size:15.5px;font-weight:600;color:#fff;margin-top:2px;font-variant-numeric:tabular-nums;text-shadow:0 1px 5px rgba(0,0,0,.35)">{{ humidityValue }}</div>
+              </div>
+            </div>
+            <div style="display:flex;align-items:flex-start;gap:11px;white-space:nowrap">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#cfe1ef" stroke-width="1.7" stroke-linecap="round" style="flex:none;margin-top:2px"><path d="M3 8h11a3 3 0 1 0-3-3"></path><path d="M3 12h15a3 3 0 1 1-3 3"></path><path d="M3 16h9"></path></svg>
+              <div>
+                <div class="{{ uiFont }}" style="font-size:12px;color:#f0f5fa;text-shadow:0 1px 4px rgba(0,0,0,.45)">{{ windLabel }}</div>
+                <div style="font-size:15.5px;font-weight:600;color:#fff;margin-top:2px;font-variant-numeric:tabular-nums;text-shadow:0 1px 5px rgba(0,0,0,.35)">{{ windValue }}</div>
+              </div>
+            </div>
+            <div style="display:flex;align-items:flex-start;gap:11px;white-space:nowrap">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#cfe1ef" stroke-width="1.7" stroke-linecap="round" style="flex:none;margin-top:2px"><path d="M17 15a4 4 0 0 0 0-8 6 6 0 0 0-11.4-1.5A3.9 3.9 0 0 0 6 15Z"></path><path d="M8 18.5 7 21M12 18.5 11 21M16 18.5 15 21"></path></svg>
+              <div>
+                <div class="{{ uiFont }}" style="font-size:12px;color:#f0f5fa;text-shadow:0 1px 4px rgba(0,0,0,.45)">{{ rainLabel }}</div>
+                <div style="font-size:15.5px;font-weight:600;color:#fff;margin-top:2px;font-variant-numeric:tabular-nums;text-shadow:0 1px 5px rgba(0,0,0,.35)">{{ rainValue }}</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="{{ uiFont }}" style="margin-left:auto;align-self:center;font-size:14px;font-style:italic;line-height:1.7;color:#f8f2e8;background:rgba(11,22,38,.5);border:1px solid rgba(255,255,255,.18);border-radius:10px;padding:12px 16px;max-width:170px;text-align:right">Real weather.<br>Smarter answers.</div>
+        </div>
+
+        <div style="position:relative;margin-top:28px;max-width:720px">
+          <div style="display:flex;align-items:center;gap:12px;background:rgba(255,255,255,.94);border-radius:12px;padding:10px 10px 10px 16px;box-shadow:0 4px 18px rgba(9,18,32,.22)">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#8b98a6" stroke-width="1.8" style="flex:none"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+            <input class="{{ uiFont }}" style="flex:1;min-width:0;border:0;outline:none;background:transparent;font:inherit;font-size:14px;color:#1b2a3b" value="{{ draft }}" onChange="{{ onDraft }}" onKeyDown="{{ onDraftKey }}" placeholder="{{ askPlaceholder }}" aria-label="Ask WeatherGPT">
+            <button style="width:34px;height:34px;border:0;cursor:pointer;border-radius:50%;background:#1c4a6b;display:flex;align-items:center;justify-content:center;flex:none" onClick="{{ onSend }}" aria-label="Send">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"><path d="M5 12h13"></path><path d="m12 6 6 6-6 6"></path></svg>
+            </button>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">
+          <sc-for list="{{ suggestions }}" as="s" hint-placeholder-count="3">
+            <button class="{{ s.font }}" style="border:1px solid rgba(255,255,255,.34);background:rgba(11,22,38,.55);cursor:pointer;font:inherit;font-size:12.5px;color:#fff;border-radius:18px;padding:8px 15px;backdrop-filter:blur(3px)" onClick="{{ s.pick }}">{{ s.label }}</button>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="margin:26px 40px 34px;background:rgba(255,255,255,.94);border-radius:14px;box-shadow:0 6px 26px rgba(9,18,32,.18);padding:22px 24px;display:flex;flex-direction:column;gap:20px">
+        <sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;text-align:center;padding:34px 24px">
+            <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#9dc2da" stroke-width="1.4"><circle cx="9" cy="9" r="2.6"></circle><path d="M17.5 19a4.5 4.5 0 0 0 0-9 6 6 0 0 0-11.6-1.6A4 4 0 0 0 6.5 19Z" fill="#f2f8fc"></path></svg>
+            <div class="{{ uiFont }}" style="font-size:15px;font-weight:700;color:#22344a">{{ emptyTitle }}</div>
+            <div class="{{ uiFont }}" style="font-size:12px;color:#8b98a6;line-height:1.6;max-width:46ch">{{ emptyBody }}</div>
+          </div>
+        </sc-if>
+
+        <sc-for list="{{ entries }}" as="e" hint-placeholder-count="2">
+          <div style="display:flex;flex-direction:column;gap:14px">
+            <div style="display:flex;gap:12px;align-items:flex-start">
+              <span style="width:28px;height:28px;border-radius:50%;background:#e8f0f7;display:flex;align-items:center;justify-content:center;flex:none">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4a86ad" stroke-width="1.7"><circle cx="12" cy="8" r="3.4"></circle><path d="M4.5 20a7.5 7.5 0 0 1 15 0"></path></svg>
+              </span>
+              <div>
+                <div class="{{ e.font }}" style="display:inline-block;font-size:13.5px;color:#22344a;background:#f2f5f8;border-radius:16px;padding:8px 14px;line-height:1.5">{{ e.query }}</div>
+                <div style="font-size:10.5px;color:#96a3b1;margin-top:5px;font-variant-numeric:tabular-nums">{{ e.time }}</div>
+              </div>
+            </div>
+
+            <div style="display:flex;gap:12px;align-items:flex-start">
+              <span style="width:28px;height:28px;border-radius:50%;background:#dceaf4;display:flex;align-items:center;justify-content:center;flex:none">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2c6d95" stroke-width="1.6"><path d="M17.5 19a4.5 4.5 0 0 0 0-9 6 6 0 0 0-11.6-1.6A4 4 0 0 0 6.5 19Z"></path></svg>
+              </span>
+
+              <sc-if value="{{ e.isPending }}" hint-placeholder-val="{{ false }}">
+                <div style="flex:1;min-width:0;border:1px solid #e7ecf1;border-radius:12px;padding:15px 16px;display:flex;align-items:center;gap:10px">
+                  <svg class="wg-spin" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#5b9bc4" stroke-width="2" stroke-linecap="round" style="flex:none"><path d="M12 3a9 9 0 1 0 9 9"></path></svg>
+                  <span class="{{ e.font }}" style="font-size:13px;color:#5f7082">{{ loadingLabel }}</span>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{ e.isError }}" hint-placeholder-val="{{ false }}">
+                <div style="flex:1;min-width:0;background:#fdeeef;border:1px solid #f7dcdf;border-radius:12px;padding:16px;display:flex;gap:12px;align-items:flex-start">
+                  <span style="width:28px;height:28px;border-radius:50%;background:#fbdcdf;display:flex;align-items:center;justify-content:center;flex:none">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#c0424c" stroke-width="1.8" stroke-linecap="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg>
+                  </span>
+                  <div style="flex:1;min-width:0">
+                    <div class="{{ e.font }}" style="font-size:13px;font-weight:700;color:#22344a">{{ errorTitle }}</div>
+                    <div class="{{ e.font }}" style="font-size:12px;line-height:1.6;color:#5f7082;margin-top:6px">{{ errorBody }}</div>
+                    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:13px">
+                      <button class="{{ e.font }}" style="border:0;cursor:pointer;background:#1c4a6b;color:#fff;font:inherit;font-size:12px;font-weight:600;padding:8px 16px;border-radius:18px" onClick="{{ e.retry }}">{{ retryLabel }}</button>
+                      <span style="font-size:10.5px;color:#96a3b1;font-variant-numeric:tabular-nums">{{ e.errorCode }}</span>
+                    </div>
+                  </div>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{ e.isAnswer }}" hint-placeholder-val="{{ true }}">
+                <div style="flex:1;min-width:0;border:1px solid #e7ecf1;border-radius:12px;background:#fcfdfe;overflow:hidden">
+                  <div style="display:flex;gap:16px;align-items:flex-start;padding:15px 16px 13px">
+                    <div style="flex:1;min-width:0">
+                      <div class="{{ e.font }}" style="font-size:12.5px;font-weight:600;color:#2c6d95">WeatherGPT</div>
+                      <div class="{{ e.font }}" style="font-size:14px;line-height:1.7;color:#22344a;margin-top:6px">{{ e.headline }}</div>
+                      <div style="font-size:10.5px;color:#96a3b1;margin-top:8px;font-variant-numeric:tabular-nums">{{ e.time }}</div>
+                    </div>
+                    <sc-if value="{{ e.hasFigures }}" hint-placeholder-val="{{ true }}">
+                      <img src="assets/hero-chennai.png" alt="" style="width:92px;height:66px;flex:none;object-fit:cover;object-position:center 18%;border-radius:9px">
+                    </sc-if>
+                  </div>
+
+                  <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;border-top:1px solid #eef1f4;background:#f7f9fb;padding:10px 16px">
+                    <span style="display:flex;align-items:center;gap:7px;font-size:11.5px;color:#6b7c8e">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#8b98a6" stroke-width="1.7" style="flex:none"><path d="M12 3 4 6v6c0 4.4 3.4 8.3 8 9 4.6-.7 8-4.6 8-9V6Z"></path></svg>
+                      <span class="{{ e.font }}">{{ sourceLabel }}</span><span style="color:#2c6d95;font-weight:600">{{ e.sourceName }}</span>
+                    </span>
+                    <span style="display:flex;align-items:center;gap:7px;font-size:11.5px;color:#6b7c8e;font-variant-numeric:tabular-nums">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#8b98a6" stroke-width="1.7" style="flex:none"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
+                      <span class="{{ e.font }}">{{ e.issued }}</span>
+                    </span>
+                    <span style="display:flex;align-items:center;gap:7px;font-size:11.5px;color:#3d7f5e;font-variant-numeric:tabular-nums">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3fb27f" stroke-width="1.9" style="flex:none"><circle cx="12" cy="12" r="9"></circle><path d="m8.5 12 2.5 2.5 4.5-5"></path></svg>
+                      <span class="{{ e.font }}">{{ e.validatorChip }}</span>
+                    </span>
+                    <button class="{{ e.font }}" style="margin-left:auto;border:0;background:transparent;cursor:pointer;font:inherit;font-size:11.5px;font-weight:600;color:#1c4a6b;white-space:nowrap" onClick="{{ e.toggleEvidence }}">{{ e.evidenceLabel }}</button>
+                  </div>
+
+                  <sc-if value="{{ e.evidenceOpen }}" hint-placeholder-val="{{ false }}">
+                    <div style="border-top:1px solid #eef1f4;background:#fff">
+                      <div style="padding:13px 16px;border-bottom:1px solid #f1f4f7">
+                        <div class="{{ e.font }}" style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#8b98a6">{{ checkedLabel }}</div>
+                        <sc-for list="{{ e.tokens }}" as="t" hint-placeholder-count="3">
+                          <div style="display:flex;align-items:center;gap:9px;margin-top:8px">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#3fb27f" stroke-width="2.2" style="flex:none"><path d="M20 6 9 17l-5-5"></path></svg>
+                            <span class="{{ e.font }}" style="font-size:12px;color:#22344a;font-variant-numeric:tabular-nums">{{ t.reading }}</span>
+                            <span style="margin-left:auto;font-family:ui-monospace,Menlo,monospace;font-size:10.5px;color:#8b98a6;white-space:nowrap">{{ t.path }}</span>
+                          </div>
+                        </sc-for>
+                      </div>
+                      <div style="padding:13px 16px;border-bottom:1px solid #f1f4f7">
+                        <div class="{{ e.font }}" style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#8b98a6;margin-bottom:5px">{{ requestLabel }}</div>
+                        <div style="font-family:ui-monospace,Menlo,monospace;font-size:10.5px;line-height:1.7;color:#5f7082;word-break:break-all">{{ e.endpoint }}</div>
+                      </div>
+                      <div class="{{ e.font }}" style="padding:13px 16px;font-size:11px;color:#8b98a6;line-height:1.65">{{ guardrailNote }}</div>
+                    </div>
+                  </sc-if>
+                </div>
+              </sc-if>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+
+    <div style="border-top:1px solid #e3e8ee;padding:12px 40px 16px;background:#fff;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+      <div class="{{ uiFont }}" style="font-size:10.5px;color:#8b98a6;line-height:1.6">{{ footnote }}</div>
+      <div class="{{ uiFont }}" style="margin-left:auto;font-size:10.5px;color:#96a3b1;font-variant-numeric:tabular-nums">{{ unitNote }}</div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;apiBase&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;POST /ask&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;simulateFailure&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Demo states&quot;}}">
+const CITIES = {
+  chennai: {
+    name: {en: "Chennai", ta: "சென்னை"}, region: {en: "Tamil Nadu", ta: "தமிழ்நாடு"}, lat: 13.0827, lon: 80.2707,
+    now: {temp: 32, feels: 36, humidity: 74, wind: 14, dir: "southwesterly", dirTa: "தென்மேற்கு", cardinal: "SW", rain: 10,
+      cond: {en: "Partly cloudy", ta: "பகுதி மேகமூட்டம்"}},
+    tmr: {prob: 68, max: 33, min: 26, cond: {en: "thunderstorm with rain", ta: "இடியுடன் கூடிய மழை"}},
+    issued: "08:30"
+  },
+  madurai: {
+    name: {en: "Madurai", ta: "மதுரை"}, region: {en: "Tamil Nadu", ta: "தமிழ்நாடு"}, lat: 9.9252, lon: 78.1198,
+    now: {temp: 35, feels: 39, humidity: 51, wind: 9, dir: "westerly", dirTa: "மேற்கு", cardinal: "W", rain: 5,
+      cond: {en: "Clear", ta: "தெளிவான வானம்"}},
+    tmr: {prob: 21, max: 36, min: 25, cond: {en: "mostly clear", ta: "பெரும்பாலும் தெளிவு"}},
+    issued: "08:30"
+  },
+  coimbatore: {
+    name: {en: "Coimbatore", ta: "கோயம்புத்தூர்"}, region: {en: "Tamil Nadu", ta: "தமிழ்நாடு"}, lat: 11.0168, lon: 76.9558,
+    now: {temp: 29, feels: 31, humidity: 66, wind: 11, dir: "northwesterly", dirTa: "வடமேற்கு", cardinal: "NW", rain: 45,
+      cond: {en: "Light rain", ta: "லேசான மழை"}},
+    tmr: {prob: 54, max: 30, min: 22, cond: {en: "light rain", ta: "லேசான மழை"}},
+    issued: "08:30"
+  }
+};
+
+class Component extends DCLogic {
+  state = {lang: "en", unit: "C", city: "chennai", draft: "", records: [], openEvidence: null, seq: 0};
+
+  componentWillUnmount() { (this.timers || []).forEach(clearTimeout); }
+
+  temp(celsius) {
+    return this.state.unit === "C" ? celsius : Math.round(celsius * 9 / 5 + 32);
+  }
+
+  matchCity(text) {
+    const s = (text || "").toLowerCase().trim();
+    if (!s) return null;
+    return Object.keys(CITIES).find(k => s.includes(k) || s.includes(CITIES[k].name.ta)) || null;
+  }
+
+  classify(q) {
+    const s = (q || "").toLowerCase();
+    if (/rain|மழை|tomorrow|நாளை|forecast|முன்னறிவிப்பு/.test(s)) return "rain_tomorrow";
+    if (/weather|temp|hot|now|today|இப்போது|வானிலை|இன்று/.test(s)) return "current";
+    return "unsupported";
+  }
+
+  buildAnswer(intent, cityKey, lang) {
+    const c = CITIES[cityKey];
+    const en = lang === "en";
+    const u = this.state.unit === "C" ? "°C" : "°F";
+    const T = v => `${this.temp(v)}${u}`;
+    if (intent === "current") {
+      const n = c.now;
+      return {
+        headline: en
+          ? `It is ${T(n.temp)} in ${c.name.en} right now, with ${n.cond.en.toLowerCase()} skies, ${n.humidity}% humidity and ${n.dir} wind at ${n.wind} km/h.`
+          : `${c.name.ta}யில் இப்போது ${T(n.temp)}, ${n.cond.ta}, ஈரப்பதம் ${n.humidity}%, ${n.dirTa} காற்று மணிக்கு ${n.wind} கி.மீ.`,
+        sourceName: en ? "Google Weather API · Current Conditions" : "Google Weather API · தற்போதைய நிலை",
+        issued: en ? `Issued ${c.issued} IST · valid 1 h` : `${c.issued} IST வெளியீடு · 1 மணி நேரம்`,
+        endpoint: `GET weather.googleapis.com/v1/currentConditions:lookup?location.latitude=${c.lat}&location.longitude=${c.lon}&unitsSystem=${this.state.unit === "C" ? "METRIC" : "IMPERIAL"}`,
+        tokens: [
+          {reading: en ? `${T(n.temp)} temperature` : `${T(n.temp)} வெப்பநிலை`, path: "temperature.degrees"},
+          {reading: en ? `${n.humidity}% humidity` : `${n.humidity}% ஈரப்பதம்`, path: "relativeHumidity"},
+          {reading: en ? `${n.wind} km/h wind` : `${n.wind} கி.மீ காற்று`, path: "wind.speed.value"}
+        ]
+      };
+    }
+    const f = c.tmr;
+    return {
+      headline: en
+        ? `There is a ${f.prob}% chance of rain in ${c.name.en} tomorrow — ${f.cond.en}. High ${T(f.max)}, low ${T(f.min)}.`
+        : `நாளை ${c.name.ta}யில் மழை பெய்ய ${f.prob}% வாய்ப்பு — ${f.cond.ta}. அதிகபட்சம் ${T(f.max)}, குறைந்தபட்சம் ${T(f.min)}.`,
+      sourceName: en ? "Google Weather API · Daily Forecast" : "Google Weather API · தினசரி முன்னறிவிப்பு",
+      issued: en ? `Issued ${c.issued} IST · valid to 20:30` : `${c.issued} IST வெளியீடு · 20:30 வரை`,
+      endpoint: `GET weather.googleapis.com/v1/forecast/days:lookup?location.latitude=${c.lat}&location.longitude=${c.lon}&days=2&unitsSystem=${this.state.unit === "C" ? "METRIC" : "IMPERIAL"}`,
+      tokens: [
+        {reading: en ? `${f.prob}% chance of rain` : `${f.prob}% மழை வாய்ப்பு`, path: "precipitation.probability.percent"},
+        {reading: en ? `${T(f.max)} high` : `${T(f.max)} அதிகபட்சம்`, path: "maxTemperature.degrees"},
+        {reading: en ? `${T(f.min)} low` : `${T(f.min)} குறைந்தபட்சம்`, path: "minTemperature.degrees"}
+      ]
+    };
+  }
+
+  refusal(cityKey, lang) {
+    const en = lang === "en";
+    return {
+      headline: !cityKey
+        ? (en ? "I don't have data for that location yet. Chennai, Madurai and Coimbatore are live in this prototype."
+              : "இந்த இடத்திற்கான தரவு இன்னும் இல்லை. சென்னை, மதுரை, கோயம்புத்தூர் மட்டும் இப்போது கிடைக்கும்.")
+        : (en ? "I can't answer that one yet. This prototype handles current conditions and rain forecasts."
+              : "இதற்கு இப்போது பதில் இல்லை. தற்போதைய வானிலை மற்றும் மழை முன்னறிவிப்பு மட்டும்."),
+      sourceName: en ? "No tool call made" : "தரவு அழைப்பு இல்லை",
+      issued: en ? "Refusing rather than guessing" : "ஊகிக்காமல் மறுக்கிறோம்",
+      endpoint: null,
+      tokens: []
+    };
+  }
+
+  answerFor(rec, lang) {
+    const grounded = rec.cityKey && rec.intent !== "unsupported";
+    return grounded ? this.buildAnswer(rec.intent, rec.cityKey, lang) : this.refusal(rec.cityKey, lang);
+  }
+
+  ask(q) {
+    const query = (q || "").trim();
+    if (!query) return;
+    const id = this.state.seq + 1;
+    const fail = !!this.props.simulateFailure || /offline|fail/i.test(query);
+    const cityKey = this.matchCity(query) || this.state.city;
+    const time = new Date().toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"});
+    const rec = {id, query, time, intent: this.classify(query), cityKey, status: "pending"};
+    this.setState(s => ({seq: id, draft: "", records: [...s.records, rec], city: cityKey}));
+    this.timers = this.timers || [];
+    this.timers.push(setTimeout(() => {
+      this.setState(s => ({records: s.records.map(r => r.id === id ? Object.assign({}, r, {status: fail ? "error" : "ok"}) : r)}));
+    }, 950));
+  }
+
+  renderVals() {
+    const lang = this.state.lang;
+    const ta = lang === "ta";
+    const uiFont = ta ? "ta" : "";
+    const c = CITIES[this.state.city] || CITIES.chennai;
+    const n = c.now;
+    const u = this.state.unit === "C" ? "°C" : "°F";
+
+    const entries = this.state.records.map(rec => {
+      const a = this.answerFor(rec, lang);
+      const open = this.state.openEvidence === rec.id;
+      return {
+        query: rec.query,
+        time: rec.time,
+        font: uiFont,
+        isPending: rec.status === "pending",
+        isError: rec.status === "error",
+        isAnswer: rec.status === "ok",
+        headline: a.headline,
+        hasFigures: !!a.endpoint,
+        sourceName: a.sourceName,
+        issued: a.issued,
+        endpoint: a.endpoint || "",
+        tokens: a.tokens,
+        validatorChip: a.endpoint
+          ? (ta ? `சரிபார்ப்பு: ${a.tokens.length}/${a.tokens.length} பொருந்தின` : `Validator: ${a.tokens.length}/${a.tokens.length} matched`)
+          : (ta ? "எண் எதுவும் இல்லை" : "No figures claimed"),
+        evidenceOpen: open,
+        evidenceLabel: open ? (ta ? "மறை" : "Hide source") : (ta ? "ஆதாரம் பார்" : "View source"),
+        toggleEvidence: () => this.setState(s => ({openEvidence: s.openEvidence === rec.id ? null : rec.id})),
+        errorCode: "504 · weather.googleapis.com",
+        retry: () => this.ask(rec.query)
+      };
+    });
+
+    const sugg = ta
+      ? ["சென்னையில் இப்போது வானிலை என்ன?", "நாளை மழை பெய்யுமா?", "மதுரையில் இன்று", "கோயம்புத்தூரில் நாளை மழை?"]
+      : ["What's the weather in Chennai?", "Will it rain tomorrow?", "Madurai today", "Will it rain in Coimbatore tomorrow?"];
+
+    return {
+      uiFont,
+      enBg: ta ? "transparent" : "#1c4a6b", enColor: ta ? "#5f7082" : "#fff",
+      taBg: ta ? "#1c4a6b" : "transparent", taColor: ta ? "#fff" : "#5f7082",
+      setEN: () => this.setState({lang: "en"}),
+      setTA: () => this.setState({lang: "ta"}),
+      cBg: this.state.unit === "C" ? "#1c4a6b" : "transparent", cColor: this.state.unit === "C" ? "#fff" : "#5f7082",
+      fBg: this.state.unit === "F" ? "#1c4a6b" : "transparent", fColor: this.state.unit === "F" ? "#fff" : "#5f7082",
+      setC: () => this.setState({unit: "C"}),
+      setF: () => this.setState({unit: "F"}),
+      navItems: [
+        {label: ta ? "முகப்பு" : "Home", active: true},
+        {label: ta ? "வரலாறு" : "History", active: false},
+        {label: ta ? "அமைப்புகள்" : "Settings", active: false}
+      ].map(i => ({
+        label: i.label,
+        weight: i.active ? "600" : "400",
+        color: i.active ? "#17324a" : "#4a5c6f",
+        bg: i.active ? "#eaf1f7" : "transparent",
+        rule: i.active ? "#1c4a6b" : "transparent",
+        dot: i.active ? "#4a86ad" : "#c6d0da"
+      })),
+      poweredBy: ta ? "Google Weather API வழங்குகிறது" : "Powered by Google Weather API",
+      currentWeatherLabel: ta ? "தற்போதைய வானிலை" : "Current weather",
+      nowCity: c.name[lang] || c.name.en,
+      nowCondition: n.cond[lang] || n.cond.en,
+      nowTemp: `${this.temp(n.temp)}`,
+      unitLabel: u,
+      nowFeels: ta ? `உணரப்படுவது ${this.temp(n.feels)}${u}` : `Feels like ${this.temp(n.feels)}${u}`,
+      humidityLabel: ta ? "ஈரப்பதம்" : "Humidity",
+      humidityValue: `${n.humidity}%`,
+      windLabel: ta ? "காற்று" : "Wind",
+      windValue: `${n.wind} km/h ${n.cardinal}`,
+      rainLabel: ta ? "மழை வாய்ப்பு" : "Chance of rain",
+      rainValue: `${n.rain}%`,
+      isEmpty: this.state.records.length === 0,
+      emptyTitle: ta ? "வானிலை பற்றி கேளுங்கள்" : "Ask about the weather",
+      emptyBody: ta
+        ? "மேலே ஒரு கேள்வியைத் தட்டுங்கள் அல்லது தட்டச்சு செய்யுங்கள். ஒவ்வொரு பதிலிலும் எண்கள் எங்கிருந்து வந்தன என்பதைக் காணலாம்."
+        : "Type a question above or tap one of the suggestions. Every answer shows the exact reading it came from.",
+      entries,
+      loadingLabel: ta ? "Google Weather API-லிருந்து சமீபத்திய தரவு பெறப்படுகிறது…" : "Fetching the latest weather data...",
+      errorTitle: ta ? "வானிலை தரவு கிடைக்கவில்லை" : "Unable to fetch weather data",
+      errorBody: ta
+        ? "Google Weather API தற்போது பதிலளிக்கவில்லை. உறுதிப்படுத்த முடியாத எண்ணைக் கூறுவதில்லை — சில நிமிடங்களில் மீண்டும் முயற்சிக்கவும்."
+        : "The weather service is currently unavailable. Rather than show a number we can't verify, nothing is reported. Please try again in a few minutes.",
+      retryLabel: ta ? "மீண்டும் முயற்சி" : "Try again",
+      sourceLabel: ta ? "ஆதாரம்:" : "Source:",
+      checkedLabel: ta ? "சரிபார்க்கப்பட்ட எண்கள்" : "Figures checked against the source",
+      requestLabel: ta ? "அனுப்பப்பட்ட கோரிக்கை" : "Request sent",
+      guardrailNote: ta
+        ? "பதிலில் உள்ள ஒவ்வொரு எண்ணும் மூல தரவுடன் ஒப்பிடப்பட்ட பிறகே வெளியிடப்படுகிறது. பொருந்தாத எண் இருந்தால் பதில் நிறுத்தப்படும்."
+        : "Each figure is matched against the raw response before the answer is shown. If one doesn't match, the answer is withheld rather than published.",
+      suggestions: sugg.map(label => ({label, font: uiFont, pick: () => this.ask(label)})),
+      draft: this.state.draft,
+      onDraft: e => this.setState({draft: e.target.value}),
+      onDraftKey: e => { if (e.key === "Enter") { e.preventDefault(); this.ask(this.state.draft); } },
+      onSend: () => this.ask(this.state.draft),
+      askPlaceholder: ta ? "வானிலை பற்றி எதையும் கேளுங்கள்…" : "Ask WeatherGPT about any place...",
+      footnote: ta
+        ? "இரண்டு கேள்விகள் இணைக்கப்பட்டுள்ளன: தற்போதைய வானிலை, மழை முன்னறிவிப்பு. வானிலை தரவு © Google."
+        : "Two intents are wired: current conditions and rain forecast. Weather data © Google.",
+      unitNote: this.state.unit === "C"
+        ? (ta ? "அலகு: METRIC (API கோரிக்கையில்)" : "Units: METRIC (requested from the API)")
+        : (ta ? "அலகு: IMPERIAL (API கோரிக்கையில்)" : "Units: IMPERIAL (requested from the API)")
+    };
+  }
+}
+</script>
+</body>
+</html>
