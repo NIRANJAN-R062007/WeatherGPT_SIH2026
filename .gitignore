@@ -1,5 +1,7 @@
 .env
+.venv/
 __pycache__/
 *.pyc
 .DS_Store
 data/fixtures/*.local.json
+data/fixtures/**/*.local.json
