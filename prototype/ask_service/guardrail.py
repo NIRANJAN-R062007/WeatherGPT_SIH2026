@@ -152,6 +152,27 @@ def _extract(answer: str) -> list[tuple[str, float, str | None, int]]:
     return figures
 
 
+def _unit_for(path: str) -> str | None:
+    """Look up a path's unit in FIELD_UNITS.
+
+    Real Google Weather JSON nests the fields FIELD_UNITS names (e.g.
+    ``forecastDays[0].maxTemperature.degrees`` vs. the map's
+    ``maxTemperature.degrees``), so after an exact miss, drop ``[i]`` list
+    indices and match on the longest known path suffix.
+    """
+    if path in FIELD_UNITS:
+        return FIELD_UNITS[path]
+    bare = re.sub(r"\[\d+\]", "", path)
+    if bare in FIELD_UNITS:
+        return FIELD_UNITS[bare]
+    parts = bare.split(".")
+    for start in range(1, len(parts)):
+        suffix = ".".join(parts[start:])
+        if suffix in FIELD_UNITS:
+            return FIELD_UNITS[suffix]
+    return None
+
+
 def _match(value: float, unit: str | None, decimals: int, index: dict[str, float]) -> str | None:
     """Return the dotted path of the first indexed field this figure grounds to.
 
@@ -159,7 +180,7 @@ def _match(value: float, unit: str | None, decimals: int, index: dict[str, float
     Values agree under answer-precision rounding — see `_extract`.
     """
     for path, raw_value in index.items():
-        field_unit = FIELD_UNITS.get(path)
+        field_unit = _unit_for(path)
         if unit is not None and field_unit != unit:
             continue
         if round(raw_value, decimals) == value:

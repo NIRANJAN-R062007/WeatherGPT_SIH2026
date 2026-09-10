@@ -109,3 +109,32 @@ def test_ask_endpoint_returns_grounding_ok_and_matched_equals_total():
     assert body["grounding"]["ok"] is True
     assert body["grounding"]["matched"] == body["grounding"]["total"]
     assert body["grounding"]["fallback_used"] is False
+
+
+def test_grounds_against_real_nested_forecast_response():
+    """A rich forecast answer validates against the raw (nested) Google Weather
+    JSON — the paths sit under forecastDays[i], so suffix matching must work.
+    """
+    import json
+
+    from config import FIXTURES_DIR
+
+    raw = json.loads(
+        (FIXTURES_DIR / "google_weather" / "forecast_days.chennai.json").read_text()
+    )["response"]
+    day = raw["forecastDays"][1]
+    answer = (
+        f"Chennai tomorrow: {day['daytimeForecast']['precipitation']['probability']['percent']}% "
+        f"chance of rain, high {day['maxTemperature']['degrees']}°C, "
+        f"low {day['minTemperature']['degrees']}°C."
+    )
+    report = guardrail.check(answer, raw)
+    assert report.ok
+    assert report.matched == report.total == 3
+
+
+def test_unit_swap_still_fails_on_nested_paths():
+    raw = {"forecastDays": [{"maxTemperature": {"degrees": 33}, "relativeHumidity": 20}]}
+    # 20 is humidity (percent); claiming 20°C must not pass
+    report = guardrail.check("high 20°C", raw)
+    assert not report.ok
