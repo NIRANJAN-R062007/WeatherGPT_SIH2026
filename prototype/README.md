@@ -78,8 +78,12 @@ error card ← a fetch/network failure; refusal card ← a body with `message`.
 
 - **Google Weather API**: verified 2026-09-10. Fixtures committed under
   `data/fixtures/google_weather/`.
-- **Gemini**: see `data/fixtures/gemini/models.json` and the verifier output.
-  Chosen model recorded in `GEMINI_MODEL` (`.env` / `.env.example`).
+- **Gemini**: key verified 2026-09-10, model `gemini-flash-latest`
+  (`GEMINI_MODEL` in `.env` / `.env.example`; reachable models in
+  `data/fixtures/gemini/models.json`). The key has an `AQ.` prefix (ephemeral-
+  token shape, not a standard `AIza...` key) — re-run `verify_gemini.py` at the
+  start of each session and on demo morning; if it starts returning 401/403,
+  mint a durable key at https://aistudio.google.com/apikey.
 
 ## Explicitly stubbed — do not treat as done
 

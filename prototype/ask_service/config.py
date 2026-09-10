@@ -21,7 +21,7 @@ GOOGLE_WEATHER_API_KEY: str | None = os.getenv("GOOGLE_WEATHER_API_KEY")
 GOOGLE_WEATHER_BASE = "https://weather.googleapis.com/v1"
 
 GEMINI_API_KEY: str | None = os.getenv("GEMINI_API_KEY")
-GEMINI_MODEL: str = os.getenv("GEMINI_MODEL") or "gemini-2.0-flash"
+GEMINI_MODEL: str = os.getenv("GEMINI_MODEL") or "gemini-flash-latest"
 GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta"
 
 _origins = (os.getenv("ALLOWED_ORIGINS") or "").strip()

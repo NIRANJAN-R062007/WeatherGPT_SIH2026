@@ -16,7 +16,7 @@ def test_config_imports_without_environment(monkeypatch):
     for var in ("GOOGLE_WEATHER_API_KEY", "GEMINI_API_KEY", "GEMINI_MODEL", "ALLOWED_ORIGINS"):
         monkeypatch.delenv(var, raising=False)
     reloaded = importlib.reload(config)
-    assert reloaded.GEMINI_MODEL == "gemini-2.0-flash"
+    assert reloaded.GEMINI_MODEL == "gemini-flash-latest"
     assert reloaded.ALLOWED_ORIGINS == ["*"]
     importlib.reload(config)  # restore real env for other tests
 

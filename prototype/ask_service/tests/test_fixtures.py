@@ -58,3 +58,15 @@ def test_forecast_days_has_temperature_and_precip(city):
                    "precipitation.probability.percent"]:
         assert any(p.endswith(wanted) for p in indexed), \
             f"{city}: no indexed forecast path ends with {wanted}"
+
+
+def test_gemini_models_fixture():
+    path = FIXTURES_DIR / "gemini" / "models.json"
+    if not path.exists():
+        pytest.skip("gemini models fixture not present (key not verified)")
+    text = path.read_text(encoding="utf-8")
+    assert "AIza" not in text and "AQ.Ab" not in text
+    data = json.loads(text)
+    assert data["_meta"]["chosen_model"]
+    assert any(m["name"] == data["_meta"]["chosen_model"] for m in data["models"])
+    assert all("generateContent" in m["methods"] for m in data["models"])
