@@ -10,22 +10,36 @@ the rest need a native-speaker QA pass (team).
 """
 
 CONDITION_EN = {
-    "partly_cloudy": "partly cloudy",
-    "cloudy": "cloudy",
     "clear": "clear",
     "mostly_clear": "mostly clear",
+    "partly_cloudy": "partly cloudy",
+    "mostly_cloudy": "mostly cloudy",
+    "cloudy": "cloudy",
+    "windy": "windy",
     "light_rain": "light rain",
+    "rain_showers": "rain showers",
+    "rain": "rain",
+    "heavy_rain": "heavy rain",
+    "thunderstorm": "thunderstorm",
     "thunderstorm_with_rain": "thunderstorm with rain",
     "scattered_thunderstorms": "scattered thunderstorms",
+    "unknown": "unsettled weather",
 }
 CONDITION_TA = {
-    "partly_cloudy": "பகுதி மேகமூட்டம்",
-    "cloudy": "மேகமூட்டம்",
     "clear": "தெளிவான வானம்",
     "mostly_clear": "பெரும்பாலும் தெளிவு",
+    "partly_cloudy": "பகுதி மேகமூட்டம்",
+    "mostly_cloudy": "பெரும்பாலும் மேகமூட்டம்",
+    "cloudy": "மேகமூட்டம்",
+    "windy": "பலத்த காற்று",
     "light_rain": "லேசான மழை",
+    "rain_showers": "மழைப் பொழிவு",
+    "rain": "மழை",
+    "heavy_rain": "கனமழை",
+    "thunderstorm": "இடிமின்னல்",
     "thunderstorm_with_rain": "இடியுடன் கூடிய மழை",
     "scattered_thunderstorms": "சிதறலான இடியுடன் மழை",
+    "unknown": "நிலையற்ற வானிலை",
 }
 
 

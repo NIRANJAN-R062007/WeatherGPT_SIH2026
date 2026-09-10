@@ -1,0 +1,35 @@
+{
+  "_meta": {
+    "purpose": "Google Weather API weatherCondition.type -> canonical condition key",
+    "canonical_target": "prototype/ask_service/i18n.py CONDITION_EN / CONDITION_TA",
+    "owner": "Deepthi (decoder tables, plan.md §12)",
+    "source": "observed in data/fixtures/google_weather/ + Google Weather API WeatherCondition.Type enum",
+    "unknown_policy": "fall back to type.lower(); log a note. Snow/hail enums omitted (no Tamil Nadu relevance)."
+  },
+  "map": {
+    "CLEAR": "clear",
+    "MOSTLY_CLEAR": "mostly_clear",
+    "PARTLY_CLOUDY": "partly_cloudy",
+    "MOSTLY_CLOUDY": "mostly_cloudy",
+    "CLOUDY": "cloudy",
+    "WINDY": "windy",
+    "WIND_AND_RAIN": "rain",
+    "LIGHT_RAIN_SHOWERS": "light_rain",
+    "CHANCE_OF_SHOWERS": "rain_showers",
+    "SCATTERED_SHOWERS": "rain_showers",
+    "RAIN_SHOWERS": "rain_showers",
+    "HEAVY_RAIN_SHOWERS": "heavy_rain",
+    "LIGHT_RAIN": "light_rain",
+    "LIGHT_TO_MODERATE_RAIN": "rain",
+    "MODERATE_TO_HEAVY_RAIN": "heavy_rain",
+    "RAIN": "rain",
+    "HEAVY_RAIN": "heavy_rain",
+    "RAIN_PERIODICALLY_HEAVY": "heavy_rain",
+    "THUNDERSTORM": "thunderstorm",
+    "THUNDERSHOWER": "thunderstorm_with_rain",
+    "LIGHT_THUNDERSTORM_RAIN": "thunderstorm_with_rain",
+    "SCATTERED_THUNDERSTORMS": "scattered_thunderstorms",
+    "HEAVY_THUNDERSTORM": "thunderstorm",
+    "TYPE_UNSPECIFIED": "unknown"
+  }
+}
