@@ -1,7 +1,10 @@
 import re
 
 RAIN_PATTERN = re.compile(r"\brain\b", re.IGNORECASE)
-CITY_PATTERN = re.compile(r"\bin\s+([A-Za-z][A-Za-z\s]*?)(?:\s+(?:today|tomorrow|tonight)\b|[?.!]|$)", re.IGNORECASE)
+CITY_PATTERN = re.compile(
+    r"\bin\s+([A-Za-z][A-Za-z\s]*?)(?:\s+(?:today|tomorrow|tonight)\b|[?.!]|$)",
+    re.IGNORECASE,
+)
 DAY_PATTERN = re.compile(r"\b(today|tomorrow|tonight)\b", re.IGNORECASE)
 
 DEMO_CITIES = {"chennai"}

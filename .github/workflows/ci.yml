@@ -20,11 +20,17 @@ jobs:
         run: pip install ruff
 
       - name: Ruff lint
-        run: ruff check services/ ml/ --output-format=github
+        run: ruff check services/ ml/ prototype/ --output-format=github
 
       - name: Python syntax check (all Python packages)
         run: |
-          python -m py_compile $(find services ml -name "*.py")
+          python -m py_compile $(find services ml prototype -name "*.py")
+
+      - name: Install prototype test deps
+        run: pip install -r prototype/ask_service/requirements.txt
+
+      - name: Run prototype tests
+        run: pytest prototype/ask_service/tests/ -v
 
   compose-build:
     runs-on: ubuntu-latest
