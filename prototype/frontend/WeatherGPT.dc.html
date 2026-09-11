@@ -35,10 +35,10 @@ a:hover{color:#1d5b7e}
     </div>
     <div style="display:flex;flex-direction:column;gap:4px">
       <sc-for list="{{ navItems }}" as="n" hint-placeholder-count="3">
-        <div style="display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:9px;font-size:14px;font-weight:{{ n.weight }};color:{{ n.color }};background:{{ n.bg }};border-left:2px solid {{ n.rule }}">
+        <button style="width:100%;text-align:left;border:0;cursor:pointer;font:inherit;display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:9px;font-size:14px;font-weight:{{ n.weight }};color:{{ n.color }};background:{{ n.bg }};border-left:2px solid {{ n.rule }}" onClick="{{ n.go }}">
           <span style="width:6px;height:6px;border-radius:50%;background:{{ n.dot }};flex:none"></span>
           <span class="{{ uiFont }}">{{ n.label }}</span>
-        </div>
+        </button>
       </sc-for>
     </div>
     <div style="margin-top:auto;display:flex;align-items:center;gap:9px;padding:0 8px">
@@ -254,9 +254,82 @@ a:hover{color:#1d5b7e}
       <div class="{{ uiFont }}" style="margin-left:auto;font-size:10.5px;color:#96a3b1;font-variant-numeric:tabular-nums">{{ unitNote }}</div>
     </div>
   </main>
+
+  <sc-if value="{{ modalOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed;inset:0;z-index:50;background:rgba(9,18,32,.55);display:flex;align-items:center;justify-content:center;padding:24px" onClick="{{ closeModal }}">
+      <div style="width:min(100%,460px);max-height:82vh;overflow-y:auto;background:#fff;border-radius:14px;box-shadow:0 18px 50px rgba(9,18,32,.35)" onClick="{{ keepOpen }}">
+
+        <div style="display:flex;align-items:center;gap:12px;padding:18px 20px;border-bottom:1px solid #eef2f6">
+          <span style="width:30px;height:30px;border-radius:50%;background:#e8f0f7;display:flex;align-items:center;justify-content:center;flex:none">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2c6d95" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
+          </span>
+          <div class="{{ uiFont }}" style="font-size:15px;font-weight:700;color:#22344a">{{ modalTitle }}</div>
+          <button style="margin-left:auto;border:0;cursor:pointer;background:transparent;font:inherit;width:28px;height:28px;border-radius:50%;color:#8b98a6;display:flex;align-items:center;justify-content:center" onClick="{{ closeModal }}" aria-label="Close">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+          </button>
+        </div>
+
+        <sc-if value="{{ isHistoryModal }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:20px">
+            <div style="display:flex;gap:12px;align-items:flex-start;background:#fff8e8;border:1px solid #f2e2c0;border-radius:11px;padding:14px 15px">
+              <span style="width:26px;height:26px;border-radius:50%;background:#f7ecd2;display:flex;align-items:center;justify-content:center;flex:none">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a8792a" stroke-width="1.8" stroke-linecap="round"><ellipse cx="12" cy="5.5" rx="8" ry="3"></ellipse><path d="M4 5.5v13c0 1.7 3.6 3 8 3s8-1.3 8-3v-13"></path><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"></path></svg>
+              </span>
+              <div class="{{ uiFont }}" style="font-size:13px;line-height:1.65;color:#6b5420">{{ historyBody }}</div>
+            </div>
+            <div class="{{ uiFont }}" style="font-size:11.5px;line-height:1.7;color:#8b98a6;margin-top:14px">{{ historyNote }}</div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isSettingsModal }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:6px 0 8px">
+
+            <div style="padding:15px 20px;border-bottom:1px solid #f3f6f9">
+              <div class="{{ uiFont }}" style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#8b98a6;margin-bottom:9px">{{ setLangLabel }}</div>
+              <div style="display:flex;gap:8px">
+                <button style="border:1px solid {{ optEnBorder }};cursor:pointer;font:inherit;font-size:12.5px;font-weight:600;padding:8px 15px;border-radius:9px;background:{{ optEnBg }};color:{{ optEnColor }}" onClick="{{ setEN }}">English</button>
+                <button class="ta" style="border:1px solid {{ optTaBorder }};cursor:pointer;font:inherit;font-size:12.5px;font-weight:600;padding:8px 15px;border-radius:9px;background:{{ optTaBg }};color:{{ optTaColor }}" onClick="{{ setTA }}">தமிழ்</button>
+              </div>
+            </div>
+
+            <div style="padding:15px 20px;border-bottom:1px solid #f3f6f9">
+              <div class="{{ uiFont }}" style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#8b98a6;margin-bottom:9px">{{ setCityLabel }}</div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <sc-for list="{{ cityOptions }}" as="c" hint-placeholder-count="3">
+                  <button class="{{ uiFont }}" style="border:1px solid {{ c.border }};cursor:pointer;font:inherit;font-size:12.5px;font-weight:600;padding:8px 15px;border-radius:9px;background:{{ c.bg }};color:{{ c.color }}" onClick="{{ c.pick }}">{{ c.label }}</button>
+                </sc-for>
+              </div>
+            </div>
+
+            <div style="padding:15px 20px;border-bottom:1px solid #f3f6f9">
+              <div class="{{ uiFont }}" style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#8b98a6;margin-bottom:9px">{{ setEvidenceLabel }}</div>
+              <button class="{{ uiFont }}" style="border:1px solid {{ evidenceBorder }};cursor:pointer;font:inherit;font-size:12.5px;font-weight:600;padding:8px 15px;border-radius:9px;background:{{ evidenceBg }};color:{{ evidenceColor }}" onClick="{{ toggleAlwaysEvidence }}">{{ evidenceStateLabel }}</button>
+              <div class="{{ uiFont }}" style="font-size:11px;line-height:1.65;color:#8b98a6;margin-top:9px">{{ setEvidenceNote }}</div>
+            </div>
+
+            <div style="padding:15px 20px;border-bottom:1px solid #f3f6f9">
+              <div class="{{ uiFont }}" style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#8b98a6;margin-bottom:9px">{{ setUnitsLabel }}</div>
+              <div class="{{ uiFont }}" style="font-size:12.5px;color:#5f7082;line-height:1.6">{{ setUnitsValue }}</div>
+            </div>
+
+            <div style="padding:15px 20px">
+              <div class="{{ uiFont }}" style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#8b98a6;margin-bottom:7px">{{ setBackendLabel }}</div>
+              <div style="font-size:11px;color:#5f7082;line-height:1.6;word-break:break-all;font-family:ui-monospace,SFMono-Regular,Menlo,monospace">{{ setBackendValue }}</div>
+              <div style="display:flex;align-items:center;gap:7px;margin-top:9px">
+                <span style="width:7px;height:7px;border-radius:50%;background:{{ backendDot }};flex:none"></span>
+                <span class="{{ uiFont }}" style="font-size:11.5px;color:#5f7082">{{ backendStatus }}</span>
+              </div>
+            </div>
+
+          </div>
+        </sc-if>
+
+      </div>
+    </div>
+  </sc-if>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props="{&quot;apiBase&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;http://localhost:8001&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;simulateFailure&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Demo states&quot;}}">
+<script type="text/x-dc" data-dc-script data-props="{&quot;apiBase&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;https://second-tall-atmosphere-sense.trycloudflare.com&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;simulateFailure&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Demo states&quot;}}">
 // Demo cities: data/cities.json is the source of truth (backend GET /cities).
 // Kept here as the hero-card fallback when the backend is unreachable; lat/lon
 // must stay in sync (a backend test checks them).
@@ -299,7 +372,10 @@ class Component extends DCLogic {
   // param) and converting the narrated sentence client-side breaks on Tamil. A
   // units param is a separate backend task.
   state = {lang: "en", unit: "C", city: "chennai", draft: "", records: [], openEvidence: null, seq: 0,
-           hero: null, heroRain: null};
+           hero: null, heroRain: null,
+           // modal: null | "history" | "settings". History has no backing store yet
+           // (no DB wired in the prototype), so it explains itself rather than 404ing.
+           modal: null, alwaysEvidence: false, backendOk: null};
 
   componentDidMount() {
     this._alive = true;
@@ -340,9 +416,9 @@ class Component extends DCLogic {
         this.api("/facts", {city, lang, intent: "will_it_rain", day: "today"})
       ]);
       if (this._heroKey !== `${city}|${lang}`) return;  // superseded
-      this.setIfAlive({hero: cur.facts ? cur : null, heroRain: rain.facts ? rain : null});
+      this.setIfAlive({hero: cur.facts ? cur : null, heroRain: rain.facts ? rain : null, backendOk: true});
     } catch (e) {
-      this.setIfAlive({hero: null, heroRain: null});  // renderVals falls back to CITIES
+      this.setIfAlive({hero: null, heroRain: null, backendOk: false});  // renderVals falls back to CITIES
     }
   }
 
@@ -378,7 +454,11 @@ class Component extends DCLogic {
   entryFrom(rec, ta, uiFont) {
     const d = rec.data || {};
     const font = rec.lang === "ta" ? "ta" : "";  // the query/answer keep the language they were asked in
-    const open = this.state.openEvidence === rec.id;
+    // Settings' "always show source" opens every panel; the per-entry toggle
+    // still collapses the one you click.
+    const open = this.state.alwaysEvidence
+      ? this.state.openEvidence !== rec.id
+      : this.state.openEvidence === rec.id;
     const base = {
       query: rec.query, time: rec.time, font, chromeFont: uiFont,  // chrome follows the current UI language
       isPending: rec.status === "pending",
@@ -428,6 +508,10 @@ class Component extends DCLogic {
     const lang = this.state.lang;
     const ta = lang === "ta";
     const uiFont = ta ? "ta" : "";
+    const modal = this.state.modal;
+    const on = {bg: "#1c4a6b", color: "#fff", border: "#1c4a6b"};
+    const off = {bg: "#fff", color: "#4a5c6f", border: "#d7dfe7"};
+    const pill = active => active ? on : off;
     const c = CITIES[this.state.city] || CITIES.chennai;
     const n = c.now;
     const u = "°C";
@@ -461,11 +545,12 @@ class Component extends DCLogic {
       setC: () => {},
       setF: () => {},
       navItems: [
-        {label: ta ? "முகப்பு" : "Home", active: true},
-        {label: ta ? "வரலாறு" : "History", active: false},
-        {label: ta ? "அமைப்புகள்" : "Settings", active: false}
+        {label: ta ? "முகப்பு" : "Home", active: modal === null, go: () => this.setState({modal: null})},
+        {label: ta ? "வரலாறு" : "History", active: modal === "history", go: () => this.setState({modal: "history"})},
+        {label: ta ? "அமைப்புகள்" : "Settings", active: modal === "settings", go: () => this.setState({modal: "settings"})}
       ].map(i => ({
         label: i.label,
+        go: i.go,
         weight: i.active ? "600" : "400",
         color: i.active ? "#17324a" : "#4a5c6f",
         bg: i.active ? "#eaf1f7" : "transparent",
@@ -512,7 +597,65 @@ class Component extends DCLogic {
       footnote: ta
         ? "இரண்டு கேள்விகள் இணைக்கப்பட்டுள்ளன: தற்போதைய வானிலை, மழை முன்னறிவிப்பு. வானிலை தரவு © Google."
         : "Two intents are wired: current conditions and rain forecast. Weather data © Google.",
-      unitNote: ta ? "அலகு: METRIC (API கோரிக்கையில்)" : "Units: METRIC (requested from the API)"
+      unitNote: ta ? "அலகு: METRIC (API கோரிக்கையில்)" : "Units: METRIC (requested from the API)",
+
+      // --- History / Settings modal ---
+      modalOpen: modal !== null,
+      isHistoryModal: modal === "history",
+      isSettingsModal: modal === "settings",
+      closeModal: () => this.setState({modal: null}),
+      // backdrop closes; the card swallows the click so changing a setting
+      // doesn't dismiss the panel mid-demo
+      keepOpen: e => e.stopPropagation(),
+      modalTitle: modal === "history"
+        ? (ta ? "வரலாறு" : "History")
+        : (ta ? "அமைப்புகள்" : "Settings"),
+      historyBody: ta
+        ? "வரலாறு இன்னும் தரவுத்தளத்துடன் இணைக்கப்படவில்லை. இந்த முன்மாதிரியில் கேள்விகள் உலாவியில் மட்டுமே உள்ளன — பக்கத்தைப் புதுப்பித்தால் அவை மறைந்துவிடும்."
+        : "History isn't connected to a database yet. In this prototype your questions live only in the browser tab — refresh the page and they're gone.",
+      historyNote: ta
+        ? "நிரந்தர வரலாறு Postgres தேவைப்படுகிறது (docker-compose-ல் உள்ளது, இன்னும் /ask-உடன் இணைக்கப்படவில்லை)."
+        : "Persistent history needs the Postgres service (it's in docker-compose, just not wired to /ask yet).",
+
+      setLangLabel: ta ? "மொழி" : "Language",
+      optEnBg: pill(!ta).bg, optEnColor: pill(!ta).color, optEnBorder: pill(!ta).border,
+      optTaBg: pill(ta).bg, optTaColor: pill(ta).color, optTaBorder: pill(ta).border,
+
+      setCityLabel: ta ? "இயல்புநிலை நகரம்" : "Default city",
+      cityOptions: Object.keys(CITIES).map(k => {
+        const p = pill(this.state.city === k);
+        return {label: CITIES[k].name[lang] || CITIES[k].name.en,
+                bg: p.bg, color: p.color, border: p.border,
+                pick: () => this.setState({city: k})};
+      }),
+
+      setEvidenceLabel: ta ? "ஆதாரப் பலகம்" : "Source panel",
+      evidenceStateLabel: this.state.alwaysEvidence
+        ? (ta ? "எப்போதும் காட்டு" : "Always shown")
+        : (ta ? "தட்டும்போது காட்டு" : "Shown on tap"),
+      evidenceBg: pill(this.state.alwaysEvidence).bg,
+      evidenceColor: pill(this.state.alwaysEvidence).color,
+      evidenceBorder: pill(this.state.alwaysEvidence).border,
+      toggleAlwaysEvidence: () => this.setState(s => ({alwaysEvidence: !s.alwaysEvidence, openEvidence: null})),
+      setEvidenceNote: ta
+        ? "ஒவ்வொரு பதிலிலும் எண்கள் எங்கிருந்து வந்தன என்பதை தானாகவே விரித்துக் காட்டும்."
+        : "Expands the figures-and-source panel under every answer automatically.",
+
+      setUnitsLabel: ta ? "அலகுகள்" : "Units",
+      setUnitsValue: ta
+        ? "METRIC (°C, km/h) — backend அலகு மாற்றத்தை இன்னும் ஆதரிக்கவில்லை."
+        : "Metric (°C, km/h) — the backend is metric-only, so the °F toggle stays hidden.",
+
+      setBackendLabel: ta ? "பின்தளம்" : "Backend",
+      setBackendValue: this.props.simulateFailure
+        ? (ta ? "தோல்வி உருவகப்படுத்தப்படுகிறது" : "simulating failure")
+        : (this.props.apiBase || "(same origin)"),
+      backendDot: this.state.backendOk === false ? "#c0424c" : (this.state.backendOk ? "#3fb27f" : "#c6d0da"),
+      backendStatus: this.state.backendOk === false
+        ? (ta ? "அடைய முடியவில்லை — மாதிரி தரவு காட்டப்படுகிறது" : "Unreachable — showing sample data")
+        : (this.state.backendOk
+            ? (ta ? "இணைக்கப்பட்டது" : "Connected")
+            : (ta ? "சரிபார்க்கப்படுகிறது…" : "Checking…"))
     };
   }
 }
