@@ -36,11 +36,22 @@ FIELD_UNITS: dict[str, str] = {
 
 # Unit markers checked (after optional whitespace) right after each number
 # extracted from an answer. None is prefix of another, so order is free.
+#
+# The Tamil entries cover Bhashini's live translation output, which spells
+# units out as words instead of using °C/% symbols (e.g. "28 டிகிரி
+# செல்சியஸ்", "81 சதவீதமாக"). Without these, a translated number carries no
+# unit marker at all, and _match() treats an unmarked number as compatible
+# with ANY numeric field regardless of unit — the exact unit-swap bypass this
+# guardrail exists to prevent. "சதவீத" (not "சதவீதம்") is deliberately the
+# bare stem: a case suffix elides the trailing pulli ("சதவீதம்" + "ஆக" ->
+# "சதவீதமாக"), so matching the full word with pulli would miss that form.
 _UNIT_MARKERS: list[tuple[str, str]] = [
     ("°C", "celsius"),
     ("°F", "fahrenheit"),
     ("%", "percent"),
     ("km/h", "speed_kmh"),
+    ("டிகிரி செல்சியஸ்", "celsius"),
+    ("சதவீத", "percent"),
 ]
 
 _NUMBER_RE = re.compile(r"-?\d+(?:\.\d+)?")

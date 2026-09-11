@@ -135,3 +135,23 @@ def test_unit_swap_still_fails_on_nested_paths():
     # 20 is humidity (percent); claiming 20°C must not pass
     report = guardrail.check("high 20°C", raw)
     assert not report.ok
+
+
+def test_tamil_word_units_are_unit_aware():
+    # Bhashini spells units as words ("டிகிரி செல்சியஸ்" / "சதவீதம்"), not
+    # °C/%. Without recognizing those markers, these numbers would carry no
+    # unit at all and match any field of the right value — reopening the
+    # unit-swap bypass this guardrail exists to prevent.
+    raw = {"temp_c": 31, "rain_probability_pct": 20}
+    answer = "சென்னை: 20 டிகிரி செல்சியஸ்."  # claims humidity's 20 as celsius
+    report = guardrail.check(answer, raw)
+    assert not report.ok
+
+
+def test_tamil_word_units_match_correct_field():
+    raw = {"temp_c": 28, "humidity_pct": 81}
+    answer = "சென்னை: 28 டிகிரி செல்சியஸ், ஈரப்பதம் 81 சதவீதமாக உள்ளது."
+    report = guardrail.check(answer, raw)
+    assert report.ok and report.matched == report.total == 2
+    units = {f["path"]: f["unit"] for f in report.figures}
+    assert units == {"temp_c": "celsius", "humidity_pct": "percent"}
