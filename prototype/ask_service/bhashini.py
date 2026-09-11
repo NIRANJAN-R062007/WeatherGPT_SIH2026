@@ -71,7 +71,10 @@ def translate_to_tamil(text: str) -> str | None:
             "pipelineTasks": [{"taskType": "translation", "config": task_config}],
             "inputData": {"input": [{"source": text}]},
         }
-        headers = {inference_key["name"]: inference_key["value"], "Content-Type": "application/json"}
+        headers = {
+            inference_key["name"]: inference_key["value"],
+            "Content-Type": "application/json",
+        }
         resp = httpx.post(COMPUTE_URL, json=body, headers=headers, timeout=TIMEOUT)
         resp.raise_for_status()
         target = resp.json()["pipelineResponse"][0]["output"][0]["target"]
