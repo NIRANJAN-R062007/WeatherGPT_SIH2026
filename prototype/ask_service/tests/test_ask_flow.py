@@ -128,3 +128,13 @@ def test_mocked_live_data_marks_is_live(monkeypatch):
     body = _ask("what's the weather in Chennai")
     assert body["provenance"]["is_live"] is True
     assert body["grounding"]["ok"] is True
+
+
+def test_facts_endpoint_current_and_forecast():
+    cur = client.get("/facts", params={"city": "Chennai", "lang": "ta"}).json()
+    assert cur["city"] == "chennai" and cur["city_name"] == "சென்னை"
+    assert cur["condition_label"] and "temp_c" in cur["facts"] and "wind_kmh" in cur["facts"]
+    fc = client.get("/facts", params={"city": "madurai", "intent": "will_it_rain",
+                                      "day": "tomorrow"}).json()
+    assert "rain_probability_pct" in fc["facts"] and "high_c" in fc["facts"]
+    assert "message" in client.get("/facts", params={"city": "mumbai"}).json()

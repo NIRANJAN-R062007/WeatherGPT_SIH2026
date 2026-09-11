@@ -19,7 +19,7 @@ from config import ALLOWED_ORIGINS, GEMINI_API_KEY, GEMINI_MODEL
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from google_weather import cache_stats
-from i18n import render
+from i18n import CONDITION_EN, CONDITION_TA, render
 from intent import parse_intent
 from narrate import is_configured as llm_configured
 from narrate import narrate
@@ -112,6 +112,25 @@ def _llm_attempt(intent: str, name: str, data: dict, lang: str):
 @app.get("/cities")
 def list_cities():
     return {"cities": cities.as_public_list()}
+
+
+@app.get("/facts")
+def facts(city: str, intent: str = "current_weather", day: str = "today", lang: str = "en"):
+    """The raw facts dict behind an answer — for UI surfaces (the hero card) that
+    need individual fields rather than the narrated sentence."""
+    key = cities.resolve(city)
+    if key is None:
+        return {"message": _msg("unsupported_city", lang)}
+    data = get_weather(key, intent=intent, day=day)
+    if data is None:
+        return {"city": key, "message": _msg("no_data", lang)}
+    table = CONDITION_TA if lang == "ta" else CONDITION_EN
+    return {
+        "city": key,
+        "city_name": cities.display_name(key, lang),
+        "condition_label": table.get(data.get("condition"), data.get("condition")),
+        "facts": data,
+    }
 
 
 @app.get("/ask")
