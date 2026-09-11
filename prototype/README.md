@@ -42,8 +42,9 @@ task list, and explicit out-of-scope list.
   20). On failure `/ask` re-renders from the template, then refuses rather
   than guess (§2.3).
 - `ask_service/main.py` — `/ask` (intent → city resolve → weather lookup →
-  narration seam → guardrail → typed response + provenance), plus `/health`
-  and `/cities`.
+  narration seam → guardrail → typed response + provenance), plus `/health`,
+  `/cities`, and `/facts` (raw facts dict for UI surfaces like the hero card
+  that need individual fields rather than a narrated sentence).
 - `ask_service/snapshot_google_weather.py` — fetches and commits real API
   fixtures; doubles as the Google Weather key verifier.
 - `ask_service/verify_gemini.py` — Gemini key verifier + model probe.
@@ -130,12 +131,6 @@ translation that's grammatically fine but weather-wrong.
 Free-tier Gemini is rate-limited (~a few RPM) — fine for a demo, and every
 throttle just yields a template answer.
 
-## Still stubbed — do not treat as done
-
-- **Web UI wiring**: `WeatherGPT.dc.html` still mocks its data with a
-  `setTimeout`. Replace `ask()`'s timeout with a `fetch(apiBase + "/ask")`, map
-  the response per the contract above.
-
 ## Run it
 
 ```
@@ -144,7 +139,7 @@ python -m venv .venv && .venv/bin/pip install -r prototype/ask_service/requireme
 # terminal 1 — API
 cd prototype/ask_service && ../../.venv/bin/uvicorn main:app --reload --port 8001
 
-# terminal 2 — frontend (still mocked)
+# terminal 2 — frontend
 cd prototype/frontend && python -m http.server 8777
 ```
 
