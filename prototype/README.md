@@ -15,11 +15,17 @@ task list, and explicit out-of-scope list.
   (Chennai, Madurai, Coimbatore): key, lat/lon, EN/TA names, aliases.
   `data/cities.json` is the source of truth; the frontend keeps a copy until
   it fetches `GET /cities`.
-- `ask_service/weather_data.py` — **stub** for the Google Weather API ingestion
-  module. Numbers transcribed from the committed snapshots. Swap `get_weather()`
-  for the live module + decoder tables + cache once it lands.
-- `ask_service/i18n.py` — EN/TA phrase templates. `CONDITION_*` keys are the
-  canonical decoder targets (lowercased Google `weatherCondition.type`).
+- `ask_service/google_weather.py` — fetches currentConditions / forecast/days,
+  decodes the enums via `data/decoders/`, caches in memory (15 min / 6 h TTLs),
+  and **replays the committed fixtures on any live-call failure** so the demo
+  needs no network.
+- `ask_service/weather_data.py` — facade over `google_weather`. `get_weather
+  (city, intent, day)` returns a flat, intent-aware facts dict.
+- `ask_service/narrate.py` — Gemini narration. Returns `None` (→ template) on
+  non-English, no key, timeout, or any error; the guardrail still validates
+  whatever it returns.
+- `ask_service/i18n.py` — EN/TA phrase templates (the fallback). `CONDITION_*`
+  keys are the canonical decoder targets (lowercased `weatherCondition.type`).
 - `ask_service/guardrail.py` — grounding guardrail + numeric validator
   (plan.md §4, "non-negotiable"). Extracts every numeric token from the
   narrated answer and requires each to match a raw field of a compatible unit
@@ -41,10 +47,11 @@ and "View source" panel:
 
 ```json
 "grounding": {
-  "ok": true, "matched": 1, "total": 1,
+  "ok": true, "matched": 3, "total": 3,
   "figures": [{"reading": "28°C", "value": 28.0, "unit": "celsius",
-               "path": "temp_c", "matched": true}],
-  "fallback_used": false
+               "path": "temp_c", "matched": true}, ...],
+  "narration": "llm",          // "llm" | "template"
+  "fallback_used": false        // true only if the LLM answer failed to ground
 }
 ```
 
@@ -60,11 +67,17 @@ moves into `services/orchestrator/` behind the gateway and the frontend's
 CORS on `/ask` is open (`ALLOWED_ORIGINS`, default `*`) — GET-only, no
 credentials, and it covers a `file://` origin.
 
+**`WEATHER_MODE`** (`.env`): `auto` (default — live, fixture fallback) |
+`live` (no fallback, fail loud in dev) | `fixtures` (never touch the network —
+the demo-morning kill switch if venue Wi-Fi is dead). The in-memory weather
+cache is per-process; running uvicorn with `--workers > 1` multiplies API
+calls.
+
 ### `/ask` response contract
 
 | case | HTTP | body keys |
 |---|---|---|
-| success | 200 | `intent, city, day, response, provenance{source,retrieved_at}, grounding{ok,matched,total,figures[],fallback_used}` |
+| success | 200 | `intent, city, day, response, provenance{source,issued,is_live,retrieved_at}, grounding{ok,matched,total,figures[],narration,fallback_used}` |
 | unsupported / unrecognized | 200 | `intent, message` (no `city`) |
 | weather query, no city named | 200 | `intent, message` (pass `?city=` to disambiguate) |
 | no data for city | 200 | `intent, city, message` |
@@ -85,17 +98,23 @@ error card ← a fetch/network failure; refusal card ← a body with `message`.
   start of each session and on demo morning; if it starts returning 401/403,
   mint a durable key at https://aistudio.google.com/apikey.
 
-## Explicitly stubbed — do not treat as done
+## Weather + narration
 
-- **Weather data** (`weather_data.py`): snapshot numbers, not live. The real
-  ingestion module (per-endpoint fetch + decoder tables + Redis cache) is the
-  next data-layer task.
-- **LLM narration**: `main.py`'s narration seam calls `render()`. Real
-  narration-from-typed-response drops in there; the guardrail already validates
-  whatever it produces.
+Both are live now. `weather_data.get_weather()` pulls real Google Weather data
+(cached, with a fixture fallback), and `narrate()` runs it through Gemini; the
+guardrail gates the LLM output and `main.py` falls back to the i18n template on
+any failure or ungrounded answer. `data/decoders/` (owned by Deepthi per §12)
+and the new `i18n` condition keys (Niranjan) both need a native Tamil QA pass.
+Free-tier Gemini is rate-limited (~a few RPM) — fine for a demo, and every
+throttle just yields a template answer.
+
+## Still stubbed — do not treat as done
+
 - **Web UI wiring**: `WeatherGPT.dc.html` still mocks its data with a
-  `setTimeout`. Day 2: replace `ask()`'s timeout with a `fetch(apiBase +
-  "/ask")`, map the response per the contract above.
+  `setTimeout`. Replace `ask()`'s timeout with a `fetch(apiBase + "/ask")`, map
+  the response per the contract above.
+- **Tamil intent parsing**: rain/day keywords are English-only, so a Tamil
+  forecast query ("நாளை மழை பெய்யுமா?") may come back `unrecognized`.
 
 ## Run it
 
@@ -121,5 +140,7 @@ curl "http://localhost:8001/ask?text=will it rain in Madurai tomorrow&lang=ta"
 .venv/bin/pytest prototype/ask_service/tests/ -v
 ```
 
-A `conftest.py` shim puts the flat-import modules on `sys.path` so this works
-from the repo root.
+`tests/conftest.py` blocks real network in every test (the two `live`-marked
+smoke tests run only with `-m live`) and defaults `WEATHER_MODE` to `fixtures`
+so the suite is deterministic. A repo-root `conftest.py` puts the flat-import
+modules on `sys.path`.
