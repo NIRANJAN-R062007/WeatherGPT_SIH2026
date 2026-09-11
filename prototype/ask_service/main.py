@@ -2,9 +2,8 @@
 
 Flow (plan.md §4): LLM -> narrate ONLY from the typed object -> validator
 (every numeric token must exist in the tool response) -> response + provenance,
-with a template fallback on validator failure. No LLM key exists yet, so the
-narration seam below is `render()` itself; real narration drops in without
-touching the guardrail wiring.
+with a template fallback on validator failure. Narration is Gemini via
+narrate(); it returns None (-> template) on no key, non-English, or any error.
 """
 
 from dataclasses import asdict
@@ -19,6 +18,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from google_weather import cache_stats
 from i18n import render
 from intent import parse_intent
+from narrate import is_configured as llm_configured
+from narrate import narrate
 from weather_data import get_weather
 
 app = FastAPI(title="WeatherGPT /ask prototype", version="0.0.1")
@@ -69,6 +70,7 @@ def health():
         "cities": sorted(cities.CITY_KEYS),
         "weather_source": weather_data.source_status(),
         "weather_cache": cache_stats(),
+        "narration": f"gemini:{GEMINI_MODEL}" if llm_configured() else "template",
         "llm": GEMINI_MODEL if GEMINI_API_KEY else "unconfigured",
     }
 
@@ -99,17 +101,19 @@ def ask(text: str, lang: str = "en", city: str | None = None):
 
     name = cities.display_name(key, lang)
 
-    # Narration seam: later replaced by llm_narrate(intent, name, data, lang).
-    candidate = render(intent, name, data, lang)
-    report = guardrail.check(candidate, data)
+    narration = "template"
     fallback_used = False
+    candidate = narrate(intent, name, data, lang)     # None on ta / no key / any failure
+    report = guardrail.check(candidate, data) if candidate else None
 
-    if not report.ok:  # §4: fail -> fall back to template
+    if candidate and report.ok and report.total > 0:
+        narration = "llm"
+    else:  # §4: no LLM answer, ungrounded, or it quoted no figures -> template
+        fallback_used = candidate is not None
         candidate = render(intent, name, data, lang)
         report = guardrail.check(candidate, data)
-        fallback_used = True
 
-    grounding = {**asdict(report), "fallback_used": fallback_used}
+    grounding = {**asdict(report), "fallback_used": fallback_used, "narration": narration}
 
     if not report.ok:  # §2.3
         return {
