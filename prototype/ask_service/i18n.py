@@ -44,24 +44,26 @@ CONDITION_TA = {
 
 
 def render(intent: str, city: str, data: dict, lang: str) -> str:
+    """Template fallback. Branches on the facts SHAPE, not the intent name —
+    "weather tomorrow" is parsed as current_weather but carries forecast facts.
+    """
+    if "temp_c" in data:
+        return _render_current(city, data, lang)
+    if "rain_probability_pct" in data or "high_c" in data:
+        return _render_forecast(city, data, lang)
+    return "Sorry, I couldn't understand that." if lang != "ta" else "மன்னிக்கவும், புரியவில்லை."
+
+
+def _render_current(city: str, data: dict, lang: str) -> str:
     if lang == "ta":
-        return _render_ta(intent, city, data)
-    return _render_en(intent, city, data)
+        cond = CONDITION_TA.get(data["condition"], data["condition"])
+        return f"{city}: {cond}, {data['temp_c']}°C."
+    cond = CONDITION_EN.get(data["condition"], data["condition"])
+    return f"{city}: {cond}, {data['temp_c']}°C right now."
 
 
-def _render_en(intent: str, city: str, data: dict) -> str:
-    condition = CONDITION_EN.get(data["condition"], data["condition"])
-    if intent == "current_weather":
-        return f"{city}: {condition}, {data['temp_c']}°C right now."
-    if intent == "will_it_rain":
-        return f"{city}: {data['rain_probability_pct']}% chance of rain."
-    return "Sorry, I couldn't understand that."
-
-
-def _render_ta(intent: str, city: str, data: dict) -> str:
-    condition = CONDITION_TA.get(data["condition"], data["condition"])
-    if intent == "current_weather":
-        return f"{city}: {condition}, {data['temp_c']}°C."
-    if intent == "will_it_rain":
-        return f"{city}: மழை வரும் வாய்ப்பு {data['rain_probability_pct']}%."
-    return "மன்னிக்கவும், புரியவில்லை."
+def _render_forecast(city: str, data: dict, lang: str) -> str:
+    pct = data.get("rain_probability_pct")
+    if lang == "ta":
+        return f"{city}: மழை வரும் வாய்ப்பு {pct}%."
+    return f"{city}: {pct}% chance of rain."

@@ -40,13 +40,14 @@ def test_resolve(text, expected):
     assert cities.resolve(text) == expected
 
 
-def test_stub_and_i18n_cover_every_registry_city():
+def test_ingestion_and_i18n_cover_every_registry_city():
     for key in cities.CITY_KEYS:
-        data = weather_data.get_weather(key)
-        assert data is not None, f"no stub weather for {key}"
-        cond = data["condition"]
-        assert cond in i18n.CONDITION_EN, f"{cond} missing from CONDITION_EN"
-        assert cond in i18n.CONDITION_TA, f"{cond} missing from CONDITION_TA"
+        for intent in ("current_weather", "will_it_rain"):
+            data = weather_data.get_weather(key, intent, "tomorrow")
+            assert data is not None, f"no weather for {key}/{intent}"
+            cond = data["condition"]
+            assert cond in i18n.CONDITION_EN, f"{cond} missing from CONDITION_EN"
+            assert cond in i18n.CONDITION_TA, f"{cond} missing from CONDITION_TA"
 
 
 @pytest.mark.parametrize("key", sorted(EXPECTED_KEYS))
@@ -63,6 +64,7 @@ def test_every_city_intent_language_grounds(key, lang, template):
     assert body["city"] == key
     assert body["grounding"]["ok"] is True
     assert body["grounding"]["matched"] == body["grounding"]["total"] >= 1
+    assert body["provenance"]["is_live"] is False  # suite runs in fixtures mode
 
 
 def test_no_city_query_returns_message_not_500():
@@ -89,6 +91,8 @@ def test_health_endpoint():
     body = client.get("/health").json()
     assert body["status"] == "ok"
     assert set(body["cities"]) == EXPECTED_KEYS
+    assert body["weather_source"] in {"google-weather-api", "fixtures"}
+    assert "weather_cache" in body
 
 
 def test_frontend_latlon_matches_registry():

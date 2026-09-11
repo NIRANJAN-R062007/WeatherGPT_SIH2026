@@ -17,8 +17,15 @@ from dataclasses import dataclass, field
 # doesn't need touching when the stub is swapped out. A path missing here
 # gets unit None, which only matches unit-less readings — see _match.
 FIELD_UNITS: dict[str, str] = {
+    # flat facts keys emitted by weather_data.get_weather()
     "temp_c": "celsius",
+    "feels_like_c": "celsius",
+    "high_c": "celsius",
+    "low_c": "celsius",
+    "humidity_pct": "percent",
     "rain_probability_pct": "percent",
+    "wind_kmh": "speed_kmh",
+    # raw Google Weather API paths (fixture-level tests; _unit_for suffix-matches)
     "temperature.degrees": "celsius",
     "maxTemperature.degrees": "celsius",
     "minTemperature.degrees": "celsius",

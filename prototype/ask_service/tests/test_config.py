@@ -36,4 +36,6 @@ def test_redact_never_leaks():
 def test_ask_still_returns_200_regardless_of_keys():
     r = client.get("/ask", params={"text": "what's the weather in Chennai", "lang": "en"})
     assert r.status_code == 200
-    assert r.json()["grounding"]["ok"] is True
+    body = r.json()
+    assert body["grounding"]["ok"] is True
+    assert body["provenance"]["is_live"] is False

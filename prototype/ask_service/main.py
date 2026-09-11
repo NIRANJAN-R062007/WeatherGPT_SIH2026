@@ -12,9 +12,11 @@ from datetime import datetime, timezone
 
 import cities
 import guardrail
+import weather_data
 from config import ALLOWED_ORIGINS, GEMINI_API_KEY, GEMINI_MODEL
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from google_weather import cache_stats
 from i18n import render
 from intent import parse_intent
 from weather_data import get_weather
@@ -65,7 +67,8 @@ def health():
         "service": "ask",
         "status": "ok",
         "cities": sorted(cities.CITY_KEYS),
-        "weather_source": "stub",
+        "weather_source": weather_data.source_status(),
+        "weather_cache": cache_stats(),
         "llm": GEMINI_MODEL if GEMINI_API_KEY else "unconfigured",
     }
 
@@ -90,7 +93,7 @@ def ask(text: str, lang: str = "en", city: str | None = None):
     if key is None:  # §2.3: refuse rather than guess
         return {"intent": intent, "message": _msg("no_city", lang)}
 
-    data = get_weather(key)
+    data = get_weather(key, intent=intent, day=day)
     if data is None:
         return {"intent": intent, "city": key, "message": _msg("no_data", lang)}
 
@@ -123,6 +126,8 @@ def ask(text: str, lang: str = "en", city: str | None = None):
         "response": candidate,
         "provenance": {
             "source": data["source"],
+            "issued": data.get("issued"),
+            "is_live": data["is_live"],
             "retrieved_at": datetime.now(timezone.utc).isoformat(),
         },
         "grounding": grounding,

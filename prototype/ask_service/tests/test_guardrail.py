@@ -10,7 +10,8 @@ from i18n import render
 from main import app
 from weather_data import get_weather
 
-CHENNAI = get_weather("chennai")
+CHENNAI = get_weather("chennai")                              # current facts
+CHENNAI_RAIN = get_weather("chennai", "will_it_rain", "tomorrow")  # forecast facts
 
 client = TestClient(app)
 
@@ -18,29 +19,25 @@ client = TestClient(app)
 def test_template_current_weather_en_passes():
     answer = render("current_weather", "Chennai", CHENNAI, "en")
     report = guardrail.check(answer, CHENNAI)
-    assert report.ok
-    assert report.matched == report.total == 1
+    assert report.ok and report.matched == report.total >= 1
 
 
 def test_template_will_it_rain_en_passes():
-    answer = render("will_it_rain", "Chennai", CHENNAI, "en")
-    report = guardrail.check(answer, CHENNAI)
-    assert report.ok
-    assert report.matched == report.total == 1
+    answer = render("will_it_rain", "Chennai", CHENNAI_RAIN, "en")
+    report = guardrail.check(answer, CHENNAI_RAIN)
+    assert report.ok and report.matched == report.total >= 1
 
 
 def test_template_current_weather_ta_passes():
     answer = render("current_weather", "Chennai", CHENNAI, "ta")
     report = guardrail.check(answer, CHENNAI)
-    assert report.ok
-    assert report.matched == report.total == 1
+    assert report.ok and report.matched == report.total >= 1
 
 
 def test_template_will_it_rain_ta_passes():
-    answer = render("will_it_rain", "Chennai", CHENNAI, "ta")
-    report = guardrail.check(answer, CHENNAI)
-    assert report.ok
-    assert report.matched == report.total == 1
+    answer = render("will_it_rain", "Chennai", CHENNAI_RAIN, "ta")
+    report = guardrail.check(answer, CHENNAI_RAIN)
+    assert report.ok and report.matched == report.total >= 1
 
 
 def test_hallucinated_number_fails():
