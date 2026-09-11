@@ -27,6 +27,10 @@ GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta"
 _origins = (os.getenv("ALLOWED_ORIGINS") or "").strip()
 ALLOWED_ORIGINS: list[str] = [o.strip() for o in _origins.split(",") if o.strip()] or ["*"]
 
+# Weather data source: "auto" (live, fixture fallback) | "live" (no fallback) |
+# "fixtures" (offline; the demo-morning kill switch).
+WEATHER_MODE: str = (os.getenv("WEATHER_MODE") or "auto").lower()
+
 
 class ConfigError(RuntimeError):
     pass
