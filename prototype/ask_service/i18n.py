@@ -55,15 +55,32 @@ def render(intent: str, city: str, data: dict, lang: str) -> str:
 
 
 def _render_current(city: str, data: dict, lang: str) -> str:
+    table = CONDITION_TA if lang == "ta" else CONDITION_EN
+    cond = table.get(data["condition"], data["condition"])
+    feels, humid = data.get("feels_like_c"), data.get("humidity_pct")
     if lang == "ta":
-        cond = CONDITION_TA.get(data["condition"], data["condition"])
-        return f"{city}: {cond}, {data['temp_c']}°C."
-    cond = CONDITION_EN.get(data["condition"], data["condition"])
-    return f"{city}: {cond}, {data['temp_c']}°C right now."
+        parts = [f"{city}: {cond}, {data['temp_c']}°C"]
+        if feels is not None:
+            parts.append(f"உணரப்படுவது {feels}°C")
+        if humid is not None:
+            parts.append(f"ஈரப்பதம் {humid}%")
+        return ", ".join(parts) + "."
+    parts = [f"{city}: {cond}, {data['temp_c']}°C right now"]
+    if feels is not None:
+        parts.append(f"feels like {feels}°C")
+    if humid is not None:
+        parts.append(f"humidity {humid}%")
+    return ", ".join(parts) + "."
 
 
 def _render_forecast(city: str, data: dict, lang: str) -> str:
-    pct = data.get("rain_probability_pct")
+    pct, high, low = data.get("rain_probability_pct"), data.get("high_c"), data.get("low_c")
     if lang == "ta":
-        return f"{city}: மழை வரும் வாய்ப்பு {pct}%."
-    return f"{city}: {pct}% chance of rain."
+        parts = [f"{city}: மழை வரும் வாய்ப்பு {pct}%" if pct is not None else f"{city}: முன்னறிவிப்பு"]
+        if high is not None and low is not None:
+            parts.append(f"அதிகபட்சம் {high}°C, குறைந்தபட்சம் {low}°C")
+        return ", ".join(parts) + "."
+    parts = [f"{city}: {pct}% chance of rain" if pct is not None else f"{city}: forecast"]
+    if high is not None and low is not None:
+        parts.append(f"high {high}°C, low {low}°C")
+    return ", ".join(parts) + "."
