@@ -13,8 +13,9 @@ client = TestClient(main.app)
 
 
 @pytest.fixture(autouse=True)
-def _key(monkeypatch):
+def _keys(monkeypatch):
     monkeypatch.setattr(config, "GEMINI_API_KEY", "test-key")
+    monkeypatch.setattr(config, "GOOGLE_WEATHER_API_KEY", "test-key")
 
 
 def _ask(text, **params):

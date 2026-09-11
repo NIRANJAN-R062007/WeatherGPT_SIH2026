@@ -15,6 +15,15 @@ CC = "current_conditions"
 FD = "forecast_days"
 
 
+@pytest.fixture(autouse=True)
+def _auto_mode(monkeypatch):
+    """This module tests the live/cache/fallback machinery: auto mode, key present.
+    Tests of the no-key path set GOOGLE_WEATHER_API_KEY back to None themselves.
+    """
+    monkeypatch.setattr(config, "WEATHER_MODE", "auto")
+    monkeypatch.setattr(config, "GOOGLE_WEATHER_API_KEY", "test-key")
+
+
 def _fixture_response(kind, city):
     path = FIXTURES_DIR / "google_weather" / f"{kind}.{city}.json"
     return json.loads(path.read_text(encoding="utf-8"))["response"]
@@ -24,6 +33,7 @@ def _fixture_response(kind, city):
 def live_stub(monkeypatch):
     """Serve fixture bodies through the fetch_json seam, counting calls."""
     calls = {"n": 0}
+    monkeypatch.setattr(config, "GOOGLE_WEATHER_API_KEY", "test-key")
 
     def _fetch(path, params, timeout=google_weather.TIMEOUT):
         calls["n"] += 1
@@ -108,6 +118,7 @@ def test_fixtures_mode_never_calls_fetch(monkeypatch):
 
 def test_live_mode_reraises(monkeypatch):
     monkeypatch.setattr(config, "WEATHER_MODE", "live")
+    monkeypatch.setattr(config, "GOOGLE_WEATHER_API_KEY", "test-key")
     def _boom(*a, **k):
         raise httpx.ConnectError("x")
 
