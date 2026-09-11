@@ -14,6 +14,8 @@
 html,body{height:100%}
 body{margin:0;background:#eef1f5;font-family:"Plus Jakarta Sans",system-ui,sans-serif;color:#1b2a3b}
 .ta{font-family:"Noto Sans Tamil","Plus Jakarta Sans",system-ui,sans-serif}
+/* the input carries inline font:inherit, which beats the class; force the Tamil face on it and its placeholder */
+input.ta,input.ta::placeholder{font-family:"Noto Sans Tamil","Plus Jakarta Sans",system-ui,sans-serif !important}
 @keyframes wg-spin{to{transform:rotate(360deg)}}
 .wg-spin{animation:wg-spin 1s linear infinite}
 a{color:#123047}
@@ -57,7 +59,9 @@ a:hover{color:#1d5b7e}
         <div style="margin-left:auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
           <div style="display:flex;background:rgba(255,255,255,.9);border-radius:18px;padding:3px">
             <button style="border:0;cursor:pointer;font:inherit;font-size:12px;font-weight:600;padding:5px 12px;border-radius:15px;background:{{ cBg }};color:{{ cColor }}" onClick="{{ setC }}">°C</button>
-            <button style="border:0;cursor:pointer;font:inherit;font-size:12px;font-weight:600;padding:5px 12px;border-radius:15px;background:{{ fBg }};color:{{ fColor }}" onClick="{{ setF }}">°F</button>
+            <sc-if value="{{ showFahrenheit }}" hint-placeholder-val="{{ false }}">
+              <button style="border:0;cursor:pointer;font:inherit;font-size:12px;font-weight:600;padding:5px 12px;border-radius:15px;background:{{ fBg }};color:{{ fColor }}" onClick="{{ setF }}">°F</button>
+            </sc-if>
           </div>
           <div style="display:flex;background:rgba(255,255,255,.9);border-radius:18px;padding:3px">
             <button style="border:0;cursor:pointer;font:inherit;font-size:12px;font-weight:600;padding:5px 13px;border-radius:15px;background:{{ enBg }};color:{{ enColor }}" onClick="{{ setEN }}">English</button>
@@ -76,7 +80,7 @@ a:hover{color:#1d5b7e}
             </div>
             <div class="{{ uiFont }}" style="font-size:15px;color:#e2e9f0;margin-top:8px;text-shadow:0 1px 6px rgba(0,0,0,.35)">{{ nowCondition }}</div>
             <div style="display:flex;align-items:flex-start;gap:2px;margin-top:2px">
-              <span style="font-size:80px;font-weight:600;letter-spacing:-.04em;line-height:1.05;color:#fff;font-variant-numeric:tabular-nums;text-shadow:0 3px 14px rgba(0,0,0,.35)">{{ nowTemp }}</span>
+              <span style="font-size:80px;font-weight:600;letter-spacing:-.04em;line-height:1.05;color:#fff;font-variant-numeric:tabular-nums;text-shadow:0 3px 14px rgba(0,0,0,.35)" data-testid="hero-temp">{{ nowTemp }}</span>
               <span style="font-size:22px;font-weight:600;color:#e2e9f0;margin-top:14px">{{ unitLabel }}</span>
             </div>
             <div class="{{ uiFont }}" style="font-size:14px;color:#dbe4ec;margin-top:4px;text-shadow:0 1px 6px rgba(0,0,0,.35)">{{ nowFeels }}</div>
@@ -163,7 +167,7 @@ a:hover{color:#1d5b7e}
               <sc-if value="{{ e.isPending }}" hint-placeholder-val="{{ false }}">
                 <div style="flex:1;min-width:0;border:1px solid #e7ecf1;border-radius:12px;padding:15px 16px;display:flex;align-items:center;gap:10px">
                   <svg class="wg-spin" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#5b9bc4" stroke-width="2" stroke-linecap="round" style="flex:none"><path d="M12 3a9 9 0 1 0 9 9"></path></svg>
-                  <span class="{{ e.font }}" style="font-size:13px;color:#5f7082">{{ loadingLabel }}</span>
+                  <span class="{{ e.chromeFont }}" style="font-size:13px;color:#5f7082">{{ loadingLabel }}</span>
                 </div>
               </sc-if>
 
@@ -173,10 +177,10 @@ a:hover{color:#1d5b7e}
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#c0424c" stroke-width="1.8" stroke-linecap="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg>
                   </span>
                   <div style="flex:1;min-width:0">
-                    <div class="{{ e.font }}" style="font-size:13px;font-weight:700;color:#22344a">{{ errorTitle }}</div>
-                    <div class="{{ e.font }}" style="font-size:12px;line-height:1.6;color:#5f7082;margin-top:6px">{{ errorBody }}</div>
+                    <div class="{{ e.chromeFont }}" style="font-size:13px;font-weight:700;color:#22344a" data-testid="error-card">{{ errorTitle }}</div>
+                    <div class="{{ e.chromeFont }}" style="font-size:12px;line-height:1.6;color:#5f7082;margin-top:6px">{{ errorBody }}</div>
                     <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:13px">
-                      <button class="{{ e.font }}" style="border:0;cursor:pointer;background:#1c4a6b;color:#fff;font:inherit;font-size:12px;font-weight:600;padding:8px 16px;border-radius:18px" onClick="{{ e.retry }}">{{ retryLabel }}</button>
+                      <button class="{{ e.chromeFont }}" style="border:0;cursor:pointer;background:#1c4a6b;color:#fff;font:inherit;font-size:12px;font-weight:600;padding:8px 16px;border-radius:18px" onClick="{{ e.retry }}">{{ retryLabel }}</button>
                       <span style="font-size:10.5px;color:#96a3b1;font-variant-numeric:tabular-nums">{{ e.errorCode }}</span>
                     </div>
                   </div>
@@ -188,7 +192,7 @@ a:hover{color:#1d5b7e}
                   <div style="display:flex;gap:16px;align-items:flex-start;padding:15px 16px 13px">
                     <div style="flex:1;min-width:0">
                       <div class="{{ e.font }}" style="font-size:12.5px;font-weight:600;color:#2c6d95">WeatherGPT</div>
-                      <div class="{{ e.font }}" style="font-size:14px;line-height:1.7;color:#22344a;margin-top:6px">{{ e.headline }}</div>
+                      <div class="{{ e.font }}" style="font-size:14px;line-height:1.7;color:#22344a;margin-top:6px" data-testid="answer">{{ e.headline }}</div>
                       <div style="font-size:10.5px;color:#96a3b1;margin-top:8px;font-variant-numeric:tabular-nums">{{ e.time }}</div>
                     </div>
                     <sc-if value="{{ e.hasFigures }}" hint-placeholder-val="{{ true }}">
@@ -199,36 +203,42 @@ a:hover{color:#1d5b7e}
                   <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;border-top:1px solid #eef1f4;background:#f7f9fb;padding:10px 16px">
                     <span style="display:flex;align-items:center;gap:7px;font-size:11.5px;color:#6b7c8e">
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#8b98a6" stroke-width="1.7" style="flex:none"><path d="M12 3 4 6v6c0 4.4 3.4 8.3 8 9 4.6-.7 8-4.6 8-9V6Z"></path></svg>
-                      <span class="{{ e.font }}">{{ sourceLabel }}</span><span style="color:#2c6d95;font-weight:600">{{ e.sourceName }}</span>
+                      <span class="{{ e.chromeFont }}">{{ sourceLabel }}</span><span style="color:#2c6d95;font-weight:600">{{ e.sourceName }}</span>
                     </span>
                     <span style="display:flex;align-items:center;gap:7px;font-size:11.5px;color:#6b7c8e;font-variant-numeric:tabular-nums">
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#8b98a6" stroke-width="1.7" style="flex:none"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
-                      <span class="{{ e.font }}">{{ e.issued }}</span>
+                      <span class="{{ e.chromeFont }}">{{ e.issued }}</span>
                     </span>
                     <span style="display:flex;align-items:center;gap:7px;font-size:11.5px;color:#3d7f5e;font-variant-numeric:tabular-nums">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3fb27f" stroke-width="1.9" style="flex:none"><circle cx="12" cy="12" r="9"></circle><path d="m8.5 12 2.5 2.5 4.5-5"></path></svg>
-                      <span class="{{ e.font }}">{{ e.validatorChip }}</span>
+                      <span class="{{ e.chromeFont }}">{{ e.validatorChip }}</span>
                     </span>
-                    <button class="{{ e.font }}" style="margin-left:auto;border:0;background:transparent;cursor:pointer;font:inherit;font-size:11.5px;font-weight:600;color:#1c4a6b;white-space:nowrap" onClick="{{ e.toggleEvidence }}">{{ e.evidenceLabel }}</button>
+                    <span class="{{ e.chromeFont }}" style="display:flex;align-items:center;gap:6px;font-size:10.5px;color:#6b7c8e" data-testid="live-badge">
+                      <span style="width:7px;height:7px;border-radius:50%;background:{{ e.liveColor }};flex:none"></span>{{ e.liveBadge }}
+                    </span>
+                    <span class="{{ e.chromeFont }}" style="font-size:10.5px;color:#96a3b1" data-testid="narration-tag">{{ e.narrationTag }}</span>
+                    <sc-if value="{{ e.hasEvidence }}" hint-placeholder-val="{{ true }}">
+                      <button class="{{ e.chromeFont }}" style="margin-left:auto;border:0;background:transparent;cursor:pointer;font:inherit;font-size:11.5px;font-weight:600;color:#1c4a6b;white-space:nowrap" onClick="{{ e.toggleEvidence }}" data-testid="view-source">{{ e.evidenceLabel }}</button>
+                    </sc-if>
                   </div>
 
                   <sc-if value="{{ e.evidenceOpen }}" hint-placeholder-val="{{ false }}">
                     <div style="border-top:1px solid #eef1f4;background:#fff">
                       <div style="padding:13px 16px;border-bottom:1px solid #f1f4f7">
-                        <div class="{{ e.font }}" style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#8b98a6">{{ checkedLabel }}</div>
+                        <div class="{{ e.chromeFont }}" style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#8b98a6">{{ checkedLabel }}</div>
                         <sc-for list="{{ e.tokens }}" as="t" hint-placeholder-count="3">
                           <div style="display:flex;align-items:center;gap:9px;margin-top:8px">
                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#3fb27f" stroke-width="2.2" style="flex:none"><path d="M20 6 9 17l-5-5"></path></svg>
                             <span class="{{ e.font }}" style="font-size:12px;color:#22344a;font-variant-numeric:tabular-nums">{{ t.reading }}</span>
-                            <span style="margin-left:auto;font-family:ui-monospace,Menlo,monospace;font-size:10.5px;color:#8b98a6;white-space:nowrap">{{ t.path }}</span>
+                            <span style="margin-left:auto;font-family:ui-monospace,Menlo,monospace;font-size:10.5px;color:#8b98a6;white-space:nowrap" data-testid="figure-path">{{ t.path }}</span>
                           </div>
                         </sc-for>
                       </div>
                       <div style="padding:13px 16px;border-bottom:1px solid #f1f4f7">
-                        <div class="{{ e.font }}" style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#8b98a6;margin-bottom:5px">{{ requestLabel }}</div>
-                        <div style="font-family:ui-monospace,Menlo,monospace;font-size:10.5px;line-height:1.7;color:#5f7082;word-break:break-all">{{ e.endpoint }}</div>
+                        <div class="{{ e.chromeFont }}" style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#8b98a6;margin-bottom:5px">{{ dataLabel }}</div>
+                        <div class="{{ e.chromeFont }}" style="font-size:11px;line-height:1.7;color:#5f7082" data-testid="data-note">{{ e.dataNote }}</div>
                       </div>
-                      <div class="{{ e.font }}" style="padding:13px 16px;font-size:11px;color:#8b98a6;line-height:1.65">{{ guardrailNote }}</div>
+                      <div class="{{ e.chromeFont }}" style="padding:13px 16px;font-size:11px;color:#8b98a6;line-height:1.65">{{ guardrailNote }}</div>
                     </div>
                   </sc-if>
                 </div>
@@ -248,7 +258,8 @@ a:hover{color:#1d5b7e}
 </x-dc>
 <script type="text/x-dc" data-dc-script data-props="{&quot;apiBase&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;http://localhost:8001&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;simulateFailure&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Demo states&quot;}}">
 // Demo cities: data/cities.json is the source of truth (backend GET /cities).
-// Keep lat/lon + names here in sync until this fetches the endpoint.
+// Kept here as the hero-card fallback when the backend is unreachable; lat/lon
+// must stay in sync (a backend test checks them).
 const CITIES = {
   chennai: {
     name: {en: "Chennai", ta: "சென்னை"}, region: {en: "Tamil Nadu", ta: "தமிழ்நாடு"}, lat: 13.0827, lon: 80.2707,
@@ -273,13 +284,66 @@ const CITIES = {
   }
 };
 
+const API_TIMEOUT_MS = 15000;
+
+// ISO timestamp -> "HH:MM IST" (the data's own issue time, from provenance.issued)
+function fmtIssued(iso) {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (isNaN(d)) return null;
+  return d.toLocaleTimeString("en-IN", {hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Kolkata"}) + " IST";
+}
+
 class Component extends DCLogic {
-  state = {lang: "en", unit: "C", city: "chennai", draft: "", records: [], openEvidence: null, seq: 0};
+  // The °C/°F toggle is hidden while wired: the backend is metric-only (no units
+  // param) and converting the narrated sentence client-side breaks on Tamil. A
+  // units param is a separate backend task.
+  state = {lang: "en", unit: "C", city: "chennai", draft: "", records: [], openEvidence: null, seq: 0,
+           hero: null, heroRain: null};
 
-  componentWillUnmount() { (this.timers || []).forEach(clearTimeout); }
+  componentDidMount() {
+    this._alive = true;
+    this.loadHero();
+  }
 
-  temp(celsius) {
-    return this.state.unit === "C" ? celsius : Math.round(celsius * 9 / 5 + 32);
+  componentDidUpdate() {
+    const key = `${this.state.city}|${this.state.lang}`;
+    if (key !== this._heroKey) this.loadHero();
+  }
+
+  componentWillUnmount() { this._alive = false; }
+
+  // One fetch seam. simulateFailure (canvas prop) points it at a dead base so the
+  // error card stays demoable. Times out via AbortController.
+  async api(path, params) {
+    const base = this.props.simulateFailure ? "http://127.0.0.1:1" : (this.props.apiBase || "");
+    const url = `${base}${path}?` + new URLSearchParams(params);
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), API_TIMEOUT_MS);
+    try {
+      const r = await fetch(url, {signal: ctl.signal});
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return await r.json();
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  setIfAlive(update) { if (this._alive) this.setState(update); }
+
+  async loadHero() {
+    const city = this.state.city, lang = this.state.lang;
+    this._heroKey = `${city}|${lang}`;
+    try {
+      const [cur, rain] = await Promise.all([
+        this.api("/facts", {city, lang}),
+        this.api("/facts", {city, lang, intent: "will_it_rain", day: "today"})
+      ]);
+      if (this._heroKey !== `${city}|${lang}`) return;  // superseded
+      this.setIfAlive({hero: cur.facts ? cur : null, heroRain: rain.facts ? rain : null});
+    } catch (e) {
+      this.setIfAlive({hero: null, heroRain: null});  // renderVals falls back to CITIES
+    }
   }
 
   matchCity(text) {
@@ -288,83 +352,76 @@ class Component extends DCLogic {
     return Object.keys(CITIES).find(k => s.includes(k) || s.includes(CITIES[k].name.ta)) || null;
   }
 
-  classify(q) {
-    const s = (q || "").toLowerCase();
-    if (/rain|மழை|tomorrow|நாளை|forecast|முன்னறிவிப்பு/.test(s)) return "rain_tomorrow";
-    if (/weather|temp|hot|now|today|இப்போது|வானிலை|இன்று/.test(s)) return "current";
-    return "unsupported";
-  }
-
-  buildAnswer(intent, cityKey, lang) {
-    const c = CITIES[cityKey];
-    const en = lang === "en";
-    const u = this.state.unit === "C" ? "°C" : "°F";
-    const T = v => `${this.temp(v)}${u}`;
-    if (intent === "current") {
-      const n = c.now;
-      return {
-        headline: en
-          ? `It is ${T(n.temp)} in ${c.name.en} right now, with ${n.cond.en.toLowerCase()} skies, ${n.humidity}% humidity and ${n.dir} wind at ${n.wind} km/h.`
-          : `${c.name.ta}யில் இப்போது ${T(n.temp)}, ${n.cond.ta}, ஈரப்பதம் ${n.humidity}%, ${n.dirTa} காற்று மணிக்கு ${n.wind} கி.மீ.`,
-        sourceName: en ? "Google Weather API · Current Conditions" : "Google Weather API · தற்போதைய நிலை",
-        issued: en ? `Issued ${c.issued} IST · valid 1 h` : `${c.issued} IST வெளியீடு · 1 மணி நேரம்`,
-        endpoint: `GET weather.googleapis.com/v1/currentConditions:lookup?location.latitude=${c.lat}&location.longitude=${c.lon}&unitsSystem=${this.state.unit === "C" ? "METRIC" : "IMPERIAL"}`,
-        tokens: [
-          {reading: en ? `${T(n.temp)} temperature` : `${T(n.temp)} வெப்பநிலை`, path: "temperature.degrees"},
-          {reading: en ? `${n.humidity}% humidity` : `${n.humidity}% ஈரப்பதம்`, path: "relativeHumidity"},
-          {reading: en ? `${n.wind} km/h wind` : `${n.wind} கி.மீ காற்று`, path: "wind.speed.value"}
-        ]
-      };
-    }
-    const f = c.tmr;
-    return {
-      headline: en
-        ? `There is a ${f.prob}% chance of rain in ${c.name.en} tomorrow — ${f.cond.en}. High ${T(f.max)}, low ${T(f.min)}.`
-        : `நாளை ${c.name.ta}யில் மழை பெய்ய ${f.prob}% வாய்ப்பு — ${f.cond.ta}. அதிகபட்சம் ${T(f.max)}, குறைந்தபட்சம் ${T(f.min)}.`,
-      sourceName: en ? "Google Weather API · Daily Forecast" : "Google Weather API · தினசரி முன்னறிவிப்பு",
-      issued: en ? `Issued ${c.issued} IST · valid to 20:30` : `${c.issued} IST வெளியீடு · 20:30 வரை`,
-      endpoint: `GET weather.googleapis.com/v1/forecast/days:lookup?location.latitude=${c.lat}&location.longitude=${c.lon}&days=2&unitsSystem=${this.state.unit === "C" ? "METRIC" : "IMPERIAL"}`,
-      tokens: [
-        {reading: en ? `${f.prob}% chance of rain` : `${f.prob}% மழை வாய்ப்பு`, path: "precipitation.probability.percent"},
-        {reading: en ? `${T(f.max)} high` : `${T(f.max)} அதிகபட்சம்`, path: "maxTemperature.degrees"},
-        {reading: en ? `${T(f.min)} low` : `${T(f.min)} குறைந்தபட்சம்`, path: "minTemperature.degrees"}
-      ]
-    };
-  }
-
-  refusal(cityKey, lang) {
-    const en = lang === "en";
-    return {
-      headline: !cityKey
-        ? (en ? "I don't have data for that location yet. Chennai, Madurai and Coimbatore are live in this prototype."
-              : "இந்த இடத்திற்கான தரவு இன்னும் இல்லை. சென்னை, மதுரை, கோயம்புத்தூர் மட்டும் இப்போது கிடைக்கும்.")
-        : (en ? "I can't answer that one yet. This prototype handles current conditions and rain forecasts."
-              : "இதற்கு இப்போது பதில் இல்லை. தற்போதைய வானிலை மற்றும் மழை முன்னறிவிப்பு மட்டும்."),
-      sourceName: en ? "No tool call made" : "தரவு அழைப்பு இல்லை",
-      issued: en ? "Refusing rather than guessing" : "ஊகிக்காமல் மறுக்கிறோம்",
-      endpoint: null,
-      tokens: []
-    };
-  }
-
-  answerFor(rec, lang) {
-    const grounded = rec.cityKey && rec.intent !== "unsupported";
-    return grounded ? this.buildAnswer(rec.intent, rec.cityKey, lang) : this.refusal(rec.cityKey, lang);
-  }
-
-  ask(q) {
+  async ask(q) {
     const query = (q || "").trim();
     if (!query) return;
     const id = this.state.seq + 1;
-    const fail = !!this.props.simulateFailure || /offline|fail/i.test(query);
+    const lang = this.state.lang;
     const cityKey = this.matchCity(query) || this.state.city;
     const time = new Date().toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"});
-    const rec = {id, query, time, intent: this.classify(query), cityKey, status: "pending"};
+    const rec = {id, query, time, lang, status: "pending"};
     this.setState(s => ({seq: id, draft: "", records: [...s.records, rec], city: cityKey}));
-    this.timers = this.timers || [];
-    this.timers.push(setTimeout(() => {
-      this.setState(s => ({records: s.records.map(r => r.id === id ? Object.assign({}, r, {status: fail ? "error" : "ok"}) : r)}));
-    }, 950));
+
+    const patch = fields => this.setIfAlive(s => ({
+      records: s.records.map(r => r.id === id ? Object.assign({}, r, fields) : r)
+    }));
+    try {
+      // city param disambiguates queries that name no city ("will it rain tomorrow?")
+      const data = await this.api("/ask", {text: query, lang, city: cityKey});
+      patch({status: "ok", data});
+      if (data.city) this.setIfAlive({city: data.city});
+    } catch (e) {
+      patch({status: "error", errorInfo: String(e && e.message || e)});
+    }
+  }
+
+  entryFrom(rec, ta, uiFont) {
+    const d = rec.data || {};
+    const font = rec.lang === "ta" ? "ta" : "";  // the query/answer keep the language they were asked in
+    const open = this.state.openEvidence === rec.id;
+    const base = {
+      query: rec.query, time: rec.time, font, chromeFont: uiFont,  // chrome follows the current UI language
+      isPending: rec.status === "pending",
+      isError: rec.status === "error",
+      isAnswer: rec.status === "ok",
+      evidenceOpen: open,
+      evidenceLabel: open ? (ta ? "மறை" : "Hide source") : (ta ? "ஆதாரம் பார்" : "View source"),
+      toggleEvidence: () => this.setState(s => ({openEvidence: s.openEvidence === rec.id ? null : rec.id})),
+      errorCode: rec.errorInfo || "",
+      retry: () => this.ask(rec.query)
+    };
+    if (rec.status !== "ok") return {...base, headline: "", hasFigures: false, sourceName: "", issued: "",
+      validatorChip: "", tokens: [], liveBadge: "", liveColor: "transparent", narrationTag: "", dataNote: "", hasEvidence: false};
+
+    const g = d.grounding, p = d.provenance;
+    if (!d.response) {
+      // backend message: unsupported / unrecognized / no city / no data / guardrail refusal
+      return {...base, headline: d.message || "", hasFigures: false,
+        sourceName: ta ? "தரவு அழைப்பு இல்லை" : "No tool call made",
+        issued: ta ? "ஊகிக்காமல் மறுக்கிறோம்" : "Refusing rather than guessing",
+        validatorChip: ta ? "எண் எதுவும் இல்லை" : "No figures claimed",
+        tokens: [], liveBadge: "", liveColor: "transparent", narrationTag: "", dataNote: "", hasEvidence: false};
+    }
+    const live = !!(p && p.is_live);
+    const issued = fmtIssued(p && p.issued);
+    return {...base,
+      headline: d.response,
+      hasFigures: !!(g && g.total > 0),
+      sourceName: (p && p.source) || "",
+      issued: issued ? (ta ? `${issued} வெளியீடு` : `Issued ${issued}`) : "",
+      validatorChip: g
+        ? (ta ? `சரிபார்ப்பு: ${g.matched}/${g.total} பொருந்தின` : `Validator: ${g.matched}/${g.total} matched`)
+        : "",
+      tokens: ((g && g.figures) || []).map(f => ({reading: f.reading, path: f.path || ""})),
+      liveBadge: live ? (ta ? "நேரலை" : "live") : (ta ? "சேமிப்பு" : "snapshot"),
+      liveColor: live ? "#3fb27f" : "#c9a227",
+      narrationTag: g && g.narration === "llm" ? (ta ? "LLM விவரணை" : "LLM-narrated") : (ta ? "வார்ப்புரு" : "template"),
+      dataNote: [live ? (ta ? "நேரடி Google Weather API" : "Live Google Weather API") : (ta ? "சேமித்த பதில்" : "Cached snapshot"),
+                 issued ? `issued ${issued}` : null,
+                 g && g.fallback_used ? (ta ? "LLM பதில் நிராகரிக்கப்பட்டது" : "LLM answer rejected by the guardrail") : null]
+                .filter(Boolean).join(" · "),
+      hasEvidence: true
+    };
   }
 
   renderVals() {
@@ -373,34 +430,20 @@ class Component extends DCLogic {
     const uiFont = ta ? "ta" : "";
     const c = CITIES[this.state.city] || CITIES.chennai;
     const n = c.now;
-    const u = this.state.unit === "C" ? "°C" : "°F";
+    const u = "°C";
 
-    const entries = this.state.records.map(rec => {
-      const a = this.answerFor(rec, lang);
-      const open = this.state.openEvidence === rec.id;
-      return {
-        query: rec.query,
-        time: rec.time,
-        font: uiFont,
-        isPending: rec.status === "pending",
-        isError: rec.status === "error",
-        isAnswer: rec.status === "ok",
-        headline: a.headline,
-        hasFigures: !!a.endpoint,
-        sourceName: a.sourceName,
-        issued: a.issued,
-        endpoint: a.endpoint || "",
-        tokens: a.tokens,
-        validatorChip: a.endpoint
-          ? (ta ? `சரிபார்ப்பு: ${a.tokens.length}/${a.tokens.length} பொருந்தின` : `Validator: ${a.tokens.length}/${a.tokens.length} matched`)
-          : (ta ? "எண் எதுவும் இல்லை" : "No figures claimed"),
-        evidenceOpen: open,
-        evidenceLabel: open ? (ta ? "மறை" : "Hide source") : (ta ? "ஆதாரம் பார்" : "View source"),
-        toggleEvidence: () => this.setState(s => ({openEvidence: s.openEvidence === rec.id ? null : rec.id})),
-        errorCode: "504 · weather.googleapis.com",
-        retry: () => this.ask(rec.query)
-      };
-    });
+    // Hero: backend facts when available, CITIES mock otherwise.
+    const h = this.state.hero, hf = h && h.facts;
+    const hr = this.state.heroRain && this.state.heroRain.facts;
+    const nowCity = hf ? h.city_name : (c.name[lang] || c.name.en);
+    const nowCondition = hf ? (h.condition_label || "") : (n.cond[lang] || n.cond.en);
+    const nowTemp = hf ? `${hf.temp_c}` : `${n.temp}`;
+    const feels = hf ? hf.feels_like_c : n.feels;
+    const humidity = hf ? hf.humidity_pct : n.humidity;
+    const wind = hf ? `${hf.wind_kmh} km/h ${hf.wind_dir || ""}`.trim() : `${n.wind} km/h ${n.cardinal}`;
+    const rain = hr ? hr.rain_probability_pct : n.rain;
+
+    const entries = this.state.records.map(rec => this.entryFrom(rec, ta, uiFont));
 
     const sugg = ta
       ? ["சென்னையில் இப்போது வானிலை என்ன?", "நாளை மழை பெய்யுமா?", "மதுரையில் இன்று", "கோயம்புத்தூரில் நாளை மழை?"]
@@ -408,14 +451,15 @@ class Component extends DCLogic {
 
     return {
       uiFont,
+      showFahrenheit: false,
       enBg: ta ? "transparent" : "#1c4a6b", enColor: ta ? "#5f7082" : "#fff",
       taBg: ta ? "#1c4a6b" : "transparent", taColor: ta ? "#fff" : "#5f7082",
       setEN: () => this.setState({lang: "en"}),
       setTA: () => this.setState({lang: "ta"}),
-      cBg: this.state.unit === "C" ? "#1c4a6b" : "transparent", cColor: this.state.unit === "C" ? "#fff" : "#5f7082",
-      fBg: this.state.unit === "F" ? "#1c4a6b" : "transparent", fColor: this.state.unit === "F" ? "#fff" : "#5f7082",
-      setC: () => this.setState({unit: "C"}),
-      setF: () => this.setState({unit: "F"}),
+      cBg: "#1c4a6b", cColor: "#fff",
+      fBg: "transparent", fColor: "#5f7082",
+      setC: () => {},
+      setF: () => {},
       navItems: [
         {label: ta ? "முகப்பு" : "Home", active: true},
         {label: ta ? "வரலாறு" : "History", active: false},
@@ -430,17 +474,17 @@ class Component extends DCLogic {
       })),
       poweredBy: ta ? "Google Weather API வழங்குகிறது" : "Powered by Google Weather API",
       currentWeatherLabel: ta ? "தற்போதைய வானிலை" : "Current weather",
-      nowCity: c.name[lang] || c.name.en,
-      nowCondition: n.cond[lang] || n.cond.en,
-      nowTemp: `${this.temp(n.temp)}`,
+      nowCity,
+      nowCondition,
+      nowTemp,
       unitLabel: u,
-      nowFeels: ta ? `உணரப்படுவது ${this.temp(n.feels)}${u}` : `Feels like ${this.temp(n.feels)}${u}`,
+      nowFeels: feels == null ? "" : (ta ? `உணரப்படுவது ${feels}${u}` : `Feels like ${feels}${u}`),
       humidityLabel: ta ? "ஈரப்பதம்" : "Humidity",
-      humidityValue: `${n.humidity}%`,
+      humidityValue: humidity == null ? "—" : `${humidity}%`,
       windLabel: ta ? "காற்று" : "Wind",
-      windValue: `${n.wind} km/h ${n.cardinal}`,
+      windValue: wind,
       rainLabel: ta ? "மழை வாய்ப்பு" : "Chance of rain",
-      rainValue: `${n.rain}%`,
+      rainValue: rain == null ? "—" : `${rain}%`,
       isEmpty: this.state.records.length === 0,
       emptyTitle: ta ? "வானிலை பற்றி கேளுங்கள்" : "Ask about the weather",
       emptyBody: ta
@@ -448,14 +492,14 @@ class Component extends DCLogic {
         : "Type a question above or tap one of the suggestions. Every answer shows the exact reading it came from.",
       entries,
       loadingLabel: ta ? "Google Weather API-லிருந்து சமீபத்திய தரவு பெறப்படுகிறது…" : "Fetching the latest weather data...",
-      errorTitle: ta ? "வானிலை தரவு கிடைக்கவில்லை" : "Unable to fetch weather data",
+      errorTitle: ta ? "வானிலை தரவு கிடைக்கவில்லை" : "Unable to reach WeatherGPT",
       errorBody: ta
-        ? "Google Weather API தற்போது பதிலளிக்கவில்லை. உறுதிப்படுத்த முடியாத எண்ணைக் கூறுவதில்லை — சில நிமிடங்களில் மீண்டும் முயற்சிக்கவும்."
-        : "The weather service is currently unavailable. Rather than show a number we can't verify, nothing is reported. Please try again in a few minutes.",
+        ? "சேவை தற்போது பதிலளிக்கவில்லை. உறுதிப்படுத்த முடியாத எண்ணைக் கூறுவதில்லை — சில நிமிடங்களில் மீண்டும் முயற்சிக்கவும்."
+        : "The service didn't respond. Rather than show a number we can't verify, nothing is reported. Please try again in a moment.",
       retryLabel: ta ? "மீண்டும் முயற்சி" : "Try again",
       sourceLabel: ta ? "ஆதாரம்:" : "Source:",
       checkedLabel: ta ? "சரிபார்க்கப்பட்ட எண்கள்" : "Figures checked against the source",
-      requestLabel: ta ? "அனுப்பப்பட்ட கோரிக்கை" : "Request sent",
+      dataLabel: ta ? "தரவு" : "Data",
       guardrailNote: ta
         ? "பதிலில் உள்ள ஒவ்வொரு எண்ணும் மூல தரவுடன் ஒப்பிடப்பட்ட பிறகே வெளியிடப்படுகிறது. பொருந்தாத எண் இருந்தால் பதில் நிறுத்தப்படும்."
         : "Each figure is matched against the raw response before the answer is shown. If one doesn't match, the answer is withheld rather than published.",
@@ -468,9 +512,7 @@ class Component extends DCLogic {
       footnote: ta
         ? "இரண்டு கேள்விகள் இணைக்கப்பட்டுள்ளன: தற்போதைய வானிலை, மழை முன்னறிவிப்பு. வானிலை தரவு © Google."
         : "Two intents are wired: current conditions and rain forecast. Weather data © Google.",
-      unitNote: this.state.unit === "C"
-        ? (ta ? "அலகு: METRIC (API கோரிக்கையில்)" : "Units: METRIC (requested from the API)")
-        : (ta ? "அலகு: IMPERIAL (API கோரிக்கையில்)" : "Units: IMPERIAL (requested from the API)")
+      unitNote: ta ? "அலகு: METRIC (API கோரிக்கையில்)" : "Units: METRIC (requested from the API)"
     };
   }
 }
