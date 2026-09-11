@@ -9,8 +9,10 @@ task list, and explicit out-of-scope list.
   `.env`), CORS origins. Never raises at import; `require()` fails loudly at
   point of use.
 - `ask_service/intent.py` — rule-based parser for the two demo intents
-  (`current_weather`, `will_it_rain`). Full NLU / Tamil phrasings are a
-  follow-up.
+  (`current_weather`, `will_it_rain`). Rain/day keywords are matched in both
+  English and Tamil (மழை; இன்று/நாளை/இன்றிரவு), so native-language queries
+  like "நாளை சென்னையில் மழை பெய்யுமா?" resolve correctly. Full NLU (richer,
+  less rigid phrasings) is still a follow-up.
 - `ask_service/cities.py` + `data/cities.json` — the demo city registry
   (Chennai, Madurai, Coimbatore): key, lat/lon, EN/TA names, aliases.
   `data/cities.json` is the source of truth; the frontend keeps a copy until
@@ -113,8 +115,6 @@ throttle just yields a template answer.
 - **Web UI wiring**: `WeatherGPT.dc.html` still mocks its data with a
   `setTimeout`. Replace `ask()`'s timeout with a `fetch(apiBase + "/ask")`, map
   the response per the contract above.
-- **Tamil intent parsing**: rain/day keywords are English-only, so a Tamil
-  forecast query ("நாளை மழை பெய்யுமா?") may come back `unrecognized`.
 
 ## Run it
 

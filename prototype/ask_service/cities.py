@@ -43,9 +43,16 @@ except (OSError, KeyError, ValueError) as exc:
 CITY_KEYS = frozenset(CITIES)
 
 
+_TAMIL_PULLI = "்"  # "்" — virama; case suffixes (e.g. -இல்) commonly elide it,
+                          # e.g. கோயம்புத்தூர் + இல் -> கோயம்புத்தூரில், which no
+                          # longer contains the bare name as a substring.
+
+
 def _names_for(city: City) -> list[str]:
-    return [city.key, city.names["en"].lower(), city.names["ta"].lower(),
-            *(a.lower() for a in city.aliases)]
+    names = [city.key, city.names["en"].lower(), city.names["ta"].lower(),
+             *(a.lower() for a in city.aliases)]
+    names += [n[:-1] for n in names if n.endswith(_TAMIL_PULLI)]
+    return names
 
 
 def resolve(text: str | None) -> str | None:
