@@ -8,14 +8,26 @@ own ASGI transport, so it keeps working while every genuine outbound call raises
 Mark a test `@pytest.mark.live` to opt out (for the deliberate smoke tests).
 """
 
+import config
 import httpx
 import pytest
+
+# Default the whole suite to offline fixtures — deterministic, no network, and it
+# matches the demo-safe path. Tests that exercise live/auto machinery override this
+# per-module (test_google_weather.py) or per-test.
+config.WEATHER_MODE = "fixtures"
 
 
 def pytest_configure(config):
     config.addinivalue_line(
         "markers", "live: hits a real external API; skipped without a key"
     )
+
+
+def pytest_runtest_setup(item):
+    """`live` tests only run when explicitly selected with -m live."""
+    if "live" in item.keywords and "live" not in item.config.getoption("markexpr"):
+        pytest.skip("live test — run with -m live")
 
 
 @pytest.fixture(autouse=True)
