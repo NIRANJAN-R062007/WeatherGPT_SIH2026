@@ -26,6 +26,9 @@ GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta"
 
 BHASHINI_USER_ID: str | None = os.getenv("BHASHINI_USER_ID")
 BHASHINI_ULCA_API_KEY: str | None = os.getenv("BHASHINI_ULCA_API_KEY")
+# Udyat-issued inference key: used as the compute Authorization header when the
+# config response carries no per-call inferenceApiKey (the newer Bhashini flow).
+BHASHINI_INFERENCE_KEY: str | None = os.getenv("BHASHINI_INFERENCE_KEY")
 
 _origins = (os.getenv("ALLOWED_ORIGINS") or "").strip()
 ALLOWED_ORIGINS: list[str] = [o.strip() for o in _origins.split(",") if o.strip()] or ["*"]

@@ -106,3 +106,50 @@ def test_empty_target_returns_none(monkeypatch):
 
     monkeypatch.setattr(httpx, "post", _post)
     assert bhashini.translate_to_tamil("hello") is None
+
+
+# --- Udyat credential shape: ulcaApiKey alone on config, inference key on compute ---
+
+def _udyat_pipeline_response():
+    # no pipelineInferenceAPIEndPoint block at all — matches the real response
+    return {"pipelineResponseConfig": [{"config": [{"serviceId": "ai4bharat/x"}]}]}
+
+
+def _udyat_creds(monkeypatch):
+    monkeypatch.setattr(config, "BHASHINI_USER_ID", None)
+    monkeypatch.setattr(config, "BHASHINI_ULCA_API_KEY", "udyat-key")
+    monkeypatch.setattr(config, "BHASHINI_INFERENCE_KEY", "inference-key")
+    bhashini.cache_clear()
+
+
+def test_udyat_is_configured_without_user_id(monkeypatch):
+    _udyat_creds(monkeypatch)
+    assert bhashini.is_configured()
+    monkeypatch.setattr(config, "BHASHINI_INFERENCE_KEY", None)
+    assert not bhashini.is_configured()  # ulcaApiKey alone is not enough
+
+
+def test_udyat_uses_inference_key_as_authorization(monkeypatch):
+    _udyat_creds(monkeypatch)
+    seen = []
+
+    def _post(url, **kw):
+        seen.append((url, kw["headers"]))
+        if url == bhashini.CONFIG_URL:
+            return _Resp(_udyat_pipeline_response())
+        return _Resp(_compute_response("சென்னை: 28 டிகிரி செல்சியஸ்."))
+
+    monkeypatch.setattr(httpx, "post", _post)
+    assert bhashini.translate_to_tamil("Chennai: 28°C.") == "சென்னை: 28 டிகிரி செல்சியஸ்."
+    cfg_headers, compute_headers = seen[0][1], seen[1][1]
+    assert "userID" not in cfg_headers and cfg_headers["ulcaApiKey"] == "udyat-key"
+    assert compute_headers["Authorization"] == "inference-key"
+
+
+def test_config_without_inference_key_and_no_udyat_key_returns_none(monkeypatch):
+    monkeypatch.setattr(config, "BHASHINI_USER_ID", "u")
+    monkeypatch.setattr(config, "BHASHINI_ULCA_API_KEY", "k")
+    monkeypatch.setattr(config, "BHASHINI_INFERENCE_KEY", None)
+    bhashini.cache_clear()
+    monkeypatch.setattr(httpx, "post", lambda url, **kw: _Resp(_udyat_pipeline_response()))
+    assert bhashini.translate_to_tamil("Chennai: 28°C.") is None  # no key anywhere -> fallback

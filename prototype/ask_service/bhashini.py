@@ -1,13 +1,18 @@
 """Bhashini ULCA translation for /ask: EN -> TA on top of Gemini narration.
 
-Two-stage ULCA flow: a config call (authed with userID + ulcaApiKey) resolves
-the translation pipeline and a per-call inference key, then a compute call
-(authed with that inference key) runs the actual translation. Any failure —
-no credentials, timeout, HTTP error, malformed response — returns None so
-main.py falls back to the hand-written i18n template, same safety pattern as
-narrate.py.
+Two-stage flow: a config call resolves the translation pipeline (serviceId),
+then a compute call runs the translation. Two credential shapes are handled:
 
-Credentials: BHASHINI_USER_ID, BHASHINI_ULCA_API_KEY (see .env.example).
+- classic ULCA: config authed with userID + ulcaApiKey; the config response
+  carries a per-call inferenceApiKey used on compute.
+- Udyat (newer): config authed with ulcaApiKey alone; the config response has
+  no inferenceApiKey, so compute uses the separately issued
+  BHASHINI_INFERENCE_KEY as the Authorization header.
+
+Any failure — no credentials, timeout, HTTP error, malformed response — returns
+None so main.py falls back to the hand-written i18n template, same safety
+pattern as narrate.py. Demo keys are quota-limited: the pipeline config is
+cached per process, so steady state is one compute call per Tamil answer.
 """
 
 import logging
@@ -25,7 +30,10 @@ _pipeline_cache: dict | None = None
 
 
 def is_configured() -> bool:
-    return bool(config.BHASHINI_USER_ID and config.BHASHINI_ULCA_API_KEY)
+    # ulcaApiKey is always required; then either a userID (classic, the config
+    # call returns the inference key) or an Udyat inference key.
+    return bool(config.BHASHINI_ULCA_API_KEY
+                and (config.BHASHINI_USER_ID or config.BHASHINI_INFERENCE_KEY))
 
 
 def cache_clear() -> None:
@@ -34,11 +42,21 @@ def cache_clear() -> None:
 
 
 def _config_headers() -> dict:
-    return {
-        "userID": config.BHASHINI_USER_ID,
-        "ulcaApiKey": config.BHASHINI_ULCA_API_KEY,
-        "Content-Type": "application/json",
-    }
+    headers = {"ulcaApiKey": config.BHASHINI_ULCA_API_KEY, "Content-Type": "application/json"}
+    if config.BHASHINI_USER_ID:
+        headers["userID"] = config.BHASHINI_USER_ID
+    return headers
+
+
+def _inference_headers(pipeline: dict) -> dict:
+    """Per-call key from the config response (classic), else the Udyat key."""
+    endpoint = pipeline.get("pipelineInferenceAPIEndPoint") or {}
+    key = endpoint.get("inferenceApiKey")
+    if key and key.get("name") and key.get("value"):
+        return {key["name"]: key["value"], "Content-Type": "application/json"}
+    if config.BHASHINI_INFERENCE_KEY:
+        return {"Authorization": config.BHASHINI_INFERENCE_KEY, "Content-Type": "application/json"}
+    raise KeyError("no inference key: config response had none and BHASHINI_INFERENCE_KEY unset")
 
 
 def _get_pipeline() -> dict:
@@ -65,17 +83,15 @@ def translate_to_tamil(text: str) -> str | None:
         return None
     try:
         pipeline = _get_pipeline()
-        inference_key = pipeline["pipelineInferenceAPIEndPoint"]["inferenceApiKey"]
+        headers = _inference_headers(pipeline)
         task_config = pipeline["pipelineResponseConfig"][0]["config"][0]
+        compute_url = (pipeline.get("pipelineInferenceAPIEndPoint") or {}).get("callbackUrl") \
+            or COMPUTE_URL
         body = {
             "pipelineTasks": [{"taskType": "translation", "config": task_config}],
             "inputData": {"input": [{"source": text}]},
         }
-        headers = {
-            inference_key["name"]: inference_key["value"],
-            "Content-Type": "application/json",
-        }
-        resp = httpx.post(COMPUTE_URL, json=body, headers=headers, timeout=TIMEOUT)
+        resp = httpx.post(compute_url, json=body, headers=headers, timeout=TIMEOUT)
         resp.raise_for_status()
         target = resp.json()["pipelineResponse"][0]["output"][0]["target"]
         return target.strip() or None
