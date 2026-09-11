@@ -412,6 +412,59 @@ weathergpt/
 
 **Risk:** this is a compressed, single-night build — if Google Weather API key/billing (Risk R1) isn't already sorted, that blocks everything else here and should be resolved first, before any other task on this list starts.
 
+**Improvement pass (decided 2026-09-11).** The prototype above is built and
+demoed. This pass improves the *same* prototype (`prototype/ask_service/`,
+`prototype/frontend/`) — not a rewrite, not the full §5–§8 architecture. Six
+people work in parallel on it.
+
+**Starting point, so scope stays honest:** the prototype currently has no
+database, no auth, no Docker, no ASR/TTS, and only EN/TA. `narrate.py` is
+hardcoded to Gemini with no provider seam; `i18n.py` and `guardrail.py`'s
+unit-marker list are `if lang == "ta"` branches, not tables. Most tracks below
+are "add for the first time," not "extend."
+
+**Owners:**
+- [ ] **Niranjan — pin a stable public host/URL.** Do this first — Google
+  OAuth needs a fixed, pre-registered redirect URI, and the current Cloudflare
+  *quick* tunnel gets a new random hostname on every restart, which blocks
+  Deepthi's OAuth work from being testable end-to-end. (Named Cloudflare
+  tunnel, or a small persistent host.)
+- [ ] **Niranjan — voice.** Bhashini ASR/TTS wired into `ask_service`
+  (currently text-translate only) + mic-capture/playback UI in the frontend
+  (none exists yet).
+- [ ] **Deepthi — Google OAuth + Supabase.** New DB from scratch: pick a
+  client, add a users table, wire the OAuth flow. Testable only once the host
+  above is pinned.
+- [ ] **Abel — link history to the database.** History table +
+  `/history` endpoint, keyed off Deepthi's user id — blocked until her schema
+  exists. Replaces the current History modal placeholder (which only explains
+  DB-connectivity status) with real per-user data.
+- [ ] **Mahesh — Llama 3 + Docker.** Add a provider seam to `narrate.py`
+  (currently Gemini-only) so Llama is a second path, not a rewrite — this also
+  fixes the live ~1-in-3 Gemini 503 fallback-to-template rate. Write a
+  Dockerfile for `ask_service` — none exists yet; `docker-compose.yml` only
+  builds `services/gateway`, which the prototype deliberately bypasses.
+- [ ] **Syed — other languages (Hindi, Telugu, Marathi).** Refactor
+  `i18n.py` and `guardrail.py`'s unit-marker list from hardcoded EN/TA
+  branches into a per-language table before adding a third language, or each
+  new language is another copy-pasted branch. Native-speaker QA pass required
+  before claiming support (§13's still-open item).
+- [ ] **Chelsea — UI/UX.** Integrates everyone else's surface into
+  `WeatherGPT.dc.html` / `support.js`: login button (Deepthi), history data
+  (Abel), mic button + audio playback (Niranjan), language switcher (Syed).
+  Downstream of the other five — agree on API/response shapes (contracts) on
+  day 1 so she can build against mocks instead of waiting on everyone else to
+  finish.
+
+**Sequencing:** Niranjan's host pin unblocks Deepthi's OAuth; Deepthi's schema
+unblocks Abel's history endpoint. Mahesh, Syed, and Niranjan's voice work are
+independent and can start immediately.
+
+**Risk — shared files:** the whole prototype is one FastAPI app (`main.py`)
+and one static page (`WeatherGPT.dc.html` + `support.js`). Six people landing
+changes concurrently in the same few files will conflict — use feature
+branches and agree up front who merges.
+
 ---
 
 *Prepared for Team Techtonics · SIH 2026 · Verify all dates and API availability independently — government endpoints, third-party APIs, and hackathon schedules all change without notice.*
