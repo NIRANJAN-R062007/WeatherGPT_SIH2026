@@ -155,3 +155,21 @@ def test_tamil_word_units_match_correct_field():
     assert report.ok and report.matched == report.total == 2
     units = {f["path"]: f["unit"] for f in report.figures}
     assert units == {"temp_c": "celsius", "humidity_pct": "percent"}
+
+
+def test_tamil_wind_speed_word_unit_is_unit_aware():
+    # Same class of bug as the celsius/percent case: "14 கிமீ" carried no
+    # marker before, so it could ground against ANY field valued 14.
+    raw = {"temp_c": 14, "wind_kmh": 20}
+    answer = "சென்னை: மணிக்கு 14 கிமீ வேகத்தில் காற்று வீசுகிறது."
+    report = guardrail.check(answer, raw)
+    assert not report.ok  # 14 is temp_c, not wind_kmh; must not pass on value alone
+
+
+def test_tamil_wind_speed_word_unit_matches_correct_field():
+    raw = {"wind_kmh": 14}
+    answer = "சென்னை: மணிக்கு 14 கிமீ வேகத்தில் காற்று வீசுகிறது."
+    report = guardrail.check(answer, raw)
+    assert report.ok and report.matched == report.total == 1
+    assert report.figures[0]["unit"] == "speed_kmh"
+    assert report.figures[0]["path"] == "wind_kmh"
