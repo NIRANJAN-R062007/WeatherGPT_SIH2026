@@ -3,12 +3,15 @@
 Flow (plan.md §4): LLM -> narrate ONLY from the typed object -> validator
 (every numeric token must exist in the tool response) -> response + provenance,
 with a template fallback on validator failure. Narration is Gemini via
-narrate(); it returns None (-> template) on no key, non-English, or any error.
+narrate(), which only ever produces English. For lang="ta" the grounded
+English sentence is then translated by Bhashini; if narration, grounding, or
+translation fails at any step, main.py falls back to the i18n template.
 """
 
 from dataclasses import asdict
 from datetime import datetime, timezone
 
+import bhashini
 import cities
 import guardrail
 import weather_data
@@ -72,7 +75,38 @@ def health():
         "weather_cache": cache_stats(),
         "narration": f"gemini:{GEMINI_MODEL}" if llm_configured() else "template",
         "llm": GEMINI_MODEL if GEMINI_API_KEY else "unconfigured",
+        "bhashini": "configured" if bhashini.is_configured() else "unconfigured",
     }
+
+
+def _llm_attempt(intent: str, name: str, data: dict, lang: str):
+    """Try LLM narration (EN), translating to TA via Bhashini if that's the
+    requested language. Returns (candidate, report, attempted):
+    - candidate/report are set only if the *final* text (post-translation for
+      ta) grounds cleanly.
+    - attempted is True whenever an LLM sentence was produced at all, even if
+      it (or its translation) later failed — used for fallback_used.
+    """
+    english = narrate(intent, name, data, "en")
+    if not english:
+        return None, None, False
+
+    if lang != "ta":
+        report = guardrail.check(english, data)
+        ok = report.ok and report.total > 0
+        return (english, report, True) if ok else (None, None, True)
+
+    eng_report = guardrail.check(english, data)
+    if not (eng_report.ok and eng_report.total > 0):
+        return None, None, True  # ungrounded English answer, don't bother translating
+
+    tamil = bhashini.translate_to_tamil(english)
+    if not tamil:
+        return None, None, True  # no credentials / translation failed
+
+    report = guardrail.check(tamil, data)
+    ok = report.ok and report.total > 0
+    return (tamil, report, True) if ok else (None, None, True)
 
 
 @app.get("/cities")
@@ -101,15 +135,14 @@ def ask(text: str, lang: str = "en", city: str | None = None):
 
     name = cities.display_name(key, lang)
 
-    narration = "template"
-    fallback_used = False
-    candidate = narrate(intent, name, data, lang)     # None on ta / no key / any failure
-    report = guardrail.check(candidate, data) if candidate else None
+    candidate, report, attempted = _llm_attempt(intent, name, data, lang)
 
-    if candidate and report.ok and report.total > 0:
-        narration = "llm"
-    else:  # §4: no LLM answer, ungrounded, or it quoted no figures -> template
-        fallback_used = candidate is not None
+    if candidate:
+        narration = "llm+bhashini" if lang == "ta" else "llm"
+        fallback_used = False
+    else:  # §4: no LLM answer, ungrounded, or translation failed -> template
+        narration = "template"
+        fallback_used = attempted
         candidate = render(intent, name, data, lang)
         report = guardrail.check(candidate, data)
 

@@ -50,3 +50,12 @@ def _clear_weather_cache():
     google_weather.cache_clear()
     yield
     google_weather.cache_clear()
+
+
+@pytest.fixture(autouse=True)
+def _clear_bhashini_cache():
+    import bhashini
+
+    bhashini.cache_clear()
+    yield
+    bhashini.cache_clear()

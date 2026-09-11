@@ -49,6 +49,38 @@ def test_llm_unavailable_uses_template_without_flagging_fallback(monkeypatch):
     assert body["grounding"]["fallback_used"] is False
 
 
+def test_tamil_uses_bhashini_translation_of_grounded_english(monkeypatch):
+    monkeypatch.setattr(main, "narrate",
+                        lambda *a, **k: "Chennai: cloudy, 28°C right now, humidity 81%.")
+    monkeypatch.setattr(main.bhashini, "is_configured", lambda: True)
+    monkeypatch.setattr(main.bhashini, "translate_to_tamil",
+                        lambda text: "சென்னை: 28°C, ஈரப்பதம் 81%.")
+    body = _ask("what's the weather in Chennai", lang="ta")
+    assert body["response"] == "சென்னை: 28°C, ஈரப்பதம் 81%."
+    assert body["grounding"]["narration"] == "llm+bhashini"
+    assert body["grounding"]["fallback_used"] is False
+    assert body["grounding"]["ok"] is True
+
+
+def test_tamil_falls_back_to_template_when_bhashini_unconfigured(monkeypatch):
+    monkeypatch.setattr(main, "narrate",
+                        lambda *a, **k: "Chennai: cloudy, 28°C right now, humidity 81%.")
+    monkeypatch.setattr(main.bhashini, "translate_to_tamil", lambda text: None)
+    body = _ask("what's the weather in Chennai", lang="ta")
+    assert body["grounding"]["narration"] == "template"
+    assert body["grounding"]["fallback_used"] is True  # LLM grounded in EN, translation failed
+
+
+def test_tamil_falls_back_to_template_when_translation_hallucinates(monkeypatch):
+    monkeypatch.setattr(main, "narrate",
+                        lambda *a, **k: "Chennai: cloudy, 28°C right now, humidity 81%.")
+    monkeypatch.setattr(main.bhashini, "translate_to_tamil",
+                        lambda text: "சென்னை: 99°C.")  # bad translation, doesn't ground
+    body = _ask("what's the weather in Chennai", lang="ta")
+    assert body["grounding"]["narration"] == "template"
+    assert "99" not in body["response"]
+
+
 @pytest.mark.parametrize("key", sorted(["chennai", "madurai", "coimbatore"]))
 @pytest.mark.parametrize("lang", ["en", "ta"])
 @pytest.mark.parametrize("intent_text", [

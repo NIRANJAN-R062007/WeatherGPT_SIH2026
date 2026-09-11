@@ -24,6 +24,9 @@ GEMINI_API_KEY: str | None = os.getenv("GEMINI_API_KEY")
 GEMINI_MODEL: str = os.getenv("GEMINI_MODEL") or "gemini-flash-latest"
 GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta"
 
+BHASHINI_USER_ID: str | None = os.getenv("BHASHINI_USER_ID")
+BHASHINI_ULCA_API_KEY: str | None = os.getenv("BHASHINI_ULCA_API_KEY")
+
 _origins = (os.getenv("ALLOWED_ORIGINS") or "").strip()
 ALLOWED_ORIGINS: list[str] = [o.strip() for o in _origins.split(",") if o.strip()] or ["*"]
 
