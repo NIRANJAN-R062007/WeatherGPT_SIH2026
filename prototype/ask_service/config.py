@@ -24,6 +24,13 @@ GEMINI_API_KEY: str | None = os.getenv("GEMINI_API_KEY")
 GEMINI_MODEL: str = os.getenv("GEMINI_MODEL") or "gemini-flash-latest"
 GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta"
 
+# Second-provider fallback (plan.md §5): tried when Gemini fails, before the
+# template. Groq deprecated llama-3.3-70b-versatile in Aug 2026; gpt-oss-120b
+# is their recommended replacement — see https://console.groq.com/docs/deprecations
+GROQ_API_KEY: str | None = os.getenv("GROQ_API_KEY")
+GROQ_MODEL: str = os.getenv("GROQ_MODEL") or "openai/gpt-oss-120b"
+GROQ_BASE = "https://api.groq.com/openai/v1"
+
 BHASHINI_USER_ID: str | None = os.getenv("BHASHINI_USER_ID")
 BHASHINI_ULCA_API_KEY: str | None = os.getenv("BHASHINI_ULCA_API_KEY")
 # Udyat-issued inference key: used as the compute Authorization header when the

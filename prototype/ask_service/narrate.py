@@ -1,9 +1,14 @@
-"""Gemini narration for /ask: turn the facts dict into one grounded sentence.
+"""LLM narration for /ask: turn the facts dict into one grounded sentence.
 
-The guardrail still validates whatever this returns; on any failure — no key,
-non-English, timeout, HTTP error, empty response — narrate() returns None and
-main.py falls back to the i18n template (which covers Tamil). English only for
-now.
+Gemini is the primary provider; Groq is a second path tried when Gemini
+fails, since Gemini's free tier 503s roughly 1 in 3 calls live. The plan
+originally named Llama-3 for this slot, but Groq deprecated
+llama-3.3-70b-versatile in Aug 2026 — GROQ_MODEL defaults to their
+recommended replacement, gpt-oss-120b (see config.py). The guardrail still
+validates whatever comes back; on total failure — no key configured for
+either provider, non-English, timeout, HTTP error, empty response —
+narrate() returns None and main.py falls back to the i18n template (which
+covers Tamil). English only for now.
 """
 
 import json
@@ -30,7 +35,7 @@ _PROMPT = (
 
 
 def is_configured() -> bool:
-    return bool(config.GEMINI_API_KEY)
+    return bool(config.GEMINI_API_KEY or config.GROQ_API_KEY)
 
 
 def build_prompt(intent: str, city: str, facts: dict) -> str:
@@ -64,6 +69,37 @@ def generate(prompt: str, *, model: str, key: str, timeout: float = TIMEOUT) -> 
     return text or None
 
 
+def generate_groq(prompt: str, *, model: str, key: str, timeout: float = TIMEOUT) -> str | None:
+    """Groq's chat-completions endpoint is OpenAI-compatible — plain REST, no
+    SDK needed, same httpx call shape as generate() above.
+
+    gpt-oss models are reasoning models: chain-of-thought goes into a separate
+    `reasoning` field but still counts against max_tokens, so a low budget
+    truncates before `content` gets anything written (finish_reason="length",
+    content=""). reasoning_effort="low" + a bigger budget avoids that — the
+    Groq equivalent of Gemini's thinkingBudget:0 above.
+    """
+    body = {
+        "model": model,
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": 0.2,
+        "max_tokens": 300,
+        "reasoning_effort": "low",
+    }
+    resp = httpx.post(
+        f"{config.GROQ_BASE}/chat/completions",
+        headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+        json=body,
+        timeout=timeout,
+    )
+    resp.raise_for_status()
+    choices = resp.json().get("choices") or []
+    if not choices or choices[0].get("finish_reason") not in (None, "stop"):
+        return None
+    text = (choices[0].get("message") or {}).get("content", "").strip()
+    return text or None
+
+
 def _sanitize(text: str | None) -> str | None:
     if not text:
         return None
@@ -79,9 +115,22 @@ def _sanitize(text: str | None) -> str | None:
 def narrate(intent: str, city: str, facts: dict, lang: str = "en") -> str | None:
     if lang != "en" or not is_configured() or not facts:
         return None
-    try:
-        return _sanitize(generate(build_prompt(intent, city, facts),
-                                  model=config.GEMINI_MODEL, key=config.GEMINI_API_KEY))
-    except (httpx.HTTPError, KeyError, IndexError, ValueError) as exc:
-        _LOG.warning("narration failed (%s); falling back to template", exc)
-        return None
+    prompt = build_prompt(intent, city, facts)
+
+    if config.GEMINI_API_KEY:
+        try:
+            text = _sanitize(generate(prompt, model=config.GEMINI_MODEL, key=config.GEMINI_API_KEY))
+            if text:
+                return text
+        except (httpx.HTTPError, KeyError, IndexError, ValueError) as exc:
+            _LOG.warning("gemini narration failed (%s); trying groq fallback", exc)
+
+    if config.GROQ_API_KEY:
+        try:
+            text = _sanitize(generate_groq(prompt, model=config.GROQ_MODEL, key=config.GROQ_API_KEY))
+            if text:
+                return text
+        except (httpx.HTTPError, KeyError, IndexError, ValueError) as exc:
+            _LOG.warning("groq narration failed (%s); falling back to template", exc)
+
+    return None

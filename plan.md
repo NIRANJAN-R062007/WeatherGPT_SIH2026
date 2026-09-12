@@ -155,7 +155,7 @@ The validator runs on every response before it reaches the user.
 | Backend | **Python 3.11 + FastAPI** | PS-suggested; async, great for met/data libs |
 | Async jobs | **Celery + Redis** (drop APScheduler — one system end-to-end) | Scheduled ingestion via Celery beat; less to debug live |
 | Realtime | Native WebSockets (FastAPI) for push updates to clients | Keeps the client in sync without polling |
-| LLM | **Gemini 1.5/2.0 Flash as primary** (free-tier keys, no cost risk for dev/demo volume); **Llama-3 via Groq as latency fallback** for the p95 < 2s claim; **local quantised Llama (Ollama) as offline fallback** for venue Wi-Fi failure | Free Gemini removes cost risk; Groq covers the stage-demo latency moment; local Llama is the offline safety net (R5) — keep all three behind one pluggable abstraction |
+| LLM | **Gemini 1.5/2.0 Flash as primary** (free-tier keys, no cost risk for dev/demo volume); **`openai/gpt-oss-120b` via Groq as latency fallback** for the p95 < 2s claim (originally scoped as Llama-3, but Groq deprecated `llama-3.3-70b-versatile` off free/developer tiers in Aug 2026 — `gpt-oss-120b` is Groq's own recommended replacement); **local quantised Llama (Ollama) as offline fallback** for venue Wi-Fi failure | Free Gemini removes cost risk; Groq covers the stage-demo latency moment and Gemini's live ~1-in-3 free-tier 503 rate; local Llama is the offline safety net (R5) — keep all three behind one pluggable abstraction |
 | NLU | LLM function-calling + a rule-based fast path for the top ~20 intents | Fast path = latency win, also keeps Gemini free-tier rate limits comfortable |
 | Multilingual | **Bhashini** (ASR/TTS/translate) primary; **AI4Bharat IndicTrans2 + IndicConformer** self-hosted fallback. **Target set: English, Hindi, Tamil, Telugu, Marathi** — language is a config flag, not a hardcode | Govt-of-India stack scores points. Five languages span Indo-Aryan (Hindi, Marathi) + Dravidian (Tamil, Telugu) + English link language, ~63% of India by mother tongue (2011 Census); adding a sixth is a language code + a QA pass, so "all 22 scheduled languages" stays an honest roadmap claim |
 | Geo | PostGIS, GeoPandas, Shapely; **MapLibre GL** (not Mapbox/Google Maps) on client, tiles from **OpenStreetMap / Bhuvan (ISRO)** | Free, open-source, no additional API key or billing account beyond Google Weather API, no demo-day risk; Bhuvan reinforces the "sovereign India stack" story for the map layer even though weather data itself now comes from Google |
@@ -197,13 +197,13 @@ The validator runs on every response before it reaches the user.
 
 ---
 
-## 7. Team — 6 members, roles (Gargi off the team; Deepthi added)
+## 7. Team — 6 members, roles (Gargi off the team; Deepthi added; Surya Deepthi now Team Lead, Mahesh's other roles unchanged)
 
 **Confirmed roster:**
 
 | # | Role | Person(s) | Owns |
 |---|---|---|---|
-| 1 | **Team Lead** | **Mahesh** | Integration glue, final demo narrative |
+| 1 | **Team Lead** | **Surya Deepthi** | Integration glue, final demo narrative |
 | 2 | **Backend Architect** | **Niranjan** | FastAPI gateway, orchestrator |
 | 3 | **Data / Met Engineer** | **Syed + Deepthi** | Google Weather API ingestion, decoders, GRIB/xarray, PostGIS, cache strategy. **Deepthi's slice:** decoder tables, rainfall/climate data structuring, cache-strategy tuning |
 | 4 | **AI / LLM Engineer** | **Mahesh** | NLU, function-calling, RAG, **the guardrail + validator** |
