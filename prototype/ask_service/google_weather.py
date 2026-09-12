@@ -28,9 +28,11 @@ import httpx
 ENDPOINTS = {
     "current_conditions": "currentConditions:lookup",
     "forecast_days": "forecast/days:lookup",
+    "history_hours": "history/hours:lookup",
 }
-TTL_SECONDS = {"current_conditions": 900, "forecast_days": 21600}
+TTL_SECONDS = {"current_conditions": 900, "forecast_days": 21600, "history_hours": 3600}
 FORECAST_DAYS = 2
+HISTORY_HOURS = 24
 TIMEOUT = 10.0
 
 _monotonic = time.monotonic  # test seam
@@ -72,6 +74,8 @@ def _params(kind: str, city_key: str) -> dict:
     }
     if kind == "forecast_days":
         params["days"] = FORECAST_DAYS
+    if kind == "history_hours":
+        params["hours"] = HISTORY_HOURS
     return params
 
 

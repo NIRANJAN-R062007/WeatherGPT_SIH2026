@@ -47,6 +47,10 @@ def render(intent: str, city: str, data: dict, lang: str) -> str:
     """Template fallback. Branches on the facts SHAPE, not the intent name —
     "weather tomorrow" is parsed as current_weather but carries forecast facts.
     """
+    if "days" in data:
+        return _render_multi_day(city, data, lang)
+    if "rain_so_far_mm" in data or "rain_last_24h_mm" in data:
+        return _render_rain_so_far(city, data, lang)
     if "temp_c" in data:
         return _render_current(city, data, lang)
     if "rain_probability_pct" in data or "high_c" in data:
@@ -71,6 +75,53 @@ def _render_current(city: str, data: dict, lang: str) -> str:
     if humid is not None:
         parts.append(f"humidity {humid}%")
     return ", ".join(parts) + "."
+
+
+def _render_multi_day(city: str, data: dict, lang: str) -> str:
+    """N-day outlook. TA text is minimal — needs Syed's native-speaker QA pass."""
+    table = CONDITION_TA if lang == "ta" else CONDITION_EN
+    segments = []
+    for day in data["days"]:
+        cond = table.get(day.get("condition"), day.get("condition"))
+        pct, high, low = day.get("rain_probability_pct"), day.get("high_c"), day.get("low_c")
+        seg = f"{day['label']} {cond}" if cond else day["label"]
+        if lang == "ta":
+            if pct is not None:
+                seg += f", மழை வாய்ப்பு {pct}%"
+            if high is not None and low is not None:
+                seg += f", அதிகபட்சம் {high}°C, குறைந்தபட்சம் {low}°C"
+        else:
+            if pct is not None:
+                seg += f", {pct}% chance of rain"
+            if high is not None and low is not None:
+                seg += f", high {high}°C, low {low}°C"
+        segments.append(seg)
+
+    counted = data.get("days_counted", len(data["days"]))
+    prefix = f"{city}, அடுத்த {counted} நாட்கள்: " if lang == "ta" else f"{city}, next {counted} days: "
+    suffix = ""
+    if data.get("days_requested") and data["days_requested"] > counted:
+        suffix = (" (இதற்கு மேல் முன்னறிவிப்பு இன்னும் இல்லை)" if lang == "ta"
+                  else " (forecast beyond that isn't available yet)")
+    return prefix + "; ".join(segments) + "." + suffix
+
+
+def _render_rain_so_far(city: str, data: dict, lang: str) -> str:
+    """Rain-so-far-today. TA text is minimal — needs Syed's native-speaker QA pass."""
+    table = CONDITION_TA if lang == "ta" else CONDITION_EN
+    hours = data.get("hours_counted")
+    if "rain_so_far_mm" in data:
+        mm = data["rain_so_far_mm"]
+        cond = table.get(data.get("condition"), data.get("condition"))
+        if lang == "ta":
+            return (f"{city}: நள்ளிரவு முதல் {mm} மி.மீ மழை பெய்துள்ளது "
+                    f"({hours} மணி நேரத்தில்), தற்போது {cond}.")
+        return f"{city}: {mm} mm of rain since midnight (over {hours} hours), currently {cond}."
+
+    mm = data.get("rain_last_24h_mm")
+    if lang == "ta":
+        return f"{city}: கடந்த {hours} மணி நேரத்தில் {mm} மி.மீ மழை பெய்துள்ளது."
+    return f"{city}: {mm} mm of rain in the last {hours} hours."
 
 
 def _render_forecast(city: str, data: dict, lang: str) -> str:

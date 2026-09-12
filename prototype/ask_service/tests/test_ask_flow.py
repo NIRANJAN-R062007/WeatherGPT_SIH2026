@@ -47,6 +47,7 @@ def test_llm_unavailable_uses_template_without_flagging_fallback(monkeypatch):
     body = _ask("what's the weather in Chennai")
     assert body["grounding"]["narration"] == "template"
     assert body["grounding"]["fallback_used"] is False
+    assert body["grounding"]["attempts"] == 1  # nothing to regenerate from
 
 
 def test_tamil_uses_bhashini_translation_of_grounded_english(monkeypatch):
@@ -128,6 +129,80 @@ def test_mocked_live_data_marks_is_live(monkeypatch):
     body = _ask("what's the weather in Chennai")
     assert body["provenance"]["is_live"] is True
     assert body["grounding"]["ok"] is True
+
+
+def test_rainfall_so_far_end_to_end_template_path(monkeypatch):
+    monkeypatch.setattr(main, "narrate", lambda *a, **k: None)
+    body = _ask("how much rain has Chennai had so far today?")
+    assert body["intent"] == "rainfall_so_far_today"
+    assert body["nlu"]["intent"] == "rainfall_so_far_today"
+    assert body["grounding"]["narration"] == "template"
+    assert set(body["provenance"]) == {"source", "issued", "is_live", "retrieved_at"}
+
+
+def test_next_n_days_caps_and_grounds(monkeypatch):
+    monkeypatch.setattr(main, "narrate", lambda *a, **k: None)
+    body = _ask("5 day forecast for Chennai")
+    assert body["nlu"]["days"] == 5
+    assert body["grounding"]["ok"] is True
+
+
+def test_day_after_tomorrow_refuses(monkeypatch):
+    monkeypatch.setattr(main, "narrate", lambda *a, **k: None)
+    body = _ask("day after tomorrow weather in Chennai")
+    assert "response" not in body
+    assert body["message"] == main._msg("no_data", "en")
+
+
+def test_out_of_scope_cyclone_returns_message_no_response():
+    body = _ask("is a cyclone hitting Chennai tomorrow")
+    assert body["intent"] == "out_of_scope"
+    assert "message" in body and "response" not in body
+
+
+def test_unsupported_script_gets_notice(monkeypatch):
+    monkeypatch.setattr(
+        main.nlu, "_llm_parse",
+        lambda text: main.nlu.ParsedQuery(
+            intent="will_it_rain", city="chennai", time_window="tomorrow", days=None,
+            parameter="rain", language=None, source="llm", confidence=0.9,
+        ),
+    )
+    import narrate as narrate_module
+
+    monkeypatch.setattr(narrate_module, "is_configured", lambda: True)
+    body = _ask("ചെന്നൈയിൽ നാളെ മഴ പെയ്യുമോ?")
+    assert "notice" in body
+
+
+def test_regenerate_once_then_ok(monkeypatch):
+    calls = {"n": 0}
+
+    def _narrate(intent, city, facts, lang, **kw):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return "Chennai: 99°C, hallucinated."
+        return "Chennai: cloudy, 28°C right now, humidity 81%."
+
+    monkeypatch.setattr(main, "narrate", _narrate)
+    body = _ask("what's the weather in Chennai")
+    assert body["grounding"]["attempts"] == 2
+    assert body["grounding"]["narration"] == "llm"
+    assert body["grounding"]["fallback_used"] is False
+
+
+def test_regenerate_twice_falls_back_to_template(monkeypatch):
+    monkeypatch.setattr(main, "narrate", lambda *a, **k: "Chennai: 99°C, hallucinated.")
+    body = _ask("what's the weather in Chennai")
+    assert body["grounding"]["attempts"] == 2
+    assert body["grounding"]["narration"] == "template"
+    assert body["grounding"]["fallback_used"] is True
+
+
+def test_legacy_keys_preserved(monkeypatch):
+    monkeypatch.setattr(main, "narrate", lambda *a, **k: None)
+    body = _ask("what's the weather in Chennai")
+    assert {"intent", "city", "day", "response", "provenance", "grounding"} <= set(body)
 
 
 def test_facts_endpoint_current_and_forecast():

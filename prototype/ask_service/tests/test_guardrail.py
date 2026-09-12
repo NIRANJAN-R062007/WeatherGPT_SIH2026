@@ -166,6 +166,37 @@ def test_tamil_wind_speed_word_unit_is_unit_aware():
     assert not report.ok  # 14 is temp_c, not wind_kmh; must not pass on value alone
 
 
+def test_mm_unit_is_unit_aware():
+    raw = {"rain_so_far_mm": 2, "temp_c": 20}
+    answer = "Chennai: 20 mm of rain so far."
+    report = guardrail.check(answer, raw)
+    assert not report.ok  # 20 is temp_c, not rain_so_far_mm; must not pass on value alone
+
+
+def test_mm_unit_matches_correct_field():
+    raw = {"rain_so_far_mm": 1.97}
+    answer = "Chennai: 1.97 mm of rain so far."
+    report = guardrail.check(answer, raw)
+    assert report.ok and report.matched == report.total == 1
+    assert report.figures[0]["unit"] == "millimetres"
+
+
+def test_nested_qpf_grounds_against_raw_history_fixture():
+    import json
+
+    from config import FIXTURES_DIR
+
+    path = FIXTURES_DIR / "google_weather" / "history_hours.chennai.json"
+    if not path.exists():
+        import pytest
+
+        pytest.skip("history_hours fixture not present")
+    raw = json.loads(path.read_text())["response"]
+    qty = raw["historyHours"][0]["precipitation"]["qpf"]["quantity"]
+    report = guardrail.check(f"Chennai: {qty} mm so far.", raw)
+    assert report.ok and report.matched == report.total == 1
+
+
 def test_tamil_wind_speed_word_unit_matches_correct_field():
     raw = {"wind_kmh": 14}
     answer = "சென்னை: மணிக்கு 14 கிமீ வேகத்தில் காற்று வீசுகிறது."

@@ -14,13 +14,14 @@ from datetime import datetime, timezone
 import bhashini
 import cities
 import guardrail
+import nlu
+import router
 import weather_data
 from config import ALLOWED_ORIGINS, GEMINI_API_KEY, GEMINI_MODEL
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from google_weather import cache_stats
 from i18n import CONDITION_EN, CONDITION_TA, render
-from intent import parse_intent
 from narrate import is_configured as llm_configured
 from narrate import narrate
 from weather_data import get_weather
@@ -58,6 +59,16 @@ _MESSAGES = {
         "en": "Sorry, I couldn't produce a grounded answer for that.",
         "ta": "மன்னிக்கவும், உறுதிப்படுத்தப்பட்ட பதில் தர முடியவில்லை.",
     },
+    "out_of_scope": {
+        "en": "Sorry, I can only answer current weather, forecasts, rain chances and "
+        "rainfall so far — not warnings, alerts or other non-weather questions.",
+        "ta": "மன்னிக்கவும், தற்போதைய வானிலை, முன்னறிவிப்பு, மழை வாய்ப்பு, இதுவரை பெய்த "
+        "மழை ஆகியவற்றுக்கு மட்டுமே பதிலளிக்க முடியும்.",
+    },
+    "language_unsupported": {
+        "en": "I couldn't recognise that language yet — answering in English.",
+        "ta": "அந்த மொழியை இன்னும் அடையாளம் காண முடியவில்லை — ஆங்கிலத்தில் பதிலளிக்கிறேன்.",
+    },
 }
 
 
@@ -76,37 +87,56 @@ def health():
         "narration": f"gemini:{GEMINI_MODEL}" if llm_configured() else "template",
         "llm": GEMINI_MODEL if GEMINI_API_KEY else "unconfigured",
         "bhashini": "configured" if bhashini.is_configured() else "unconfigured",
+        "nlu": "rules+llm" if llm_configured() else "rules",
     }
 
 
-def _llm_attempt(intent: str, name: str, data: dict, lang: str):
-    """Try LLM narration (EN), translating to TA via Bhashini if that's the
-    requested language. Returns (candidate, report, attempted):
+def _narrate_grounded(intent: str, name: str, data: dict, prompt_facts: dict):
+    """Try narration, and once more with feedback if the first answer doesn't
+    ground. The guardrail always checks against the FULL facts (`data`), never
+    the parameter-trimmed `prompt_facts` sent to the prompt. Returns
+    (text|None, report|None, attempted, attempts).
+    """
+    text = narrate(intent, name, prompt_facts, "en")
+    if text is None:  # no provider / all failed — nothing to regenerate from
+        return None, None, False, 1
+    report = guardrail.check(text, data)
+    if report.ok and report.total > 0:
+        return text, report, True, 1
+
+    unmatched = [f["reading"] for f in report.figures if not f["matched"]]
+    text2 = narrate(intent, name, prompt_facts, "en", feedback=", ".join(unmatched) or None)
+    if text2 is not None:
+        report2 = guardrail.check(text2, data)
+        if report2.ok and report2.total > 0:
+            return text2, report2, True, 2
+
+    return None, None, True, 2
+
+
+def _llm_attempt(intent: str, name: str, data: dict, lang: str, prompt_facts: dict):
+    """Try LLM narration (EN, with one regenerate-on-ungrounded retry),
+    translating to TA via Bhashini if that's the requested language. Returns
+    (candidate, report, attempted, attempts):
     - candidate/report are set only if the *final* text (post-translation for
       ta) grounds cleanly.
     - attempted is True whenever an LLM sentence was produced at all, even if
       it (or its translation) later failed — used for fallback_used.
     """
-    english = narrate(intent, name, data, "en")
+    english, eng_report, attempted, attempts = _narrate_grounded(intent, name, data, prompt_facts)
     if not english:
-        return None, None, False
+        return None, None, attempted, attempts
 
     if lang != "ta":
-        report = guardrail.check(english, data)
-        ok = report.ok and report.total > 0
-        return (english, report, True) if ok else (None, None, True)
-
-    eng_report = guardrail.check(english, data)
-    if not (eng_report.ok and eng_report.total > 0):
-        return None, None, True  # ungrounded English answer, don't bother translating
+        return english, eng_report, attempted, attempts
 
     tamil = bhashini.translate_to_tamil(english)
     if not tamil:
-        return None, None, True  # no credentials / translation failed
+        return None, None, attempted, attempts  # no credentials / translation failed
 
     report = guardrail.check(tamil, data)
     ok = report.ok and report.total > 0
-    return (tamil, report, True) if ok else (None, None, True)
+    return (tamil, report, attempted, attempts) if ok else (None, None, attempted, attempts)
 
 
 @app.get("/cities")
@@ -135,26 +165,35 @@ def facts(city: str, intent: str = "current_weather", day: str = "today", lang: 
 
 @app.get("/ask")
 def ask(text: str, lang: str = "en", city: str | None = None):
-    parsed = parse_intent(text)
-    intent, day = parsed["intent"], parsed["day"]
+    pq = nlu.parse(text, lang_hint=lang)
+    notice = _msg("language_unsupported", lang) if pq.language is None else None
 
-    if intent == "unrecognized":
-        return {"intent": intent, "message": _msg("unrecognized", lang)}
-    if intent == "unsupported_city":
-        return {"intent": intent, "message": _msg("unsupported_city", lang)}
+    if pq.intent in ("unrecognized", "unsupported_city", "out_of_scope"):
+        resp = {"intent": pq.intent, "message": _msg(pq.intent, lang), "nlu": pq.as_dict()}
+        if notice:
+            resp["notice"] = notice
+        return resp
 
     # weather intent: resolve the city from the query, else the explicit param
-    key = cities.resolve(parsed["city"]) or cities.resolve(city)
+    key = cities.resolve(pq.city) or cities.resolve(city)
     if key is None:  # §2.3: refuse rather than guess
-        return {"intent": intent, "message": _msg("no_city", lang)}
+        resp = {"intent": pq.intent, "message": _msg("no_city", lang), "nlu": pq.as_dict()}
+        if notice:
+            resp["notice"] = notice
+        return resp
 
-    data = get_weather(key, intent=intent, day=day)
+    data = router.route(pq, key)
     if data is None:
-        return {"intent": intent, "city": key, "message": _msg("no_data", lang)}
+        resp = {"intent": pq.intent, "city": key, "message": _msg("no_data", lang),
+                "nlu": pq.as_dict()}
+        if notice:
+            resp["notice"] = notice
+        return resp
 
     name = cities.display_name(key, lang)
+    prompt_facts = router.narration_facts(data, pq.parameter)
 
-    candidate, report, attempted = _llm_attempt(intent, name, data, lang)
+    candidate, report, attempted, attempts = _llm_attempt(pq.intent, name, data, lang, prompt_facts)
 
     if candidate:
         narration = "llm+bhashini" if lang == "ta" else "llm"
@@ -162,23 +201,28 @@ def ask(text: str, lang: str = "en", city: str | None = None):
     else:  # §4: no LLM answer, ungrounded, or translation failed -> template
         narration = "template"
         fallback_used = attempted
-        candidate = render(intent, name, data, lang)
+        candidate = render(pq.intent, name, data, lang)
         report = guardrail.check(candidate, data)
 
-    grounding = {**asdict(report), "fallback_used": fallback_used, "narration": narration}
+    grounding = {**asdict(report), "fallback_used": fallback_used, "narration": narration,
+                 "attempts": attempts}
 
     if not report.ok:  # §2.3
-        return {
-            "intent": intent,
+        resp = {
+            "intent": pq.intent,
             "city": key,
             "message": _msg("ungrounded", lang),
             "grounding": grounding,
+            "nlu": pq.as_dict(),
         }
+        if notice:
+            resp["notice"] = notice
+        return resp
 
-    return {
-        "intent": intent,
+    resp = {
+        "intent": pq.intent,
         "city": key,
-        "day": day,
+        "day": router.legacy_day(pq),
         "response": candidate,
         "provenance": {
             "source": data["source"],
@@ -187,4 +231,8 @@ def ask(text: str, lang: str = "en", city: str | None = None):
             "retrieved_at": datetime.now(timezone.utc).isoformat(),
         },
         "grounding": grounding,
+        "nlu": pq.as_dict(),
     }
+    if notice:
+        resp["notice"] = notice
+    return resp

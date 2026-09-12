@@ -36,6 +36,33 @@ def test_missing_optionals_degrade_gracefully():
     assert guardrail.check(answer, rain_min).ok
 
 
+@pytest.mark.parametrize("lang", ["en", "ta"])
+def test_multi_day_template_grounds(lang):
+    facts = weather_data.multi_day_facts("chennai", 5)
+    answer = i18n.render("forecast", "Chennai", facts, lang)
+    report = guardrail.check(answer, facts)
+    assert report.ok and report.matched == report.total >= 1
+    if lang == "en":
+        assert "forecast beyond that isn't available yet" in answer
+
+
+@pytest.mark.parametrize("lang", ["en", "ta"])
+def test_rain_so_far_template_grounds(lang):
+    facts = weather_data.rain_so_far("chennai")
+    answer = i18n.render("rainfall_so_far_today", "Chennai", facts, lang)
+    report = guardrail.check(answer, facts)
+    assert report.ok and report.matched == report.total >= 1
+
+
+@pytest.mark.parametrize("lang", ["en", "ta"])
+def test_rain_last_24h_fallback_template_grounds(lang):
+    facts = {"source": "x", "is_live": False, "issued": "2026-09-10T22:00Z",
+             "rain_last_24h_mm": 1.96, "hours_counted": 24, "condition": "cloudy"}
+    answer = i18n.render("rainfall_so_far_today", "Chennai", facts, lang)
+    report = guardrail.check(answer, facts)
+    assert report.ok and report.matched == report.total >= 1
+
+
 def test_unknown_condition_key_falls_through():
     facts = {"condition": "frog_storm", "temp_c": 20}
     answer = i18n.render("current_weather", "Chennai", facts, "en")

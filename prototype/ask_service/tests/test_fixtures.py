@@ -13,7 +13,7 @@ from config import FIXTURES_DIR
 
 GW_DIR = FIXTURES_DIR / "google_weather"
 CITIES = ["chennai", "madurai", "coimbatore"]
-KINDS = ["current_conditions", "forecast_days"]
+KINDS = ["current_conditions", "forecast_days", "history_hours"]
 
 EXPECTED = [GW_DIR / f"{kind}.{city}.json" for city in CITIES for kind in KINDS]
 
@@ -58,6 +58,19 @@ def test_forecast_days_has_temperature_and_precip(city):
                    "precipitation.probability.percent"]:
         assert any(p.endswith(wanted) for p in indexed), \
             f"{city}: no indexed forecast path ends with {wanted}"
+
+
+@pytest.mark.parametrize("city", CITIES)
+def test_history_hours_has_qpf_and_interval(city):
+    path = GW_DIR / f"history_hours.{city}.json"
+    if not path.exists():
+        pytest.skip(f"history_hours fixture not present for {city}")
+    env = json.loads(path.read_text(encoding="utf-8"))
+    hours = env["response"]["historyHours"]
+    assert len(hours) >= 1
+    for hour in hours:
+        assert "startTime" in hour["interval"] and "endTime" in hour["interval"]
+        assert "quantity" in hour["precipitation"]["qpf"]
 
 
 def test_gemini_models_fixture():

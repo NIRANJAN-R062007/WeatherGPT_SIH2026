@@ -146,6 +146,11 @@ def test_decode_condition_unknown_enum_logs(caplog):
     assert any("unmapped" in r.message for r in caplog.records)
 
 
+def test_params_history_hours_has_hours_param():
+    params = google_weather._params("history_hours", "chennai")
+    assert params["hours"] == google_weather.HISTORY_HOURS
+
+
 def test_cache_stats_shape(live_stub):
     google_weather.snapshot(CC, "chennai")
     stats = google_weather.cache_stats()

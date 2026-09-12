@@ -15,14 +15,10 @@ from datetime import datetime, timezone
 
 import config
 import httpx
+from google_weather import ENDPOINTS, HISTORY_HOURS
 
 CITIES_PATH = config.DATA_DIR / "cities.json"
 OUT_DIR = config.FIXTURES_DIR / "google_weather"
-
-ENDPOINTS = {
-    "current_conditions": "currentConditions:lookup",
-    "forecast_days": "forecast/days:lookup",
-}
 
 _HINTS = {
     403: "403 — if the message mentions SERVICE_BLOCKED the Weather API is not "
@@ -67,14 +63,18 @@ def _envelope(name: str, endpoint: str, city: str, lat: float, lon: float,
 
 
 def snapshot(city_key: str, cities: dict, *, days: int, units: str,
-             force: bool, dry_run: bool) -> list[tuple]:
+             force: bool, dry_run: bool, kind: str = "all") -> list[tuple]:
     c = cities[city_key]
     lat, lon = c["lat"], c["lon"]
     rows = []
     for name, endpoint in ENDPOINTS.items():
+        if kind != "all" and name != kind:
+            continue
         extra = {"unitsSystem": units}
         if name == "forecast_days":
             extra["days"] = days
+        if name == "history_hours":
+            extra["hours"] = HISTORY_HOURS
         status, body = fetch(endpoint, lat, lon, **extra)
         env = _envelope(name, endpoint, city_key, lat, lon, extra, status, body)
 
@@ -100,6 +100,8 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--city", default="all",
                     choices=["all", "chennai", "madurai", "coimbatore"])
+    ap.add_argument("--kind", default="all",
+                    choices=["all", "current_conditions", "forecast_days", "history_hours"])
     ap.add_argument("--days", type=int, default=2)
     ap.add_argument("--units", default="METRIC")
     ap.add_argument("--force", action="store_true", help="overwrite existing fixtures")
@@ -117,7 +119,7 @@ def main() -> int:
     for city_key in targets:
         for city, endpoint, status, size, wrote in snapshot(
             city_key, cities, days=args.days, units=args.units,
-            force=args.force, dry_run=args.dry_run,
+            force=args.force, dry_run=args.dry_run, kind=args.kind,
         ):
             print(f"{city:<12}{endpoint:<28}{status:<6}{size:<8}{wrote}")
             if status != 200:

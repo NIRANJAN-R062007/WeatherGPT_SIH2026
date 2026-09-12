@@ -32,6 +32,9 @@ FIELD_UNITS: dict[str, str] = {
     "relativeHumidity": "percent",
     "precipitation.probability.percent": "percent",
     "wind.speed.value": "speed_kmh",
+    "rain_so_far_mm": "millimetres",
+    "rain_last_24h_mm": "millimetres",
+    "precipitation.qpf.quantity": "millimetres",
 }
 
 # Unit markers checked (after optional whitespace) right after each number
@@ -54,6 +57,9 @@ _UNIT_MARKERS: list[tuple[str, str]] = [
     ("டிகிரி செல்சியஸ்", "celsius"),
     ("சதவீத", "percent"),
     ("கிமீ", "speed_kmh"),
+    ("mm", "millimetres"),
+    ("millimetres", "millimetres"),
+    ("millimeters", "millimetres"),
 ]
 
 _NUMBER_RE = re.compile(r"-?\d+(?:\.\d+)?")
