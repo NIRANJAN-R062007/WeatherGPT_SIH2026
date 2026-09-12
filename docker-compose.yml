@@ -53,6 +53,21 @@ services:
         condition: service_healthy
     command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
+  ask_service:
+    build:
+      context: .
+      dockerfile: prototype/ask_service/Dockerfile
+    container_name: weathergpt-ask-service
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "8001:8001"
+    volumes:
+      - .:/app
+    working_dir: /app/prototype/ask_service
+    command: uvicorn main:app --host 0.0.0.0 --port 8001 --reload
+
 volumes:
   postgres_data:
   redis_data:
