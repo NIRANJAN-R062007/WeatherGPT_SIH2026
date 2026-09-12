@@ -125,10 +125,16 @@ a:hover{color:#1d5b7e}
           <div style="display:flex;align-items:center;gap:12px;background:rgba(255,255,255,.94);border-radius:12px;padding:10px 10px 10px 16px;box-shadow:0 4px 18px rgba(9,18,32,.22)">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#8b98a6" stroke-width="1.8" style="flex:none"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
             <input class="{{ uiFont }}" style="flex:1;min-width:0;border:0;outline:none;background:transparent;font:inherit;font-size:14px;color:#1b2a3b" value="{{ draft }}" onChange="{{ onDraft }}" onKeyDown="{{ onDraftKey }}" placeholder="{{ askPlaceholder }}" aria-label="Ask WeatherGPT">
+            <button style="width:34px;height:34px;border:0;cursor:pointer;border-radius:50%;background:{{ micBg }};display:flex;align-items:center;justify-content:center;flex:none" onClick="{{ onMic }}" aria-label="{{ micLabel }}" data-testid="mic-button">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="{{ micColor }}" stroke-width="2" stroke-linecap="round"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Z"></path><path d="M19 11a7 7 0 0 1-14 0"></path><path d="M12 18v3"></path></svg>
+            </button>
             <button style="width:34px;height:34px;border:0;cursor:pointer;border-radius:50%;background:#1c4a6b;display:flex;align-items:center;justify-content:center;flex:none" onClick="{{ onSend }}" aria-label="Send">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"><path d="M5 12h13"></path><path d="m12 6 6 6-6 6"></path></svg>
             </button>
           </div>
+          <sc-if value="{{ voiceNoticeVisible }}" hint-placeholder-val="{{ false }}">
+            <div class="{{ uiFont }}" style="margin-top:8px;font-size:12px;color:#ffdca8;text-shadow:0 1px 4px rgba(0,0,0,.4)" data-testid="voice-notice">{{ voiceNotice }}</div>
+          </sc-if>
         </div>
 
         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">
@@ -217,6 +223,9 @@ a:hover{color:#1d5b7e}
                       <span style="width:7px;height:7px;border-radius:50%;background:{{ e.liveColor }};flex:none"></span>{{ e.liveBadge }}
                     </span>
                     <span class="{{ e.chromeFont }}" style="font-size:10.5px;color:#96a3b1" data-testid="narration-tag">{{ e.narrationTag }}</span>
+                    <sc-if value="{{ e.canSpeak }}" hint-placeholder-val="{{ false }}">
+                      <button class="{{ e.chromeFont }}" style="border:0;background:transparent;cursor:pointer;font:inherit;font-size:11.5px;font-weight:600;color:#1c4a6b;white-space:nowrap;display:flex;align-items:center;gap:5px" onClick="{{ e.onPlay }}" data-testid="listen-button">{{ e.playLabel }}</button>
+                    </sc-if>
                     <sc-if value="{{ e.hasEvidence }}" hint-placeholder-val="{{ true }}">
                       <button class="{{ e.chromeFont }}" style="margin-left:auto;border:0;background:transparent;cursor:pointer;font:inherit;font-size:11.5px;font-weight:600;color:#1c4a6b;white-space:nowrap" onClick="{{ e.toggleEvidence }}" data-testid="view-source">{{ e.evidenceLabel }}</button>
                     </sc-if>
@@ -367,6 +376,96 @@ function fmtIssued(iso) {
   return d.toLocaleTimeString("en-IN", {hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Kolkata"}) + " IST";
 }
 
+// Voice input (plan.md §14): records the mic as raw PCM via Web Audio (no
+// MediaRecorder codec, since Bhashini's ASR wants plain 16kHz mono WAV, not
+// webm/opus) and hand-encodes a WAV container client-side — no extra library
+// needed for a hackathon-scale prototype.
+function mergeFloat32(chunks, length) {
+  const out = new Float32Array(length);
+  let offset = 0;
+  for (const chunk of chunks) { out.set(chunk, offset); offset += chunk.length; }
+  return out;
+}
+
+function downsampleTo(input, inputRate, outputRate) {
+  if (outputRate >= inputRate) return input;
+  const ratio = inputRate / outputRate;
+  const out = new Float32Array(Math.round(input.length / ratio));
+  for (let i = 0; i < out.length; i++) out[i] = input[Math.round(i * ratio)];
+  return out;
+}
+
+function encodeWavBase64(float32, sampleRate) {
+  const pcm = new DataView(new ArrayBuffer(float32.length * 2));
+  for (let i = 0; i < float32.length; i++) {
+    const s = Math.max(-1, Math.min(1, float32[i]));
+    pcm.setInt16(i * 2, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+  }
+  const buffer = new ArrayBuffer(44 + pcm.byteLength);
+  const view = new DataView(buffer);
+  const writeStr = (offset, str) => { for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i)); };
+  writeStr(0, "RIFF");
+  view.setUint32(4, 36 + pcm.byteLength, true);
+  writeStr(8, "WAVE");
+  writeStr(12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);          // PCM
+  view.setUint16(22, 1, true);          // mono
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true); // byte rate (16-bit mono)
+  view.setUint16(32, 2, true);          // block align
+  view.setUint16(34, 16, true);         // bits per sample
+  writeStr(36, "data");
+  view.setUint32(40, pcm.byteLength, true);
+  new Uint8Array(buffer, 44).set(new Uint8Array(pcm.buffer));
+
+  let binary = "";
+  const bytes = new Uint8Array(buffer);
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+  }
+  return btoa(binary);
+}
+
+class WavRecorder {
+  constructor(targetRate = 16000) {
+    this.targetRate = targetRate;
+    this.chunks = [];
+    this.length = 0;
+  }
+
+  async start() {
+    this.stream = await navigator.mediaDevices.getUserMedia({audio: true});
+    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    this.sourceRate = this.ctx.sampleRate;
+    this.source = this.ctx.createMediaStreamSource(this.stream);
+    // ScriptProcessorNode is deprecated but universally supported and needs no
+    // separate worklet file — fine for a prototype's recording lengths (a few seconds).
+    this.processor = this.ctx.createScriptProcessor(4096, 1, 1);
+    this.chunks = [];
+    this.length = 0;
+    this.processor.onaudioprocess = e => {
+      const data = e.inputBuffer.getChannelData(0);
+      this.chunks.push(new Float32Array(data));
+      this.length += data.length;
+    };
+    this.source.connect(this.processor);
+    this.processor.connect(this.ctx.destination);
+  }
+
+  stop() {
+    if (this.processor) this.processor.disconnect();
+    if (this.source) this.source.disconnect();
+    if (this.stream) this.stream.getTracks().forEach(t => t.stop());
+    const merged = mergeFloat32(this.chunks, this.length);
+    const rate = this.sourceRate;
+    if (this.ctx) this.ctx.close();
+    const down = downsampleTo(merged, rate, this.targetRate);
+    return encodeWavBase64(down, this.targetRate);
+  }
+}
+
 class Component extends DCLogic {
   // The °C/°F toggle is hidden while wired: the backend is metric-only (no units
   // param) and converting the narrated sentence client-side breaks on Tamil. A
@@ -375,7 +474,10 @@ class Component extends DCLogic {
            hero: null, heroRain: null,
            // modal: null | "history" | "settings". History has no backing store yet
            // (no DB wired in the prototype), so it explains itself rather than 404ing.
-           modal: null, alwaysEvidence: false, backendOk: null};
+           modal: null, alwaysEvidence: false, backendOk: null,
+           // voice (plan.md §14): recording -> voiceBusy (transcribing) -> ask(); playingId
+           // tracks which answer's TTS audio is currently playing.
+           recording: false, voiceBusy: false, voiceNotice: null, playingId: null};
 
   componentDidMount() {
     this._alive = true;
@@ -387,7 +489,10 @@ class Component extends DCLogic {
     if (key !== this._heroKey) this.loadHero();
   }
 
-  componentWillUnmount() { this._alive = false; }
+  componentWillUnmount() {
+    this._alive = false;
+    if (this._recorder) { try { this._recorder.stop(); } catch (e) {} }
+  }
 
   // One fetch seam. simulateFailure (canvas prop) points it at a dead base so the
   // error card stays demoable. Times out via AbortController.
@@ -403,6 +508,90 @@ class Component extends DCLogic {
     } finally {
       clearTimeout(timer);
     }
+  }
+
+  // POST seam for /asr and /tts — JSON bodies, same timeout/simulateFailure behavior as api().
+  async apiPost(path, body) {
+    const base = this.props.simulateFailure ? "http://127.0.0.1:1" : (this.props.apiBase || "");
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), API_TIMEOUT_MS);
+    try {
+      const r = await fetch(`${base}${path}`, {
+        method: "POST",
+        signal: ctl.signal,
+        headers: {"ngrok-skip-browser-warning": "1", "Content-Type": "application/json"},
+        body: JSON.stringify(body),
+      });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return await r.json();
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  async toggleMic() {
+    const ta = this.state.lang === "ta";
+    if (this.state.voiceBusy) return;  // ignore taps while transcribing
+
+    if (this.state.recording) {
+      this.setState({recording: false, voiceBusy: true});
+      let audioB64;
+      try {
+        audioB64 = this._recorder.stop();
+      } catch (e) {
+        this.setIfAlive({voiceBusy: false, voiceNotice: ta ? "பதிவு தோல்வியடைந்தது." : "Recording failed."});
+        return;
+      }
+      try {
+        const res = await this.apiPost("/asr", {audio: audioB64, lang: this.state.lang});
+        if (res && res.text) {
+          this.setIfAlive({voiceBusy: false, voiceNotice: null});
+          this.ask(res.text);
+        } else {
+          this.setIfAlive({voiceBusy: false,
+            voiceNotice: (res && res.message) || (ta ? "குரல் புரியவில்லை." : "Couldn't understand the audio.")});
+        }
+      } catch (e) {
+        this.setIfAlive({voiceBusy: false, voiceNotice: ta ? "குரல் சேவை கிடைக்கவில்லை." : "Voice service unavailable."});
+      }
+      return;
+    }
+
+    try {
+      this._recorder = new WavRecorder();
+      await this._recorder.start();
+      this.setIfAlive({recording: true, voiceNotice: null});
+    } catch (e) {
+      this.setIfAlive({voiceNotice: ta ? "மைக்ரோஃபோன் அணுகல் மறுக்கப்பட்டது." : "Microphone access denied."});
+    }
+  }
+
+  async playAnswer(rec) {
+    if (!rec.data || !rec.data.response) return;
+    // Web Audio (decodeAudioData + BufferSource), not <audio>: for a short clip
+    // that's already fully in memory this is far more reliable — new Audio(dataURI)
+    // .play() was observed to hang forever (never resolves/rejects, no events at
+    // all) on some Chrome builds, even for a well-formed 16-bit PCM WAV.
+    // Context is created synchronously here, still inside the click's call stack,
+    // so it isn't autoplay-blocked once we resume() after the await below.
+    const ctx = this._playbackCtx || (this._playbackCtx = new (window.AudioContext || window.webkitAudioContext)());
+    this.setState({playingId: rec.id, voiceNotice: null});
+    try {
+      const res = await this.apiPost("/tts", {text: rec.data.response, lang: rec.lang});
+      if (res && res.audio) {
+        if (ctx.state === "suspended") await ctx.resume();
+        const bytes = Uint8Array.from(atob(res.audio), c => c.charCodeAt(0));
+        const buffer = await ctx.decodeAudioData(bytes.buffer);
+        const source = ctx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(ctx.destination);
+        source.onended = () => this.setIfAlive({playingId: null});
+        source.start();
+        return;
+      }
+    } catch (e) {}
+    const ta = rec.lang === "ta";
+    this.setIfAlive({playingId: null, voiceNotice: ta ? "குரலில் இயக்க முடியவில்லை." : "Couldn't play audio."});
   }
 
   setIfAlive(update) { if (this._alive) this.setState(update); }
@@ -471,20 +660,29 @@ class Component extends DCLogic {
       retry: () => this.ask(rec.query)
     };
     if (rec.status !== "ok") return {...base, headline: "", hasFigures: false, sourceName: "", issued: "",
-      validatorChip: "", tokens: [], liveBadge: "", liveColor: "transparent", narrationTag: "", dataNote: "", hasEvidence: false};
+      validatorChip: "", tokens: [], liveBadge: "", liveColor: "transparent", narrationTag: "", dataNote: "",
+      hasEvidence: false, canSpeak: false, isPlaying: false, playLabel: "", onPlay: () => {}};
 
     const g = d.grounding, p = d.provenance;
+    const speak = {
+      canSpeak: !!d.response,
+      isPlaying: this.state.playingId === rec.id,
+      playLabel: this.state.playingId === rec.id
+        ? (ta ? "▶ ஒலிக்கிறது…" : "▶ Playing…")
+        : (ta ? "🔊 கேளுங்கள்" : "🔊 Listen"),
+      onPlay: () => this.playAnswer(rec),
+    };
     if (!d.response) {
       // backend message: unsupported / unrecognized / no city / no data / guardrail refusal
-      return {...base, headline: d.message || "", hasFigures: false,
+      return {...base, ...speak, headline: d.message || "", hasFigures: false,
         sourceName: ta ? "தரவு அழைப்பு இல்லை" : "No tool call made",
         issued: ta ? "ஊகிக்காமல் மறுக்கிறோம்" : "Refusing rather than guessing",
         validatorChip: ta ? "எண் எதுவும் இல்லை" : "No figures claimed",
-        tokens: [], liveBadge: "", liveColor: "transparent", narrationTag: "", dataNote: "", hasEvidence: false};
+        tokens: [], liveBadge: "", liveColor: "transparent", narrationTag: "", dataNote: ""};
     }
     const live = !!(p && p.is_live);
     const issued = fmtIssued(p && p.issued);
-    return {...base,
+    return {...base, ...speak,
       headline: d.response,
       hasFigures: !!(g && g.total > 0),
       sourceName: (p && p.source) || "",
@@ -594,6 +792,20 @@ class Component extends DCLogic {
       onDraftKey: e => { if (e.key === "Enter") { e.preventDefault(); this.ask(this.state.draft); } },
       onSend: () => this.ask(this.state.draft),
       askPlaceholder: ta ? "வானிலை பற்றி எதையும் கேளுங்கள்…" : "Ask WeatherGPT about any place...",
+
+      // --- Voice input (mic) ---
+      onMic: () => this.toggleMic(),
+      micBg: this.state.recording ? "#c0424c" : (this.state.voiceBusy ? "#c9a227" : "#e8f0f7"),
+      micColor: (this.state.recording || this.state.voiceBusy) ? "#fff" : "#1c4a6b",
+      micLabel: this.state.recording
+        ? (ta ? "பதிவை நிறுத்து" : "Stop recording")
+        : (ta ? "குரலால் கேளுங்கள்" : "Ask by voice"),
+      voiceNotice: this.state.recording
+        ? (ta ? "கேட்கிறேன்… (நிறுத்த தட்டவும்)" : "Listening… (tap to stop)")
+        : this.state.voiceBusy
+        ? (ta ? "குரலை உரையாக்குகிறது…" : "Transcribing…")
+        : (this.state.voiceNotice || ""),
+      voiceNoticeVisible: this.state.recording || this.state.voiceBusy || !!this.state.voiceNotice,
       footnote: ta
         ? "இரண்டு கேள்விகள் இணைக்கப்பட்டுள்ளன: தற்போதைய வானிலை, மழை முன்னறிவிப்பு. வானிலை தரவு © Google."
         : "Two intents are wired: current conditions and rain forecast. Weather data © Google.",

@@ -27,16 +27,18 @@ from google_weather import cache_stats
 from i18n import CONDITION_EN, CONDITION_TA, render
 from narrate import is_configured as llm_configured
 from narrate import narrate
+from pydantic import BaseModel
 from weather_data import get_weather
 
 app = FastAPI(title="WeatherGPT /ask prototype", version="0.0.1")
 
 # The frontend is served from a different origin (http.server) and calls this
-# directly — see prototype/README.md "Integration". GET-only, no credentials.
+# directly — see prototype/README.md "Integration". POST is for /asr and /tts
+# (JSON bodies too large/binary for query params), no credentials.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
-    allow_methods=["GET"],
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
 
@@ -71,6 +73,10 @@ _MESSAGES = {
     "language_unsupported": {
         "en": "I couldn't recognise that language yet — answering in English.",
         "ta": "அந்த மொழியை இன்னும் அடையாளம் காண முடியவில்லை — ஆங்கிலத்தில் பதிலளிக்கிறேன்.",
+    },
+    "voice_unavailable": {
+        "en": "Voice isn't available right now — try typing your question.",
+        "ta": "குரல் இப்போது கிடைக்கவில்லை — தட்டச்சு செய்யவும்.",
     },
 }
 
@@ -153,6 +159,38 @@ async def me(user: dict = Depends(get_current_user)):
 @app.get("/cities")
 def list_cities():
     return {"cities": cities.as_public_list()}
+
+
+class ASRRequest(BaseModel):
+    audio: str  # base64 mono 16-bit PCM WAV
+    lang: str = "en"
+    sampling_rate: int = 16000
+
+
+class TTSRequest(BaseModel):
+    text: str
+    lang: str = "en"
+
+
+@app.post("/asr")
+def asr(req: ASRRequest):
+    """Voice input: transcribe recorded audio via Bhashini ASR (plan.md §14
+    voice track). `text: null` (with a message) on no credentials or failure —
+    the frontend falls back to letting the user type."""
+    text = bhashini.speech_to_text(req.audio, req.lang, req.sampling_rate)
+    if text is None:
+        return {"text": None, "message": _msg("voice_unavailable", req.lang)}
+    return {"text": text}
+
+
+@app.post("/tts")
+def tts(req: TTSRequest):
+    """Answer playback: synthesize `req.text` via Bhashini TTS. `audio: null`
+    on no credentials or failure — the frontend just skips playback."""
+    audio = bhashini.text_to_speech(req.text, req.lang)
+    if audio is None:
+        return {"audio": None}
+    return {"audio": audio, "format": "wav"}
 
 
 @app.get("/facts")

@@ -213,3 +213,28 @@ def test_facts_endpoint_current_and_forecast():
                                       "day": "tomorrow"}).json()
     assert "rain_probability_pct" in fc["facts"] and "high_c" in fc["facts"]
     assert "message" in client.get("/facts", params={"city": "mumbai"}).json()
+
+
+def test_asr_endpoint_returns_transcript(monkeypatch):
+    monkeypatch.setattr(main.bhashini, "speech_to_text", lambda audio, lang, rate: "chennai weather")
+    body = client.post("/asr", json={"audio": "base64wav", "lang": "en"}).json()
+    assert body == {"text": "chennai weather"}
+
+
+def test_asr_endpoint_unavailable_returns_message(monkeypatch):
+    monkeypatch.setattr(main.bhashini, "speech_to_text", lambda audio, lang, rate: None)
+    body = client.post("/asr", json={"audio": "base64wav", "lang": "ta"}).json()
+    assert body["text"] is None
+    assert body["message"] == main._msg("voice_unavailable", "ta")
+
+
+def test_tts_endpoint_returns_audio(monkeypatch):
+    monkeypatch.setattr(main.bhashini, "text_to_speech", lambda text, lang: "UklGRi4=")
+    body = client.post("/tts", json={"text": "Chennai: 28°C.", "lang": "en"}).json()
+    assert body == {"audio": "UklGRi4=", "format": "wav"}
+
+
+def test_tts_endpoint_unavailable_returns_null_audio(monkeypatch):
+    monkeypatch.setattr(main.bhashini, "text_to_speech", lambda text, lang: None)
+    body = client.post("/tts", json={"text": "hello", "lang": "en"}).json()
+    assert body == {"audio": None}

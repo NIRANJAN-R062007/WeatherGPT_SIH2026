@@ -429,9 +429,16 @@ are "add for the first time," not "extend."
   domain (`prototype/run_tunnel.sh`), replacing the Cloudflare quick
   tunnel's random-per-restart hostname. Unblocks Deepthi's OAuth redirect
   URI registration.
-- [ ] **Niranjan — voice.** Bhashini ASR/TTS wired into `ask_service`
-  (currently text-translate only) + mic-capture/playback UI in the frontend
-  (none exists yet).
+- [x] **Niranjan — voice.** Done — Bhashini ASR (`POST /asr`) and TTS
+  (`POST /tts`) wired into `ask_service` (`bhashini.py`), plus mic-capture
+  (Web Audio -> hand-encoded 16kHz WAV, no extra library) and TTS playback
+  (Web Audio `decodeAudioData` + `BufferSource`, not `<audio>` — a data-URI
+  `<audio>` was observed to hang forever on `play()`, no events at all, even
+  for well-formed 16-bit PCM) in `WeatherGPT.dc.html`. Bhashini's TTS returns
+  32-bit float WAV, which Chrome's `<audio>` also can't reliably play — the
+  backend re-encodes to 16-bit PCM before sending audio to the frontend
+  (`bhashini._wav_to_pcm16_base64`). Verified end-to-end live (real Bhashini
+  keys) via curl and in-browser for both languages; 312 backend tests pass.
 - [ ] **Deepthi — Google OAuth + Supabase.** New DB from scratch: pick a
   client, add a users table, wire the OAuth flow. Testable only once the host
   above is pinned.
