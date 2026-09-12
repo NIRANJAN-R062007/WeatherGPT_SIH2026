@@ -396,12 +396,12 @@ weathergpt/
 **Tonight — build tasks:**
 - [ ] Google Weather API ingestion module: current conditions + daily forecast for a small hardcoded set of demo cities (start with Chennai). — **Syed + Deepthi**
 - [ ] Minimal decoder table: weather condition code → canonical English term (just enough for the two demo intents). — **Syed + Deepthi**
-- [ ] `/ask` FastAPI endpoint: intent parse (rule-based is fine, skip full LLM NLU if time-boxed) → tool call → typed response. — **Niranjan**
+- [x] `/ask` FastAPI endpoint: intent parse (rule-based is fine, skip full LLM NLU if time-boxed) → tool call → typed response. — **Niranjan**
 - [ ] Grounding guardrail + numeric validator wired into `/ask`, even in minimal form. — **Mahesh**
 - [ ] LLM narration prompt: narrate only from the typed response object, English only for now. — **Mahesh**
-- [ ] English → Tamil rendering: if Bhashini text-translate is quick to wire up, use it; otherwise fall back to hand-written Tamil phrase templates for the two intents (faster, safer for a stage demo than live translation of untested quality). — **Niranjan**
+- [x] English → Tamil rendering: if Bhashini text-translate is quick to wire up, use it; otherwise fall back to hand-written Tamil phrase templates for the two intents (faster, safer for a stage demo than live translation of untested quality). — **Niranjan**
 - [ ] Single-page web UI: text input + GPS/city field + language toggle (EN/TA) hitting `/ask`. — **Mahesh + Chelsea**
-- [ ] Provenance footer on every response (source + timestamp). — **Niranjan**
+- [x] Provenance footer on every response (source + timestamp). — **Niranjan**
 
 **Tomorrow morning — before the demo:**
 - [ ] End-to-end smoke test: both intents, both languages, on the actual demo Wi-Fi.
