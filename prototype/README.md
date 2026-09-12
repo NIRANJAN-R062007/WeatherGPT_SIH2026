@@ -149,6 +149,31 @@ curl "http://localhost:8001/ask?text=what's the weather in Chennai&lang=en"
 curl "http://localhost:8001/ask?text=will it rain in Madurai tomorrow&lang=ta"
 ```
 
+## Public URL (stable host pin, plan.md §14 — Niranjan)
+
+Fixed hostname: **`https://plaza-syrup-appetizer.ngrok-free.dev`** → forwards to
+`ask_service` on `:8001`. This replaces the old Cloudflare *quick* tunnel,
+which minted a new random hostname on every restart and blocked Deepthi's
+OAuth redirect URI from being pre-registerable. ngrok's free tier includes
+one static/reserved domain that never changes across restarts.
+
+```
+# terminal 3 — public tunnel (after ask_service is running on :8001)
+./prototype/run_tunnel.sh
+```
+
+One-time machine setup (already done on this host, needed on any other):
+1. `brew install ngrok/ngrok/ngrok`
+2. `ngrok config add-authtoken <token>` — token from
+   https://dashboard.ngrok.com/get-started/your-authtoken
+3. Static domain is already claimed on the account (dashboard.ngrok.com/domains);
+   don't reclaim, it's shared.
+
+Free-tier ngrok domains show an interstitial warning page to plain browser
+requests; the frontend's `api()` fetch sends `ngrok-skip-browser-warning: 1`
+to skip it (`WeatherGPT.dc.html`). `apiBase` in the canvas now defaults to
+the fixed ngrok URL instead of the old Cloudflare one.
+
 ## Tests
 
 ```
