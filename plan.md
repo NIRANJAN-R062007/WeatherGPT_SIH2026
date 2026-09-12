@@ -424,11 +424,11 @@ unit-marker list are `if lang == "ta"` branches, not tables. Most tracks below
 are "add for the first time," not "extend."
 
 **Owners:**
-- [ ] **Niranjan — pin a stable public host/URL.** Do this first — Google
-  OAuth needs a fixed, pre-registered redirect URI, and the current Cloudflare
-  *quick* tunnel gets a new random hostname on every restart, which blocks
-  Deepthi's OAuth work from being testable end-to-end. (Named Cloudflare
-  tunnel, or a small persistent host.)
+- [x] **Niranjan — pin a stable public host/URL.** Done — fixed hostname
+  `https://plaza-syrup-appetizer.ngrok-free.dev` via an ngrok reserved
+  domain (`prototype/run_tunnel.sh`), replacing the Cloudflare quick
+  tunnel's random-per-restart hostname. Unblocks Deepthi's OAuth redirect
+  URI registration.
 - [ ] **Niranjan — voice.** Bhashini ASR/TTS wired into `ask_service`
   (currently text-translate only) + mic-capture/playback UI in the frontend
   (none exists yet).
