@@ -127,7 +127,8 @@ def narrate(intent: str, city: str, facts: dict, lang: str = "en") -> str | None
 
     if config.GROQ_API_KEY:
         try:
-            text = _sanitize(generate_groq(prompt, model=config.GROQ_MODEL, key=config.GROQ_API_KEY))
+            text = _sanitize(generate_groq(prompt, model=config.GROQ_MODEL,
+                                            key=config.GROQ_API_KEY))
             if text:
                 return text
         except (httpx.HTTPError, KeyError, IndexError, ValueError) as exc:
