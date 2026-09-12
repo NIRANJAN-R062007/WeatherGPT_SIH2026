@@ -439,11 +439,10 @@ are "add for the first time," not "extend."
   `/history` endpoint, keyed off Deepthi's user id — blocked until her schema
   exists. Replaces the current History modal placeholder (which only explains
   DB-connectivity status) with real per-user data.
-- [ ] **Mahesh — Llama 3 + Docker.** Add a provider seam to `narrate.py`
-  (currently Gemini-only) so Llama is a second path, not a rewrite — this also
-  fixes the live ~1-in-3 Gemini 503 fallback-to-template rate. Write a
-  Dockerfile for `ask_service` — none exists yet; `docker-compose.yml` only
-  builds `services/gateway`, which the prototype deliberately bypasses.
+- [x] **Mahesh — Llama 3 + Docker.** ✅ done — `narrate.py` now falls back
+  Gemini → Groq → template (`openai/gpt-oss-120b`, since Groq deprecated
+  Llama-3 off free tiers; see §5). Dockerfile added for `ask_service` and
+  wired into `docker-compose.yml` alongside `services/gateway`.
 - [ ] **Syed — other languages (Hindi, Telugu, Marathi).** Refactor
   `i18n.py` and `guardrail.py`'s unit-marker list from hardcoded EN/TA
   branches into a per-language table before adding a third language, or each
