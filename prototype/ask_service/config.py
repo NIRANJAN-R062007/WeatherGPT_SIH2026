@@ -44,6 +44,13 @@ ALLOWED_ORIGINS: list[str] = [o.strip() for o in _origins.split(",") if o.strip(
 # "fixtures" (offline; the demo-morning kill switch).
 WEATHER_MODE: str = (os.getenv("WEATHER_MODE") or "auto").lower()
 
+# Supabase project (plan.md §14 Deepthi track). ANON_KEY is the public
+# "anon" key — safe in frontend JS. There is no service-role key here on
+# purpose: the backend never needs elevated DB access, it only asks
+# Supabase's own Auth API to validate a user's session token (see auth.py).
+SUPABASE_URL: str | None = os.getenv("SUPABASE_URL")
+SUPABASE_ANON_KEY: str | None = os.getenv("SUPABASE_ANON_KEY")
+
 
 class ConfigError(RuntimeError):
     pass

@@ -1,0 +1,45 @@
+"""Supabase session verification for the /ask prototype (plan.md §14 Deepthi track).
+
+The frontend signs in with Google via Supabase Auth (see prototype/frontend/auth.js)
+and gets back a session access token. It sends that token as
+`Authorization: Bearer <token>` on requests that need to know who the user is
+(e.g. Abel's /history endpoint). We don't verify the JWT locally — we ask
+Supabase's own Auth API to validate it, which sidesteps signing-algorithm/key
+rotation details entirely and is cheap at hackathon scale.
+"""
+
+import httpx
+from config import SUPABASE_ANON_KEY, SUPABASE_URL, require
+from fastapi import Header, HTTPException
+
+
+async def _fetch_user(token: str) -> dict:
+    url = require("SUPABASE_URL", SUPABASE_URL)
+    key = require("SUPABASE_ANON_KEY", SUPABASE_ANON_KEY)
+    async with httpx.AsyncClient(timeout=5) as client:
+        resp = await client.get(
+            f"{url}/auth/v1/user",
+            headers={"Authorization": f"Bearer {token}", "apikey": key},
+        )
+    if resp.status_code != 200:
+        raise HTTPException(status_code=401, detail="Invalid or expired session")
+    return resp.json()
+
+
+async def get_current_user(authorization: str | None = Header(default=None)) -> dict:
+    """FastAPI dependency: require a signed-in user, 401 otherwise."""
+    if not authorization or not authorization.lower().startswith("bearer "):
+        raise HTTPException(status_code=401, detail="Missing bearer token")
+    token = authorization.split(" ", 1)[1]
+    return await _fetch_user(token)
+
+
+async def get_optional_user(authorization: str | None = Header(default=None)) -> dict | None:
+    """Like get_current_user, but returns None instead of 401 when signed out."""
+    if not authorization or not authorization.lower().startswith("bearer "):
+        return None
+    token = authorization.split(" ", 1)[1]
+    try:
+        return await _fetch_user(token)
+    except HTTPException:
+        return None

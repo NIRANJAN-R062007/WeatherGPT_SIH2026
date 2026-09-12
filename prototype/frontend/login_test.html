@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>WeatherGPT — auth test</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 480px; margin: 60px auto; padding: 0 16px; }
+    button { font-size: 15px; padding: 8px 16px; cursor: pointer; }
+    pre { background: #f4f4f4; padding: 12px; border-radius: 6px; overflow-x: auto; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h1>WeatherGPT — Supabase auth test</h1>
+  <p>Standalone page to verify Google OAuth end-to-end, independent of the main UI
+     (plan.md §14 Deepthi track). Not meant to ship — Chelsea wires the real login
+     button into WeatherGPT.dc.html using the same auth.js helper.</p>
+
+  <div id="signed-out">
+    <button id="login-btn">Sign in with Google</button>
+  </div>
+
+  <div id="signed-in" hidden>
+    <p>Signed in as <strong id="user-email"></strong></p>
+    <button id="logout-btn">Sign out</button>
+    <h3>Session</h3>
+    <pre id="session-json"></pre>
+    <h3>Backend check (GET /me)</h3>
+    <button id="check-me-btn">Call /me with this session's token</button>
+    <pre id="me-json"></pre>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="auth.js"></script>
+  <script>
+    const signedOutEl = document.getElementById("signed-out");
+    const signedInEl = document.getElementById("signed-in");
+    const emailEl = document.getElementById("user-email");
+    const sessionEl = document.getElementById("session-json");
+    const meEl = document.getElementById("me-json");
+
+    function render(session) {
+      if (session) {
+        signedOutEl.hidden = true;
+        signedInEl.hidden = false;
+        emailEl.textContent = session.user.email;
+        sessionEl.textContent = JSON.stringify(session, null, 2);
+      } else {
+        signedOutEl.hidden = false;
+        signedInEl.hidden = true;
+        meEl.textContent = "";
+      }
+    }
+
+    document.getElementById("login-btn").addEventListener("click", () => {
+      window.WeatherGPTAuth.signInWithGoogle();
+    });
+
+    document.getElementById("logout-btn").addEventListener("click", async () => {
+      await window.WeatherGPTAuth.signOut();
+    });
+
+    document.getElementById("check-me-btn").addEventListener("click", async () => {
+      const session = await window.WeatherGPTAuth.getSession();
+      if (!session) return;
+      const resp = await fetch("/me", {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      meEl.textContent = `${resp.status}\n` + JSON.stringify(await resp.json(), null, 2);
+    });
+
+    window.WeatherGPTAuth.onChange(render);
+    window.WeatherGPTAuth.getSession().then(render);
+  </script>
+</body>
+</html>

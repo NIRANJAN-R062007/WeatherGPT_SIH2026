@@ -17,8 +17,9 @@ import guardrail
 import nlu
 import router
 import weather_data
+from auth import get_current_user
 from config import ALLOWED_ORIGINS, GEMINI_API_KEY, GEMINI_MODEL, REPO_ROOT
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -139,6 +140,14 @@ def _llm_attempt(intent: str, name: str, data: dict, lang: str, prompt_facts: di
     report = guardrail.check(tamil, data)
     ok = report.ok and report.total > 0
     return (tamil, report, attempted, attempts) if ok else (None, None, attempted, attempts)
+
+
+@app.get("/me")
+async def me(user: dict = Depends(get_current_user)):
+    """Verifies the Supabase session sent as `Authorization: Bearer <token>`
+    and returns the signed-in user. Abel's /history endpoint follows this
+    same pattern, keyed off user["id"] (plan.md §14)."""
+    return {"id": user["id"], "email": user.get("email")}
 
 
 @app.get("/cities")

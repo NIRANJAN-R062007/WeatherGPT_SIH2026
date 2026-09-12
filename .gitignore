@@ -6,3 +6,4 @@ __pycache__/
 .DS_Store
 data/fixtures/*.local.json
 data/fixtures/**/*.local.json
+.idea/
