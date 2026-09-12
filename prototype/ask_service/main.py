@@ -17,9 +17,11 @@ import guardrail
 import nlu
 import router
 import weather_data
-from config import ALLOWED_ORIGINS, GEMINI_API_KEY, GEMINI_MODEL
+from config import ALLOWED_ORIGINS, GEMINI_API_KEY, GEMINI_MODEL, REPO_ROOT
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from google_weather import cache_stats
 from i18n import CONDITION_EN, CONDITION_TA, render
 from narrate import is_configured as llm_configured
@@ -236,3 +238,18 @@ def ask(text: str, lang: str = "en", city: str | None = None):
     if notice:
         resp["notice"] = notice
     return resp
+
+
+# Serves the frontend on the same origin/tunnel as the API (plan.md §14 host
+# pin — one stable ngrok URL instead of a second tunnel, which the free tier
+# doesn't support running concurrently). Mounted last so it never shadows the
+# API routes above.
+_FRONTEND_DIR = REPO_ROOT / "prototype" / "frontend"
+
+
+@app.get("/")
+def _frontend_index():
+    return RedirectResponse("/WeatherGPT.dc.html")
+
+
+app.mount("/", StaticFiles(directory=_FRONTEND_DIR), name="frontend")

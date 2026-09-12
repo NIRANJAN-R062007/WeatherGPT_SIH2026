@@ -152,10 +152,16 @@ curl "http://localhost:8001/ask?text=will it rain in Madurai tomorrow&lang=ta"
 ## Public URL (stable host pin, plan.md §14 — Niranjan)
 
 Fixed hostname: **`https://plaza-syrup-appetizer.ngrok-free.dev`** → forwards to
-`ask_service` on `:8001`. This replaces the old Cloudflare *quick* tunnel,
-which minted a new random hostname on every restart and blocked Deepthi's
-OAuth redirect URI from being pre-registerable. ngrok's free tier includes
-one static/reserved domain that never changes across restarts.
+`ask_service` on `:8001`, which now also serves the frontend directly
+(`prototype/frontend/`, mounted as static files in `main.py`, `/` redirects to
+`WeatherGPT.dc.html`) — one tunnel, one URL, for both API and UI. The free
+ngrok tier only supports one online tunnel at a time, so the frontend isn't
+tunneled separately; it no longer needs its own `python -m http.server 8777`
+for the public demo (that's still fine for local-only dev). This replaces the
+old Cloudflare *quick* tunnel, which minted a new random hostname on every
+restart and blocked Deepthi's OAuth redirect URI from being pre-registerable.
+ngrok's free tier includes one static/reserved domain that never changes
+across restarts.
 
 ```
 # terminal 3 — public tunnel (after ask_service is running on :8001)
