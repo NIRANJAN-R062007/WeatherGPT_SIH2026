@@ -232,11 +232,11 @@ Sequential build order — each phase should be working end-to-end before the ne
 - *Output:* real, decoded weather facts queryable straight from the DB.
 
 ### Phase 2 — Grounding core
-- NLU: LLM → structured intent (location/time/parameter). — **Mahesh**
-- Tool router: intent → correct Phase 1 data call. — **Mahesh**
-- Guardrail/validator: every number in the answer must exist in the tool's raw response. — **Mahesh**
-- NLU eval set: test queries with expected intent/entities across all five languages. — **Mahesh**
-- *Output:* working `/ask` endpoint — text in, grounded English answer with provenance out (translation into the other four added in Phase 3).
+- ~~NLU: LLM → structured intent (location/time/parameter).~~ ✅ done (Sep 12) — `prototype/ask_service/nlu.py`: EN/TA rule fast path → Gemini/Groq structured output → validated fallback — **Mahesh**
+- ~~Tool router: intent → correct Phase 1 data call.~~ ✅ done (Sep 12) — `router.py`, plus `history/hours` for rainfall-so-far — **Mahesh**
+- ~~Guardrail/validator: every number in the answer must exist in the tool's raw response.~~ ✅ done (Sep 12) — one regenerate-with-feedback attempt before template fallback — **Mahesh**
+- ~~NLU eval set: test queries with expected intent/entities across all five languages.~~ ✅ done (Sep 12) — `ml/nlu/eval_set.jsonl` (70 rows); hi/te/mr rows still need native-speaker QA — **Mahesh**
+- *Output:* ✅ working `/ask` endpoint — text in, grounded English answer with provenance out (translation into the other four added in Phase 3).
 
 ### Phase 3 — Channels & UI
 - Flutter chat UI wired to `/ask`. — **Chelsea**
