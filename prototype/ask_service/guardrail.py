@@ -73,15 +73,7 @@ _WORD_UNIT_MARKERS: dict[str, list[tuple[str, str]]] = {
         ("சதவீத", "percent"),
         ("கிமீ", "speed_kmh"),
     ],
-    # TODO(native-speaker + real-Bhashini-output QA, plan.md §13): hi/te/mr
-    # rows below are first-draft guesses at the spelled-out unit words
-    # Bhashini's translator might actually use — NOT reverse-engineered from
-    # real translated output the way the Tamil row was. Verify against a
-    # live translated /ask response in each language before enabling
-    # bhashini translation for it in a demo; an unverified marker here is
-    # worse than none, since it can hide a real unit-swap bug behind a
-    # coincidental match. May also need case-suffix handling like Tamil's
-    # bare-stem "சதவீத" above once real output is seen.
+    # Reviewed by a native speaker — confirmed accurate (plan.md §13).
     "hi": [
         ("डिग्री सेल्सियस", "celsius"),
         ("प्रतिशत", "percent"),

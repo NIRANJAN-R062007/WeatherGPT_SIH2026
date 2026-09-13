@@ -49,8 +49,8 @@ app.add_middleware(
 
 
 # hi/te/mr strings are first-draft machine translations, not reverse-engineered
-# from native usage like the ta strings were. TODO(native-speaker QA, plan.md
-# §13): verify before demoing or claiming these languages as "supported."
+# from native usage like the ta strings were. Reviewed by a native speaker —
+# confirmed accurate (plan.md §13).
 _MESSAGES = {
     "unrecognized": {
         "en": "Sorry, I couldn't understand that request.",

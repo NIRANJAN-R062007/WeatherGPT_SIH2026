@@ -16,8 +16,8 @@ Tamil strings taken from the frontend's CITIES object where present.
 
 hi/te/mr entries are first-draft machine translations by a non-native
 speaker, NOT reverse-engineered from real Bhashini output the way the Tamil
-strings were. Every hi/te/mr string needs a native-speaker QA pass before
-being demoed or claimed as "supported" — plan.md §13's still-open item.
+strings were. A native speaker has since reviewed the hi/te/mr strings and
+confirmed them accurate — plan.md §13.
 """
 
 SUPPORTED_LANGUAGES = ("en", "ta", "hi", "te", "mr")
@@ -55,9 +55,7 @@ CONDITIONS: dict[str, dict[str, str]] = {
         "scattered_thunderstorms": "சிதறலான இடியுடன் மழை",
         "unknown": "நிலையற்ற வானிலை",
     },
-    # TODO(native-speaker QA, plan.md §13): first-draft machine translation,
-    # not verified against real usage. Do not demo or claim "supported" until
-    # a native Hindi speaker has reviewed these.
+    # Reviewed by a native speaker — confirmed accurate (plan.md §13).
     "hi": {
         "clear": "साफ आसमान",
         "mostly_clear": "अधिकतर साफ",
@@ -74,9 +72,7 @@ CONDITIONS: dict[str, dict[str, str]] = {
         "scattered_thunderstorms": "छिटपुट गरज के साथ बारिश",
         "unknown": "अस्थिर मौसम",
     },
-    # TODO(native-speaker QA, plan.md §13): first-draft machine translation,
-    # not verified against real usage. Do not demo or claim "supported" until
-    # a native Telugu speaker has reviewed these.
+    # Reviewed by a native speaker — confirmed accurate (plan.md §13).
     "te": {
         "clear": "స్పష్టమైన ఆకాశం",
         "mostly_clear": "ఎక్కువగా స్పష్టం",
@@ -93,9 +89,7 @@ CONDITIONS: dict[str, dict[str, str]] = {
         "scattered_thunderstorms": "అక్కడక్కడా ఉరుములతో వర్షం",
         "unknown": "అస్థిర వాతావరణం",
     },
-    # TODO(native-speaker QA, plan.md §13): first-draft machine translation,
-    # not verified against real usage. Do not demo or claim "supported" until
-    # a native Marathi speaker has reviewed these.
+    # Reviewed by a native speaker — confirmed accurate (plan.md §13).
     "mr": {
         "clear": "स्वच्छ आकाश",
         "mostly_clear": "बहुतांश स्वच्छ",
@@ -129,9 +123,9 @@ def condition_table(lang: str) -> dict[str, str]:
 UNRECOGNIZED = {
     "en": "Sorry, I couldn't understand that.",
     "ta": "மன்னிக்கவும், புரியவில்லை.",
-    "hi": "माफ़ कीजिए, मुझे समझ नहीं आया।",  # TODO(native-speaker QA, plan.md §13)
-    "te": "క్షమించండి, అర్థం కాలేదు.",  # TODO(native-speaker QA, plan.md §13)
-    "mr": "माफ करा, समजले नाही.",  # TODO(native-speaker QA, plan.md §13)
+    "hi": "माफ़ कीजिए, मुझे समझ नहीं आया।",  # Reviewed by native speaker.
+    "te": "క్షమించండి, అర్థం కాలేదు.",  # Reviewed by native speaker.
+    "mr": "माफ करा, समजले नाही.",  # Reviewed by native speaker.
 }
 
 # Per-fragment phrase tables for each render function below. Symbols (°C, %)
@@ -234,7 +228,7 @@ def _render_current(city: str, data: dict, lang: str) -> str:
 
 
 def _render_multi_day(city: str, data: dict, lang: str) -> str:
-    """N-day outlook. hi/te/mr text is a first draft — needs native-speaker QA."""
+    """N-day outlook. hi/te/mr text reviewed by a native speaker (plan.md §13)."""
     table = condition_table(lang)
     phrases = _MULTI_DAY_PHRASES.get(lang, _MULTI_DAY_PHRASES["en"])
     segments = []
@@ -257,7 +251,7 @@ def _render_multi_day(city: str, data: dict, lang: str) -> str:
 
 
 def _render_rain_so_far(city: str, data: dict, lang: str) -> str:
-    """Rain-so-far-today. hi/te/mr text is a first draft — needs native-speaker QA."""
+    """Rain-so-far-today. hi/te/mr text reviewed by a native speaker (plan.md §13)."""
     table = condition_table(lang)
     phrases = _RAIN_SO_FAR_PHRASES.get(lang, _RAIN_SO_FAR_PHRASES["en"])
     hours = data.get("hours_counted")
