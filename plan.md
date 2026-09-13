@@ -394,13 +394,13 @@ weathergpt/
 - **Demo cities: Chennai, Madurai, Coimbatore.** Real Google Weather API responses for all three are snapshotted into `data/fixtures/google_weather/`.
 
 **Tonight — build tasks:**
-- [ ] Google Weather API ingestion module: current conditions + daily forecast for a small hardcoded set of demo cities (start with Chennai). — **Syed + Deepthi**
-- [ ] Minimal decoder table: weather condition code → canonical English term (just enough for the two demo intents). — **Syed + Deepthi**
+- [x] Google Weather API ingestion module: current conditions + daily forecast for a small hardcoded set of demo cities (start with Chennai). — **Syed + Deepthi** (landed as `google_weather.py` + `weather_data.py`, all three demo cities)
+- [x] Minimal decoder table: weather condition code → canonical English term (just enough for the two demo intents). — **Syed + Deepthi** (`data/decoders/weather_conditions.json`, `wind_cardinals.json`)
 - [x] `/ask` FastAPI endpoint: intent parse (rule-based is fine, skip full LLM NLU if time-boxed) → tool call → typed response. — **Niranjan**
-- [ ] Grounding guardrail + numeric validator wired into `/ask`, even in minimal form. — **Mahesh**
-- [ ] LLM narration prompt: narrate only from the typed response object, English only for now. — **Mahesh**
+- [x] Grounding guardrail + numeric validator wired into `/ask`, even in minimal form. — **Mahesh** (`guardrail.py`; extended in Phase 2 with a regenerate step)
+- [x] LLM narration prompt: narrate only from the typed response object, English only for now. — **Mahesh** (`narrate.py`, Gemini → Groq → template)
 - [x] English → Tamil rendering: if Bhashini text-translate is quick to wire up, use it; otherwise fall back to hand-written Tamil phrase templates for the two intents (faster, safer for a stage demo than live translation of untested quality). — **Niranjan**
-- [ ] Single-page web UI: text input + GPS/city field + language toggle (EN/TA) hitting `/ask`. — **Mahesh + Chelsea**
+- [x] Single-page web UI: text input + GPS/city field + language toggle (EN/TA) hitting `/ask`. — **Mahesh + Chelsea** (`prototype/frontend/WeatherGPT.dc.html`)
 - [x] Provenance footer on every response (source + timestamp). — **Niranjan**
 
 **Tomorrow morning — before the demo:**
@@ -439,9 +439,9 @@ are "add for the first time," not "extend."
   backend re-encodes to 16-bit PCM before sending audio to the frontend
   (`bhashini._wav_to_pcm16_base64`). Verified end-to-end live (real Bhashini
   keys) via curl and in-browser for both languages; 312 backend tests pass.
-- [ ] **Deepthi — Google OAuth + Supabase.** New DB from scratch: pick a
-  client, add a users table, wire the OAuth flow. Testable only once the host
-  above is pinned.
+- [x] **Deepthi — Google OAuth + Supabase.** Done — Supabase Auth with Google
+  provider (`auth.py`, `frontend/auth.js`, `supabase_schema.sql`, `GET /me`)
+  on the pinned ngrok host.
 - [ ] **Abel — link history to the database.** History table +
   `/history` endpoint, keyed off Deepthi's user id — blocked until her schema
   exists. Replaces the current History modal placeholder (which only explains
