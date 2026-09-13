@@ -216,7 +216,8 @@ def test_facts_endpoint_current_and_forecast():
 
 
 def test_asr_endpoint_returns_transcript(monkeypatch):
-    monkeypatch.setattr(main.bhashini, "speech_to_text", lambda audio, lang, rate: "chennai weather")
+    monkeypatch.setattr(main.bhashini, "speech_to_text",
+                        lambda audio, lang, rate: "chennai weather")
     body = client.post("/asr", json={"audio": "base64wav", "lang": "en"}).json()
     assert body == {"text": "chennai weather"}
 

@@ -224,7 +224,8 @@ def test_asr_pipeline_is_cached_per_language(monkeypatch):
 def test_asr_http_error_returns_none(monkeypatch, caplog):
     monkeypatch.setattr(config, "BHASHINI_USER_ID", "u")
     monkeypatch.setattr(config, "BHASHINI_ULCA_API_KEY", "k")
-    monkeypatch.setattr(httpx, "post", lambda *a, **k: (_ for _ in ()).throw(httpx.ReadTimeout("t")))
+    monkeypatch.setattr(httpx, "post",
+                        lambda *a, **k: (_ for _ in ()).throw(httpx.ReadTimeout("t")))
     with caplog.at_level("WARNING"):
         assert bhashini.speech_to_text("base64wav", "en") is None
     assert any("bhashini ASR failed" in r.message for r in caplog.records)
@@ -303,7 +304,8 @@ def test_tts_pipeline_is_cached_per_language(monkeypatch):
 def test_tts_http_error_returns_none(monkeypatch, caplog):
     monkeypatch.setattr(config, "BHASHINI_USER_ID", "u")
     monkeypatch.setattr(config, "BHASHINI_ULCA_API_KEY", "k")
-    monkeypatch.setattr(httpx, "post", lambda *a, **k: (_ for _ in ()).throw(httpx.ConnectError("c")))
+    monkeypatch.setattr(httpx, "post",
+                        lambda *a, **k: (_ for _ in ()).throw(httpx.ConnectError("c")))
     with caplog.at_level("WARNING"):
         assert bhashini.text_to_speech("hello", "en") is None
     assert any("bhashini TTS failed" in r.message for r in caplog.records)
