@@ -67,6 +67,7 @@ def test_tamil_uses_bhashini_translation_of_grounded_english(monkeypatch):
 def test_tamil_falls_back_to_template_when_bhashini_unconfigured(monkeypatch):
     monkeypatch.setattr(main, "narrate",
                         lambda *a, **k: "Chennai: cloudy, 28°C right now, humidity 81%.")
+    monkeypatch.setattr(main.bhashini, "is_configured", lambda: True)
     monkeypatch.setattr(main.bhashini, "translate_to_tamil", lambda text: None)
     body = _ask("what's the weather in Chennai", lang="ta")
     assert body["grounding"]["narration"] == "template"
@@ -76,6 +77,7 @@ def test_tamil_falls_back_to_template_when_bhashini_unconfigured(monkeypatch):
 def test_tamil_falls_back_to_template_when_translation_hallucinates(monkeypatch):
     monkeypatch.setattr(main, "narrate",
                         lambda *a, **k: "Chennai: cloudy, 28°C right now, humidity 81%.")
+    monkeypatch.setattr(main.bhashini, "is_configured", lambda: True)
     monkeypatch.setattr(main.bhashini, "translate_to_tamil",
                         lambda text: "சென்னை: 99°C.")  # bad translation, doesn't ground
     body = _ask("what's the weather in Chennai", lang="ta")
