@@ -39,3 +39,27 @@ def test_ask_still_returns_200_regardless_of_keys():
     body = r.json()
     assert body["grounding"]["ok"] is True
     assert body["provenance"]["is_live"] is False
+
+
+def test_offline_mode_forces_fixtures(monkeypatch):
+    monkeypatch.setenv("OFFLINE_MODE", "1")
+    monkeypatch.setenv("WEATHER_MODE", "auto")
+    try:
+        reloaded = importlib.reload(config)
+        assert reloaded.OFFLINE_MODE is True
+        assert reloaded.WEATHER_MODE == "fixtures"
+    finally:
+        monkeypatch.undo()
+        importlib.reload(config)
+
+
+def test_offline_defaults(monkeypatch):
+    # conftest's autouse _llm_defaults fixture forces OLLAMA_MODEL to None for
+    # every other test; check its real default via a clean reload instead.
+    monkeypatch.delenv("OLLAMA_MODEL", raising=False)
+    reloaded = importlib.reload(config)
+    assert reloaded.OFFLINE_MODE is False
+    assert reloaded.OLLAMA_BASE == "http://localhost:11434"
+    assert reloaded.OLLAMA_MODEL == "llama3.2:3b"
+    assert reloaded.OLLAMA_TIMEOUT == 30.0
+    importlib.reload(config)

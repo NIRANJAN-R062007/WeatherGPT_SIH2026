@@ -14,7 +14,6 @@ import re
 from dataclasses import asdict, dataclass
 
 import cities
-import config
 import google_weather
 import httpx
 import narrate
@@ -93,19 +92,19 @@ _NLU_PROMPT = (
     "Message: {text}"
 )
 
-_GEMINI_SCHEMA = {
-    "type": "OBJECT",
-    "propertyOrdering": ["intent", "city", "time_window", "days", "parameter",
-                         "language", "confidence"],
-    "required": ["intent", "time_window", "parameter", "language", "confidence"],
+# Standard JSON Schema — narrate.gemini_schema() converts this to Gemini's
+# dialect inside the Gemini binding; Ollama's `format` param takes it as-is.
+_NLU_SCHEMA = {
+    "type": "object",
+    "required": ["intent", "city", "time_window", "days", "parameter", "language", "confidence"],
     "properties": {
-        "intent": {"type": "STRING", "enum": list(INTENTS)},
-        "city": {"type": "STRING", "nullable": True},
-        "time_window": {"type": "STRING", "enum": list(TIME_WINDOWS)},
-        "days": {"type": "INTEGER", "nullable": True},
-        "parameter": {"type": "STRING", "enum": list(PARAMETERS)},
-        "language": {"type": "STRING", "enum": [*LANGUAGES, "other"]},
-        "confidence": {"type": "NUMBER"},
+        "intent": {"type": "string", "enum": list(INTENTS)},
+        "city": {"type": ["string", "null"]},
+        "time_window": {"type": "string", "enum": list(TIME_WINDOWS)},
+        "days": {"type": ["integer", "null"]},
+        "parameter": {"type": "string", "enum": list(PARAMETERS)},
+        "language": {"type": "string", "enum": [*LANGUAGES, "other"]},
+        "confidence": {"type": "number"},
     },
 }
 
@@ -257,25 +256,8 @@ def _city_list() -> str:
 
 def _llm_parse(text: str) -> ParsedQuery | None:
     prompt = _NLU_PROMPT.format(city_list=_city_list(), text=text)
-    raw = None
-
-    if config.GEMINI_API_KEY:
-        try:
-            raw = narrate.generate(prompt, model=config.GEMINI_MODEL, key=config.GEMINI_API_KEY,
-                                    response_schema=_GEMINI_SCHEMA)
-        except (httpx.HTTPError, KeyError, IndexError, ValueError) as exc:
-            _LOG.warning("gemini nlu parse failed (%s); trying groq fallback", exc)
-
-    if not raw and config.GROQ_API_KEY:
-        try:
-            raw = narrate.generate_groq(prompt, model=config.GROQ_MODEL, key=config.GROQ_API_KEY,
-                                        response_schema=_GEMINI_SCHEMA)
-        except (httpx.HTTPError, KeyError, IndexError, ValueError) as exc:
-            _LOG.warning("groq nlu parse failed (%s)", exc)
-
-    if not raw:
-        return None
-    return _validate_llm_json(raw)
+    raw, _ = narrate.run_chain(prompt, response_schema=_NLU_SCHEMA, task="nlu parse")
+    return _validate_llm_json(raw) if raw else None
 
 
 def _language_from_script(script: str, lang_hint: str | None) -> str | None:

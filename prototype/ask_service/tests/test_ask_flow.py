@@ -5,6 +5,7 @@
 import cities
 import config
 import google_weather
+import httpx
 import main
 import pytest
 from fastapi.testclient import TestClient
@@ -110,6 +111,61 @@ def test_provenance_and_health_shape(monkeypatch):
     health = client.get("/health").json()
     assert health["weather_source"] in {"fixtures", "google-weather-api"}
     assert "weather_cache" in health and "narration" in health
+    assert set(health["llm"]) == {"offline_mode", "providers", "ollama"}
+    assert set(health["llm"]["ollama"]) == {"base", "model", "reachable", "model_present"}
+    assert "weather_mode" in health and "offline_mode" in health
+
+
+def test_grounding_provider_is_template_when_no_llm_answer(monkeypatch):
+    monkeypatch.setattr(main, "narrate", lambda *a, **k: None)
+    body = _ask("what's the weather in Chennai")
+    assert body["grounding"]["provider"] == "template"
+
+
+def test_grounding_provider_reports_ollama(monkeypatch):
+    def _narrate(intent, city, facts, lang, **kw):
+        main.narrate_module.last_provider = "ollama"
+        return "Chennai: cloudy, 28°C right now, humidity 81%."
+
+    monkeypatch.setattr(main, "narrate", _narrate)
+    body = _ask("what's the weather in Chennai")
+    assert body["grounding"]["provider"] == "ollama"
+    assert body["grounding"]["ok"] is True
+
+
+def test_offline_mode_falls_through_ollama_to_grounded_answer(monkeypatch):
+    monkeypatch.setattr(config, "OFFLINE_MODE", True)
+    monkeypatch.setattr(config, "OLLAMA_MODEL", "llama3.2:3b")
+
+    def _boom(*a, **k):
+        raise AssertionError("cloud provider called in OFFLINE_MODE")
+
+    monkeypatch.setattr(main.narrate_module, "generate", _boom)
+    monkeypatch.setattr(main.narrate_module, "generate_groq", _boom)
+    monkeypatch.setattr(main.narrate_module, "generate_ollama",
+                        lambda *a, **k: "Chennai: cloudy, 28°C right now, humidity 81%.")
+    body = _ask("what's the weather in Chennai")
+    assert body["grounding"]["provider"] == "ollama"
+    assert body["grounding"]["ok"] is True
+
+
+def test_offline_mode_ollama_connect_error_falls_back_to_template(monkeypatch):
+    monkeypatch.setattr(config, "OFFLINE_MODE", True)
+    monkeypatch.setattr(config, "OLLAMA_MODEL", "llama3.2:3b")
+
+    def _boom(*a, **k):
+        raise AssertionError("cloud provider called in OFFLINE_MODE")
+
+    def _connect_error(*a, **k):
+        raise httpx.ConnectError("down")
+
+    monkeypatch.setattr(main.narrate_module, "generate", _boom)
+    monkeypatch.setattr(main.narrate_module, "generate_groq", _boom)
+    monkeypatch.setattr(main.narrate_module, "generate_ollama", _connect_error)
+    body = _ask("what's the weather in Chennai")
+    assert body["grounding"]["provider"] == "template"
+    assert body["grounding"]["fallback_used"] is False
+    assert body["grounding"]["attempts"] == 1
 
 
 def test_mocked_live_data_marks_is_live(monkeypatch):
@@ -239,3 +295,12 @@ def test_tts_endpoint_unavailable_returns_null_audio(monkeypatch):
     monkeypatch.setattr(main.bhashini, "text_to_speech", lambda text, lang: None)
     body = client.post("/tts", json={"text": "hello", "lang": "en"}).json()
     assert body == {"audio": None}
+
+
+def test_tamil_without_bhashini_skips_narration_entirely(monkeypatch):
+    monkeypatch.setattr(main.bhashini, "is_configured", lambda: False)
+    monkeypatch.setattr(main, "narrate", lambda *a, **k: (_ for _ in ()).throw(AssertionError))
+    body = _ask("சென்னையில் இப்போது வானிலை என்ன?", lang="ta")
+    assert body["grounding"]["narration"] == "template"
+    assert body["grounding"]["attempts"] == 0
+    assert body["grounding"]["ok"] is True

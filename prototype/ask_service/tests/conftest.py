@@ -59,3 +59,16 @@ def _clear_bhashini_cache():
     bhashini.cache_clear()
     yield
     bhashini.cache_clear()
+
+
+@pytest.fixture(autouse=True)
+def _llm_defaults(monkeypatch):
+    """Reset offline/Ollama state per test — test_config's importlib.reload()
+    would otherwise resurrect the real OLLAMA_MODEL default and silently
+    route the `_no_llm` NLU tests through Ollama instead of rules_fallback.
+    """
+    monkeypatch.setattr(config, "OFFLINE_MODE", False)
+    monkeypatch.setattr(config, "OLLAMA_MODEL", None)
+    import narrate
+
+    monkeypatch.setattr(narrate, "last_provider", None)

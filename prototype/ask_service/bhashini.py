@@ -40,6 +40,10 @@ _tts_pipeline_cache: dict[str, dict] = {}
 
 
 def is_configured() -> bool:
+    # OFFLINE_MODE (plan.md §8 Phase 6): no network for voice/translation at
+    # all, so callers fall straight through to typed input / the i18n template.
+    if config.OFFLINE_MODE:
+        return False
     # ulcaApiKey is always required; then either a userID (classic, the config
     # call returns the inference key) or an Udyat inference key.
     return bool(config.BHASHINI_ULCA_API_KEY

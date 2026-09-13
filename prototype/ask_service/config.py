@@ -31,6 +31,21 @@ GROQ_API_KEY: str | None = os.getenv("GROQ_API_KEY")
 GROQ_MODEL: str = os.getenv("GROQ_MODEL") or "openai/gpt-oss-120b"
 GROQ_BASE = "https://api.groq.com/openai/v1"
 
+def _float_env(name: str, default: float) -> float:
+    try:
+        return float(os.getenv(name) or default)
+    except ValueError:
+        return default
+
+
+# Demo kill switch (plan.md §8 Phase 6): fixtures-only weather, Ollama-only
+# narration/NLU, Bhashini disabled — for a dead venue network.
+OFFLINE_MODE: bool = (os.getenv("OFFLINE_MODE") or "").strip().lower() in ("1", "true", "yes")
+
+OLLAMA_BASE: str = (os.getenv("OLLAMA_BASE") or "http://localhost:11434").rstrip("/")
+OLLAMA_MODEL: str | None = os.getenv("OLLAMA_MODEL") or "llama3.2:3b"
+OLLAMA_TIMEOUT: float = _float_env("OLLAMA_TIMEOUT", 30.0)
+
 BHASHINI_USER_ID: str | None = os.getenv("BHASHINI_USER_ID")
 BHASHINI_ULCA_API_KEY: str | None = os.getenv("BHASHINI_ULCA_API_KEY")
 # Udyat-issued inference key: used as the compute Authorization header when the
@@ -41,8 +56,9 @@ _origins = (os.getenv("ALLOWED_ORIGINS") or "").strip()
 ALLOWED_ORIGINS: list[str] = [o.strip() for o in _origins.split(",") if o.strip()] or ["*"]
 
 # Weather data source: "auto" (live, fixture fallback) | "live" (no fallback) |
-# "fixtures" (offline; the demo-morning kill switch).
-WEATHER_MODE: str = (os.getenv("WEATHER_MODE") or "auto").lower()
+# "fixtures" (offline; the demo-morning kill switch). OFFLINE_MODE forces
+# fixtures regardless of what WEATHER_MODE says.
+WEATHER_MODE: str = "fixtures" if OFFLINE_MODE else (os.getenv("WEATHER_MODE") or "auto").lower()
 
 # Supabase project (plan.md §14 Deepthi track). ANON_KEY is the public
 # "anon" key — safe in frontend JS. There is no service-role key here on

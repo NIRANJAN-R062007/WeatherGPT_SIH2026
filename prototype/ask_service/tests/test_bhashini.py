@@ -36,6 +36,19 @@ class _Resp:
         return self._payload
 
 
+def test_offline_mode_disables_bhashini_even_with_credentials(monkeypatch):
+    monkeypatch.setattr(config, "BHASHINI_USER_ID", "u")
+    monkeypatch.setattr(config, "BHASHINI_ULCA_API_KEY", "k")
+    monkeypatch.setattr(config, "OFFLINE_MODE", True)
+
+    def _boom(*a, **k):
+        raise AssertionError("httpx.post was called while OFFLINE_MODE")
+
+    monkeypatch.setattr(httpx, "post", _boom)
+    assert bhashini.is_configured() is False
+    assert bhashini.translate_to_tamil("x") is None
+
+
 def test_no_credentials_returns_none(monkeypatch):
     monkeypatch.setattr(config, "BHASHINI_USER_ID", None)
     monkeypatch.setattr(config, "BHASHINI_ULCA_API_KEY", None)

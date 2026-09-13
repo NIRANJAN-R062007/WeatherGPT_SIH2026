@@ -61,6 +61,10 @@ services:
     restart: unless-stopped
     env_file:
       - .env
+    environment:
+      OLLAMA_BASE: ${OLLAMA_BASE:-http://localhost:11434}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "8001:8001"
     volumes:
@@ -68,6 +72,20 @@ services:
     working_dir: /app/prototype/ask_service
     command: uvicorn main:app --host 0.0.0.0 --port 8001 --reload
 
+  # Local LLM offline fallback (plan.md §8 Phase 6) — only started with
+  # `docker compose --profile offline up`. Point ask_service's OLLAMA_BASE at
+  # http://ollama:11434 (the compose service name) when using this profile.
+  ollama:
+    image: ollama/ollama
+    container_name: weathergpt-ollama
+    profiles: ["offline"]
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama
+
 volumes:
   postgres_data:
   redis_data:
+  ollama_models:

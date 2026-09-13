@@ -2,10 +2,12 @@
 
 Flow (plan.md §4): LLM -> narrate ONLY from the typed object -> validator
 (every numeric token must exist in the tool response) -> response + provenance,
-with a template fallback on validator failure. Narration is Gemini via
-narrate(), which only ever produces English. For lang="ta" the grounded
-English sentence is then translated by Bhashini; if narration, grounding, or
-translation fails at any step, main.py falls back to the i18n template.
+with a template fallback on validator failure. Narration goes through
+narrate.run_chain() (Gemini -> Groq -> Ollama, plan.md §8 Phase 6), which only
+ever produces English; the provider that answered is reported via
+narrate.last_provider. For lang="ta" the grounded English sentence is then
+translated by Bhashini; if narration, grounding, or translation fails at any
+step, main.py falls back to the i18n template.
 """
 
 from dataclasses import asdict
@@ -13,12 +15,14 @@ from datetime import datetime, timezone
 
 import bhashini
 import cities
+import config
 import guardrail
+import narrate as narrate_module
 import nlu
 import router
 import weather_data
 from auth import get_current_user
-from config import ALLOWED_ORIGINS, GEMINI_API_KEY, GEMINI_MODEL, REPO_ROOT
+from config import ALLOWED_ORIGINS, REPO_ROOT
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
@@ -93,10 +97,16 @@ def health():
         "cities": sorted(cities.CITY_KEYS),
         "weather_source": weather_data.source_status(),
         "weather_cache": cache_stats(),
-        "narration": f"gemini:{GEMINI_MODEL}" if llm_configured() else "template",
-        "llm": GEMINI_MODEL if GEMINI_API_KEY else "unconfigured",
+        "narration": "llm" if llm_configured() else "template",
+        "llm": {
+            "offline_mode": config.OFFLINE_MODE,
+            "providers": [name for name, _ in narrate_module.providers()],
+            "ollama": narrate_module.ollama_status(),
+        },
         "bhashini": "configured" if bhashini.is_configured() else "unconfigured",
         "nlu": "rules+llm" if llm_configured() else "rules",
+        "weather_mode": config.WEATHER_MODE,
+        "offline_mode": config.OFFLINE_MODE,
     }
 
 
@@ -104,48 +114,56 @@ def _narrate_grounded(intent: str, name: str, data: dict, prompt_facts: dict):
     """Try narration, and once more with feedback if the first answer doesn't
     ground. The guardrail always checks against the FULL facts (`data`), never
     the parameter-trimmed `prompt_facts` sent to the prompt. Returns
-    (text|None, report|None, attempted, attempts).
+    (text|None, report|None, attempted, attempts, provider|None).
     """
     text = narrate(intent, name, prompt_facts, "en")
     if text is None:  # no provider / all failed — nothing to regenerate from
-        return None, None, False, 1
+        return None, None, False, 1, None
+    provider = narrate_module.last_provider or "llm"
     report = guardrail.check(text, data)
     if report.ok and report.total > 0:
-        return text, report, True, 1
+        return text, report, True, 1, provider
 
     unmatched = [f["reading"] for f in report.figures if not f["matched"]]
     text2 = narrate(intent, name, prompt_facts, "en", feedback=", ".join(unmatched) or None)
     if text2 is not None:
+        provider = narrate_module.last_provider or "llm"
         report2 = guardrail.check(text2, data)
         if report2.ok and report2.total > 0:
-            return text2, report2, True, 2
+            return text2, report2, True, 2, provider
 
-    return None, None, True, 2
+    return None, None, True, 2, provider
 
 
 def _llm_attempt(intent: str, name: str, data: dict, lang: str, prompt_facts: dict):
     """Try LLM narration (EN, with one regenerate-on-ungrounded retry),
     translating to TA via Bhashini if that's the requested language. Returns
-    (candidate, report, attempted, attempts):
+    (candidate, report, attempted, attempts, provider):
     - candidate/report are set only if the *final* text (post-translation for
       ta) grounds cleanly.
     - attempted is True whenever an LLM sentence was produced at all, even if
       it (or its translation) later failed — used for fallback_used.
+    - provider names which chain link produced the (English) text, regardless
+      of whether translation later failed.
     """
-    english, eng_report, attempted, attempts = _narrate_grounded(intent, name, data, prompt_facts)
+    if lang == "ta" and not bhashini.is_configured():
+        return None, None, False, 0, None  # English narration would only be thrown away
+    english, eng_report, attempted, attempts, provider = \
+        _narrate_grounded(intent, name, data, prompt_facts)
     if not english:
-        return None, None, attempted, attempts
+        return None, None, attempted, attempts, provider
 
     if lang != "ta":
-        return english, eng_report, attempted, attempts
+        return english, eng_report, attempted, attempts, provider
 
     tamil = bhashini.translate_to_tamil(english)
     if not tamil:
-        return None, None, attempted, attempts  # no credentials / translation failed
+        return None, None, attempted, attempts, provider  # no credentials / translation failed
 
     report = guardrail.check(tamil, data)
     ok = report.ok and report.total > 0
-    return (tamil, report, attempted, attempts) if ok else (None, None, attempted, attempts)
+    return (tamil, report, attempted, attempts, provider) if ok \
+        else (None, None, attempted, attempts, provider)
 
 
 @app.get("/me")
@@ -242,7 +260,8 @@ def ask(text: str, lang: str = "en", city: str | None = None):
     name = cities.display_name(key, lang)
     prompt_facts = router.narration_facts(data, pq.parameter)
 
-    candidate, report, attempted, attempts = _llm_attempt(pq.intent, name, data, lang, prompt_facts)
+    candidate, report, attempted, attempts, provider = \
+        _llm_attempt(pq.intent, name, data, lang, prompt_facts)
 
     if candidate:
         narration = "llm+bhashini" if lang == "ta" else "llm"
@@ -250,11 +269,12 @@ def ask(text: str, lang: str = "en", city: str | None = None):
     else:  # §4: no LLM answer, ungrounded, or translation failed -> template
         narration = "template"
         fallback_used = attempted
+        provider = "template"
         candidate = render(pq.intent, name, data, lang)
         report = guardrail.check(candidate, data)
 
     grounding = {**asdict(report), "fallback_used": fallback_used, "narration": narration,
-                 "attempts": attempts}
+                 "attempts": attempts, "provider": provider}
 
     if not report.ok:  # §2.3
         resp = {

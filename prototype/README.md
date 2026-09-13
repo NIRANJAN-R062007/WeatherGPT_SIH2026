@@ -23,10 +23,12 @@ task list, and explicit out-of-scope list.
   needs no network.
 - `ask_service/weather_data.py` — facade over `google_weather`. `get_weather
   (city, intent, day)` returns a flat, intent-aware facts dict.
-- `ask_service/narrate.py` — Gemini narration. Returns `None` (→ template) on
-  non-English, no key, timeout, or any error; the guardrail still validates
-  whatever it returns. Always produces English — Tamil narration goes through
-  `bhashini.py` on top of this, not through narrate() itself.
+- `ask_service/narrate.py` — Gemini → Groq → Ollama behind `narrate.providers()`
+  (plan.md §8 Phase 6), one pluggable chain shared by narration and NLU. Returns
+  `None` (→ template) on non-English, nothing configured, timeout, or any
+  error; the guardrail still validates whatever it returns. Always produces
+  English — Tamil narration goes through `bhashini.py` on top of this, not
+  through narrate() itself.
 - `ask_service/bhashini.py` — EN→TA translation of the *already-grounded*
   Gemini sentence, via the ULCA two-stage flow (config call resolves a
   pipeline + inference key, then a compute call runs the translation).
@@ -61,8 +63,12 @@ and "View source" panel:
   "figures": [{"reading": "28°C", "value": 28.0, "unit": "celsius",
                "path": "temp_c", "matched": true}, ...],
   "narration": "llm",          // "llm" | "llm+bhashini" | "template"
-  "fallback_used": false        // true only if an LLM answer was produced but
-}                                //   it (or its Tamil translation) failed to ground
+  "fallback_used": false,       // true only if an LLM answer was produced but
+                                 //   it (or its Tamil translation) failed to ground
+  "provider": "ollama"          // "gemini" | "groq" | "ollama" | "template" —
+}                                //   which link of narrate.providers() answered;
+                                 //   Chelsea: drive an "answered by local Llama"
+                                 //   tag off this in the frontend
 ```
 
 ## Integration
@@ -107,6 +113,8 @@ error card ← a fetch/network failure; refusal card ← a body with `message`.
   token shape, not a standard `AIza...` key) — re-run `verify_gemini.py` at the
   start of each session and on demo morning; if it starts returning 401/403,
   mint a durable key at https://aistudio.google.com/apikey.
+- **Narration/NLU chain**: Gemini → Groq → Ollama behind `narrate.providers()`
+  (plan.md §8 Phase 6) — see "Offline mode" below for the Ollama leg.
 - **Bhashini**: `BHASHINI_USER_ID` / `BHASHINI_ULCA_API_KEY` in `.env` are
   currently empty — get one at https://bhashini.gov.in (Login → your name/menu
   → "My Profile" → "Generate New Inference API Key"; the userID + ULCA key are
@@ -130,6 +138,73 @@ Bhashini's raw output too, since a native speaker is the only way to catch a
 translation that's grammatically fine but weather-wrong.
 Free-tier Gemini is rate-limited (~a few RPM) — fine for a demo, and every
 throttle just yields a template answer.
+
+## Offline mode (demo kill switch)
+
+Plan.md §8 Phase 6: a dead venue network shouldn't kill the demo. `OFFLINE_MODE=1`
+forces `WEATHER_MODE=fixtures`, drops Gemini/Groq from `narrate.providers()`
+(chain becomes Ollama → template only), and disables Bhashini (`is_configured()`
+returns `False`, so Tamil narration and voice ASR/TTS fall straight through to
+their offline paths) — see config.py and plan.md §5's "one pluggable
+abstraction."
+
+**One-time setup** (already done on this machine — 16 CPU / 12 GB RAM / no
+GPU, so `llama3.2:3b` (Q4, ~2 GB) is the realistic CPU model; needs Ollama
+≥ 0.5 for JSON `format` schemas):
+
+```
+curl -fsSL https://ollama.com/install.sh | sh   # needs sudo
+ollama pull llama3.2:3b
+```
+
+**Night before a demo** — refresh the committed fixtures so they're not
+flagged stale:
+
+```
+cd prototype/ask_service && python snapshot_google_weather.py --city all --force
+```
+
+**Demo morning** — run the preflight, then bring the service up in offline mode:
+
+```
+cd prototype/ask_service
+OFFLINE_MODE=1 python offline_check.py       # exit 0 = go; see below on read
+OFFLINE_MODE=1 uvicorn main:app --port 8001
+```
+
+`offline_check.py` checks every fixture (OK/STALE/MISSING, with the exact
+refresh command printed for a STALE row), Ollama reachability + a warm-up
+call, and five representative `/ask` queries (EN current/3-day/rain-so-far,
+TA rain tomorrow, HI rain tomorrow). It exits 1 only for a real failure — a
+missing fixture, an EN/TA query not grounding, or an hi/te/mr query failing
+*while Ollama is reachable*; the same failure with Ollama down is a WARN, not
+a FAIL, since there's nothing else offline mode can do about it.
+
+`GET /health` in offline mode should show:
+
+```json
+{"llm": {"offline_mode": true, "providers": ["ollama"], "ollama": {"reachable": true, ...}},
+ "weather_mode": "fixtures", "offline_mode": true}
+```
+
+**Expected latency**: one Ollama call per EN/TA query (rules-path NLU, one
+narration call), but **two** for hi/te/mr (an NLU parse call, then a
+narration call) — on this CPU, several seconds each, more on a cold model
+load. The 3B model is noticeably less reliable than Gemini/Groq at following
+the NLU JSON schema exactly (e.g. it can omit an optional field like `city`
+rather than emitting `null`); this shows up as `grounding.attempts: 2`
+(narration regenerated after a guardrail miss) or a hi/te/mr query falling
+through to `rules_fallback`/the "which city?" refusal instead of an LLM
+answer. That's the tradeoff of the offline path — accept it as a fallback of
+last resort, not a like-for-like replacement for Gemini/Groq.
+
+**Docker**: `docker compose --profile offline up` also starts an `ollama`
+service (`ollama_models` volume persists pulled models across restarts); set
+`OLLAMA_BASE=http://ollama:11434` in `.env` when using it. Without the
+`offline` profile, `ask_service` still talks to a host-installed Ollama via
+`OLLAMA_BASE` (default `http://localhost:11434`) — `extra_hosts:
+host.docker.internal:host-gateway` is wired in case that needs
+`http://host.docker.internal:11434` instead on some Docker setups.
 
 ## Run it
 

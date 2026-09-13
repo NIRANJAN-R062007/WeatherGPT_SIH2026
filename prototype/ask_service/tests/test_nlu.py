@@ -269,3 +269,64 @@ def test_script_overrides_llm_language_for_tamil_telugu(monkeypatch):
         '"language":"hi"', '"language":"ta"'))
     pq = nlu.parse("చెన్నైలో వర్షం పడుతుందా?")
     assert pq.source == "llm" and pq.language == "te"
+
+
+# --- Ollama path (plan.md §8 Phase 6) ----------------------------------------
+
+def test_llm_path_via_ollama(monkeypatch):
+    monkeypatch.setattr(config, "OLLAMA_MODEL", "llama3.2:3b")
+    captured = {}
+
+    def _ollama_stub(*a, response_schema=None, **k):
+        captured["response_schema"] = response_schema
+        return _CANNED["hi"]
+
+    monkeypatch.setattr(narrate, "generate_ollama", _ollama_stub)
+    pq = nlu.parse("some native-language text")
+    assert pq.source == "llm" and pq.language == "hi"
+    assert captured["response_schema"]["type"] == "object"
+
+
+def test_gemini_receives_gemini_dialect_schema(monkeypatch):
+    monkeypatch.setattr(config, "GEMINI_API_KEY", "k")
+    captured = {}
+
+    def _gemini_stub(*a, response_schema=None, **k):
+        captured["response_schema"] = response_schema
+        return _CANNED["hi"]
+
+    monkeypatch.setattr(narrate, "generate", _gemini_stub)
+    nlu.parse("some native-language text")
+    assert captured["response_schema"]["type"] == "OBJECT"
+    assert "propertyOrdering" in captured["response_schema"]
+
+
+def test_offline_mode_nlu_uses_ollama_only(monkeypatch):
+    monkeypatch.setattr(config, "OFFLINE_MODE", True)
+    monkeypatch.setattr(config, "GEMINI_API_KEY", "k")
+    monkeypatch.setattr(config, "GROQ_API_KEY", "k")
+    monkeypatch.setattr(config, "OLLAMA_MODEL", "llama3.2:3b")
+
+    def _boom(*a, **k):
+        raise AssertionError("cloud provider called in OFFLINE_MODE")
+
+    monkeypatch.setattr(narrate, "generate", _boom)
+    monkeypatch.setattr(narrate, "generate_groq", _boom)
+    monkeypatch.setattr(narrate, "generate_ollama", lambda *a, **k: _CANNED["hi"])
+    pq = nlu.parse("some native-language text")
+    assert pq.source == "llm" and pq.language == "hi"
+
+
+def test_all_three_providers_raise_falls_back(monkeypatch):
+    monkeypatch.setattr(config, "GEMINI_API_KEY", "k")
+    monkeypatch.setattr(config, "GROQ_API_KEY", "k")
+    monkeypatch.setattr(config, "OLLAMA_MODEL", "llama3.2:3b")
+
+    def _boom(*a, **k):
+        raise ValueError("boom")
+
+    monkeypatch.setattr(narrate, "generate", _boom)
+    monkeypatch.setattr(narrate, "generate_groq", _boom)
+    monkeypatch.setattr(narrate, "generate_ollama", _boom)
+    pq = nlu.parse("hello there")
+    assert pq.source == "rules_fallback"
