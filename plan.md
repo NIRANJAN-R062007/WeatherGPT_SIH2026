@@ -258,7 +258,7 @@ Sequential build order — each phase should be working end-to-end before the ne
 ### Phase 6 — Hardening (pre-finale)
 - K8s manifests, Grafana/Prometheus dashboards, CI/CD. — **Mahesh + Niranjan** (DevOps), **Syed** backup
 - Load testing for a high-traffic weather-event spike. — **Abel** (security/abuse angle) + **Mahesh + Niranjan** (infra)
-- Offline-mode fallback (local LLM + snapshotted data). — **Mahesh**
+- ~~Offline-mode fallback (local LLM + snapshotted data).~~ ✅ done (Sep 13) — `OFFLINE_MODE=1` → fixtures + Ollama (`llama3.2:3b`) → template; `offline_check.py` preflight; compose `offline` profile — **Mahesh**
 - Data-privacy review (location data, phone numbers used for IVR/WhatsApp). — **Abel**
 
 ---
