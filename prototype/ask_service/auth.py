@@ -13,6 +13,12 @@ from config import SUPABASE_ANON_KEY, SUPABASE_URL, require
 from fastapi import Header, HTTPException
 
 
+def _parse_bearer(authorization: str | None) -> str | None:
+    if not authorization or not authorization.lower().startswith("bearer "):
+        return None
+    return authorization.split(" ", 1)[1]
+
+
 async def _fetch_user(token: str) -> dict:
     url = require("SUPABASE_URL", SUPABASE_URL)
     key = require("SUPABASE_ANON_KEY", SUPABASE_ANON_KEY)
@@ -28,18 +34,29 @@ async def _fetch_user(token: str) -> dict:
 
 async def get_current_user(authorization: str | None = Header(default=None)) -> dict:
     """FastAPI dependency: require a signed-in user, 401 otherwise."""
-    if not authorization or not authorization.lower().startswith("bearer "):
+    token = _parse_bearer(authorization)
+    if not token:
         raise HTTPException(status_code=401, detail="Missing bearer token")
-    token = authorization.split(" ", 1)[1]
     return await _fetch_user(token)
 
 
 async def get_optional_user(authorization: str | None = Header(default=None)) -> dict | None:
     """Like get_current_user, but returns None instead of 401 when signed out."""
-    if not authorization or not authorization.lower().startswith("bearer "):
+    token = _parse_bearer(authorization)
+    if not token:
         return None
-    token = authorization.split(" ", 1)[1]
     try:
         return await _fetch_user(token)
     except HTTPException:
         return None
+
+
+def get_bearer_token(authorization: str | None = Header(default=None)) -> str | None:
+    """Raw session token, or None when signed out — no Supabase round-trip.
+
+    For endpoints (history.py) that hand the token straight to Supabase
+    PostgREST and let Postgres RLS + PostgREST's own JWT check be the
+    authorization, instead of first verifying it against /auth/v1/user the
+    way get_current_user does for /me.
+    """
+    return _parse_bearer(authorization)
