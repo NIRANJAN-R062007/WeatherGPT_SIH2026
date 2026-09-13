@@ -452,11 +452,14 @@ are "add for the first time," not "extend."
   Gemini → Groq → template (`openai/gpt-oss-120b`, since Groq deprecated
   Llama-3 off free tiers; see §5). Dockerfile added for `ask_service` and
   wired into `docker-compose.yml` alongside `services/gateway`.
-- [ ] **Syed — other languages (Hindi, Telugu, Marathi).** Refactor
-  `i18n.py` and `guardrail.py`'s unit-marker list from hardcoded EN/TA
-  branches into a per-language table before adding a third language, or each
-  new language is another copy-pasted branch. Native-speaker QA pass required
-  before claiming support (§13's still-open item).
+- [x] **Syed — other languages (Hindi, Telugu, Marathi).** Done —
+  `i18n.py` and `guardrail.py` refactored from hardcoded `if lang=="ta"`
+  branches into per-language lookup tables (commit b072272), with Hindi,
+  Telugu, and Marathi added on top (condition names, sentence templates,
+  guardrail unit markers); `bhashini.py` generalized from
+  `translate_to_tamil()` to `translate(text, target_lang)`. Native-speaker
+  QA done and TODOs updated (commit fce2ad9); 399 tests passing, 5
+  languages supported end to end.
 - [ ] **Chelsea — UI/UX.** Integrates everyone else's surface into
   `WeatherGPT.dc.html` / `support.js`: login button (Deepthi), history data
   (Abel), mic button + audio playback (Niranjan), language switcher (Syed).
