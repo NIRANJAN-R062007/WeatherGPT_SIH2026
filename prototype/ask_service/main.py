@@ -18,13 +18,15 @@ import bhashini
 import cities
 import config
 import guardrail
+import history
+import httpx
 import narrate as narrate_module
 import nlu
 import router
 import weather_data
-from auth import get_current_user
+from auth import get_bearer_token, get_current_user
 from config import ALLOWED_ORIGINS, REPO_ROOT
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -202,9 +204,28 @@ def _llm_attempt(intent: str, name: str, data: dict, lang: str, prompt_facts: di
 @app.get("/me")
 async def me(user: dict = Depends(get_current_user)):
     """Verifies the Supabase session sent as `Authorization: Bearer <token>`
-    and returns the signed-in user. Abel's /history endpoint follows this
-    same pattern, keyed off user["id"] (plan.md §14)."""
+    and returns the signed-in user. /history below follows the same
+    bearer-token pattern, keyed off user["id"] (plan.md §14)."""
     return {"id": user["id"], "email": user.get("email")}
+
+
+@app.get("/history")
+def get_history(token: str | None = Depends(get_bearer_token)):
+    """Past /ask queries for the signed-in user, most recent first (plan.md
+    §14 Abel track). Reads go straight through Supabase PostgREST with the
+    caller's own token — Postgres RLS decides what they can see, so an
+    invalid/expired token surfaces as whatever status PostgREST gives it."""
+    if token is None:
+        raise HTTPException(status_code=401, detail="Missing bearer token")
+    try:
+        rows = history.list_for_user(token)
+    except httpx.HTTPStatusError as e:
+        status = e.response.status_code
+        raise HTTPException(
+            status_code=status if status in (401, 403) else 502,
+            detail="Could not load history",
+        ) from e
+    return {"history": rows}
 
 
 @app.get("/cities")
@@ -264,7 +285,8 @@ def facts(city: str, intent: str = "current_weather", day: str = "today", lang: 
 
 
 @app.get("/ask")
-def ask(text: str, lang: str = "en", city: str | None = None):
+def ask(text: str, lang: str = "en", city: str | None = None,
+        token: str | None = Depends(get_bearer_token)):
     pq = nlu.parse(text, lang_hint=lang)
     notice = _msg("language_unsupported", lang) if pq.language is None else None
 
@@ -337,6 +359,14 @@ def ask(text: str, lang: str = "en", city: str | None = None):
     }
     if notice:
         resp["notice"] = notice
+
+    if token is not None:
+        try:
+            history.record(token, query=text, intent=pq.intent, city=key,
+                            lang=lang, response=candidate)
+        except Exception:
+            pass  # best-effort — a broken history write must never break the answer
+
     return resp
 
 

@@ -46,3 +46,29 @@ drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
+
+-- plan.md §14 Abel track — one row per answered /ask query. `user_id`
+-- defaults to auth.uid() so the backend (prototype/ask_service/history.py)
+-- never has to send it explicitly: it just POSTs with the caller's own
+-- session token and PostgREST resolves the JWT for us, same trust boundary
+-- as auth.py's /me.
+create table if not exists public.history (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references public.profiles (id) on delete cascade,
+  query text not null,
+  intent text,
+  city text,
+  lang text,
+  response text,
+  created_at timestamptz not null default now()
+);
+
+alter table public.history enable row level security;
+
+create policy "Users can read their own history"
+  on public.history for select
+  using (auth.uid() = user_id);
+
+create policy "Users can insert their own history"
+  on public.history for insert
+  with check (auth.uid() = user_id);

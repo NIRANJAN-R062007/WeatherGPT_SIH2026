@@ -373,7 +373,7 @@ weathergpt/
 
 - [ ] **Get a Google Cloud project + billing account + API key for Google Weather API, curl every endpoint in §3.1, and save the JSON into `data/fixtures/`.** Do this *first*. If something's blocked or dead, we need to know now, not in December.
 - [ ] Confirm Bhashini API access + quota, and that ASR / TTS / translate all work for the five languages (en/hi/ta/te/mr).
-- [ ] Line up a native Telugu speaker and a native Marathi speaker for translation QA — finding people has lead time, and all five ship as text in P0.
+- [x] ~~Line up a native Telugu speaker and a native Marathi speaker for translation QA.~~ ✅ done (Sep 13)
 - [x] ~~Stand up the repo, Docker Compose (Postgres+PostGIS, Redis, FastAPI), CI.~~ ✅ done (Sep 4)
 - [ ] Build the decoder tables (weather condition codes, wind directions, precipitation categories, UV bands).
 - [ ] Ship the thin slice: text query → Google Weather API data → grounded English answer with provenance.
@@ -442,10 +442,12 @@ are "add for the first time," not "extend."
 - [x] **Deepthi — Google OAuth + Supabase.** Done — Supabase Auth with Google
   provider (`auth.py`, `frontend/auth.js`, `supabase_schema.sql`, `GET /me`)
   on the pinned ngrok host.
-- [ ] **Abel — link history to the database.** History table +
-  `/history` endpoint, keyed off Deepthi's user id — blocked until her schema
-  exists. Replaces the current History modal placeholder (which only explains
-  DB-connectivity status) with real per-user data.
+- [x] ~~**Abel — link history to the database.**~~ ✅ done (Sep 13, picked
+  up by Niranjan since it was unblocked and Abel hadn't started): `history`
+  table + RLS live in the Supabase project (`user_id default auth.uid()`,
+  keyed off Deepthi's `profiles`), and `GET /history` + best-effort logging
+  from `/ask` in `ask_service` (`history.py`). Chelsea's UI-integration line
+  below still covers wiring the History modal to actually call it.
 - [x] **Mahesh — Llama 3 + Docker.** ✅ done — `narrate.py` now falls back
   Gemini → Groq → template (`openai/gpt-oss-120b`, since Groq deprecated
   Llama-3 off free tiers; see §5). Dockerfile added for `ask_service` and
