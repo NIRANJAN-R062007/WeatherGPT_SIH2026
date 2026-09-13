@@ -40,27 +40,83 @@ FIELD_UNITS: dict[str, str] = {
 # Unit markers checked (after optional whitespace) right after each number
 # extracted from an answer. None is prefix of another, so order is free.
 #
-# The Tamil entries cover Bhashini's live translation output, which spells
-# units out as words instead of using °C/%/km/h symbols (e.g. "28 டிகிரி
-# செல்சியஸ்", "81 சதவீதமாக", "14 கிமீ வேகத்தில்"). Without these, a translated
-# number carries no unit marker at all, and _match() treats an unmarked
-# number as compatible with ANY numeric field regardless of unit — the exact
-# unit-swap bypass this guardrail exists to prevent. "சதவீத" (not "சதவீதம்")
-# is deliberately the bare stem: a case suffix elides the trailing pulli
-# ("சதவீதம்" + "ஆக" -> "சதவீதமாக"), so matching the full word with pulli
-# would miss that form.
-_UNIT_MARKERS: list[tuple[str, str]] = [
+# Symbols (°C, %, km/h, mm) are language-neutral — Bhashini's live
+# translation output tends to leave these as-is regardless of target
+# language.
+_SYMBOL_UNIT_MARKERS: list[tuple[str, str]] = [
     ("°C", "celsius"),
     ("°F", "fahrenheit"),
     ("%", "percent"),
     ("km/h", "speed_kmh"),
-    ("டிகிரி செல்சியஸ்", "celsius"),
-    ("சதவீத", "percent"),
-    ("கிமீ", "speed_kmh"),
     ("mm", "millimetres"),
     ("millimetres", "millimetres"),
     ("millimeters", "millimetres"),
 ]
+
+# Spelled-out unit words, per target language, for when Bhashini's live
+# translation renders a unit as a word instead of a symbol (e.g. Tamil "28
+# டிகிரி செல்சியஸ்", "81 சதவீதமாக", "14 கிமீ வேகத்தில்"). Without an entry here,
+# a translated number carries no unit marker at all, and _match() treats an
+# unmarked number as compatible with ANY numeric field regardless of unit —
+# the exact unit-swap bypass this guardrail exists to prevent. A missing
+# language entry below is a silent guardrail hole for that language, not a
+# missing translation — this table needs a new row before a language goes
+# live with real Bhashini translation, not just an i18n phrase.
+#
+# "சதவீத" (not "சதவீதம்") is deliberately the bare stem: a case suffix elides
+# the trailing pulli ("சதவீதம்" + "ஆக" -> "சதவீதமாக"), so matching the full
+# word with pulli would miss that form. The Tamil entries were
+# reverse-engineered from real translated /ask responses.
+_WORD_UNIT_MARKERS: dict[str, list[tuple[str, str]]] = {
+    "ta": [
+        ("டிகிரி செல்சியஸ்", "celsius"),
+        ("சதவீத", "percent"),
+        ("கிமீ", "speed_kmh"),
+    ],
+    # TODO(native-speaker + real-Bhashini-output QA, plan.md §13): hi/te/mr
+    # rows below are first-draft guesses at the spelled-out unit words
+    # Bhashini's translator might actually use — NOT reverse-engineered from
+    # real translated output the way the Tamil row was. Verify against a
+    # live translated /ask response in each language before enabling
+    # bhashini translation for it in a demo; an unverified marker here is
+    # worse than none, since it can hide a real unit-swap bug behind a
+    # coincidental match. May also need case-suffix handling like Tamil's
+    # bare-stem "சதவீத" above once real output is seen.
+    "hi": [
+        ("डिग्री सेल्सियस", "celsius"),
+        ("प्रतिशत", "percent"),
+        ("किमी", "speed_kmh"),
+    ],
+    "te": [
+        ("డిగ్రీల సెల్సియస్", "celsius"),
+        ("శాతం", "percent"),
+        ("కిమీ", "speed_kmh"),
+    ],
+    "mr": [
+        ("अंश सेल्सिअस", "celsius"),
+        ("टक्के", "percent"),
+        ("किमी", "speed_kmh"),
+    ],
+}
+
+
+def _all_unit_markers() -> list[tuple[str, str]]:
+    """Flatten the per-language word tables into one list for `_extract`.
+
+    `check()` doesn't know (and shouldn't need to know) what language its
+    answer is in — the same guardrail validates English, Tamil, Hindi,
+    Telugu, Marathi and hand-written template output alike. Flattening is
+    safe here: markers across languages use different scripts, so none
+    collides with, or is a prefix of, another (see the module-level note
+    above this table).
+    """
+    markers = list(_SYMBOL_UNIT_MARKERS)
+    for lang_markers in _WORD_UNIT_MARKERS.values():
+        markers.extend(lang_markers)
+    return markers
+
+
+_UNIT_MARKERS: list[tuple[str, str]] = _all_unit_markers()
 
 _NUMBER_RE = re.compile(r"-?\d+(?:\.\d+)?")
 

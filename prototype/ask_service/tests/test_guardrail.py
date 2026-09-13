@@ -5,6 +5,7 @@ template outputs and hostile answers, plus the full `/ask` path end to end.
 """
 
 import guardrail
+import pytest
 from fastapi.testclient import TestClient
 from i18n import render
 from main import app
@@ -201,6 +202,65 @@ def test_tamil_wind_speed_word_unit_matches_correct_field():
     raw = {"wind_kmh": 14}
     answer = "சென்னை: மணிக்கு 14 கிமீ வேகத்தில் காற்று வீசுகிறது."
     report = guardrail.check(answer, raw)
+    assert report.ok and report.matched == report.total == 1
+    assert report.figures[0]["unit"] == "speed_kmh"
+    assert report.figures[0]["path"] == "wind_kmh"
+
+
+# --- hi/te/mr word-unit coverage (plan.md §13) ---
+# First-draft guesses at Bhashini's spelled-out unit words for these three
+# languages, NOT reverse-engineered from real translated output the way the
+# Tamil cases above were — see the TODO on guardrail._WORD_UNIT_MARKERS.
+# These tests only prove the guardrail table mechanics are unit-aware for
+# each language; they do not prove the marker strings match real Bhashini
+# output, which still needs a native-speaker + live-translation QA pass.
+
+_WORD_UNIT_CASES = [
+    ("hi", "चेन्नई: 20 डिग्री सेल्सियस.",
+     "चेन्नई: 28 डिग्री सेल्सियस, आर्द्रता 81 प्रतिशत है.",
+     "चेन्नई: हवा 14 किमी प्रति घंटा की गति से चल रही है."),
+    ("te", "చెన్నై: 20 డిగ్రీల సెల్సియస్.",
+     "చెన్నై: 28 డిగ్రీల సెల్సియస్, తేమ 81 శాతం గా ఉంది.",
+     "చెన్నై: గంటకు 14 కిమీ వేగంతో గాలి వీస్తోంది."),
+    ("mr", "चेन्नई: 20 अंश सेल्सिअस.",
+     "चेन्नई: 28 अंश सेल्सिअस, आर्द्रता 81 टक्के आहे.",
+     "चेन्नई: वाऱ्याचा वेग ताशी 14 किमी आहे."),
+]
+
+
+@pytest.mark.parametrize(("lang", "unit_swap_answer", "match_answer", "wind_answer"),
+                         _WORD_UNIT_CASES)
+def test_word_units_are_unit_aware(lang, unit_swap_answer, match_answer, wind_answer):
+    # claims humidity's 20 as celsius; must not pass just because 20 exists in raw
+    raw = {"temp_c": 31, "rain_probability_pct": 20}
+    report = guardrail.check(unit_swap_answer, raw)
+    assert not report.ok
+
+
+@pytest.mark.parametrize(("lang", "unit_swap_answer", "match_answer", "wind_answer"),
+                         _WORD_UNIT_CASES)
+def test_word_units_match_correct_field(lang, unit_swap_answer, match_answer, wind_answer):
+    raw = {"temp_c": 28, "humidity_pct": 81}
+    report = guardrail.check(match_answer, raw)
+    assert report.ok and report.matched == report.total == 2
+    units = {f["path"]: f["unit"] for f in report.figures}
+    assert units == {"temp_c": "celsius", "humidity_pct": "percent"}
+
+
+@pytest.mark.parametrize(("lang", "unit_swap_answer", "match_answer", "wind_answer"),
+                         _WORD_UNIT_CASES)
+def test_wind_speed_word_unit_is_unit_aware(lang, unit_swap_answer, match_answer, wind_answer):
+    raw = {"temp_c": 14, "wind_kmh": 20}
+    report = guardrail.check(wind_answer, raw)
+    assert not report.ok  # 14 is temp_c, not wind_kmh; must not pass on value alone
+
+
+@pytest.mark.parametrize(("lang", "unit_swap_answer", "match_answer", "wind_answer"),
+                         _WORD_UNIT_CASES)
+def test_wind_speed_word_unit_matches_correct_field(lang, unit_swap_answer, match_answer,
+                                                    wind_answer):
+    raw = {"wind_kmh": 14}
+    report = guardrail.check(wind_answer, raw)
     assert report.ok and report.matched == report.total == 1
     assert report.figures[0]["unit"] == "speed_kmh"
     assert report.figures[0]["path"] == "wind_kmh"

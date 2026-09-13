@@ -1,6 +1,7 @@
-"""Bhashini ULCA integration for /ask: EN -> TA translation on top of Gemini
-narration, plus ASR (speech-to-text for voice input) and TTS (text-to-speech
-for answer playback) — plan.md §14 voice track.
+"""Bhashini ULCA integration for /ask: EN -> {ta,hi,te,mr} translation on top
+of Gemini narration, plus ASR (speech-to-text for voice input) and TTS
+(text-to-speech for answer playback) — plan.md §14 voice track / §13 language
+expansion.
 
 Two-stage flow throughout: a config call resolves the task's pipeline
 (serviceId), then a compute call runs it. Two credential shapes are handled:
@@ -14,9 +15,9 @@ Two-stage flow throughout: a config call resolves the task's pipeline
 Any failure — no credentials, timeout, HTTP error, malformed response — returns
 None so callers fall back (main.py's i18n template for translation, typed
 input/silent playback for ASR/TTS), same safety pattern as narrate.py. Demo
-keys are quota-limited: each task's pipeline config is cached per process
-(translation globally since it's EN->TA only; ASR/TTS per language), so
-steady state is one compute call per request.
+keys are quota-limited: each task's pipeline config is cached per process,
+one slot per target language for translation (mirroring the ASR/TTS pipeline
+caches below), so steady state is one compute call per request.
 """
 
 import array
@@ -34,7 +35,7 @@ PIPELINE_ID = "64392f96daac500b55c543cd"
 TIMEOUT = 10.0
 _LOG = logging.getLogger("weathergpt.bhashini")
 
-_pipeline_cache: dict | None = None
+_translation_pipeline_cache: dict[str, dict] = {}
 _asr_pipeline_cache: dict[str, dict] = {}
 _tts_pipeline_cache: dict[str, dict] = {}
 
@@ -51,8 +52,7 @@ def is_configured() -> bool:
 
 
 def cache_clear() -> None:
-    global _pipeline_cache
-    _pipeline_cache = None
+    _translation_pipeline_cache.clear()
     _asr_pipeline_cache.clear()
     _tts_pipeline_cache.clear()
 
@@ -75,30 +75,34 @@ def _inference_headers(pipeline: dict) -> dict:
     raise KeyError("no inference key: config response had none and BHASHINI_INFERENCE_KEY unset")
 
 
-def _get_pipeline() -> dict:
-    """Resolve (and cache) the EN->TA translation pipeline for this process."""
-    global _pipeline_cache
-    if _pipeline_cache is not None:
-        return _pipeline_cache
+def _get_translation_pipeline(target_lang: str) -> dict:
+    """Resolve (and cache) the EN->`target_lang` translation pipeline, one
+    cache slot per target language (mirroring _get_asr_pipeline/_get_tts_pipeline)."""
+    if target_lang in _translation_pipeline_cache:
+        return _translation_pipeline_cache[target_lang]
     body = {
         "pipelineTasks": [{
             "taskType": "translation",
-            "config": {"language": {"sourceLanguage": "en", "targetLanguage": "ta"}},
+            "config": {"language": {"sourceLanguage": "en", "targetLanguage": target_lang}},
         }],
         "pipelineRequestConfig": {"pipelineId": PIPELINE_ID},
     }
     resp = httpx.post(CONFIG_URL, json=body, headers=_config_headers(), timeout=TIMEOUT)
     resp.raise_for_status()
-    _pipeline_cache = resp.json()
-    return _pipeline_cache
+    pipeline = resp.json()
+    _translation_pipeline_cache[target_lang] = pipeline
+    return pipeline
 
 
-def translate_to_tamil(text: str) -> str | None:
-    """EN -> TA via Bhashini. None on no credentials, no text, or any failure."""
+def translate(text: str, target_lang: str) -> str | None:
+    """EN -> `target_lang` via Bhashini. None on no credentials, no text, or
+    any failure. `target_lang` is one of the app's non-English targets
+    (ta/hi/te/mr) — never "en", since English narration needs no translation.
+    """
     if not is_configured() or not text:
         return None
     try:
-        pipeline = _get_pipeline()
+        pipeline = _get_translation_pipeline(target_lang)
         headers = _inference_headers(pipeline)
         task_config = pipeline["pipelineResponseConfig"][0]["config"][0]
         compute_url = (pipeline.get("pipelineInferenceAPIEndPoint") or {}).get("callbackUrl") \
@@ -112,8 +116,14 @@ def translate_to_tamil(text: str) -> str | None:
         target = resp.json()["pipelineResponse"][0]["output"][0]["target"]
         return target.strip() or None
     except (httpx.HTTPError, KeyError, IndexError, ValueError) as exc:
-        _LOG.warning("bhashini translation failed (%s); falling back to template", exc)
+        _LOG.warning("bhashini translation to %s failed (%s); falling back to template",
+                     target_lang, exc)
         return None
+
+
+def translate_to_tamil(text: str) -> str | None:
+    """Thin backward-compatible wrapper around translate(text, "ta")."""
+    return translate(text, "ta")
 
 
 def _get_asr_pipeline(lang: str) -> dict:

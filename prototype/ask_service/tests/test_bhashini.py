@@ -94,6 +94,51 @@ def test_pipeline_is_cached_across_calls(monkeypatch):
     assert len(config_calls) == 1
 
 
+@pytest.mark.parametrize("target_lang", ["ta", "hi", "te", "mr"])
+def test_translate_happy_path_for_each_target_language(monkeypatch, target_lang):
+    monkeypatch.setattr(config, "BHASHINI_USER_ID", "u")
+    monkeypatch.setattr(config, "BHASHINI_ULCA_API_KEY", "k")
+    seen = []
+
+    def _post(url, **kw):
+        if url == bhashini.CONFIG_URL:
+            seen.append(kw["json"]["pipelineTasks"][0]["config"]["language"]["targetLanguage"])
+            return _Resp(_pipeline_response())
+        return _Resp(_compute_response(f"[{target_lang}] translated"))
+
+    monkeypatch.setattr(httpx, "post", _post)
+    assert bhashini.translate("Chennai: 28°C.", target_lang) == f"[{target_lang}] translated"
+    assert seen == [target_lang]
+
+
+def test_translate_to_tamil_is_a_thin_wrapper_around_translate(monkeypatch):
+    monkeypatch.setattr(config, "BHASHINI_USER_ID", "u")
+    monkeypatch.setattr(config, "BHASHINI_ULCA_API_KEY", "k")
+    calls = []
+    monkeypatch.setattr(bhashini, "translate", lambda text, target_lang: calls.append(
+        (text, target_lang)) or "ok")
+    assert bhashini.translate_to_tamil("hello") == "ok"
+    assert calls == [("hello", "ta")]
+
+
+def test_translation_pipeline_is_cached_per_target_language(monkeypatch):
+    monkeypatch.setattr(config, "BHASHINI_USER_ID", "u")
+    monkeypatch.setattr(config, "BHASHINI_ULCA_API_KEY", "k")
+    config_calls = []
+
+    def _post(url, **kw):
+        if url == bhashini.CONFIG_URL:
+            config_calls.append(1)
+            return _Resp(_pipeline_response())
+        return _Resp(_compute_response("x"))
+
+    monkeypatch.setattr(httpx, "post", _post)
+    bhashini.translate("a", "hi")
+    bhashini.translate("b", "hi")
+    bhashini.translate("c", "te")  # different target language -> separate cache slot
+    assert len(config_calls) == 2
+
+
 @pytest.mark.parametrize("exc", [httpx.ReadTimeout("t"), httpx.ConnectError("c")])
 def test_http_error_returns_none(monkeypatch, caplog, exc):
     monkeypatch.setattr(config, "BHASHINI_USER_ID", "u")
@@ -101,7 +146,7 @@ def test_http_error_returns_none(monkeypatch, caplog, exc):
     monkeypatch.setattr(httpx, "post", lambda *a, **k: (_ for _ in ()).throw(exc))
     with caplog.at_level("WARNING"):
         assert bhashini.translate_to_tamil("hello") is None
-    assert any("bhashini translation failed" in r.message for r in caplog.records)
+    assert any("bhashini translation to ta failed" in r.message for r in caplog.records)
 
 
 def test_malformed_response_returns_none(monkeypatch):

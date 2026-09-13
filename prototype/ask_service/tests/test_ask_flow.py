@@ -51,47 +51,57 @@ def test_llm_unavailable_uses_template_without_flagging_fallback(monkeypatch):
     assert body["grounding"]["attempts"] == 1  # nothing to regenerate from
 
 
-def test_tamil_uses_bhashini_translation_of_grounded_english(monkeypatch):
+@pytest.mark.parametrize("lang", ["ta", "hi", "te", "mr"])
+def test_non_english_uses_bhashini_translation_of_grounded_english(monkeypatch, lang):
     monkeypatch.setattr(main, "narrate",
                         lambda *a, **k: "Chennai: cloudy, 28°C right now, humidity 81%.")
     monkeypatch.setattr(main.bhashini, "is_configured", lambda: True)
-    monkeypatch.setattr(main.bhashini, "translate_to_tamil",
-                        lambda text: "சென்னை: 28°C, ஈரப்பதம் 81%.")
-    body = _ask("what's the weather in Chennai", lang="ta")
-    assert body["response"] == "சென்னை: 28°C, ஈரப்பதம் 81%."
+    seen = []
+
+    def _translate(text, target_lang):
+        seen.append(target_lang)
+        return f"[{target_lang}] Chennai: 28°C, 81%."
+
+    monkeypatch.setattr(main.bhashini, "translate", _translate)
+    body = _ask("what's the weather in Chennai", lang=lang)
+    assert body["response"] == f"[{lang}] Chennai: 28°C, 81%."
+    assert seen == [lang]  # translate() is called with the requested target language
     assert body["grounding"]["narration"] == "llm+bhashini"
     assert body["grounding"]["fallback_used"] is False
     assert body["grounding"]["ok"] is True
 
 
-def test_tamil_falls_back_to_template_when_bhashini_unconfigured(monkeypatch):
+@pytest.mark.parametrize("lang", ["ta", "hi", "te", "mr"])
+def test_non_english_falls_back_to_template_when_bhashini_unconfigured(monkeypatch, lang):
     monkeypatch.setattr(main, "narrate",
                         lambda *a, **k: "Chennai: cloudy, 28°C right now, humidity 81%.")
     monkeypatch.setattr(main.bhashini, "is_configured", lambda: True)
-    monkeypatch.setattr(main.bhashini, "translate_to_tamil", lambda text: None)
-    body = _ask("what's the weather in Chennai", lang="ta")
+    monkeypatch.setattr(main.bhashini, "translate", lambda text, target_lang: None)
+    body = _ask("what's the weather in Chennai", lang=lang)
     assert body["grounding"]["narration"] == "template"
     assert body["grounding"]["fallback_used"] is True  # LLM grounded in EN, translation failed
 
 
-def test_tamil_falls_back_to_template_when_translation_hallucinates(monkeypatch):
+@pytest.mark.parametrize("lang", ["ta", "hi", "te", "mr"])
+def test_non_english_falls_back_to_template_when_translation_hallucinates(monkeypatch, lang):
     monkeypatch.setattr(main, "narrate",
                         lambda *a, **k: "Chennai: cloudy, 28°C right now, humidity 81%.")
     monkeypatch.setattr(main.bhashini, "is_configured", lambda: True)
-    monkeypatch.setattr(main.bhashini, "translate_to_tamil",
-                        lambda text: "சென்னை: 99°C.")  # bad translation, doesn't ground
-    body = _ask("what's the weather in Chennai", lang="ta")
+    monkeypatch.setattr(main.bhashini, "translate",
+                        lambda text, target_lang: "99°C, nonsense.")  # doesn't ground
+    body = _ask("what's the weather in Chennai", lang=lang)
     assert body["grounding"]["narration"] == "template"
     assert "99" not in body["response"]
 
 
 @pytest.mark.parametrize("key", sorted(["chennai", "madurai", "coimbatore"]))
-@pytest.mark.parametrize("lang", ["en", "ta"])
+@pytest.mark.parametrize("lang", ["en", "ta", "hi", "te", "mr"])
 @pytest.mark.parametrize("intent_text", [
     "what's the weather in {c}", "will it rain in {c} tomorrow",
 ])
 def test_all_combos_ground_with_llm_stub(monkeypatch, key, lang, intent_text):
-    # EN narration returns a grounded sentence; TA path uses the template
+    # EN narration returns a grounded sentence; every non-EN path uses the template
+    # (no bhashini keys configured in this test module)
     monkeypatch.setattr(
         main, "narrate",
         lambda intent, city, facts, ln: (
@@ -299,10 +309,11 @@ def test_tts_endpoint_unavailable_returns_null_audio(monkeypatch):
     assert body == {"audio": None}
 
 
-def test_tamil_without_bhashini_skips_narration_entirely(monkeypatch):
+@pytest.mark.parametrize("lang", ["ta", "hi", "te", "mr"])
+def test_non_english_without_bhashini_skips_narration_entirely(monkeypatch, lang):
     monkeypatch.setattr(main.bhashini, "is_configured", lambda: False)
     monkeypatch.setattr(main, "narrate", lambda *a, **k: (_ for _ in ()).throw(AssertionError))
-    body = _ask("சென்னையில் இப்போது வானிலை என்ன?", lang="ta")
+    body = _ask("what's the weather in Chennai", lang=lang)
     assert body["grounding"]["narration"] == "template"
     assert body["grounding"]["attempts"] == 0
     assert body["grounding"]["ok"] is True

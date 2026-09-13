@@ -1,12 +1,12 @@
 {
   "version": 1,
-  "note": "Source of truth for demo cities. Backend loader: prototype/ask_service/cities.py. The frontend CITIES object in prototype/frontend/WeatherGPT.dc.html must stay in sync until it fetches GET /cities. Lat/lon and Tamil names copied verbatim from that frontend object.",
+  "note": "Source of truth for demo cities. Backend loader: prototype/ask_service/cities.py. The frontend CITIES object in prototype/frontend/WeatherGPT.dc.html must stay in sync until it fetches GET /cities. Lat/lon and Tamil names copied verbatim from that frontend object. hi/te/mr names are a first-draft transliteration, not native-speaker verified (plan.md §13 open item) — TODO QA before demo.",
   "cities": [
     {
       "key": "chennai",
       "lat": 13.0827,
       "lon": 80.2707,
-      "names": {"en": "Chennai", "ta": "சென்னை"},
+      "names": {"en": "Chennai", "ta": "சென்னை", "hi": "चेन्नई", "te": "చెన్నై", "mr": "चेन्नई"},
       "region": {"en": "Tamil Nadu", "ta": "தமிழ்நாடு"},
       "timezone": "Asia/Kolkata",
       "aliases": ["madras", "சென்னை"]
@@ -15,7 +15,7 @@
       "key": "madurai",
       "lat": 9.9252,
       "lon": 78.1198,
-      "names": {"en": "Madurai", "ta": "மதுரை"},
+      "names": {"en": "Madurai", "ta": "மதுரை", "hi": "मदुरै", "te": "మదురై", "mr": "मदुरै"},
       "region": {"en": "Tamil Nadu", "ta": "தமிழ்நாடு"},
       "timezone": "Asia/Kolkata",
       "aliases": ["மதுரை"]
@@ -24,7 +24,8 @@
       "key": "coimbatore",
       "lat": 11.0168,
       "lon": 76.9558,
-      "names": {"en": "Coimbatore", "ta": "கோயம்புத்தூர்"},
+      "names": {"en": "Coimbatore", "ta": "கோயம்புத்தூர்", "hi": "कोयंबटूर", "te": "కోయంబత్తూరు",
+                "mr": "कोईम्बतूर"},
       "region": {"en": "Tamil Nadu", "ta": "தமிழ்நாடு"},
       "timezone": "Asia/Kolkata",
       "aliases": ["kovai", "கோயம்புத்தூர்"]
