@@ -53,7 +53,9 @@ RAG_CORPUS_DIR: Path = DATA_DIR / "imd_reference"
 # reads a hand-written fixture, not a real CAP/SACHET feed (plan.md §3.3 /
 # Phase 4 — never built). Defaults OFF so /warnings doesn't serve a fake
 # "orange alert" as if it were live data; flip on only for a deliberate demo.
-WARNINGS_ENABLED: bool = (os.getenv("WARNINGS_ENABLED") or "").strip().lower() in ("1", "true", "yes")
+WARNINGS_ENABLED: bool = (os.getenv("WARNINGS_ENABLED") or "").strip().lower() in (
+    "1", "true", "yes",
+)
 
 OLLAMA_BASE: str = (os.getenv("OLLAMA_BASE") or "http://localhost:11434").rstrip("/")
 OLLAMA_MODEL: str | None = os.getenv("OLLAMA_MODEL") or "llama3.2:3b"
