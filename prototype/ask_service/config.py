@@ -42,6 +42,13 @@ def _float_env(name: str, default: float) -> float:
 # narration/NLU, Bhashini disabled — for a dead venue network.
 OFFLINE_MODE: bool = (os.getenv("OFFLINE_MODE") or "").strip().lower() in ("1", "true", "yes")
 
+# RAG grounding (plan.md §14 Task C): a small IMD reference corpus feeds
+# category wording (colour codes, rainfall categories, UV bands, ...) into
+# the narration prompt. Same boolean pattern as OFFLINE_MODE above, but
+# defaults ON when unset.
+RAG_ENABLED: bool = (os.getenv("RAG_ENABLED") or "1").strip().lower() in ("1", "true", "yes")
+RAG_CORPUS_DIR: Path = DATA_DIR / "imd_reference"
+
 OLLAMA_BASE: str = (os.getenv("OLLAMA_BASE") or "http://localhost:11434").rstrip("/")
 OLLAMA_MODEL: str | None = os.getenv("OLLAMA_MODEL") or "llama3.2:3b"
 OLLAMA_TIMEOUT: float = _float_env("OLLAMA_TIMEOUT", 30.0)

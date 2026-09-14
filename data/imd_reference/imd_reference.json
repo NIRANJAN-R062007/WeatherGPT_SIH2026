@@ -1,0 +1,191 @@
+[
+  {
+    "id": "colour_green",
+    "topic": "colour_code",
+    "text": "Green means no warning: no significant severe weather is expected, so no specific action is needed beyond normal precautions.",
+    "keywords": ["green", "colour code", "color code", "no warning", "watch", "safe"],
+    "source": "IMD colour-coded warning scheme"
+  },
+  {
+    "id": "colour_yellow",
+    "topic": "colour_code",
+    "text": "Yellow means watch and stay updated: be aware of developing weather conditions and keep checking for the latest forecasts, as the situation could worsen.",
+    "keywords": ["yellow", "colour code", "color code", "watch", "be aware", "stay updated"],
+    "source": "IMD colour-coded warning scheme"
+  },
+  {
+    "id": "colour_orange",
+    "topic": "colour_code",
+    "text": "Orange means be prepared: severe weather is likely, so people should stay alert, prepare for disruption, and follow guidance from local authorities.",
+    "keywords": ["orange", "colour code", "color code", "be prepared", "severe weather", "alert"],
+    "source": "IMD colour-coded warning scheme"
+  },
+  {
+    "id": "colour_red",
+    "topic": "colour_code",
+    "text": "Red means take action: very severe weather is expected, so people should follow official advisories, avoid unnecessary travel, and take protective action immediately.",
+    "keywords": ["red", "colour code", "color code", "take action", "very severe", "danger", "evacuate"],
+    "source": "IMD colour-coded warning scheme"
+  },
+  {
+    "id": "rain_light",
+    "topic": "rainfall_category",
+    "text": "Light rain is classified as rainfall of less than 15.6 millimetres in a day.",
+    "keywords": ["light rain", "rainfall category", "rain", "drizzle", "mm"],
+    "source": "IMD rainfall intensity classification"
+  },
+  {
+    "id": "rain_moderate",
+    "topic": "rainfall_category",
+    "text": "Moderate rain is classified as rainfall between 15.6 and 64.4 millimetres in a day.",
+    "keywords": ["moderate rain", "rainfall category", "rain", "mm"],
+    "source": "IMD rainfall intensity classification"
+  },
+  {
+    "id": "rain_heavy",
+    "topic": "rainfall_category",
+    "text": "Heavy rain is classified as rainfall between 64.5 and 115.5 millimetres in a day.",
+    "keywords": ["heavy rain", "rainfall category", "rain", "mm", "downpour"],
+    "source": "IMD rainfall intensity classification"
+  },
+  {
+    "id": "rain_very_heavy",
+    "topic": "rainfall_category",
+    "text": "Very heavy rain is classified as rainfall between 115.6 and 204.4 millimetres in a day.",
+    "keywords": ["very heavy rain", "rainfall category", "rain", "mm"],
+    "source": "IMD rainfall intensity classification"
+  },
+  {
+    "id": "rain_extremely_heavy",
+    "topic": "rainfall_category",
+    "text": "Extremely heavy rain is classified as rainfall of 204.5 millimetres or more in a day.",
+    "keywords": ["extremely heavy rain", "rainfall category", "rain", "mm", "flood"],
+    "source": "IMD rainfall intensity classification"
+  },
+  {
+    "id": "heat_wave",
+    "topic": "heat_wave",
+    "text": "A heat wave is declared when the maximum temperature reaches at least 40°C in the plains (or 30°C in hilly areas) and departs from the normal by 4.5°C or more, or when the actual maximum temperature reaches 45°C or more regardless of departure from normal.",
+    "keywords": ["heat wave", "heatwave", "high temperature", "hot", "40", "45"],
+    "source": "IMD heat wave criteria"
+  },
+  {
+    "id": "severe_heat_wave",
+    "topic": "heat_wave",
+    "text": "A severe heat wave is declared when the departure from normal maximum temperature is 6.5°C or more, or when the actual maximum temperature reaches 47°C or more.",
+    "keywords": ["severe heat wave", "heatwave", "high temperature", "hot", "47"],
+    "source": "IMD heat wave criteria"
+  },
+  {
+    "id": "cold_wave",
+    "topic": "cold_wave",
+    "text": "A cold wave is declared when the minimum temperature drops to 10°C or below and departs from normal by 4.5°C or more, or when the minimum temperature falls to 4°C or below.",
+    "keywords": ["cold wave", "coldwave", "low temperature", "cold", "chilly"],
+    "source": "IMD cold wave criteria"
+  },
+  {
+    "id": "wind_calm",
+    "topic": "wind",
+    "text": "Calm winds are those below about 1 km/h, with smoke rising vertically and no noticeable air movement felt.",
+    "keywords": ["calm", "wind", "still air", "no wind"],
+    "source": "IMD wind descriptor scale (Beaufort-based)"
+  },
+  {
+    "id": "wind_light",
+    "topic": "wind",
+    "text": "Light wind (roughly 6-19 km/h) is enough to rustle leaves and be felt on the face, but causes no difficulty for normal outdoor activity.",
+    "keywords": ["light wind", "breeze", "wind"],
+    "source": "IMD wind descriptor scale (Beaufort-based)"
+  },
+  {
+    "id": "wind_moderate",
+    "topic": "wind",
+    "text": "Moderate wind (roughly 20-38 km/h) raises dust and loose paper and moves small branches; small boats and light fishing gear should be handled with care.",
+    "keywords": ["moderate wind", "wind", "gusty", "fishing"],
+    "source": "IMD wind descriptor scale (Beaufort-based)"
+  },
+  {
+    "id": "wind_strong",
+    "topic": "wind",
+    "text": "Strong wind (roughly 39-61 km/h) sways large branches and makes walking against it difficult; fishers are advised not to venture into the sea under these conditions.",
+    "keywords": ["strong wind", "wind", "gale", "fishermen", "fishers", "sea", "do not venture"],
+    "source": "IMD wind descriptor scale (Beaufort-based)"
+  },
+  {
+    "id": "wind_gale",
+    "topic": "wind",
+    "text": "Gale-force wind (roughly 62 km/h and above) can break branches and damage structures; all boats should stay in harbour and outdoor activity should be avoided.",
+    "keywords": ["gale", "wind", "storm", "damage", "harbour", "boats"],
+    "source": "IMD wind descriptor scale (Beaufort-based)"
+  },
+  {
+    "id": "uv_low",
+    "topic": "uv_band",
+    "text": "A UV index of 0-2 is Low: no protection is generally needed, though sunglasses help on bright days.",
+    "keywords": ["uv", "uv index", "low", "sun", "ultraviolet"],
+    "source": "WHO/IMD UV index bands"
+  },
+  {
+    "id": "uv_moderate",
+    "topic": "uv_band",
+    "text": "A UV index of 3-5 is Moderate: seek shade during midday hours and wear sunscreen, a hat and sunglasses.",
+    "keywords": ["uv", "uv index", "moderate", "sun", "sunscreen", "ultraviolet"],
+    "source": "WHO/IMD UV index bands"
+  },
+  {
+    "id": "uv_high",
+    "topic": "uv_band",
+    "text": "A UV index of 6-7 is High: reduce time in the sun between 10am and 4pm and use sunscreen, protective clothing, a hat and sunglasses.",
+    "keywords": ["uv", "uv index", "high", "sun", "sunscreen", "ultraviolet"],
+    "source": "WHO/IMD UV index bands"
+  },
+  {
+    "id": "uv_very_high",
+    "topic": "uv_band",
+    "text": "A UV index of 8-10 is Very High: minimise sun exposure during midday hours and take full precautions — sunscreen, protective clothing, a hat and sunglasses.",
+    "keywords": ["uv", "uv index", "very high", "sun", "sunscreen", "ultraviolet"],
+    "source": "WHO/IMD UV index bands"
+  },
+  {
+    "id": "uv_extreme",
+    "topic": "uv_band",
+    "text": "A UV index of 11 or above is Extreme: avoid sun exposure between 10am and 4pm and take all precautions, as unprotected skin and eyes can be damaged in minutes.",
+    "keywords": ["uv", "uv index", "extreme", "sun", "sunscreen", "ultraviolet", "skin"],
+    "source": "WHO/IMD UV index bands"
+  },
+  {
+    "id": "glossary_isolated",
+    "topic": "glossary",
+    "text": "\"Isolated\" rainfall means less than 25% of the forecast area is expected to receive rain.",
+    "keywords": ["isolated", "glossary", "spatial distribution", "coverage area"],
+    "source": "IMD rainfall spatial distribution glossary"
+  },
+  {
+    "id": "glossary_scattered",
+    "topic": "glossary",
+    "text": "\"Scattered\" rainfall means 25-50% of the forecast area is expected to receive rain.",
+    "keywords": ["scattered", "glossary", "spatial distribution", "coverage area"],
+    "source": "IMD rainfall spatial distribution glossary"
+  },
+  {
+    "id": "glossary_fairly_widespread",
+    "topic": "glossary",
+    "text": "\"Fairly widespread\" rainfall means 51-75% of the forecast area is expected to receive rain.",
+    "keywords": ["fairly widespread", "widespread", "glossary", "spatial distribution", "coverage area"],
+    "source": "IMD rainfall spatial distribution glossary"
+  },
+  {
+    "id": "glossary_widespread",
+    "topic": "glossary",
+    "text": "\"Widespread\" rainfall means more than 75% of the forecast area is expected to receive rain.",
+    "keywords": ["widespread", "glossary", "spatial distribution", "coverage area"],
+    "source": "IMD rainfall spatial distribution glossary"
+  },
+  {
+    "id": "glossary_chance_vs_so_far",
+    "topic": "glossary",
+    "text": "\"Chance of rain\" is a forecast probability for a future period, while \"rain so far\" is the amount already measured and accumulated since a fixed start time, such as midnight — the two are not interchangeable.",
+    "keywords": ["chance of rain", "rain so far", "glossary", "probability", "accumulated", "forecast"],
+    "source": "IMD forecast terminology glossary"
+  }
+]

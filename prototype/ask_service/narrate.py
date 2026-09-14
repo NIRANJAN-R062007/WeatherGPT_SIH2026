@@ -22,6 +22,7 @@ from typing import Callable
 
 import config
 import httpx
+import retrieval
 
 TIMEOUT = 10.0
 OLLAMA_TIMEOUT = 30.0
@@ -44,7 +45,14 @@ _PROMPT = (
     "invent ranges, times, dates or places. Write naturally — never mention the "
     "field names (temp_c, humidity_pct, ...). No markdown, no preamble."
     "{hint}{feedback}\n"
+    "{context_block}"
     "Intent: {intent}\nFacts: {facts}"
+)
+
+_CONTEXT_BLOCK = (
+    "Reference (IMD definitions — use ONLY for category wording and advice; "
+    "do NOT quote any number from it, every figure you write must come from "
+    "Facts):\n{context}\n"
 )
 
 _INTENT_HINTS: dict[str, str] = {
@@ -59,7 +67,8 @@ def _word_cap(facts: dict) -> int:
     return 25 + 15 * max(0, len(facts.get("days", [])) - 1)
 
 
-def build_prompt(intent: str, city: str, facts: dict, *, feedback: str | None = None) -> str:
+def build_prompt(intent: str, city: str, facts: dict, *, feedback: str | None = None,
+                  context: str | None = None) -> str:
     trimmed = {k: v for k, v in facts.items() if k not in _SKIP}
     hint_template = _INTENT_HINTS.get(intent, "")
     hint = ""
@@ -74,9 +83,10 @@ def build_prompt(intent: str, city: str, facts: dict, *, feedback: str | None = 
             f"\nYour previous answer contained figures not in the facts: {feedback}. "
             "Rewrite using only the facts' numbers."
         )
+    context_block = _CONTEXT_BLOCK.format(context=context) if context else ""
     return _PROMPT.format(
         city=city, intent=intent, word_cap=_word_cap(facts), hint=hint,
-        feedback=feedback_text,
+        feedback=feedback_text, context_block=context_block,
         facts=json.dumps(trimmed, ensure_ascii=False, sort_keys=True),
     )
 
@@ -298,6 +308,13 @@ def narrate(intent: str, city: str, facts: dict, lang: str = "en", *,
             feedback: str | None = None) -> str | None:
     if lang != "en" or not is_configured() or not facts:
         return None
-    prompt = build_prompt(intent, city, facts, feedback=feedback)
+    context = None
+    if config.RAG_ENABLED:
+        try:
+            passages = retrieval.retrieve(intent, facts)
+            context = retrieval.format_context(passages)
+        except Exception:  # a retriever bug must never break narration
+            context = None
+    prompt = build_prompt(intent, city, facts, feedback=feedback, context=context)
     text, _ = run_chain(prompt)
     return _sanitize(text)
