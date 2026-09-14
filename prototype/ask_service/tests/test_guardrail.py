@@ -264,3 +264,17 @@ def test_wind_speed_word_unit_matches_correct_field(lang, unit_swap_answer, matc
     assert report.ok and report.matched == report.total == 1
     assert report.figures[0]["unit"] == "speed_kmh"
     assert report.figures[0]["path"] == "wind_kmh"
+
+
+def test_unmarked_number_cannot_borrow_a_unit_bearing_field():
+    raw = {"temp_c": 30, "humidity_pct": 65, "wind_kmh": 12}
+    report = guardrail.check("The wind speed is 65 right now.", raw)
+    assert report.ok is False
+    assert report.figures[0]["path"] is None
+
+
+def test_unmarked_number_still_grounds_to_a_count_field():
+    raw = {"rain_so_far_mm": 0.24, "hours_counted": 16}
+    report = guardrail.check("Chennai: 0.24 mm of rain over 16 hours.", raw)
+    assert report.ok is True
+    assert report.figures[1]["path"] == "hours_counted"

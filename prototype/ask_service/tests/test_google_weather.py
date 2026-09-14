@@ -155,3 +155,17 @@ def test_cache_stats_shape(live_stub):
     google_weather.snapshot(CC, "chennai")
     stats = google_weather.cache_stats()
     assert stats == {"entries": 1, "live": 1, "snapshot": 0}
+
+
+def test_live_failure_log_never_contains_the_api_key(monkeypatch, caplog):
+    monkeypatch.setattr(config, "WEATHER_MODE", "auto")
+    monkeypatch.setattr(config, "GOOGLE_WEATHER_API_KEY", "sekret-key-123")
+
+    def _boom(path, params, timeout=10.0):
+        raise httpx.ConnectError(f"boom https://x/y?key={params['key']}")
+
+    monkeypatch.setattr(google_weather, "fetch_json", _boom)
+    with caplog.at_level("WARNING"):
+        google_weather.snapshot("current_conditions", "chennai")
+    assert "sekret-key-123" not in caplog.text
+    assert "REDACTED" in caplog.text

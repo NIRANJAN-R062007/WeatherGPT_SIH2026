@@ -124,6 +124,15 @@ def _msg(key: str, lang: str) -> str:
     return _MESSAGES[key].get(lang, _MESSAGES[key]["en"])
 
 
+def _provenance(data: dict) -> dict:
+    return {
+        "source": data["source"],
+        "issued": data.get("issued"),
+        "is_live": data["is_live"],
+        "retrieved_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+
 @app.get("/health")
 def health():
     return {
@@ -336,6 +345,7 @@ def ask(text: str, lang: str = "en", city: str | None = None,
             "intent": pq.intent,
             "city": key,
             "message": _msg("ungrounded", lang),
+            "provenance": _provenance(data),
             "grounding": grounding,
             "nlu": pq.as_dict(),
         }
@@ -348,12 +358,7 @@ def ask(text: str, lang: str = "en", city: str | None = None,
         "city": key,
         "day": router.legacy_day(pq),
         "response": candidate,
-        "provenance": {
-            "source": data["source"],
-            "issued": data.get("issued"),
-            "is_live": data["is_live"],
-            "retrieved_at": datetime.now(timezone.utc).isoformat(),
-        },
+        "provenance": _provenance(data),
         "grounding": grounding,
         "nlu": pq.as_dict(),
     }

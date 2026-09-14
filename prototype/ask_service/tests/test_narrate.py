@@ -297,3 +297,10 @@ def test_gemini_schema_nested_items():
     assert out["properties"]["days"]["items"]["type"] == "OBJECT"
     assert out["properties"]["days"]["items"]["properties"]["label"] == \
         {"type": "STRING", "nullable": True}
+
+
+def test_length_cap_never_cuts_inside_a_decimal():
+    filler = "word " * 60
+    text = narrate._sanitize(f"Chennai: {filler}feels like 32.5°C. More text after the cap.")
+    assert "32." not in text or "32.5" in text
+    assert not text.endswith("32.")

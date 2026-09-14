@@ -32,7 +32,7 @@ A **grounded, multilingual, multi-channel conversational weather assistant** tha
 ## 2. Non-negotiable design principles
 
 1. **The LLM routes; the data answers.** LLM does intent classification, entity extraction (location / time / parameter), tool selection, and *narration of retrieved values*. Every numeric fact comes from a deterministic API call.
-2. **Provenance on every response.** Each answer carries: source (Google Weather API — Current Conditions / Hourly Forecast / Daily Forecast), issue timestamp in IST, and validity window. e.g. *"As per Google Weather API forecast issued 0830 IST, valid to 2030 IST."*
+2. **Provenance on every response.** Every response that carries weather data — including an "ungrounded" refusal that had data but couldn't narrate it — carries: source (Google Weather API — Current Conditions / Hourly Forecast / Daily Forecast), issue timestamp in IST, and validity window. e.g. *"As per Google Weather API forecast issued 0830 IST, valid to 2030 IST."*
 3. **Refuse rather than guess.** No data for a location/time → say so and offer nearest supported point. Never interpolate silently.
 4. **Warnings are never paraphrased loosely.** Colour-coded warnings (Red/Orange/Yellow/Green), sourced from CAP/SACHET, are rendered with the official category text; the LLM only translates and explains, never re-grades severity.
 5. **Offline-degradable.** Last-known forecast cached on device; SMS/IVR fallback when data is down.

@@ -56,12 +56,11 @@ _SYMBOL_UNIT_MARKERS: list[tuple[str, str]] = [
 # Spelled-out unit words, per target language, for when Bhashini's live
 # translation renders a unit as a word instead of a symbol (e.g. Tamil "28
 # டிகிரி செல்சியஸ்", "81 சதவீதமாக", "14 கிமீ வேகத்தில்"). Without an entry here,
-# a translated number carries no unit marker at all, and _match() treats an
-# unmarked number as compatible with ANY numeric field regardless of unit —
-# the exact unit-swap bypass this guardrail exists to prevent. A missing
-# language entry below is a silent guardrail hole for that language, not a
-# missing translation — this table needs a new row before a language goes
-# live with real Bhashini translation, not just an i18n phrase.
+# a translated number carries no unit marker at all, and _match() refuses to
+# ground it against any unit-bearing field — so the answer falls back to the
+# template. A missing language entry below therefore means every translated
+# answer in that language is rejected, not silently accepted — this table
+# needs a new row before a language goes live with real Bhashini translation.
 #
 # "சதவீத" (not "சதவீதம்") is deliberately the bare stem: a case suffix elides
 # the trailing pulli ("சதவீதம்" + "ஆக" -> "சதவீதமாக"), so matching the full
@@ -72,22 +71,26 @@ _WORD_UNIT_MARKERS: dict[str, list[tuple[str, str]]] = {
         ("டிகிரி செல்சியஸ்", "celsius"),
         ("சதவீத", "percent"),
         ("கிமீ", "speed_kmh"),
+        ("மி.மீ", "millimetres"),
     ],
     # Reviewed by a native speaker — confirmed accurate (plan.md §13).
     "hi": [
         ("डिग्री सेल्सियस", "celsius"),
         ("प्रतिशत", "percent"),
         ("किमी", "speed_kmh"),
+        ("मिमी", "millimetres"),
     ],
     "te": [
         ("డిగ్రీల సెల్సియస్", "celsius"),
         ("శాతం", "percent"),
         ("కిమీ", "speed_kmh"),
+        ("మి.మీ", "millimetres"),
     ],
     "mr": [
         ("अंश सेल्सिअस", "celsius"),
         ("टक्के", "percent"),
         ("किमी", "speed_kmh"),
+        ("मिमी", "millimetres"),
     ],
 }
 
@@ -121,19 +124,16 @@ class Report:
     figures: list[dict] = field(default_factory=list)
 
 
-def check(answer: str, raw: dict, *, extra_allowed: dict | None = None) -> Report:
+def check(answer: str, raw: dict) -> Report:
     """Validate every numeric token in `answer` against `raw`'s numeric leaves.
 
     Unit-aware: a figure only matches a field of a compatible unit (see
     _match), so `"20°C"` cannot pass by matching a `rain_probability_pct` of
-    20. An answer with numbers but no matching raw data never passes
-    vacuously. `extra_allowed` covers narration-legitimate numbers that live
-    outside the weather payload (e.g. a provenance timestamp) — never call
-    this on the provenance footer itself, pass it through here instead.
+    20, and a bare "65" cannot pass by matching humidity_pct. An answer with
+    numbers but no matching raw data never passes vacuously. Never call this
+    on the provenance footer — its timestamps aren't weather facts.
     """
     index = _index(raw)
-    if extra_allowed:
-        index.update(_index(extra_allowed))
 
     figures = _extract(answer)
     total = len(figures)
@@ -250,12 +250,13 @@ def _unit_for(path: str) -> str | None:
 def _match(value: float, unit: str | None, decimals: int, index: dict[str, float]) -> str | None:
     """Return the dotted path of the first indexed field this figure grounds to.
 
-    Compatible units: equal, or the figure carries no unit marker at all.
+    Units must agree exactly: a unit-less figure only grounds to a unit-less
+    field (counts like hours_counted), never to a temperature/percent/speed
+    field — otherwise "wind 65" would pass by matching humidity_pct=65.
     Values agree under answer-precision rounding — see `_extract`.
     """
     for path, raw_value in index.items():
-        field_unit = _unit_for(path)
-        if unit is not None and field_unit != unit:
+        if _unit_for(path) != unit:
             continue
         if round(raw_value, decimals) == value:
             return path

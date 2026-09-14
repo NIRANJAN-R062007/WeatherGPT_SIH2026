@@ -289,7 +289,8 @@ def _sanitize(text: str | None) -> str | None:
     text = text.split("\n", 1)[0].strip()
     if len(text) > MAX_CHARS:
         cut = text[:MAX_CHARS]
-        text = cut[: cut.rfind(".") + 1] if "." in cut else cut
+        ends = [m.end() for m in re.finditer(r"\.(?!\d)", cut)]  # skip decimal points
+        text = cut[: ends[-1]] if ends else cut
     return text or None
 
 

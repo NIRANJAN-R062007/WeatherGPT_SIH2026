@@ -63,6 +63,13 @@ def fetch_json(path: str, params: dict, timeout: float = TIMEOUT) -> dict:
     return resp.json()
 
 
+def _redacted(exc: BaseException) -> str:
+    """httpx puts the full request URL — key= included — in its error text."""
+    text = f"{type(exc).__name__}: {exc}"
+    key = config.GOOGLE_WEATHER_API_KEY
+    return text.replace(key, "REDACTED") if key else text
+
+
 def _params(kind: str, city_key: str) -> dict:
     city = cities.CITIES[city_key]
     key = config.require("GOOGLE_WEATHER_API_KEY", config.GOOGLE_WEATHER_API_KEY)
@@ -129,7 +136,8 @@ def snapshot(kind: str, city_key: str, *, force_refresh: bool = False) -> Snapsh
     except (httpx.HTTPError, config.ConfigError, ValueError, KeyError) as exc:
         if config.WEATHER_MODE == "live":
             raise
-        _LOG.warning("live %s for %s failed (%s); replaying fixture", kind, city_key, exc)
+        _LOG.warning("live %s for %s failed (%s); replaying fixture",
+                     kind, city_key, _redacted(exc))
         return _fixture(kind, city_key)
 
     _CACHE[cache_key] = (_monotonic(), snap)
