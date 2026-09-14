@@ -26,6 +26,14 @@ def _clear_warnings_cache():
     warnings_module.cache_clear()
 
 
+@pytest.fixture
+def _warnings_enabled(monkeypatch):
+    """WARNINGS_ENABLED defaults off (config.py) since the fixture is fake
+    data, not a live feed — tests exercising the fixture content opt in
+    explicitly rather than relying on a default that no longer holds."""
+    monkeypatch.setattr(config, "WARNINGS_ENABLED", True)
+
+
 @pytest.mark.parametrize("city", CITIES)
 def test_fixture_is_well_formed(city):
     path = WARN_DIR / f"warnings.{city}.json"
@@ -44,7 +52,14 @@ def test_fixture_is_well_formed(city):
     assert "en" in response["labels"] and response["labels"]["en"]["headline"]
 
 
-def test_chennai_is_orange_heavy_rainfall():
+def test_warnings_disabled_by_default():
+    # config.WARNINGS_ENABLED defaults off — the fixture is fake data, not a
+    # live feed, so /warnings shouldn't serve it as if it were real.
+    body = client.get("/warnings", params={"city": "chennai"}).json()
+    assert body["warning"] is None
+
+
+def test_chennai_is_orange_heavy_rainfall(_warnings_enabled):
     body = client.get("/warnings", params={"city": "chennai"}).json()
     w = body["warning"]
     assert w["colour"] == "orange"
@@ -52,26 +67,26 @@ def test_chennai_is_orange_heavy_rainfall():
     assert w["headline"] == "Orange alert: heavy rainfall expected"
 
 
-def test_madurai_is_yellow_thunderstorm():
+def test_madurai_is_yellow_thunderstorm(_warnings_enabled):
     body = client.get("/warnings", params={"city": "madurai"}).json()
     w = body["warning"]
     assert w["colour"] == "yellow"
     assert w["category"] == "Thunderstorm with lightning"
 
 
-def test_coimbatore_is_green_with_no_category():
+def test_coimbatore_is_green_with_no_category(_warnings_enabled):
     body = client.get("/warnings", params={"city": "coimbatore"}).json()
     w = body["warning"]
     assert w["colour"] == "green"
     assert w["category"] is None
 
 
-def test_tamil_headline():
+def test_tamil_headline(_warnings_enabled):
     body = client.get("/warnings", params={"city": "chennai", "lang": "ta"}).json()
     assert body["warning"]["headline"] == "ஆரஞ்சு எச்சரிக்கை: கனமழை எதிர்பார்க்கப்படுகிறது"
 
 
-def test_unsupported_lang_falls_back_to_english():
+def test_unsupported_lang_falls_back_to_english(_warnings_enabled):
     body = client.get("/warnings", params={"city": "chennai", "lang": "hi"}).json()
     assert body["warning"]["headline"] == "Orange alert: heavy rainfall expected"
 
@@ -81,7 +96,7 @@ def test_unknown_city_is_404():
     assert resp.status_code == 404
 
 
-def test_alias_resolution():
+def test_alias_resolution(_warnings_enabled):
     # "kovai" is a Tamil-side alias for coimbatore in data/cities.json
     body = client.get("/warnings", params={"city": "kovai"}).json()
     assert body["city"] == "coimbatore"

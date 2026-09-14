@@ -59,7 +59,12 @@ def load(city_key: str) -> dict | None:
 
 def public(city_key: str, lang: str) -> dict | None:
     """Flattened shape for the API. Returns None if no warning fixture is
-    available for this city (caller decides what that means for the response)."""
+    available for this city (caller decides what that means for the response),
+    or if config.WARNINGS_ENABLED is off (the default) — the fixture is fake
+    data, not a live feed, so it shouldn't read as a real alert unless someone
+    deliberately turns it on for a demo."""
+    if not config.WARNINGS_ENABLED:
+        return None
     env = load(city_key)
     if env is None:
         return None

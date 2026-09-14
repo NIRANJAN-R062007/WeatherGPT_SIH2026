@@ -49,6 +49,12 @@ OFFLINE_MODE: bool = (os.getenv("OFFLINE_MODE") or "").strip().lower() in ("1", 
 RAG_ENABLED: bool = (os.getenv("RAG_ENABLED") or "1").strip().lower() in ("1", "true", "yes")
 RAG_CORPUS_DIR: Path = DATA_DIR / "imd_reference"
 
+# Warning colour-code banner (plan.md §14 Task D): imd_warnings.py only ever
+# reads a hand-written fixture, not a real CAP/SACHET feed (plan.md §3.3 /
+# Phase 4 — never built). Defaults OFF so /warnings doesn't serve a fake
+# "orange alert" as if it were live data; flip on only for a deliberate demo.
+WARNINGS_ENABLED: bool = (os.getenv("WARNINGS_ENABLED") or "").strip().lower() in ("1", "true", "yes")
+
 OLLAMA_BASE: str = (os.getenv("OLLAMA_BASE") or "http://localhost:11434").rstrip("/")
 OLLAMA_MODEL: str | None = os.getenv("OLLAMA_MODEL") or "llama3.2:3b"
 OLLAMA_TIMEOUT: float = _float_env("OLLAMA_TIMEOUT", 30.0)
