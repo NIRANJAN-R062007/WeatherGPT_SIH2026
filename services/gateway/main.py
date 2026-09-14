@@ -15,12 +15,14 @@ database dependency.
 import os
 
 import httpx
+import metrics
 import redis
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 from sqlalchemy import create_engine, text
 
 app = FastAPI(title="WeatherGPT Gateway", version="0.1.0")
+app.add_middleware(metrics.HTTPMetrics, service="gateway")
 
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://weathergpt:weathergpt_dev@localhost:5432/weathergpt")
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
@@ -88,6 +90,20 @@ async def health():
     return status
 
 
+@app.get("/livez")
+def livez():
+    """k8s liveness probe: no I/O, just "is the process serving requests"."""
+    return {"status": "ok"}
+
+
+@app.get("/metrics")
+def metrics_route():
+    body, content_type = metrics.render()
+    return Response(content=body, media_type=content_type)
+
+
+# Registered before the catch-all below so /livez and /metrics are always the
+# gateway's own — the orchestrator's proxy() branch never sees these paths.
 @app.api_route("/{path:path}", methods=_PROXY_METHODS)
 async def proxy(request: Request, path: str):
     url = f"/{path}"
@@ -98,6 +114,7 @@ async def proxy(request: Request, path: str):
         upstream = await _client.request(request.method, url, content=body,
                                          headers=_forward_headers(request))
     except httpx.HTTPError as e:
+        metrics.GATEWAY_UPSTREAM_ERRORS_TOTAL.inc()
         return JSONResponse({"error": "orchestrator unreachable",
                              "detail": e.__class__.__name__}, status_code=502)
     # Redirects (the orchestrator's `/` -> /WeatherGPT.dc.html) pass through

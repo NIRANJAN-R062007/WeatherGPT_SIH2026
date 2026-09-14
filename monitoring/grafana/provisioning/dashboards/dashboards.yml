@@ -1,0 +1,15 @@
+# File-based dashboard provider — picks up everything in
+# monitoring/grafana/dashboards/ (mounted read-only into the container at
+# /var/lib/grafana/dashboards by docker-compose.yml).
+apiVersion: 1
+
+providers:
+  - name: weathergpt
+    orgId: 1
+    folder: ""
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards

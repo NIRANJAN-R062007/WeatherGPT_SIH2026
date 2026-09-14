@@ -308,3 +308,57 @@ the fixed ngrok URL instead of the old Cloudflare one.
 smoke tests run only with `-m live`) and defaults `WEATHER_MODE` to `fixtures`
 so the suite is deterministic. A repo-root `conftest.py` puts the flat-import
 modules on `sys.path`.
+
+## Monitoring
+
+Prometheus + Grafana (`monitoring/`, plan.md §14 observability track) are an
+opt-in compose profile — they don't run with a plain `docker compose up`:
+
+```
+docker compose --profile monitoring up -d --build gateway orchestrator prometheus grafana
+```
+
+URLs (host machine): Prometheus at `http://localhost:9090`, Grafana at
+`http://localhost:3000` (anonymous viewer access — no login needed; admin
+password is `admin` if you need to edit something). Grafana comes up with the
+Prometheus datasource and the **"WeatherGPT — latency & grounding"**
+dashboard already provisioned (`monitoring/grafana/provisioning/`,
+`monitoring/grafana/dashboards/weathergpt.json`).
+
+Dashboard panels:
+
+- **p95 latency by service** — `http_request_duration_seconds`, with a red
+  threshold line at 2s.
+- **requests/sec by service** — `http_requests_total`.
+- **error rate (5xx + 429)** — share of requests answered with a server error
+  or a rate-limit rejection.
+- **/ask answers by provider** — `weathergpt_ask_total`, stacked by which
+  narrator (Gemini/Groq/Ollama/template) produced the answer.
+- **template-fallback ratio** — `weathergpt_ask_fallback_total` /
+  `weathergpt_ask_total`, as a single stat.
+- **top routes by p95** — table of the slowest route templates right now.
+
+Both services expose:
+
+- `GET /livez` — `{"status": "ok"}`, no I/O (k8s liveness probe).
+- `GET /metrics` — Prometheus text format (`prometheus_client`).
+
+Metric names, all labelled by the *matched route template* (never the raw
+path, so a scanner probing random URLs can't blow up cardinality — unmatched
+requests get `route="unmatched"`):
+
+- `http_requests_total{service,method,route,status}` (counter)
+- `http_request_duration_seconds{service,method,route}` (histogram, buckets
+  0.05/0.1/0.25/0.5/1/2/5/10)
+- `weathergpt_ask_total{intent,lang,provider,narration}` (counter,
+  orchestrator only) — one per `/ask` answer.
+- `weathergpt_ask_fallback_total{reason}` (counter, orchestrator only) —
+  `reason="guardrail"` when the LLM answer failed grounding,
+  `reason="no_llm"` when no LLM narration was attempted at all.
+- `gateway_upstream_errors_total` (counter, gateway only) — proxied requests
+  that never got a response from the orchestrator.
+
+`docker compose --profile monitoring down` stops just the monitoring
+services (and gateway/orchestrator if you started them together); the
+`postgres`/`redis` data volumes and the compose network are shared with the
+rest of the stack as usual.

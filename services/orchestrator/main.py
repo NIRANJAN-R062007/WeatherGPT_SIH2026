@@ -22,6 +22,7 @@ import history
 import httpx
 import imd_warnings as warnings_module
 import limits
+import metrics
 import narrate as narrate_module
 import nlu
 import router
@@ -30,7 +31,7 @@ from auth import get_bearer_token, get_current_user
 from config import ALLOWED_ORIGINS, REPO_ROOT
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from google_weather import cache_stats
 from i18n import SUPPORTED_LANGUAGES, condition_table, render
@@ -51,6 +52,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.add_middleware(limits.RequestLimits)
+# Outermost so it also counts the 413s/429s limits.py returns (plan.md §14
+# observability track). Route label comes from scope["route"], set once the
+# request reaches Starlette's router further in.
+app.add_middleware(metrics.HTTPMetrics, service="orchestrator")
 
 
 # hi/te/mr strings are first-draft machine translations, not reverse-engineered
@@ -140,6 +145,18 @@ def _provenance(data: dict) -> dict:
         "is_live": data["is_live"],
         "retrieved_at": datetime.now(timezone.utc).isoformat(),
     }
+
+
+@app.get("/livez")
+def livez():
+    """k8s liveness probe: no I/O, just "is the process serving requests"."""
+    return {"status": "ok"}
+
+
+@app.get("/metrics")
+def metrics_route():
+    body, content_type = metrics.render()
+    return Response(content=body, media_type=content_type)
 
 
 @app.get("/health")
@@ -394,6 +411,8 @@ def ask(text: str, lang: str = "en", city: str | None = None,
 
     grounding = {**asdict(report), "fallback_used": fallback_used, "narration": narration,
                  "attempts": attempts, "provider": provider}
+    metrics.observe_ask(intent=pq.intent, lang=lang, provider=provider, narration=narration,
+                        fallback_used=fallback_used, no_llm=not attempted)
 
     if not report.ok:  # §2.3
         resp = {
