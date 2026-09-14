@@ -257,8 +257,8 @@ Sequential build order — each phase should be working end-to-end before the ne
 - METAR decoder, climate trend charts, WhatsApp bot. — **Syed + Deepthi** (climate trend data/analysis) / **Mahesh**, split by availability. Cyclone map and climate trends need a supplementary government data source layered in alongside Google Weather API (see §6 P2).
 
 ### Phase 6 — Hardening (pre-finale)
-- K8s manifests, Grafana/Prometheus dashboards, CI/CD. — **Mahesh + Niranjan** (DevOps), **Syed** backup
-- Load testing for a high-traffic weather-event spike. — **Abel** (security/abuse angle) + **Mahesh + Niranjan** (infra)
+- ~~K8s manifests, Grafana/Prometheus dashboards, CI/CD.~~ ✅ done (Sep 14) — `k8s/base/` kustomize (Deployments/Services/Ingress/HPA, `/livez` liveness, `/health` readiness, Prometheus scrape annotations; validated with kubeconform and a real kind apply); `/metrics` on both services + `docker compose --profile monitoring` brings Prometheus and a provisioned Grafana dashboard "WeatherGPT — latency & grounding" (p95 vs the 2 s target, req/s, errors, `/ask` by provider, fallback ratio); CI now validates the rendered manifests and publishes both images to GHCR on pushes to `main`. Postgres/Redis deliberately not in the k8s base yet; no Helm chart yet. — **Mahesh + Niranjan** (DevOps), **Syed** backup
+- ~~Load testing for a high-traffic weather-event spike.~~ ✅ done (Sep 14) — `loadtest/spike.js` (k6, 0→150 rps ramp, 60 s hold): 12 374 requests, 117.8 req/s, p95 16 ms, 0 % failed on the template path (the floor the LLM path sits on); `loadtest/abuse.js` covers Abel's angle through the gateway — per-client limiter keys the first X-Forwarded-For hop (30×200 then 429 + `Retry-After: 60`, independent client unaffected), 3 MB body → 413. Results in `loadtest/results/`. — **Abel** (security/abuse angle) + **Mahesh + Niranjan** (infra)
 - ~~Offline-mode fallback (local LLM + snapshotted data).~~ ✅ done (Sep 13) — `OFFLINE_MODE=1` → fixtures + Ollama (`llama3.2:3b`) → template; `offline_check.py` preflight; compose `offline` profile — **Mahesh**
 - Data-privacy review (location data, phone numbers used for IVR/WhatsApp). — **Abel**
 
