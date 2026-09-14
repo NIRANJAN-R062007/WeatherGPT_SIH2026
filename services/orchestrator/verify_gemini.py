@@ -1,6 +1,6 @@
 """Verify GEMINI_API_KEY authenticates and pick a model.
 
-    python prototype/ask_service/verify_gemini.py
+    python services/orchestrator/verify_gemini.py
 
 Step 1 lists the models the key can reach (filtered to `flash`); step 2 runs a
 one-token generateContent smoke test. Prints redacted values only.

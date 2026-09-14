@@ -26,11 +26,14 @@ jobs:
         run: |
           python -m py_compile $(find services ml prototype -name "*.py")
 
-      - name: Install prototype test deps
-        run: pip install -r prototype/ask_service/requirements.txt
+      - name: Install service test deps
+        run: pip install -r services/orchestrator/requirements.txt -r services/gateway/requirements.txt
 
-      - name: Run prototype tests
-        run: pytest prototype/ask_service/tests/ -v
+      - name: Run orchestrator tests
+        run: pytest services/orchestrator/tests/ -v
+
+      - name: Run gateway tests
+        run: pytest services/gateway/tests/ -v
 
   compose-build:
     runs-on: ubuntu-latest
@@ -43,5 +46,5 @@ jobs:
       - name: Validate docker-compose config
         run: docker compose config
 
-      - name: Build gateway and ask_service images
-        run: docker compose build gateway ask_service
+      - name: Build gateway and orchestrator images
+        run: docker compose build gateway orchestrator

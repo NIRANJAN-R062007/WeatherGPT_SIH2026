@@ -3,53 +3,59 @@
 Cut-down build. Not the full product — see plan.md §14 for the full scope,
 task list, and explicit out-of-scope list.
 
+**Layout (post-hackathon, 2026-09-14):** the backend that started life as
+`prototype/ask_service/` now lives at **`services/orchestrator/`** and sits
+behind `services/gateway/` (a reverse proxy on `:8000`). Only the frontend
+(`prototype/frontend/`) and this README remain under `prototype/`. Module
+paths below are relative to `services/orchestrator/`.
+
 ## What's here
 
-- `ask_service/config.py` — repo paths, API keys (from a gitignored repo-root
+- `orchestrator/config.py` — repo paths, API keys (from a gitignored repo-root
   `.env`), CORS origins. Never raises at import; `require()` fails loudly at
   point of use.
-- `ask_service/intent.py` — rule-based parser for the two demo intents
+- `orchestrator/intent.py` — rule-based parser for the two demo intents
   (`current_weather`, `will_it_rain`). Rain/day keywords are matched in both
   English and Tamil (மழை; இன்று/நாளை/இன்றிரவு), so native-language queries
   like "நாளை சென்னையில் மழை பெய்யுமா?" resolve correctly. Full NLU (richer,
   less rigid phrasings) is still a follow-up.
-- `ask_service/cities.py` + `data/cities.json` — the demo city registry
+- `orchestrator/cities.py` + `data/cities.json` — the demo city registry
   (Chennai, Madurai, Coimbatore): key, lat/lon, EN/TA names, aliases.
   `data/cities.json` is the source of truth; the frontend keeps a copy until
   it fetches `GET /cities`.
-- `ask_service/google_weather.py` — fetches currentConditions / forecast/days,
+- `orchestrator/google_weather.py` — fetches currentConditions / forecast/days,
   decodes the enums via `data/decoders/`, caches in memory (15 min / 6 h TTLs),
   and **replays the committed fixtures on any live-call failure** so the demo
   needs no network.
-- `ask_service/weather_data.py` — facade over `google_weather`. `get_weather
+- `orchestrator/weather_data.py` — facade over `google_weather`. `get_weather
   (city, intent, day)` returns a flat, intent-aware facts dict.
-- `ask_service/narrate.py` — Gemini → Groq → Ollama behind `narrate.providers()`
+- `orchestrator/narrate.py` — Gemini → Groq → Ollama behind `narrate.providers()`
   (plan.md §8 Phase 6), one pluggable chain shared by narration and NLU. Returns
   `None` (→ template) on non-English, nothing configured, timeout, or any
   error; the guardrail still validates whatever it returns. Always produces
   English — Tamil narration goes through `bhashini.py` on top of this, not
   through narrate() itself.
-- `ask_service/bhashini.py` — EN→TA translation of the *already-grounded*
+- `orchestrator/bhashini.py` — EN→TA translation of the *already-grounded*
   Gemini sentence, via the ULCA two-stage flow (config call resolves a
   pipeline + inference key, then a compute call runs the translation).
   Returns `None` (→ template) on no credentials, timeout, or any error;
   `main.py` re-runs the guardrail on the Tamil output too, since translation
   can itself introduce numeric drift.
-- `ask_service/i18n.py` — EN/TA phrase templates (the fallback). `CONDITION_*`
+- `orchestrator/i18n.py` — EN/TA phrase templates (the fallback). `CONDITION_*`
   keys are the canonical decoder targets (lowercased `weatherCondition.type`).
-- `ask_service/guardrail.py` — grounding guardrail + numeric validator
+- `orchestrator/guardrail.py` — grounding guardrail + numeric validator
   (plan.md §4, "non-negotiable"). Extracts every numeric token from the
   narrated answer and requires each to match a raw field of a compatible unit
   (unit-aware: `"20°C"` cannot pass by matching a `rain_probability_pct` of
   20). On failure `/ask` re-renders from the template, then refuses rather
   than guess (§2.3).
-- `ask_service/main.py` — `/ask` (intent → city resolve → weather lookup →
+- `orchestrator/main.py` — `/ask` (intent → city resolve → weather lookup →
   narration seam → guardrail → typed response + provenance), plus `/health`,
   `/cities`, and `/facts` (raw facts dict for UI surfaces like the hero card
   that need individual fields rather than a narrated sentence).
-- `ask_service/snapshot_google_weather.py` — fetches and commits real API
+- `orchestrator/snapshot_google_weather.py` — fetches and commits real API
   fixtures; doubles as the Google Weather key verifier.
-- `ask_service/verify_gemini.py` — Gemini key verifier + model probe.
+- `orchestrator/verify_gemini.py` — Gemini key verifier + model probe.
 
 ### The `grounding` block
 
@@ -73,12 +79,17 @@ and "View source" panel:
 
 ## Integration
 
-The frontend calls `ask_service` **directly** (not through `services/gateway`).
-The gateway is a Phase-0 skeleton with no `/ask` route and a `/health` that
-needs Postgres + PostGIS + Redis — three things that can fail on stage. Direct
-means the demo depends on one uvicorn process. Post-hackathon the prototype
-moves into `services/orchestrator/` behind the gateway and the frontend's
-`apiBase` changes from `http://localhost:8001` to the gateway URL.
+The frontend goes **through `services/gateway`** (`:8000`), which reverse-
+proxies every path except its own `/health` to the orchestrator (`:8001`) and
+appends the client address to `X-Forwarded-For` so the orchestrator's
+per-client rate limit still keys the real caller. The gateway's Postgres/Redis
+checks are lazy and only affect `/health`, so the proxy works with neither
+running — the demo still depends on two uvicorn processes and nothing else.
+Hitting the orchestrator directly on `:8001` keeps working (set
+`TUNNEL_PORT=8001` for `run_tunnel.sh`). The frontend's `apiBase` is the
+fixed ngrok hostname, so it needed no change — only what the tunnel points at
+did. (Before 2026-09-14 the frontend called the prototype directly because the
+old gateway had no `/ask` route and a DB-dependent `/health`.)
 
 CORS on `/ask` is open (`ALLOWED_ORIGINS`, default `*`) — GET-only, no
 credentials, and it covers a `file://` origin.
@@ -161,13 +172,13 @@ ollama pull llama3.2:3b
 flagged stale:
 
 ```
-cd prototype/ask_service && python snapshot_google_weather.py --city all --force
+cd services/orchestrator && python snapshot_google_weather.py --city all --force
 ```
 
 **Demo morning** — run the preflight, then bring the service up in offline mode:
 
 ```
-cd prototype/ask_service
+cd services/orchestrator
 OFFLINE_MODE=1 python offline_check.py       # exit 0 = go; see below on read
 OFFLINE_MODE=1 uvicorn main:app --port 8001
 ```
@@ -201,7 +212,7 @@ last resort, not a like-for-like replacement for Gemini/Groq.
 **Docker**: `docker compose --profile offline up` also starts an `ollama`
 service (`ollama_models` volume persists pulled models across restarts); set
 `OLLAMA_BASE=http://ollama:11434` in `.env` when using it. Without the
-`offline` profile, `ask_service` still talks to a host-installed Ollama via
+`offline` profile, the orchestrator still talks to a host-installed Ollama via
 `OLLAMA_BASE` (default `http://localhost:11434`) — `extra_hosts:
 host.docker.internal:host-gateway` is wired in case that needs
 `http://host.docker.internal:11434` instead on some Docker setups.
@@ -209,14 +220,18 @@ host.docker.internal:host-gateway` is wired in case that needs
 ## Run it
 
 ```
-python -m venv .venv && .venv/bin/pip install -r prototype/ask_service/requirements.txt
+python -m venv .venv && .venv/bin/pip install -r services/orchestrator/requirements.txt -r services/gateway/requirements.txt
 
-# terminal 1 — API
-cd prototype/ask_service && ../../.venv/bin/uvicorn main:app --reload --port 8001
+# terminal 1 — orchestrator (API + serves the frontend)
+cd services/orchestrator && ../../.venv/bin/uvicorn main:app --reload --port 8001
 
-# terminal 2 — frontend
-cd prototype/frontend && python -m http.server 8777
+# terminal 2 — gateway (reverse proxy; ORCHESTRATOR_URL defaults to http://localhost:8001)
+cd services/gateway && ../../.venv/bin/uvicorn main:app --reload --port 8000
 ```
+
+Open http://localhost:8000/ (via the gateway) or http://localhost:8001/ (direct).
+`python -m http.server 8777` in `prototype/frontend/` still works for
+frontend-only dev against either port.
 
 ```
 curl "http://localhost:8001/health"
@@ -254,7 +269,7 @@ mount, so nothing but the page and its assets belongs there.
 ## Public URL (stable host pin, plan.md §14 — Niranjan)
 
 Fixed hostname: **`https://plaza-syrup-appetizer.ngrok-free.dev`** → forwards to
-`ask_service` on `:8001`, which now also serves the frontend directly
+the gateway on `:8000` → orchestrator on `:8001`, which also serves the frontend directly
 (`prototype/frontend/`, mounted as static files in `main.py`, `/` redirects to
 `WeatherGPT.dc.html`) — one tunnel, one URL, for both API and UI. The free
 ngrok tier only supports one online tunnel at a time, so the frontend isn't
@@ -266,7 +281,7 @@ ngrok's free tier includes one static/reserved domain that never changes
 across restarts.
 
 ```
-# terminal 3 — public tunnel (after ask_service is running on :8001)
+# terminal 3 — public tunnel (after gateway :8000 and orchestrator :8001 are up)
 ./prototype/run_tunnel.sh
 ```
 
@@ -285,7 +300,8 @@ the fixed ngrok URL instead of the old Cloudflare one.
 ## Tests
 
 ```
-.venv/bin/pytest prototype/ask_service/tests/ -v
+.venv/bin/pytest services/orchestrator/tests/ -v
+.venv/bin/pytest services/gateway/tests/ -v
 ```
 
 `tests/conftest.py` blocks real network in every test (the two `live`-marked

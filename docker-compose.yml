@@ -42,6 +42,7 @@ services:
     environment:
       DATABASE_URL: postgresql://weathergpt:weathergpt_dev@postgres:5432/weathergpt
       REDIS_URL: redis://redis:6379/0
+      ORCHESTRATOR_URL: http://orchestrator:8001
     ports:
       - "8000:8000"
     volumes:
@@ -51,13 +52,18 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      orchestrator:
+        condition: service_started
     command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
-  ask_service:
+  # Conversation orchestrator (plan.md §4) — the former prototype/ask_service.
+  # Reachable directly on :8001 and via the gateway on :8000.
+
+  orchestrator:
     build:
       context: .
-      dockerfile: prototype/ask_service/Dockerfile
-    container_name: weathergpt-ask-service
+      dockerfile: services/orchestrator/Dockerfile
+    container_name: weathergpt-orchestrator
     restart: unless-stopped
     env_file:
       - .env
@@ -69,11 +75,11 @@ services:
       - "8001:8001"
     volumes:
       - .:/app
-    working_dir: /app/prototype/ask_service
+    working_dir: /app/services/orchestrator
     command: uvicorn main:app --host 0.0.0.0 --port 8001 --reload
 
   # Local LLM offline fallback (plan.md §8 Phase 6) — only started with
-  # `docker compose --profile offline up`. Point ask_service's OLLAMA_BASE at
+  # `docker compose --profile offline up`. Point the orchestrator's OLLAMA_BASE at
   # http://ollama:11434 (the compose service name) when using this profile.
   ollama:
     image: ollama/ollama:0.34.0

@@ -4,8 +4,8 @@ Doubles as the key verifier: a clean run proves GOOGLE_WEATHER_API_KEY works.
 The ingestion module (services/ingestion/google_weather/) can then be built and
 tested against these committed fixtures with no key and no network.
 
-    python prototype/ask_service/snapshot_google_weather.py --city all
-    python prototype/ask_service/snapshot_google_weather.py --city chennai --dry-run
+    python services/orchestrator/snapshot_google_weather.py --city all
+    python services/orchestrator/snapshot_google_weather.py --city chennai --dry-run
 """
 
 import argparse
@@ -56,7 +56,7 @@ def _envelope(name: str, endpoint: str, city: str, lat: float, lon: float,
             "city": city,
             "http_status": status,
             "retrieved_at": datetime.now(timezone.utc).isoformat(),
-            "produced_by": "prototype/ask_service/snapshot_google_weather.py",
+            "produced_by": "services/orchestrator/snapshot_google_weather.py",
         },
         "response": body,
     }

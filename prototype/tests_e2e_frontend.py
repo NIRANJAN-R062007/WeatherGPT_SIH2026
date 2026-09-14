@@ -17,7 +17,7 @@ import httpx
 import pytest
 
 HERE = Path(__file__).resolve().parent
-ASK_DIR = HERE / "ask_service"
+ASK_DIR = HERE.parent / "services" / "orchestrator"
 FRONTEND_DIR = HERE / "frontend"  # lives outside the served folder on purpose
 PY = sys.executable
 

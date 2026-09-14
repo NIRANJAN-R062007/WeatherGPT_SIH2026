@@ -391,7 +391,7 @@ weathergpt/
 - **Text only.** No voice (ASR/TTS) — that's a P1 item (§6) requiring Bhashini setup time we don't have tonight.
 - **One data source, two intents.** Google Weather API current conditions + daily forecast only. Intents: *"what's the weather in `<city>`"* and *"will it rain in `<city>` `<day>`"*. No warnings, no cyclone map, no climate trends.
 - **Grounding guardrail stays non-negotiable** even in the cut-down build — it's the one thing the demo script and jury story depend on; skipping it defeats the point of the prototype.
-- **Frontend calls `prototype/ask_service` directly** (decided 2026-09-11), not through `services/gateway` — the gateway has no `/ask` route and a DB/Redis-dependent health check that adds demo-day risk. The prototype migrates into `services/orchestrator/` behind the gateway post-hackathon.
+- ~~**Frontend calls `prototype/ask_service` directly** (decided 2026-09-11), not through `services/gateway` — the gateway has no `/ask` route and a DB/Redis-dependent health check that adds demo-day risk. The prototype migrates into `services/orchestrator/` behind the gateway post-hackathon.~~ ✅ migrated (Sep 14, **Mahesh**) — `prototype/ask_service/` → `services/orchestrator/`; `services/gateway` is now a reverse proxy (`:8000` → `:8001`, X-Forwarded-For preserved for the rate limiter) whose DB/Redis checks are lazy and confined to `/health`, so the demo still has no database dependency. The tunnel points at the gateway; `:8001` direct still works. Frontend stays in `prototype/frontend/` (served by the orchestrator, proxied by the gateway).
 - **Demo cities: Chennai, Madurai, Coimbatore.** Real Google Weather API responses for all three are snapshotted into `data/fixtures/google_weather/`.
 
 **Tonight — build tasks:**

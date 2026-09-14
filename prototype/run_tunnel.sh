@@ -5,6 +5,7 @@
 # static domain claimed at https://dashboard.ngrok.com/domains.
 #
 # Fixed hostname: https://plaza-syrup-appetizer.ngrok-free.dev
-# Points at ask_service on :8001 — start that first (see prototype/README.md).
+# Points at the gateway on :8000, which proxies to the orchestrator on :8001 —
+# start both first (see prototype/README.md). To bypass the gateway, use 8001.
 set -euo pipefail
-exec ngrok http --url=plaza-syrup-appetizer.ngrok-free.dev 8001
+exec ngrok http --url=plaza-syrup-appetizer.ngrok-free.dev "${TUNNEL_PORT:-8000}"

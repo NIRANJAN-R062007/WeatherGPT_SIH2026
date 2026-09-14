@@ -58,7 +58,7 @@ def main() -> int:
     ap.add_argument("--lang", default=None)
     args = ap.parse_args()
 
-    sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "prototype" / "ask_service"))
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "services" / "orchestrator"))
     import cities
     import config
     import nlu

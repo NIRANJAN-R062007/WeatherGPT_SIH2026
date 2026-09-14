@@ -1,6 +1,6 @@
 """Deliberate live calls — one per external API. Skipped in CI (no keys).
 
-Run: pytest prototype/ask_service/tests -m live -v
+Run: pytest services/orchestrator/tests -m live -v
 """
 
 import config
