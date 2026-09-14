@@ -43,5 +43,5 @@ jobs:
       - name: Validate docker-compose config
         run: docker compose config
 
-      - name: Build gateway image
-        run: docker compose build gateway
+      - name: Build gateway and ask_service images
+        run: docker compose build gateway ask_service
