@@ -220,8 +220,8 @@ The validator runs on every response before it reaches the user.
 Sequential build order — each phase should be working end-to-end before the next one starts, since later phases depend on earlier ones being real (not stubbed).
 
 ### Phase 0 — Verify the ground truth (1–2 days)
-- Get a Google Cloud project + billing account + API key for Google Weather API; curl every endpoint in §3.1 by hand, save real JSON responses to `data/fixtures/`. — **Syed**
-- Confirm Bhashini covers ASR + TTS + translate for all five languages (en/hi/ta/te/mr) at the quota we need; flag any weak language to route via self-hosted IndicTrans2/IndicConformer instead. — **Niranjan**
+- ~~Get a Google Cloud project + billing account + API key for Google Weather API; curl every endpoint in §3.1 by hand, save real JSON responses to `data/fixtures/`.~~ ✅ done — `data/fixtures/google_weather/` (see §13) — **Syed**
+- ~~Confirm Bhashini covers ASR + TTS + translate for all five languages (en/hi/ta/te/mr) at the quota we need; flag any weak language to route via self-hosted IndicTrans2/IndicConformer instead.~~ ✅ done (Sep 13) — all five work on the free tier so far; no language routed to self-hosted yet — **Niranjan**
 - ~~Spin up Docker Compose (Postgres+PostGIS, Redis, empty FastAPI shell).~~ ✅ done (Sep 4) — **Niranjan**
 - *Why first:* if the Google Weather API key/billing setup is blocked or the response schema differs from expected, you need to know before anyone writes code against it.
 
@@ -241,12 +241,12 @@ Sequential build order — each phase should be working end-to-end before the ne
 ### Phase 3 — Channels & UI
 - Flutter chat UI wired to `/ask`. — **Chelsea**
 - Web dashboard. — **Mahesh + Chelsea**
-- Text translation layer + `data/i18n/` glossary (canonical keys, official warning category text, phrase templates) for all five languages; Telugu-script + Devanagari font bundles + layout check; native-speaker spot-check for any language no one on the team speaks. — **Niranjan** (translation) + **Chelsea / Mahesh** (UI font & layout)
+- Text translation layer + `data/i18n/` glossary (canonical keys, official warning category text, phrase templates) for all five languages; Telugu-script + Devanagari font bundles + layout check; native-speaker spot-check for any language no one on the team speaks. — **partial:** translation + phrase templates + native QA for all five ✅ done (Sep 13, **Syed**, `i18n.py` / `bhashini.translate`); still open: `data/i18n/` glossary as a file, warning-category text, Telugu/Devanagari font bundles + layout check in the UI — **Chelsea / Mahesh**
 - Warning colour-code rendering. — **Chelsea** (mobile), **Mahesh** (web)
-- **Security pass on the API surface** (auth, rate limiting on `/ask` and any public endpoints) before channels go live. — **Abel**
+- ~~**Security pass on the API surface** (auth, rate limiting on `/ask` and any public endpoints) before channels go live.~~ ✅ done (Sep 14, picked up by **Mahesh**) — `limits.py`: body-size cap + per-client rate limit on `/ask`, `/asr`, `/tts`; `lang`/intent validation; `DELETE /history` for the privacy review (commits ebb5178, 218a3b0). Originally **Abel**.
 
 ### Phase 4 — Voice & last-mile
-- Bhashini ASR/TTS (voice) in the app, all five languages (English, Hindi, Tamil, Telugu, Marathi). — **Niranjan**
+- ~~Bhashini ASR/TTS (voice) in the app, all five languages (English, Hindi, Tamil, Telugu, Marathi).~~ ✅ done for the web prototype (Sep 12, `POST /asr` + `POST /tts`, mic + playback in `WeatherGPT.dc.html`; see §14). Flutter app still pending (Chelsea). — **Niranjan**
 - IVR channel (phone call → speech → `/ask` → spoken answer). — **Niranjan**
 - Proactive alerts (CAP → geofence → push). — **Syed** (CAP parsing) + **Niranjan** (alert engine)
 - **Harden the alert pipeline against spoofed/malformed CAP messages** — a fake cyclone warning pushed to real users is the worst-case failure for this project. — **Abel**
@@ -371,12 +371,12 @@ weathergpt/
 
 **Owner: whole team, by end of week 1.**
 
-- [ ] **Get a Google Cloud project + billing account + API key for Google Weather API, curl every endpoint in §3.1, and save the JSON into `data/fixtures/`.** Do this *first*. If something's blocked or dead, we need to know now, not in December.
-- [ ] Confirm Bhashini API access + quota, and that ASR / TTS / translate all work for the five languages (en/hi/ta/te/mr).
+- [x] ~~**Get a Google Cloud project + billing account + API key for Google Weather API, curl every endpoint in §3.1, and save the JSON into `data/fixtures/`.**~~ ✅ done — current conditions, daily forecast and hourly history snapshotted for all three demo cities in `data/fixtures/google_weather/` (`snapshot_google_weather.py`). Hourly *forecast* endpoint not yet snapshotted.
+- [x] ~~Confirm Bhashini API access + quota, and that ASR / TTS / translate all work for the five languages (en/hi/ta/te/mr).~~ ✅ done (Sep 13) — ASR/TTS verified live in `bhashini.py` (commit 643c269), translate generalized to all four target languages (commit b072272).
 - [x] ~~Line up a native Telugu speaker and a native Marathi speaker for translation QA.~~ ✅ done (Sep 13)
 - [x] ~~Stand up the repo, Docker Compose (Postgres+PostGIS, Redis, FastAPI), CI.~~ ✅ done (Sep 4)
-- [ ] Build the decoder tables (weather condition codes, wind directions, precipitation categories, UV bands).
-- [ ] Ship the thin slice: text query → Google Weather API data → grounded English answer with provenance.
+- [ ] Build the decoder tables (weather condition codes, wind directions, precipitation categories, UV bands). — **partial:** condition codes + wind directions done (`data/decoders/`); precipitation categories and UV bands still missing.
+- [x] ~~Ship the thin slice: text query → Google Weather API data → grounded English answer with provenance.~~ ✅ done — `/ask` in `prototype/ask_service/` (see §14).
 
 ---
 
