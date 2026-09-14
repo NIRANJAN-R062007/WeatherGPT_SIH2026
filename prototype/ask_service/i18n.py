@@ -134,15 +134,26 @@ UNRECOGNIZED = {
 # guardrail.py handles; those exist for *translated* LLM answers, not these.
 _CURRENT_PHRASES = {
     "en": {"now": "{city}: {cond}, {temp}°C right now",
-           "feels_like": "feels like {v}°C", "humidity": "humidity {v}%"},
+           "feels_like": "feels like {v}°C", "humidity": "humidity {v}%",
+           "uv": "UV index {v}"},
     "ta": {"now": "{city}: {cond}, {temp}°C",
-           "feels_like": "உணரப்படுவது {v}°C", "humidity": "ஈரப்பதம் {v}%"},
+           "feels_like": "உணரப்படுவது {v}°C", "humidity": "ஈரப்பதம் {v}%",
+           "uv": "UV குறியீடு {v}"},
+    # UV phrase is a first-draft machine translation, not native-speaker
+    # reviewed yet (unlike the rest of this table — plan.md §13).
     "hi": {"now": "{city}: {cond}, अभी {temp}°C",
-           "feels_like": "महसूस होता है {v}°C जैसा", "humidity": "आर्द्रता {v}%"},
+           "feels_like": "महसूस होता है {v}°C जैसा", "humidity": "आर्द्रता {v}%",
+           "uv": "यूवी इंडेक्स {v}"},  # TODO: native_qa
+    # UV phrase is a first-draft machine translation, not native-speaker
+    # reviewed yet (unlike the rest of this table — plan.md §13).
     "te": {"now": "{city}: {cond}, ప్రస్తుతం {temp}°C",
-           "feels_like": "అనుభూతి {v}°C", "humidity": "తేమ {v}%"},
+           "feels_like": "అనుభూతి {v}°C", "humidity": "తేమ {v}%",
+           "uv": "యూవీ సూచిక {v}"},  # TODO: native_qa
+    # UV phrase is a first-draft machine translation, not native-speaker
+    # reviewed yet (unlike the rest of this table — plan.md §13).
     "mr": {"now": "{city}: {cond}, सध्या {temp}°C",
-           "feels_like": "जाणवते {v}°C", "humidity": "आर्द्रता {v}%"},
+           "feels_like": "जाणवते {v}°C", "humidity": "आर्द्रता {v}%",
+           "uv": "यूव्ही निर्देशांक {v}"},  # TODO: native_qa
 }
 
 _MULTI_DAY_PHRASES = {
@@ -218,12 +229,14 @@ def _render_current(city: str, data: dict, lang: str) -> str:
     table = condition_table(lang)
     phrases = _CURRENT_PHRASES.get(lang, _CURRENT_PHRASES["en"])
     cond = table.get(data["condition"], data["condition"])
-    feels, humid = data.get("feels_like_c"), data.get("humidity_pct")
+    feels, humid, uv = data.get("feels_like_c"), data.get("humidity_pct"), data.get("uv_index")
     parts = [phrases["now"].format(city=city, cond=cond, temp=data["temp_c"])]
     if feels is not None:
         parts.append(phrases["feels_like"].format(v=feels))
     if humid is not None:
         parts.append(phrases["humidity"].format(v=humid))
+    if uv is not None:
+        parts.append(phrases["uv"].format(v=uv))
     return ", ".join(parts) + "."
 
 

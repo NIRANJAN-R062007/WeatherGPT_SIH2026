@@ -13,6 +13,7 @@ _PARAM_KEYS = {
     "humidity": {"humidity_pct"},
     "wind": {"wind_kmh", "wind_dir"},
     "rain": {"rain_probability_pct", "rain_so_far_mm", "rain_last_24h_mm"},
+    "uv": {"uv_index"},
 }
 _META_KEYS = {
     "source", "issued", "is_live", "day", "condition",
@@ -62,7 +63,7 @@ def narration_facts(facts: dict, parameter: str) -> dict:
 
     Falls back to the full facts dict when the filtered result has no numeric
     leaf left to talk about (e.g. asking about humidity on a day the fixture
-    doesn't carry it, or `uv` — which has no dedicated fact at all).
+    doesn't carry it, or `uv` on a forecast day, which has no UV fact at all).
     """
     keys = _PARAM_KEYS.get(parameter)
     if not keys or facts is None:

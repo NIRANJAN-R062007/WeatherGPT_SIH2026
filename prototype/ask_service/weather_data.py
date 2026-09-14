@@ -65,6 +65,7 @@ def _current_facts(key: str) -> dict | None:
     _put(facts, "wind_kmh", _dig(r, "wind.speed.value"))
     _put(facts, "wind_dir",
          google_weather.decode_cardinal(_dig(r, "wind.direction.cardinal")) or None)
+    _put(facts, "uv_index", _dig(r, "uvIndex"))
     return facts
 
 
