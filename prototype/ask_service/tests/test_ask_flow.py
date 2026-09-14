@@ -37,7 +37,8 @@ def test_hallucinated_llm_answer_falls_back_to_template(monkeypatch):
     monkeypatch.setattr(main, "narrate", lambda *a, **k: "Chennai: 99°C and 4 inches of rain.")
     body = _ask("what's the weather in Chennai")
     assert "99" not in body["response"] and "4 inches" not in body["response"]
-    assert body["response"] == "Chennai: cloudy, 28°C right now, feels like 32.5°C, humidity 81%."
+    assert body["response"] == ("Chennai: cloudy, 28°C right now, feels like 32.5°C, "
+                                "humidity 81%, UV index 0.")
     assert body["grounding"]["narration"] == "template"
     assert body["grounding"]["fallback_used"] is True
     assert body["grounding"]["ok"] is True

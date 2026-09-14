@@ -8,7 +8,7 @@ import pytest
 import weather_data
 
 CURRENT_KEYS = {"condition", "temp_c", "feels_like_c", "humidity_pct",
-                "wind_kmh", "wind_dir", "source", "issued", "is_live"}
+                "wind_kmh", "wind_dir", "uv_index", "source", "issued", "is_live"}
 FORECAST_KEYS = {"condition", "rain_probability_pct", "high_c", "low_c",
                  "day", "source", "issued", "is_live"}
 RAIN_SO_FAR_KEYS = {"source", "is_live", "issued", "since", "rain_so_far_mm",

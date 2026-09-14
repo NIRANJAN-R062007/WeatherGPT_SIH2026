@@ -9,11 +9,12 @@ import weather_data
 
 
 @pytest.mark.parametrize("lang", ["en", "ta", "hi", "te", "mr"])
-def test_current_template_grounds_three_figures(lang):
+def test_current_template_grounds_four_figures(lang):
+    # temp, feels-like, humidity, UV index
     facts = weather_data.get_weather("chennai", "current_weather", "today")
     answer = i18n.render("current_weather", "Chennai", facts, lang)
     report = guardrail.check(answer, facts)
-    assert report.ok and report.matched == report.total == 3
+    assert report.ok and report.matched == report.total == 4
 
 
 @pytest.mark.parametrize("lang", ["en", "ta", "hi", "te", "mr"])
@@ -43,7 +44,15 @@ def test_multi_day_template_grounds(lang):
     report = guardrail.check(answer, facts)
     assert report.ok and report.matched == report.total >= 1
     if lang == "en":
-        assert "forecast beyond that isn't available yet" in answer
+        assert "forecast beyond that isn't available yet" not in answer
+
+
+def test_multi_day_template_notes_cap_when_asked_beyond_fixture():
+    # 7 requested, only FORECAST_DAYS available -> the template says so
+    facts = weather_data.multi_day_facts("chennai", 7)
+    answer = i18n.render("forecast", "Chennai", facts, "en")
+    assert guardrail.check(answer, facts).ok
+    assert "forecast beyond that isn't available yet" in answer
 
 
 @pytest.mark.parametrize("lang", ["en", "ta", "hi", "te", "mr"])
