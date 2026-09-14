@@ -8,6 +8,7 @@ Supabase's own Auth API to validate it, which sidesteps signing-algorithm/key
 rotation details entirely and is cheap at hackathon scale.
 """
 
+import config
 import httpx
 from config import SUPABASE_ANON_KEY, SUPABASE_URL, require
 from fastapi import Header, HTTPException
@@ -20,8 +21,11 @@ def _parse_bearer(authorization: str | None) -> str | None:
 
 
 async def _fetch_user(token: str) -> dict:
-    url = require("SUPABASE_URL", SUPABASE_URL)
-    key = require("SUPABASE_ANON_KEY", SUPABASE_ANON_KEY)
+    try:
+        url = require("SUPABASE_URL", SUPABASE_URL)
+        key = require("SUPABASE_ANON_KEY", SUPABASE_ANON_KEY)
+    except config.ConfigError:  # attribute lookup survives test reloads of config
+        raise HTTPException(status_code=503, detail="Sign-in is not configured on this server")
     async with httpx.AsyncClient(timeout=5) as client:
         resp = await client.get(
             f"{url}/auth/v1/user",

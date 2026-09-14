@@ -20,6 +20,7 @@ import config
 import guardrail
 import history
 import httpx
+import limits
 import narrate as narrate_module
 import nlu
 import router
@@ -31,10 +32,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from google_weather import cache_stats
-from i18n import condition_table, render
+from i18n import SUPPORTED_LANGUAGES, condition_table, render
 from narrate import is_configured as llm_configured
 from narrate import narrate
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from weather_data import get_weather
 
 app = FastAPI(title="WeatherGPT /ask prototype", version="0.0.1")
@@ -45,9 +46,10 @@ app = FastAPI(title="WeatherGPT /ask prototype", version="0.0.1")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
-    allow_methods=["GET", "POST"],
+    allow_methods=["GET", "POST", "DELETE"],
     allow_headers=["*"],
 )
+app.add_middleware(limits.RequestLimits)
 
 
 # hi/te/mr strings are first-draft machine translations, not reverse-engineered
@@ -122,6 +124,12 @@ _MESSAGES = {
 
 def _msg(key: str, lang: str) -> str:
     return _MESSAGES[key].get(lang, _MESSAGES[key]["en"])
+
+
+def _require_lang(lang: str) -> str:
+    if lang not in SUPPORTED_LANGUAGES:
+        raise HTTPException(status_code=422, detail=f"lang must be one of {SUPPORTED_LANGUAGES}")
+    return lang
 
 
 def _provenance(data: dict) -> dict:
@@ -228,6 +236,8 @@ def get_history(token: str | None = Depends(get_bearer_token)):
         raise HTTPException(status_code=401, detail="Missing bearer token")
     try:
         rows = history.list_for_user(token)
+    except config.ConfigError as e:
+        raise HTTPException(status_code=503, detail="History is not configured") from e
     except httpx.HTTPStatusError as e:
         status = e.response.status_code
         raise HTTPException(
@@ -237,19 +247,39 @@ def get_history(token: str | None = Depends(get_bearer_token)):
     return {"history": rows}
 
 
+@app.delete("/history")
+async def clear_history(user: dict = Depends(get_current_user),
+                        token: str | None = Depends(get_bearer_token)):
+    """Erase the signed-in user's history (data-privacy review, plan.md §8
+    Phase 6). Verifies the session first so the PostgREST filter is the
+    caller's own id; RLS would refuse anything else regardless."""
+    try:
+        history.clear_for_user(token, user["id"])
+    except config.ConfigError as e:
+        raise HTTPException(status_code=503, detail="History is not configured") from e
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(status_code=502, detail="Could not clear history") from e
+    return {"cleared": True}
+
+
 @app.get("/cities")
 def list_cities():
     return {"cities": cities.as_public_list()}
 
 
+# ~60 s of 16 kHz 16-bit mono PCM is ~1.9 MB raw, ~2.6 MB base64.
+MAX_AUDIO_B64_CHARS = 2_800_000
+MAX_TTS_CHARS = 500
+
+
 class ASRRequest(BaseModel):
-    audio: str  # base64 mono 16-bit PCM WAV
+    audio: str = Field(max_length=MAX_AUDIO_B64_CHARS)  # base64 mono 16-bit PCM WAV
     lang: str = "en"
-    sampling_rate: int = 16000
+    sampling_rate: int = Field(default=16000, ge=8000, le=48000)
 
 
 class TTSRequest(BaseModel):
-    text: str
+    text: str = Field(min_length=1, max_length=MAX_TTS_CHARS)
     lang: str = "en"
 
 
@@ -258,6 +288,7 @@ def asr(req: ASRRequest):
     """Voice input: transcribe recorded audio via Bhashini ASR (plan.md §14
     voice track). `text: null` (with a message) on no credentials or failure —
     the frontend falls back to letting the user type."""
+    _require_lang(req.lang)
     text = bhashini.speech_to_text(req.audio, req.lang, req.sampling_rate)
     if text is None:
         return {"text": None, "message": _msg("voice_unavailable", req.lang)}
@@ -268,6 +299,7 @@ def asr(req: ASRRequest):
 def tts(req: TTSRequest):
     """Answer playback: synthesize `req.text` via Bhashini TTS. `audio: null`
     on no credentials or failure — the frontend just skips playback."""
+    _require_lang(req.lang)
     audio = bhashini.text_to_speech(req.text, req.lang)
     if audio is None:
         return {"audio": None}
@@ -278,6 +310,10 @@ def tts(req: TTSRequest):
 def facts(city: str, intent: str = "current_weather", day: str = "today", lang: str = "en"):
     """The raw facts dict behind an answer — for UI surfaces (the hero card) that
     need individual fields rather than the narrated sentence."""
+    _require_lang(lang)
+    if intent not in ("current_weather", "will_it_rain") \
+            or day not in ("today", "tonight", "tomorrow"):
+        raise HTTPException(status_code=422, detail="unknown intent or day")  # §2.3
     key = cities.resolve(city)
     if key is None:
         return {"message": _msg("unsupported_city", lang)}
@@ -296,6 +332,7 @@ def facts(city: str, intent: str = "current_weather", day: str = "today", lang: 
 @app.get("/ask")
 def ask(text: str, lang: str = "en", city: str | None = None,
         token: str | None = Depends(get_bearer_token)):
+    lang = lang if lang in SUPPORTED_LANGUAGES else "en"
     pq = nlu.parse(text, lang_hint=lang)
     notice = _msg("language_unsupported", lang) if pq.language is None else None
 

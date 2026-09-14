@@ -224,6 +224,33 @@ curl "http://localhost:8001/ask?text=what's the weather in Chennai&lang=en"
 curl "http://localhost:8001/ask?text=will it rain in Madurai tomorrow&lang=ta"
 ```
 
+## Public-surface limits (security pass)
+
+The ngrok URL is world-reachable and `/ask`, `/asr`, `/tts` have no auth, so
+`limits.py` guards them in-process (`main.py` middleware):
+
+- **Body cap** — any request larger than `MAX_BODY_BYTES` (default 2 MiB) is
+  rejected with 413 before it reaches Bhashini. `/asr` `audio` and `/tts`
+  `text` also carry field-level caps (422).
+- **Rate limit** — `RATE_LIMIT_PER_MINUTE` (default 30) requests per client
+  per minute on the three expensive routes, keyed by the first
+  `X-Forwarded-For` hop (ngrok sets it) → 429 with `Retry-After`. Set it to
+  `0` to disable (the test suite does). One uvicorn worker only — this is a
+  demo guard, not a gateway.
+- **Validation** — `lang` must be one of the five supported codes on `/asr`,
+  `/tts`, `/facts` (422); `/ask` falls back to English for anything else.
+  `/facts` rejects unknown `intent`/`day` rather than silently answering for
+  today (plan.md §2.3).
+- **History retention** — `history` rows (query text, answer, city, lang) are
+  kept until the user clears them: `DELETE /history` with the session token
+  erases the caller's rows (RLS `auth.uid() = user_id`). There is no
+  server-side retention job yet; re-run `supabase_schema.sql` to pick up the
+  delete policy.
+
+The Playwright end-to-end test lives at `prototype/tests_e2e_frontend.py`,
+outside `prototype/frontend/` — that folder is served verbatim by the static
+mount, so nothing but the page and its assets belongs there.
+
 ## Public URL (stable host pin, plan.md §14 — Niranjan)
 
 Fixed hostname: **`https://plaza-syrup-appetizer.ngrok-free.dev`** → forwards to

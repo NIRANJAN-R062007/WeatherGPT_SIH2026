@@ -76,7 +76,7 @@ services:
   # `docker compose --profile offline up`. Point ask_service's OLLAMA_BASE at
   # http://ollama:11434 (the compose service name) when using this profile.
   ollama:
-    image: ollama/ollama
+    image: ollama/ollama:0.34.0
     container_name: weathergpt-ollama
     profiles: ["offline"]
     restart: unless-stopped

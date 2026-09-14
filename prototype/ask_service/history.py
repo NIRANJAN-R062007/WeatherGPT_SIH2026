@@ -48,3 +48,18 @@ def list_for_user(token: str, *, limit: int = 50) -> list[dict]:
     )
     resp.raise_for_status()
     return resp.json()
+
+
+def clear_for_user(token: str, user_id: str) -> None:
+    """Delete every history row belonging to `user_id`. PostgREST refuses an
+    unfiltered DELETE, and RLS (auth.uid() = user_id) means the filter can
+    only ever match the caller's own rows anyway."""
+    url = require("SUPABASE_URL", config.SUPABASE_URL)
+    key = require("SUPABASE_ANON_KEY", config.SUPABASE_ANON_KEY)
+    resp = httpx.delete(
+        f"{url}/rest/v1/history",
+        headers={"Authorization": f"Bearer {token}", "apikey": key, "Prefer": "return=minimal"},
+        params={"user_id": f"eq.{user_id}"},
+        timeout=5,
+    )
+    resp.raise_for_status()

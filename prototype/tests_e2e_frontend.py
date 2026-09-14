@@ -1,7 +1,7 @@
 """Frontend <-> backend integration: drives the real WeatherGPT.dc.html in headless
 Chromium against a real /ask service (fixtures mode: deterministic, offline).
 
-    /home/masasa23/codsoft/.venv/bin/pytest prototype/frontend/test_integration.py -v
+    pytest prototype/tests_e2e_frontend.py -v
 
 Requires: pytest-playwright + `playwright install chromium`.
 """
@@ -17,7 +17,8 @@ import httpx
 import pytest
 
 HERE = Path(__file__).resolve().parent
-ASK_DIR = HERE.parent / "ask_service"
+ASK_DIR = HERE / "ask_service"
+FRONTEND_DIR = HERE / "frontend"  # lives outside the served folder on purpose
 PY = sys.executable
 
 
@@ -63,7 +64,7 @@ def frontend():
     port = _free_port()
     proc = subprocess.Popen(
         [PY, "-m", "http.server", str(port), "--bind", "127.0.0.1"],
-        cwd=HERE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        cwd=FRONTEND_DIR, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
     )
     _wait(f"http://127.0.0.1:{port}/WeatherGPT.dc.html")
     yield f"http://127.0.0.1:{port}/WeatherGPT.dc.html"

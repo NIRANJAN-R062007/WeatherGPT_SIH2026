@@ -46,6 +46,10 @@ OLLAMA_BASE: str = (os.getenv("OLLAMA_BASE") or "http://localhost:11434").rstrip
 OLLAMA_MODEL: str | None = os.getenv("OLLAMA_MODEL") or "llama3.2:3b"
 OLLAMA_TIMEOUT: float = _float_env("OLLAMA_TIMEOUT", 30.0)
 
+# Public-surface limits (limits.py). 0 disables the rate limit.
+MAX_BODY_BYTES: int = int(_float_env("MAX_BODY_BYTES", 2 * 1024 * 1024))
+RATE_LIMIT_PER_MINUTE: int = int(_float_env("RATE_LIMIT_PER_MINUTE", 30))
+
 BHASHINI_USER_ID: str | None = os.getenv("BHASHINI_USER_ID")
 BHASHINI_ULCA_API_KEY: str | None = os.getenv("BHASHINI_ULCA_API_KEY")
 # Udyat-issued inference key: used as the compute Authorization header when the

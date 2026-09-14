@@ -69,6 +69,9 @@ def _llm_defaults(monkeypatch):
     """
     monkeypatch.setattr(config, "OFFLINE_MODE", False)
     monkeypatch.setattr(config, "OLLAMA_MODEL", None)
+    monkeypatch.setattr(config, "RATE_LIMIT_PER_MINUTE", 0)  # limiter tests opt in
+    import limits
+    limits.reset()
     import narrate
 
     monkeypatch.setattr(narrate, "last_provider", None)

@@ -72,3 +72,9 @@ create policy "Users can read their own history"
 create policy "Users can insert their own history"
   on public.history for insert
   with check (auth.uid() = user_id);
+
+-- Users own their history: DELETE /history clears it (data-privacy review,
+-- plan.md §8 Phase 6). No update policy — rows are append-only otherwise.
+create policy "Users can delete their own history"
+  on public.history for delete
+  using (auth.uid() = user_id);
