@@ -18,6 +18,7 @@ import cities
 import google_weather
 
 _DAY_INDEX = {"today": 0, "tonight": 0, "tomorrow": 1, "day_after_tomorrow": 2}
+_DAY_BY_OFFSET = {0: "today", 1: "tomorrow", 2: "day_after_tomorrow"}
 _DAY_PERIOD = {"tonight": "nighttimeForecast"}
 _FORECAST_DAYS = ("tomorrow", "tonight")
 
@@ -108,7 +109,8 @@ def forecast_day(key: str, offset: int, period: str = "daytimeForecast") -> dict
     if offset >= len(days):
         return None
 
-    facts: dict = {"source": snap.source, "is_live": snap.is_live}
+    facts: dict = {"source": snap.source, "is_live": snap.is_live,
+                   "day": _DAY_BY_OFFSET.get(offset, _day_label(offset, days[offset]))}
     facts.update(_entry_facts(days[offset], period))
     return facts
 

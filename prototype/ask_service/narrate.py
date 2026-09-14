@@ -62,6 +62,22 @@ _INTENT_HINTS: dict[str, str] = {
     "will_it_rain": ' You may say "the next N days" with N={days_counted}.',
 }
 
+# `day` is stripped from the facts JSON (_SKIP) so the model never echoes the
+# field name, but it still has to know WHICH day the figures are for — without
+# this a "tomorrow" forecast was being narrated as "today".
+_DAY_PHRASES: dict[str, str] = {
+    "today": "today", "tonight": "tonight", "tomorrow": "tomorrow",
+    "day_after_tomorrow": "the day after tomorrow",
+}
+
+
+def _day_hint(facts: dict) -> str:
+    day = facts.get("day")
+    if not isinstance(day, str) or day == "today" or "days" in facts:
+        return ""  # "today"/current conditions need no label; multi-day facts carry their own
+    phrase = _DAY_PHRASES.get(day, f"on {day.capitalize()}")
+    return f' These figures are for {phrase} — say "{phrase}", never a different day.'
+
 
 def _word_cap(facts: dict) -> int:
     return 25 + 15 * max(0, len(facts.get("days", [])) - 1)
@@ -77,6 +93,7 @@ def build_prompt(intent: str, city: str, facts: dict, *, feedback: str | None = 
             hint = hint_template.format(**facts)
         except KeyError:
             hint = ""
+    hint += _day_hint(facts)
     feedback_text = ""
     if feedback:
         feedback_text = (

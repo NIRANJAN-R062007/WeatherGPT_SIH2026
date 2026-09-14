@@ -154,6 +154,33 @@ def test_prompt_hides_counts_and_since():
     assert "N=8" in prompt  # count still reaches the model via the intent hint
 
 
+@pytest.mark.parametrize("day, phrase", [
+    ("tomorrow", "tomorrow"),
+    ("tonight", "tonight"),
+    ("day_after_tomorrow", "the day after tomorrow"),
+    ("friday", "on Friday"),
+])
+def test_prompt_names_the_forecast_day(day, phrase):
+    prompt = narrate.build_prompt("will_it_rain", "Chennai", {**FACTS, "day": day})
+    assert f'say "{phrase}"' in prompt
+    assert '"day"' not in prompt  # field name still hidden from the model
+
+
+def test_prompt_has_no_day_hint_for_today_or_multi_day():
+    today = narrate.build_prompt("current_weather", "Chennai", {**FACTS, "day": "today"})
+    multi = narrate.build_prompt("forecast", "Chennai",
+                                 {"day": "tomorrow", "days": [{"label": "today"}]})
+    assert "These figures are for" not in today
+    assert "These figures are for" not in multi
+
+
+def test_forecast_day_facts_carry_the_day():
+    import weather_data
+    assert weather_data.forecast_day("chennai", 0)["day"] == "today"
+    assert weather_data.forecast_day("chennai", 2)["day"] == "day_after_tomorrow"
+    assert weather_data.forecast_day("chennai", 3)["day"] not in ("today", "tomorrow")
+
+
 def test_word_cap_grows_with_multi_day_facts():
     facts = {"days": [{"label": "today"}, {"label": "tomorrow"}, {"label": "day2"}]}
     prompt = narrate.build_prompt("forecast", "Chennai", facts)
