@@ -1,0 +1,20 @@
+{
+  "_meta": {
+    "city": "madurai",
+    "issued_by": "IMD (fixture)",
+    "retrieved_at": "2026-09-14T06:00:00+05:30",
+    "produced_by": "hand-written fixture"
+  },
+  "response": {
+    "district": "Madurai",
+    "colour": "yellow",
+    "category": "Thunderstorm with lightning",
+    "valid_from": "2026-09-14T06:00:00+05:30",
+    "valid_to": "2026-09-15T06:00:00+05:30",
+    "advice": "Avoid open fields and sheltering under trees during thunderstorm activity.",
+    "labels": {
+      "en": {"headline": "Yellow alert: thunderstorm with lightning"},
+      "ta": {"headline": "மஞ்சள் எச்சரிக்கை: இடியுடன் கூடிய மழை"}
+    }
+  }
+}

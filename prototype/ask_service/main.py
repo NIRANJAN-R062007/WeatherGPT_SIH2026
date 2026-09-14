@@ -20,6 +20,7 @@ import config
 import guardrail
 import history
 import httpx
+import imd_warnings as warnings_module
 import limits
 import narrate as narrate_module
 import nlu
@@ -326,6 +327,23 @@ def facts(city: str, intent: str = "current_weather", day: str = "today", lang: 
         "city_name": cities.display_name(key, lang),
         "condition_label": table.get(data.get("condition"), data.get("condition")),
         "facts": data,
+    }
+
+
+@app.get("/warnings")
+def warnings_route(city: str, lang: str = "en"):
+    """IMD warning colour code for a city (plan.md §14 Task D) — a stand-in
+    fixture feed until the real CAP integration (plan.md §3.3 / Phase 4)
+    lands. Unlike /facts, an unknown city is a genuine 404 here: there is no
+    partial-answer shape to fall back to for a colour-code banner."""
+    _require_lang(lang)
+    key = cities.resolve(city)
+    if key is None:
+        raise HTTPException(status_code=404, detail="unknown city")
+    return {
+        "city": key,
+        "city_name": cities.display_name(key, lang),
+        "warning": warnings_module.public(key, lang),
     }
 
 

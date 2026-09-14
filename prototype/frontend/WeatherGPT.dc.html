@@ -70,6 +70,26 @@ a:hover{color:#1d5b7e}
         </div>
       </div>
 
+      <sc-if value="{{ warningVisible }}" hint-placeholder-val="{{ false }}">
+        <div style="margin:18px 40px 0;display:flex;gap:12px;align-items:flex-start;border-radius:12px;padding:14px 16px;background:{{ warningBg }};border:1px solid {{ warningBorder }}" data-testid="imd-warning-banner">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="{{ warningFg }}" stroke-width="1.9" stroke-linecap="round" style="flex:none;margin-top:1px"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg>
+          <div style="flex:1;min-width:0">
+            <div class="{{ uiFont }}" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <span style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:{{ warningFg }};background:#fff;border:1px solid {{ warningFg }};border-radius:10px;padding:2px 8px">{{ warningLabel }}: {{ warningColour }}</span>
+              <span style="font-size:12.5px;color:{{ warningFg }};font-weight:600">{{ warningCategory }}</span>
+            </div>
+            <div class="{{ uiFont }}" style="font-size:14px;font-weight:600;color:#22344a;margin-top:6px">{{ warningHeadline }}</div>
+            <div class="{{ uiFont }}" style="font-size:12.5px;color:#5f7082;line-height:1.6;margin-top:4px">{{ warningAdvice }}</div>
+            <div style="font-size:10.5px;color:#8b98a6;margin-top:6px;font-variant-numeric:tabular-nums">{{ warningValid }}</div>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{ noWarningVisible }}" hint-placeholder-val="{{ false }}">
+        <div class="{{ uiFont }}" style="margin:18px 40px 0;display:flex;align-items:center;gap:8px;font-size:12px;color:#dbe4ec;text-shadow:0 1px 4px rgba(0,0,0,.4)" data-testid="imd-no-warning">
+          <span style="width:6px;height:6px;border-radius:50%;background:#3fb27f;flex:none"></span>{{ noWarningText }}
+        </div>
+      </sc-if>
+
       <div style="position:relative;padding:26px 40px 0">
         <div class="{{ uiFont }}" style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#cfdbe6;text-shadow:0 1px 4px rgba(0,0,0,.4)">{{ currentWeatherLabel }}</div>
         <div style="display:flex;align-items:flex-start;gap:44px;flex-wrap:wrap;margin-top:10px">
@@ -471,7 +491,7 @@ class Component extends DCLogic {
   // param) and converting the narrated sentence client-side breaks on Tamil. A
   // units param is a separate backend task.
   state = {lang: "en", unit: "C", city: "chennai", draft: "", records: [], openEvidence: null, seq: 0,
-           hero: null, heroRain: null,
+           hero: null, heroRain: null, warning: null,
            // modal: null | "history" | "settings". History has no backing store yet
            // (no DB wired in the prototype), so it explains itself rather than 404ing.
            modal: null, alwaysEvidence: false, backendOk: null,
@@ -600,14 +620,18 @@ class Component extends DCLogic {
     const city = this.state.city, lang = this.state.lang;
     this._heroKey = `${city}|${lang}`;
     try {
-      const [cur, rain] = await Promise.all([
+      const [cur, rain, warn] = await Promise.all([
         this.api("/facts", {city, lang}),
-        this.api("/facts", {city, lang, intent: "will_it_rain", day: "today"})
+        this.api("/facts", {city, lang, intent: "will_it_rain", day: "today"}),
+        // Backends without this route yet (plan.md §14 Task D) 404 — swallow that
+        // here rather than let it fail the hero/rain fetches too.
+        this.api("/warnings", {city, lang}).catch(() => null)
       ]);
       if (this._heroKey !== `${city}|${lang}`) return;  // superseded
-      this.setIfAlive({hero: cur.facts ? cur : null, heroRain: rain.facts ? rain : null, backendOk: true});
+      this.setIfAlive({hero: cur.facts ? cur : null, heroRain: rain.facts ? rain : null,
+        warning: (warn && warn.warning) || null, backendOk: true});
     } catch (e) {
-      this.setIfAlive({hero: null, heroRain: null, backendOk: false});  // renderVals falls back to CITIES
+      this.setIfAlive({hero: null, heroRain: null, warning: null, backendOk: false});  // renderVals falls back to CITIES
     }
   }
 
@@ -725,6 +749,31 @@ class Component extends DCLogic {
     const wind = hf ? `${hf.wind_kmh} km/h ${hf.wind_dir || ""}`.trim() : `${n.wind} km/h ${n.cardinal}`;
     const rain = hr ? hr.rain_probability_pct : n.rain;
 
+    // IMD warning colour code (plan.md §14 Task D — stand-in until the real
+    // CAP feed lands, plan.md §3.3 / Phase 4). `warning` is null when the
+    // backend has no fixture for this city, or doesn't have the route yet.
+    const w = this.state.warning;
+    const IMD_PALETTE = {
+      green:  {fg: "#2e7d32", bg: "#e8f5e9", border: "#a5d6a7"},
+      yellow: {fg: "#f9a825", bg: "#fffde7", border: "#fff59d"},
+      orange: {fg: "#ef6c00", bg: "#fff3e0", border: "#ffcc80"},
+      red:    {fg: "#c62828", bg: "#ffebee", border: "#ef9a9a"}
+    };
+    const warningVisible = !!(w && ["yellow", "orange", "red"].includes(w.colour));
+    const warningColour = (w && w.colour) || "green";
+    const warningPalette = IMD_PALETTE[warningColour] || IMD_PALETTE.green;
+    const fmtWarningDate = iso => {
+      if (!iso) return "";
+      const d = new Date(iso);
+      if (isNaN(d)) return "";
+      return d.toLocaleString(ta ? "ta-IN" : "en-IN",
+        {day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
+         hour12: false, timeZone: "Asia/Kolkata"});
+    };
+    const warningValid = w
+      ? `${fmtWarningDate(w.valid_from)} – ${fmtWarningDate(w.valid_to)} IST`
+      : "";
+
     const entries = this.state.records.map(rec => this.entryFrom(rec, ta, uiFont));
 
     const sugg = ta
@@ -768,6 +817,21 @@ class Component extends DCLogic {
       windValue: wind,
       rainLabel: ta ? "மழை வாய்ப்பு" : "Chance of rain",
       rainValue: rain == null ? "—" : `${rain}%`,
+
+      // --- IMD warning colour code (plan.md §14 Task D) ---
+      warningVisible,
+      warningColour,
+      warningBg: warningPalette.bg,
+      warningFg: warningPalette.fg,
+      warningBorder: warningPalette.border,
+      warningLabel: ta ? "எச்சரிக்கை" : "Warning",
+      warningHeadline: (w && w.headline) || "",
+      warningCategory: (w && w.category) || "",
+      warningAdvice: (w && w.advice) || "",
+      warningValid,
+      noWarningVisible: !!w && !warningVisible,
+      noWarningText: ta ? "எச்சரிக்கை இல்லை" : "No IMD warning in force",
+
       isEmpty: this.state.records.length === 0,
       emptyTitle: ta ? "வானிலை பற்றி கேளுங்கள்" : "Ask about the weather",
       emptyBody: ta
