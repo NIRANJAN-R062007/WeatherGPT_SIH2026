@@ -105,8 +105,8 @@ jobs:
           tags: |
             ghcr.io/${{ steps.owner.outputs.owner }}/weathergpt-gateway:latest
             ghcr.io/${{ steps.owner.outputs.owner }}/weathergpt-gateway:${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=gateway
+          cache-to: type=gha,mode=max,scope=gateway
 
       - name: Build and push orchestrator
         uses: docker/build-push-action@v6
@@ -117,5 +117,5 @@ jobs:
           tags: |
             ghcr.io/${{ steps.owner.outputs.owner }}/weathergpt-orchestrator:latest
             ghcr.io/${{ steps.owner.outputs.owner }}/weathergpt-orchestrator:${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=orchestrator
+          cache-to: type=gha,mode=max,scope=orchestrator

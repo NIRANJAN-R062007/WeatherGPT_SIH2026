@@ -151,3 +151,15 @@ GHCR pull (kind has no registry credentials or route to GHCR by default,
 though public images should still pull — using local `:dev` tags just
 avoids the network round trip and lets you test uncommitted Dockerfile
 changes).
+
+**Package visibility.** Packages first published with `GITHUB_TOKEN` are
+**private** on GHCR, so a fresh cluster gets `ImagePullBackOff` until one of
+these is done once:
+
+- make both packages public — GitHub → the owner's *Packages* →
+  `weathergpt-gateway` / `weathergpt-orchestrator` → *Package settings* →
+  *Change visibility*; nothing in the manifests changes; or
+- keep them private and give the namespace a pull secret:
+  `kubectl -n weathergpt create secret docker-registry ghcr-pull --docker-server=ghcr.io --docker-username=<github-user> --docker-password=<PAT with read:packages>`
+  then add `imagePullSecrets: [{name: ghcr-pull}]` to both pod specs (an
+  overlay patch is the tidy way; the base stays credential-free).
