@@ -423,6 +423,54 @@ a:hover{color:#1d5b7e}
           </sc-if>
         </div>
       </sc-if>
+
+      <sc-if value="{{ isSettingsView }}" hint-placeholder-val="{{ false }}">
+        <div style="margin:26px clamp(16px,4vw,40px) 34px;background:rgba(255,255,255,.94);border-radius:14px;box-shadow:0 6px 26px rgba(9,18,32,.18);padding:22px 24px;display:flex;flex-direction:column;gap:22px">
+          <div class="{{ uiFont }}" style="font-size:15px;font-weight:700;color:#22344a">{{ settingsTitle }}</div>
+
+          <div style="display:flex;flex-direction:column;gap:10px;padding-bottom:20px;border-bottom:1px solid #eef1f4">
+            <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b98a6">Account</div>
+            <sc-if value="{{ isSignedIn }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                <span style="width:34px;height:34px;border-radius:50%;background:#1c4a6b;color:#fff;display:flex;align-items:center;justify-content:center;flex:none;font-size:13px;font-weight:700">{{ userInitial }}</span>
+                <div style="flex:1;min-width:140px">
+                  <div class="{{ uiFont }}" style="font-size:13.5px;font-weight:600;color:#22344a">{{ userName }}</div>
+                  <div style="font-size:11.5px;color:#8b98a6;margin-top:1px">{{ userEmail }}</div>
+                </div>
+                <button class="{{ uiFont }}" style="min-height:40px;padding:0 16px;border:1px solid #e6dcdd;background:transparent;cursor:pointer;font:inherit;font-size:11.5px;font-weight:600;color:#a5323c;border-radius:20px;white-space:nowrap" onClick="{{ onSignOut }}">{{ signOutLabel }}</button>
+              </div>
+            </sc-if>
+            <sc-if value="{{ isSignedOut }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                <div class="{{ uiFont }}" style="flex:1;min-width:160px;font-size:12.5px;color:#6b7c8e;line-height:1.6">Sign in to sync your query history across devices.</div>
+                <button class="{{ uiFont }}" style="min-height:44px;padding:0 18px;border:0;cursor:pointer;background:#1c4a6b;color:#fff;font:inherit;font-size:12.5px;font-weight:600;border-radius:22px;white-space:nowrap" onClick="{{ onSignIn }}">{{ signInLabel }}</button>
+              </div>
+            </sc-if>
+            <sc-if value="{{ isSigningIn }}" hint-placeholder-val="{{ false }}">
+              <div class="{{ uiFont }}" style="font-size:12.5px;color:#5f7082">{{ signingInLabel }}</div>
+            </sc-if>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b98a6">Preferences</div>
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+              <span class="{{ uiFont }}" style="font-size:12.5px;color:#22344a;min-width:60px">Units</span>
+              <div style="display:flex;background:#f3f5f8;border-radius:18px;padding:3px">
+                <button style="border:0;cursor:pointer;font:inherit;font-size:12px;font-weight:600;padding:6px 14px;border-radius:15px;background:{{ cBg }};color:{{ cColor }}" onClick="{{ setC }}">°C</button>
+                <button style="border:0;cursor:pointer;font:inherit;font-size:12px;font-weight:600;padding:6px 14px;border-radius:15px;background:{{ fBg }};color:{{ fColor }}" onClick="{{ setF }}">°F</button>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+              <span class="{{ uiFont }}" style="font-size:12.5px;color:#22344a;min-width:60px">Language</span>
+              <div style="display:flex;background:#f3f5f8;border-radius:18px;padding:3px;gap:1px;flex-wrap:wrap">
+                <sc-for list="{{ langOptions }}" as="lo" hint-placeholder-count="5">
+                  <button class="{{ lo.font }}" style="border:0;cursor:pointer;font:inherit;font-size:12px;font-weight:600;padding:6px 13px;border-radius:15px;background:{{ lo.bg }};color:{{ lo.color }};white-space:nowrap" onClick="{{ lo.pick }}">{{ lo.label }}</button>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+        </div>
+      </sc-if>
     </div>
 
     <div style="border-top:1px solid #e3e8ee;padding:12px clamp(16px,4vw,40px) 16px;background:#fff;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
@@ -1306,7 +1354,7 @@ class Component extends DCLogic {
       navItems: [
         {label: L.navHome, active: this.state.view === "home", go: () => this.setState({view: "home"})},
         {label: L.navHistory, active: this.state.view === "history", go: () => this.showHistory()},
-        {label: L.navSettings, active: false, go: () => {}}
+        {label: L.navSettings, active: this.state.view === "settings", go: () => this.setState({view: "settings", userMenuOpen: false})}
       ].map(i => ({
         go: i.go,
         label: i.label,
@@ -1400,6 +1448,8 @@ class Component extends DCLogic {
 
       isHomeView: this.state.view === "home",
       isHistoryView: this.state.view === "history",
+      isSettingsView: this.state.view === "settings",
+      settingsTitle: L.navSettings,
       historyTitle: L.historyTitle,
       historySignedOut: !signedIn,
       historyLoading: signedIn && this.state.historyStatus === "loading",
