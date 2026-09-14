@@ -236,13 +236,14 @@ Sequential build order — each phase should be working end-to-end before the ne
 - ~~Tool router: intent → correct Phase 1 data call.~~ ✅ done (Sep 12) — `router.py`, plus `history/hours` for rainfall-so-far — **Mahesh**
 - ~~Guardrail/validator: every number in the answer must exist in the tool's raw response.~~ ✅ done (Sep 12) — one regenerate-with-feedback attempt before template fallback — **Mahesh**
 - ~~NLU eval set: test queries with expected intent/entities across all five languages.~~ ✅ done (Sep 12) — `ml/nlu/eval_set.jsonl` (70 rows); hi/te/mr rows still need native-speaker QA — **Mahesh**
+- ~~RAG (§7 AI/LLM role): ground narration wording on IMD reference text.~~ ✅ done (Sep 14) — `retrieval.py` (pure-Python BM25) over `data/imd_reference/` (colour codes, rainfall categories, UV bands, glossary; 27 entries) feeds ≤2 passages into the narration prompt for category wording only; guardrail still grounds every figure against the weather facts. `RAG_ENABLED` toggle. — **Mahesh**
 - *Output:* ✅ working `/ask` endpoint — text in, grounded English answer with provenance out (translation into the other four added in Phase 3).
 
 ### Phase 3 — Channels & UI
 - Flutter chat UI wired to `/ask`. — **Chelsea**
 - Web dashboard. — **Mahesh + Chelsea**
 - Text translation layer + `data/i18n/` glossary (canonical keys, official warning category text, phrase templates) for all five languages; Telugu-script + Devanagari font bundles + layout check; native-speaker spot-check for any language no one on the team speaks. — **partial:** translation + phrase templates + native QA for all five ✅ done (Sep 13, **Syed**, `i18n.py` / `bhashini.translate`); still open: `data/i18n/` glossary as a file, warning-category text, Telugu/Devanagari font bundles + layout check in the UI — **Chelsea / Mahesh**
-- Warning colour-code rendering. — **Chelsea** (mobile), **Mahesh** (web)
+- Warning colour-code rendering. — **Chelsea** (mobile); ~~**Mahesh** (web)~~ ✅ web done (Sep 14) — `GET /warnings` + IMD colour banner in `WeatherGPT.dc.html`, backed by hand-written district fixtures in `data/fixtures/imd_warnings/` until the CAP feed (Phase 4) lands
 - ~~**Security pass on the API surface** (auth, rate limiting on `/ask` and any public endpoints) before channels go live.~~ ✅ done (Sep 14, picked up by **Mahesh**) — `limits.py`: body-size cap + per-client rate limit on `/ask`, `/asr`, `/tts`; `lang`/intent validation; `DELETE /history` for the privacy review (commits ebb5178, 218a3b0). Originally **Abel**.
 
 ### Phase 4 — Voice & last-mile
