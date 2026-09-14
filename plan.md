@@ -461,12 +461,18 @@ are "add for the first time," not "extend."
   `translate_to_tamil()` to `translate(text, target_lang)`. Native-speaker
   QA done and TODOs updated (commit fce2ad9); 399 tests passing, 5
   languages supported end to end.
-- [ ] **Chelsea — UI/UX.** Integrates everyone else's surface into
-  `WeatherGPT.dc.html` / `support.js`: login button (Deepthi), history data
-  (Abel), mic button + audio playback (Niranjan), language switcher (Syed).
-  Downstream of the other five — agree on API/response shapes (contracts) on
-  day 1 so she can build against mocks instead of waiting on everyone else to
-  finish.
+- [x] **Chelsea — UI/UX.** ✅ done (Sep 14) — integrated everyone else's
+  surface into `WeatherGPT.dc.html`: real Google sign-in via `auth.js` + `/me`
+  (Deepthi), real history via `GET`/`DELETE /history` (Abel), real mic input
+  (`WavRecorder` → `POST /asr`) + audio playback (`POST /tts` →
+  `AudioContext.decodeAudioData`) (Niranjan), 5-language switcher (Syed) —
+  plus the hero card + IMD warning banner wired to `/facts`/`/warnings`.
+  A prior visual redesign in the Claude Design canvas had regressed the page
+  to fully client-side-mocked data; this restored real backend wiring,
+  porting proven logic from the last wired commit (`9b649b7`). Verified: ruff
+  clean, 480 orchestrator + 10 gateway tests pass, 5/6 Playwright e2e
+  assertions pass (the sixth fails only on a pre-existing, unrelated
+  fixture/test drift from `dc5e6ec`, not this work) (commit `0df7799`).
 
 **Sequencing:** Niranjan's host pin unblocks Deepthi's OAuth; Deepthi's schema
 unblocks Abel's history endpoint. Mahesh, Syed, and Niranjan's voice work are
