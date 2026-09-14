@@ -9,22 +9,28 @@
 <x-dc>
 <helmet>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Noto+Sans+Tamil:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Noto+Sans+Tamil:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;500;600;700&family=Noto+Sans+Telugu:wght@400;500;600;700&display=swap">
 <style>
 html,body{height:100%}
 body{margin:0;background:#eef1f5;font-family:"Plus Jakarta Sans",system-ui,sans-serif;color:#1b2a3b}
 .ta{font-family:"Noto Sans Tamil","Plus Jakarta Sans",system-ui,sans-serif}
-/* the input carries inline font:inherit, which beats the class; force the Tamil face on it and its placeholder */
-input.ta,input.ta::placeholder{font-family:"Noto Sans Tamil","Plus Jakarta Sans",system-ui,sans-serif !important}
+.hi,.mr{font-family:"Noto Sans Devanagari","Plus Jakarta Sans",system-ui,sans-serif}
+.te{font-family:"Noto Sans Telugu","Plus Jakarta Sans",system-ui,sans-serif}
 @keyframes wg-spin{to{transform:rotate(360deg)}}
 .wg-spin{animation:wg-spin 1s linear infinite}
+@keyframes wg-eq{0%,100%{transform:scaleY(.3)}50%{transform:scaleY(1)}}
+.wg-eq{animation:wg-eq .9s ease-in-out infinite;transform-origin:center}
+@keyframes wg-ring{0%{box-shadow:0 0 0 0 rgba(28,74,107,.4)}100%{box-shadow:0 0 0 11px rgba(28,74,107,0)}}
+.wg-ring{animation:wg-ring 1.5s ease-out infinite}
+@keyframes wg-pulse{0%,100%{opacity:.4}50%{opacity:1}}
+.wg-pulse{animation:wg-pulse 1.4s ease-in-out infinite}
 a{color:#123047}
 a:hover{color:#1d5b7e}
 </style>
 </helmet>
 <div style="min-height:100vh;display:flex;flex-wrap:wrap;align-items:stretch;background:#e9edf2">
 
-  <aside style="flex:0 1 214px;min-width:190px;border-right:1px solid #e3e8ee;padding:22px 14px 18px;display:flex;flex-direction:column;background:#fbfcfd">
+  <aside style="flex:1 1 214px;min-width:190px;border-right:1px solid #e3e8ee;padding:22px 14px 18px;display:flex;flex-direction:column;background:#fbfcfd">
     <div style="display:flex;align-items:center;gap:9px;padding:0 8px 20px">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#e0a83a" stroke-width="1.7" style="flex:none"><circle cx="9" cy="8.5" r="3"></circle><path d="M17.5 20a3.5 3.5 0 0 0 0-7 5 5 0 0 0-9.6-1.3A3.4 3.4 0 0 0 8 20Z" fill="#eef5fa" stroke="#7fa8c6"></path></svg>
       <span style="font-size:16.5px;font-weight:700;letter-spacing:-.01em">WeatherGPT</span>
@@ -35,7 +41,7 @@ a:hover{color:#1d5b7e}
     </div>
     <div style="display:flex;flex-direction:column;gap:4px">
       <sc-for list="{{ navItems }}" as="n" hint-placeholder-count="3">
-        <button style="width:100%;text-align:left;border:0;cursor:pointer;font:inherit;display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:9px;font-size:14px;font-weight:{{ n.weight }};color:{{ n.color }};background:{{ n.bg }};border-left:2px solid {{ n.rule }}" onClick="{{ n.go }}">
+        <button style="display:flex;align-items:center;gap:11px;padding:10px 12px;border:0;border-left:2px solid {{ n.rule }};border-radius:9px;cursor:pointer;text-align:left;font:inherit;font-size:14px;min-height:44px;font-weight:{{ n.weight }};color:{{ n.color }};background:{{ n.bg }}" onClick="{{ n.go }}">
           <span style="width:6px;height:6px;border-radius:50%;background:{{ n.dot }};flex:none"></span>
           <span class="{{ uiFont }}">{{ n.label }}</span>
         </button>
@@ -47,11 +53,11 @@ a:hover{color:#1d5b7e}
     </div>
   </aside>
 
-  <main style="flex:1 1 660px;min-width:min(100%,340px);display:flex;flex-direction:column">
+  <main style="flex:999 1 420px;min-width:min(100%,320px);display:flex;flex-direction:column">
 
-    <div style="flex:1;overflow-y:auto;position:relative;background-image:linear-gradient(115deg,rgba(11,22,38,.78) 0%,rgba(11,22,38,.5) 38%,rgba(11,22,38,.12) 70%,rgba(11,22,38,.28) 100%),url('assets/hero-chennai.png');background-size:cover;background-position:center 55%;background-attachment:fixed">
+    <div style="flex:1;overflow-y:auto;position:relative;background-image:linear-gradient(115deg,rgba(11,22,38,.78) 0%,rgba(11,22,38,.5) 38%,rgba(11,22,38,.12) 70%,rgba(11,22,38,.28) 100%),url('assets/hero-chennai.png');background-size:cover;background-position:center 55%;background-attachment:local">
 
-      <div style="padding:20px 40px 0;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+      <div style="padding:20px clamp(16px,4vw,40px) 0;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
         <div class="{{ uiFont }}" style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:#fff;text-shadow:0 1px 5px rgba(0,0,0,.4)">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7" style="flex:none"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path><circle cx="12" cy="10" r="3"></circle></svg>
           <span>{{ nowCity }}</span>
@@ -59,48 +65,59 @@ a:hover{color:#1d5b7e}
         <div style="margin-left:auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
           <div style="display:flex;background:rgba(255,255,255,.9);border-radius:18px;padding:3px">
             <button style="border:0;cursor:pointer;font:inherit;font-size:12px;font-weight:600;padding:5px 12px;border-radius:15px;background:{{ cBg }};color:{{ cColor }}" onClick="{{ setC }}">°C</button>
-            <sc-if value="{{ showFahrenheit }}" hint-placeholder-val="{{ false }}">
-              <button style="border:0;cursor:pointer;font:inherit;font-size:12px;font-weight:600;padding:5px 12px;border-radius:15px;background:{{ fBg }};color:{{ fColor }}" onClick="{{ setF }}">°F</button>
-            </sc-if>
+            <button style="border:0;cursor:pointer;font:inherit;font-size:12px;font-weight:600;padding:5px 12px;border-radius:15px;background:{{ fBg }};color:{{ fColor }}" onClick="{{ setF }}">°F</button>
           </div>
-          <div style="display:flex;background:rgba(255,255,255,.9);border-radius:18px;padding:3px">
-            <button style="border:0;cursor:pointer;font:inherit;font-size:12px;font-weight:600;padding:5px 13px;border-radius:15px;background:{{ enBg }};color:{{ enColor }}" onClick="{{ setEN }}">English</button>
-            <button class="ta" style="border:0;cursor:pointer;font:inherit;font-size:12px;font-weight:600;padding:5px 13px;border-radius:15px;background:{{ taBg }};color:{{ taColor }}" onClick="{{ setTA }}">தமிழ்</button>
+          <div style="display:flex;background:rgba(255,255,255,.9);border-radius:18px;padding:3px;gap:1px;flex-wrap:wrap">
+            <sc-for list="{{ langOptions }}" as="lo" hint-placeholder-count="5">
+              <button class="{{ lo.font }}" style="border:0;cursor:pointer;font:inherit;font-size:12px;font-weight:600;padding:5px 11px;border-radius:15px;background:{{ lo.bg }};color:{{ lo.color }};white-space:nowrap" onClick="{{ lo.pick }}">{{ lo.label }}</button>
+            </sc-for>
           </div>
+
+          <sc-if value="{{ isSignedOut }}" hint-placeholder-val="{{ true }}">
+            <button class="{{ uiFont }}" style="display:flex;align-items:center;gap:8px;border:0;cursor:pointer;font:inherit;font-size:12.5px;font-weight:600;color:#22344a;background:rgba(255,255,255,.94);border-radius:18px;padding:6px 14px 6px 6px;white-space:nowrap" onClick="{{ onSignIn }}">
+              <span style="width:22px;height:22px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;flex:none;box-shadow:0 0 0 1px #e3e8ee">
+                <svg width="12" height="12" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.4 0 6.4 1.2 8.8 3.5l6.6-6.6C35.3 2.6 30 0 24 0 14.6 0 6.5 5.4 2.5 13.2l7.7 6c1.9-5.7 7.2-9.7 13.8-9.7z"></path><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.9 7.2l7.6 5.9c4.4-4.1 7.1-10.1 7.1-17.6z"></path><path fill="#FBBC05" d="M10.2 19.2a14.4 14.4 0 0 0 0 9.6l-7.7 6a24 24 0 0 1 0-21.6l7.7 6z"></path><path fill="#34A853" d="M24 48c6 0 11.3-2 15-5.4l-7.6-5.9c-2.1 1.4-4.8 2.3-7.4 2.3-6.6 0-11.9-4-13.8-9.7l-7.7 6C6.5 42.6 14.6 48 24 48z"></path></svg>
+              </span>
+              <span>{{ signInLabel }}</span>
+            </button>
+          </sc-if>
+          <sc-if value="{{ isSigningIn }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.94);border-radius:18px;padding:6px 14px">
+              <svg class="wg-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#5b9bc4" stroke-width="2.2" stroke-linecap="round"><path d="M12 3a9 9 0 1 0 9 9"></path></svg>
+              <span class="{{ uiFont }}" style="font-size:12.5px;color:#5f7082">{{ signingInLabel }}</span>
+            </div>
+          </sc-if>
+          <sc-if value="{{ isSignedIn }}" hint-placeholder-val="{{ false }}">
+            <div style="position:relative">
+              <button style="display:flex;align-items:center;gap:8px;border:0;cursor:pointer;background:rgba(255,255,255,.94);border-radius:18px;padding:4px 12px 4px 4px" onClick="{{ onToggleUserMenu }}">
+                <span style="width:26px;height:26px;border-radius:50%;background:#1c4a6b;color:#fff;display:flex;align-items:center;justify-content:center;flex:none;font-size:11.5px;font-weight:700">{{ userInitial }}</span>
+                <span class="{{ uiFont }}" style="font-size:12.5px;font-weight:600;color:#22344a;max-width:110px;overflow:hidden;text-overflow:ellipsis">{{ userName }}</span>
+              </button>
+              <sc-if value="{{ userMenuOpen }}" hint-placeholder-val="{{ false }}">
+                <div style="position:absolute;top:calc(100% + 6px);right:0;min-width:180px;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(9,18,32,.22);overflow:hidden;z-index:5">
+                  <div style="padding:11px 14px;border-bottom:1px solid #eef1f4">
+                    <div class="{{ uiFont }}" style="font-size:12.5px;font-weight:600;color:#22344a">{{ userName }}</div>
+                    <div style="font-size:11px;color:#8b98a6;margin-top:2px">{{ userEmail }}</div>
+                  </div>
+                  <button class="{{ uiFont }}" style="width:100%;text-align:left;border:0;background:transparent;cursor:pointer;font:inherit;font-size:12.5px;color:#a5323c;padding:10px 14px" onClick="{{ onSignOut }}">{{ signOutLabel }}</button>
+                </div>
+              </sc-if>
+            </div>
+          </sc-if>
         </div>
       </div>
 
-      <sc-if value="{{ warningVisible }}" hint-placeholder-val="{{ false }}">
-        <div style="margin:18px 40px 0;display:flex;gap:12px;align-items:flex-start;border-radius:12px;padding:14px 16px;background:{{ warningBg }};border:1px solid {{ warningBorder }}" data-testid="imd-warning-banner">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="{{ warningFg }}" stroke-width="1.9" stroke-linecap="round" style="flex:none;margin-top:1px"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg>
-          <div style="flex:1;min-width:0">
-            <div class="{{ uiFont }}" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-              <span style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:{{ warningFg }};background:#fff;border:1px solid {{ warningFg }};border-radius:10px;padding:2px 8px">{{ warningLabel }}: {{ warningColour }}</span>
-              <span style="font-size:12.5px;color:{{ warningFg }};font-weight:600">{{ warningCategory }}</span>
-            </div>
-            <div class="{{ uiFont }}" style="font-size:14px;font-weight:600;color:#22344a;margin-top:6px">{{ warningHeadline }}</div>
-            <div class="{{ uiFont }}" style="font-size:12.5px;color:#5f7082;line-height:1.6;margin-top:4px">{{ warningAdvice }}</div>
-            <div style="font-size:10.5px;color:#8b98a6;margin-top:6px;font-variant-numeric:tabular-nums">{{ warningValid }}</div>
-          </div>
-        </div>
-      </sc-if>
-      <sc-if value="{{ noWarningVisible }}" hint-placeholder-val="{{ false }}">
-        <div class="{{ uiFont }}" style="margin:18px 40px 0;display:flex;align-items:center;gap:8px;font-size:12px;color:#dbe4ec;text-shadow:0 1px 4px rgba(0,0,0,.4)" data-testid="imd-no-warning">
-          <span style="width:6px;height:6px;border-radius:50%;background:#3fb27f;flex:none"></span>{{ noWarningText }}
-        </div>
-      </sc-if>
-
-      <div style="position:relative;padding:26px 40px 0">
+      <div style="position:relative;padding:26px clamp(16px,4vw,40px) 0">
         <div class="{{ uiFont }}" style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#cfdbe6;text-shadow:0 1px 4px rgba(0,0,0,.4)">{{ currentWeatherLabel }}</div>
-        <div style="display:flex;align-items:flex-start;gap:44px;flex-wrap:wrap;margin-top:10px">
-          <div style="min-width:220px">
-            <div class="{{ uiFont }}" style="display:flex;align-items:center;gap:8px;font-size:38px;font-weight:600;letter-spacing:-.02em;color:#fff;text-shadow:0 2px 10px rgba(0,0,0,.35)">
+        <div style="display:flex;align-items:flex-start;gap:clamp(20px,4vw,44px);flex-wrap:wrap;margin-top:10px">
+          <div style="min-width:min(100%,220px)">
+            <div class="{{ uiFont }}" style="display:flex;align-items:center;gap:8px;font-size:clamp(28px,5vw,38px);font-weight:600;letter-spacing:-.02em;color:#fff;text-shadow:0 2px 10px rgba(0,0,0,.35)">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" style="flex:none;opacity:.85"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path><circle cx="12" cy="10" r="3"></circle></svg>
               <span>{{ nowCity }}</span>
             </div>
             <div class="{{ uiFont }}" style="font-size:15px;color:#e2e9f0;margin-top:8px;text-shadow:0 1px 6px rgba(0,0,0,.35)">{{ nowCondition }}</div>
             <div style="display:flex;align-items:flex-start;gap:2px;margin-top:2px">
-              <span style="font-size:80px;font-weight:600;letter-spacing:-.04em;line-height:1.05;color:#fff;font-variant-numeric:tabular-nums;text-shadow:0 3px 14px rgba(0,0,0,.35)" data-testid="hero-temp">{{ nowTemp }}</span>
+              <span style="font-size:clamp(52px,9vw,80px);font-weight:600;letter-spacing:-.04em;line-height:1.05;color:#fff;font-variant-numeric:tabular-nums;text-shadow:0 3px 14px rgba(0,0,0,.35)">{{ nowTemp }}</span>
               <span style="font-size:22px;font-weight:600;color:#e2e9f0;margin-top:14px">{{ unitLabel }}</span>
             </div>
             <div class="{{ uiFont }}" style="font-size:14px;color:#dbe4ec;margin-top:4px;text-shadow:0 1px 6px rgba(0,0,0,.35)">{{ nowFeels }}</div>
@@ -145,15 +162,38 @@ a:hover{color:#1d5b7e}
           <div style="display:flex;align-items:center;gap:12px;background:rgba(255,255,255,.94);border-radius:12px;padding:10px 10px 10px 16px;box-shadow:0 4px 18px rgba(9,18,32,.22)">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#8b98a6" stroke-width="1.8" style="flex:none"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
             <input class="{{ uiFont }}" style="flex:1;min-width:0;border:0;outline:none;background:transparent;font:inherit;font-size:14px;color:#1b2a3b" value="{{ draft }}" onChange="{{ onDraft }}" onKeyDown="{{ onDraftKey }}" placeholder="{{ askPlaceholder }}" aria-label="Ask WeatherGPT">
-            <button style="width:34px;height:34px;border:0;cursor:pointer;border-radius:50%;background:{{ micBg }};display:flex;align-items:center;justify-content:center;flex:none" onClick="{{ onMic }}" aria-label="{{ micLabel }}" data-testid="mic-button">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="{{ micColor }}" stroke-width="2" stroke-linecap="round"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Z"></path><path d="M19 11a7 7 0 0 1-14 0"></path><path d="M12 18v3"></path></svg>
+            <button class="{{ micRing }}" style="width:44px;height:44px;border:1px solid {{ micBorder }};cursor:pointer;border-radius:50%;background:{{ micBg }};display:flex;align-items:center;justify-content:center;flex:none;padding:0" onClick="{{ onMic }}" aria-label="{{ micAria }}" title="{{ micAria }}">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="{{ micStroke }}" stroke-width="1.8" stroke-linecap="round"><rect x="9" y="2.5" width="6" height="11" rx="3"></rect><path d="M5.5 11a6.5 6.5 0 0 0 13 0"></path><path d="M12 17.5V21"></path></svg>
             </button>
-            <button style="width:34px;height:34px;border:0;cursor:pointer;border-radius:50%;background:#1c4a6b;display:flex;align-items:center;justify-content:center;flex:none" onClick="{{ onSend }}" aria-label="Send">
+            <button style="width:44px;height:44px;border:0;cursor:pointer;border-radius:50%;background:#1c4a6b;display:flex;align-items:center;justify-content:center;flex:none" onClick="{{ onSend }}" aria-label="Send">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"><path d="M5 12h13"></path><path d="m12 6 6 6-6 6"></path></svg>
             </button>
           </div>
-          <sc-if value="{{ voiceNoticeVisible }}" hint-placeholder-val="{{ false }}">
-            <div class="{{ uiFont }}" style="margin-top:8px;font-size:12px;color:#ffdca8;text-shadow:0 1px 4px rgba(0,0,0,.4)" data-testid="voice-notice">{{ voiceNotice }}</div>
+
+          <sc-if value="{{ voiceOpen }}" hint-placeholder-val="{{ false }}">
+            <div style="margin-top:10px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:rgba(255,255,255,.94);border:1px solid #e7ecf1;border-radius:12px;padding:10px 14px;box-shadow:0 4px 18px rgba(9,18,32,.16)">
+              <sc-if value="{{ voiceListening }}" hint-placeholder-val="{{ true }}">
+                <div style="display:flex;align-items:flex-end;gap:3px;height:20px;flex:none">
+                  <sc-for list="{{ eqBars }}" as="b" hint-placeholder-count="5">
+                    <span class="wg-eq" style="width:3px;height:20px;border-radius:2px;background:#2c6d95;animation-delay:{{ b.delay }}"></span>
+                  </sc-for>
+                </div>
+              </sc-if>
+              <sc-if value="{{ voiceBusy }}" hint-placeholder-val="{{ false }}">
+                <svg class="wg-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5b9bc4" stroke-width="2" stroke-linecap="round" style="flex:none"><path d="M12 3a9 9 0 1 0 9 9"></path></svg>
+              </sc-if>
+              <sc-if value="{{ voiceDenied }}" hint-placeholder-val="{{ false }}">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#c0424c" stroke-width="1.8" stroke-linecap="round" style="flex:none"><path d="m2 2 20 20"></path><path d="M9 5.5A3 3 0 0 1 15 6v4"></path><path d="M5.5 11a6.5 6.5 0 0 0 9.8 5.6"></path><path d="M18.5 11a6.4 6.4 0 0 1-.5 2.5"></path><path d="M12 17.5V21"></path></svg>
+              </sc-if>
+              <div style="flex:1;min-width:140px">
+                <div class="{{ uiFont }}" style="font-size:12.5px;font-weight:600;color:{{ voiceTitleColor }}">{{ voiceTitle }}</div>
+                <div class="{{ uiFont }}" style="font-size:11.5px;color:#6b7c8e;line-height:1.6;margin-top:3px">{{ voiceHint }}</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="font-family:ui-monospace,Menlo,monospace;font-size:10px;color:#96a3b1;white-space:nowrap">{{ sttContract }}</span>
+                <button class="{{ uiFont }}" style="border:1px solid #cfd9e2;background:transparent;cursor:pointer;font:inherit;font-size:11.5px;font-weight:600;color:#1c4a6b;border-radius:16px;padding:6px 14px;white-space:nowrap" onClick="{{ onVoiceDismiss }}">{{ voiceActionLabel }}</button>
+              </div>
+            </div>
           </sc-if>
         </div>
 
@@ -164,7 +204,8 @@ a:hover{color:#1d5b7e}
         </div>
       </div>
 
-      <div style="margin:26px 40px 34px;background:rgba(255,255,255,.94);border-radius:14px;box-shadow:0 6px 26px rgba(9,18,32,.18);padding:22px 24px;display:flex;flex-direction:column;gap:20px">
+      <sc-if value="{{ isHomeView }}" hint-placeholder-val="{{ true }}">
+      <div style="margin:26px clamp(16px,4vw,40px) 34px;background:rgba(255,255,255,.94);border-radius:14px;box-shadow:0 6px 26px rgba(9,18,32,.18);padding:22px 24px;display:flex;flex-direction:column;gap:20px">
         <sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}">
           <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;text-align:center;padding:34px 24px">
             <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#9dc2da" stroke-width="1.4"><circle cx="9" cy="9" r="2.6"></circle><path d="M17.5 19a4.5 4.5 0 0 0 0-9 6 6 0 0 0-11.6-1.6A4 4 0 0 0 6.5 19Z" fill="#f2f8fc"></path></svg>
@@ -193,7 +234,7 @@ a:hover{color:#1d5b7e}
               <sc-if value="{{ e.isPending }}" hint-placeholder-val="{{ false }}">
                 <div style="flex:1;min-width:0;border:1px solid #e7ecf1;border-radius:12px;padding:15px 16px;display:flex;align-items:center;gap:10px">
                   <svg class="wg-spin" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#5b9bc4" stroke-width="2" stroke-linecap="round" style="flex:none"><path d="M12 3a9 9 0 1 0 9 9"></path></svg>
-                  <span class="{{ e.chromeFont }}" style="font-size:13px;color:#5f7082">{{ loadingLabel }}</span>
+                  <span class="{{ e.font }}" style="font-size:13px;color:#5f7082">{{ loadingLabel }}</span>
                 </div>
               </sc-if>
 
@@ -203,10 +244,10 @@ a:hover{color:#1d5b7e}
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#c0424c" stroke-width="1.8" stroke-linecap="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg>
                   </span>
                   <div style="flex:1;min-width:0">
-                    <div class="{{ e.chromeFont }}" style="font-size:13px;font-weight:700;color:#22344a" data-testid="error-card">{{ errorTitle }}</div>
-                    <div class="{{ e.chromeFont }}" style="font-size:12px;line-height:1.6;color:#5f7082;margin-top:6px">{{ errorBody }}</div>
+                    <div class="{{ e.font }}" style="font-size:13px;font-weight:700;color:#22344a">{{ errorTitle }}</div>
+                    <div class="{{ e.font }}" style="font-size:12px;line-height:1.6;color:#5f7082;margin-top:6px">{{ errorBody }}</div>
                     <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:13px">
-                      <button class="{{ e.chromeFont }}" style="border:0;cursor:pointer;background:#1c4a6b;color:#fff;font:inherit;font-size:12px;font-weight:600;padding:8px 16px;border-radius:18px" onClick="{{ e.retry }}">{{ retryLabel }}</button>
+                      <button class="{{ e.font }}" style="border:0;cursor:pointer;background:#1c4a6b;color:#fff;font:inherit;font-size:12px;font-weight:600;padding:8px 16px;border-radius:18px" onClick="{{ e.retry }}">{{ retryLabel }}</button>
                       <span style="font-size:10.5px;color:#96a3b1;font-variant-numeric:tabular-nums">{{ e.errorCode }}</span>
                     </div>
                   </div>
@@ -218,7 +259,7 @@ a:hover{color:#1d5b7e}
                   <div style="display:flex;gap:16px;align-items:flex-start;padding:15px 16px 13px">
                     <div style="flex:1;min-width:0">
                       <div class="{{ e.font }}" style="font-size:12.5px;font-weight:600;color:#2c6d95">WeatherGPT</div>
-                      <div class="{{ e.font }}" style="font-size:14px;line-height:1.7;color:#22344a;margin-top:6px" data-testid="answer">{{ e.headline }}</div>
+                      <div class="{{ e.font }}" style="font-size:14px;line-height:1.7;color:#22344a;margin-top:6px">{{ e.headline }}</div>
                       <div style="font-size:10.5px;color:#96a3b1;margin-top:8px;font-variant-numeric:tabular-nums">{{ e.time }}</div>
                     </div>
                     <sc-if value="{{ e.hasFigures }}" hint-placeholder-val="{{ true }}">
@@ -229,45 +270,52 @@ a:hover{color:#1d5b7e}
                   <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;border-top:1px solid #eef1f4;background:#f7f9fb;padding:10px 16px">
                     <span style="display:flex;align-items:center;gap:7px;font-size:11.5px;color:#6b7c8e">
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#8b98a6" stroke-width="1.7" style="flex:none"><path d="M12 3 4 6v6c0 4.4 3.4 8.3 8 9 4.6-.7 8-4.6 8-9V6Z"></path></svg>
-                      <span class="{{ e.chromeFont }}">{{ sourceLabel }}</span><span style="color:#2c6d95;font-weight:600">{{ e.sourceName }}</span>
+                      <span class="{{ e.font }}">{{ sourceLabel }}</span><span style="color:#2c6d95;font-weight:600">{{ e.sourceName }}</span>
                     </span>
                     <span style="display:flex;align-items:center;gap:7px;font-size:11.5px;color:#6b7c8e;font-variant-numeric:tabular-nums">
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#8b98a6" stroke-width="1.7" style="flex:none"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
-                      <span class="{{ e.chromeFont }}">{{ e.issued }}</span>
+                      <span class="{{ e.font }}">{{ e.issued }}</span>
                     </span>
                     <span style="display:flex;align-items:center;gap:7px;font-size:11.5px;color:#3d7f5e;font-variant-numeric:tabular-nums">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3fb27f" stroke-width="1.9" style="flex:none"><circle cx="12" cy="12" r="9"></circle><path d="m8.5 12 2.5 2.5 4.5-5"></path></svg>
-                      <span class="{{ e.chromeFont }}">{{ e.validatorChip }}</span>
+                      <span class="{{ e.font }}">{{ e.validatorChip }}</span>
                     </span>
-                    <span class="{{ e.chromeFont }}" style="display:flex;align-items:center;gap:6px;font-size:10.5px;color:#6b7c8e" data-testid="live-badge">
-                      <span style="width:7px;height:7px;border-radius:50%;background:{{ e.liveColor }};flex:none"></span>{{ e.liveBadge }}
+                    <span style="margin-left:auto;display:flex;align-items:center;gap:9px">
+                      <sc-if value="{{ e.audioPlaying }}" hint-placeholder-val="{{ false }}">
+                        <span style="display:block;width:64px;height:3px;border-radius:2px;background:#dbe4ec;overflow:hidden;flex:none">
+                          <span style="display:block;height:3px;border-radius:2px;background:#2c6d95;width:{{ e.audioPct }}"></span>
+                        </span>
+                      </sc-if>
+                      <button class="{{ e.font }}" style="display:flex;align-items:center;gap:6px;min-height:44px;border:1px solid {{ e.audioBorder }};background:{{ e.audioBg }};cursor:pointer;font:inherit;font-size:11.5px;font-weight:600;color:#1c4a6b;border-radius:22px;padding:0 16px 0 13px;white-space:nowrap" onClick="{{ e.toggleAudio }}" aria-label="{{ e.audioAria }}">
+                        <sc-if value="{{ e.audioPlaying }}" hint-placeholder-val="{{ false }}">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#1c4a6b" stroke-width="2" stroke-linecap="round" style="flex:none"><path d="M9 5v14M15 5v14"></path></svg>
+                        </sc-if>
+                        <sc-if value="{{ e.audioIdle }}" hint-placeholder-val="{{ true }}">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="#1c4a6b" stroke="none" style="flex:none"><path d="M7 4.5 19 12 7 19.5Z"></path></svg>
+                        </sc-if>
+                        <span>{{ e.audioLabel }}</span>
+                      </button>
+                      <button class="{{ e.font }}" style="min-height:44px;padding:0 6px;border:0;background:transparent;cursor:pointer;font:inherit;font-size:11.5px;font-weight:600;color:#1c4a6b;white-space:nowrap" onClick="{{ e.toggleEvidence }}">{{ e.evidenceLabel }}</button>
                     </span>
-                    <span class="{{ e.chromeFont }}" style="font-size:10.5px;color:#96a3b1" data-testid="narration-tag">{{ e.narrationTag }}</span>
-                    <sc-if value="{{ e.canSpeak }}" hint-placeholder-val="{{ false }}">
-                      <button class="{{ e.chromeFont }}" style="border:0;background:transparent;cursor:pointer;font:inherit;font-size:11.5px;font-weight:600;color:#1c4a6b;white-space:nowrap;display:flex;align-items:center;gap:5px" onClick="{{ e.onPlay }}" data-testid="listen-button">{{ e.playLabel }}</button>
-                    </sc-if>
-                    <sc-if value="{{ e.hasEvidence }}" hint-placeholder-val="{{ true }}">
-                      <button class="{{ e.chromeFont }}" style="margin-left:auto;border:0;background:transparent;cursor:pointer;font:inherit;font-size:11.5px;font-weight:600;color:#1c4a6b;white-space:nowrap" onClick="{{ e.toggleEvidence }}" data-testid="view-source">{{ e.evidenceLabel }}</button>
-                    </sc-if>
                   </div>
 
                   <sc-if value="{{ e.evidenceOpen }}" hint-placeholder-val="{{ false }}">
                     <div style="border-top:1px solid #eef1f4;background:#fff">
                       <div style="padding:13px 16px;border-bottom:1px solid #f1f4f7">
-                        <div class="{{ e.chromeFont }}" style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#8b98a6">{{ checkedLabel }}</div>
+                        <div class="{{ e.font }}" style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#8b98a6">{{ checkedLabel }}</div>
                         <sc-for list="{{ e.tokens }}" as="t" hint-placeholder-count="3">
                           <div style="display:flex;align-items:center;gap:9px;margin-top:8px">
                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#3fb27f" stroke-width="2.2" style="flex:none"><path d="M20 6 9 17l-5-5"></path></svg>
                             <span class="{{ e.font }}" style="font-size:12px;color:#22344a;font-variant-numeric:tabular-nums">{{ t.reading }}</span>
-                            <span style="margin-left:auto;font-family:ui-monospace,Menlo,monospace;font-size:10.5px;color:#8b98a6;white-space:nowrap" data-testid="figure-path">{{ t.path }}</span>
+                            <span style="margin-left:auto;font-family:ui-monospace,Menlo,monospace;font-size:10.5px;color:#8b98a6;white-space:nowrap">{{ t.path }}</span>
                           </div>
                         </sc-for>
                       </div>
                       <div style="padding:13px 16px;border-bottom:1px solid #f1f4f7">
-                        <div class="{{ e.chromeFont }}" style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#8b98a6;margin-bottom:5px">{{ dataLabel }}</div>
-                        <div class="{{ e.chromeFont }}" style="font-size:11px;line-height:1.7;color:#5f7082" data-testid="data-note">{{ e.dataNote }}</div>
+                        <div class="{{ e.font }}" style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#8b98a6;margin-bottom:5px">{{ requestLabel }}</div>
+                        <div style="font-family:ui-monospace,Menlo,monospace;font-size:10.5px;line-height:1.7;color:#5f7082;word-break:break-all">{{ e.endpoint }}</div>
                       </div>
-                      <div class="{{ e.chromeFont }}" style="padding:13px 16px;font-size:11px;color:#8b98a6;line-height:1.65">{{ guardrailNote }}</div>
+                      <div class="{{ e.font }}" style="padding:13px 16px;font-size:11px;color:#8b98a6;line-height:1.65">{{ guardrailNote }}</div>
                     </div>
                   </sc-if>
                 </div>
@@ -276,662 +324,756 @@ a:hover{color:#1d5b7e}
           </div>
         </sc-for>
       </div>
+      </sc-if>
+
+      <sc-if value="{{ isHistoryView }}" hint-placeholder-val="{{ false }}">
+        <div style="margin:26px clamp(16px,4vw,40px) 34px;background:rgba(255,255,255,.94);border-radius:14px;box-shadow:0 6px 26px rgba(9,18,32,.18);padding:22px 24px;display:flex;flex-direction:column;gap:16px">
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <div class="{{ uiFont }}" style="font-size:15px;font-weight:700;color:#22344a">{{ historyTitle }}</div>
+            <span style="font-family:ui-monospace,Menlo,monospace;font-size:10px;color:#96a3b1">GET /history</span>
+            <sc-if value="{{ historyHasItems }}" hint-placeholder-val="{{ false }}">
+              <button class="{{ uiFont }}" style="margin-left:auto;min-height:40px;padding:0 14px;border:1px solid #e6dcdd;background:transparent;cursor:pointer;font:inherit;font-size:11.5px;font-weight:600;color:#a5323c;border-radius:20px;white-space:nowrap" onClick="{{ onClearHistory }}">{{ clearAllLabel }}</button>
+            </sc-if>
+          </div>
+
+          <sc-if value="{{ historySignedOut }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;padding:30px 20px">
+              <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#9dc2da" stroke-width="1.5"><rect x="3" y="10.5" width="18" height="11" rx="2.5"></rect><path d="M7.5 10.5V7a4.5 4.5 0 0 1 9 0v3.5"></path></svg>
+              <div class="{{ uiFont }}" style="font-size:14.5px;font-weight:700;color:#22344a">{{ historySignedOutTitle }}</div>
+              <div class="{{ uiFont }}" style="font-size:12px;color:#8b98a6;line-height:1.6;max-width:44ch">{{ historySignedOutBody }}</div>
+              <button class="{{ uiFont }}" style="margin-top:4px;min-height:44px;padding:0 18px;border:0;cursor:pointer;background:#1c4a6b;color:#fff;font:inherit;font-size:12.5px;font-weight:600;border-radius:22px;white-space:nowrap" onClick="{{ onSignIn }}">{{ signInLabel }}</button>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ historyLoading }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:12px">
+              <sc-for list="{{ historySkeleton }}" as="k" hint-placeholder-count="3">
+                <div class="wg-pulse" style="display:flex;flex-direction:column;gap:7px;padding:13px 14px;border:1px solid #eef1f4;border-radius:11px">
+                  <span style="display:block;height:11px;border-radius:6px;background:#e6ecf2;width:{{ k.w }}"></span>
+                  <span style="display:block;height:9px;border-radius:5px;background:#eef2f6;width:34%"></span>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ historyEmpty }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;align-items:center;text-align:center;gap:9px;padding:30px 20px">
+              <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#9dc2da" stroke-width="1.5"><circle cx="12" cy="12" r="9"></circle><path d="M12 7.5V12l3 2"></path></svg>
+              <div class="{{ uiFont }}" style="font-size:14.5px;font-weight:700;color:#22344a">{{ historyEmptyTitle }}</div>
+              <div class="{{ uiFont }}" style="font-size:12px;color:#8b98a6;line-height:1.6;max-width:44ch">{{ historyEmptyBody }}</div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ historyReady }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:20px">
+              <sc-for list="{{ historyGroups }}" as="g" hint-placeholder-count="2">
+                <div style="display:flex;flex-direction:column;gap:9px">
+                  <div class="{{ uiFont }}" style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b98a6">{{ g.day }}</div>
+                  <sc-for list="{{ g.items }}" as="it" hint-placeholder-count="3">
+                    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:11px 13px;border:1px solid #eef1f4;border-radius:11px;background:#fcfdfe">
+                      <div style="flex:1;min-width:min(100%,180px)">
+                        <div class="{{ it.font }}" style="font-size:13px;color:#22344a;line-height:1.5">{{ it.query }}</div>
+                        <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-top:6px">
+                          <span class="{{ it.font }}" style="font-size:10.5px;color:#2c6d95;background:#eaf1f7;border-radius:10px;padding:3px 9px">{{ it.intentLabel }}</span>
+                          <span class="{{ it.font }}" style="font-size:10.5px;color:#6b7c8e">{{ it.cityLabel }}</span>
+                          <span style="font-size:10.5px;color:#96a3b1;font-variant-numeric:tabular-nums">{{ it.time }}</span>
+                        </div>
+                      </div>
+                      <div style="display:flex;align-items:center;gap:6px;margin-left:auto">
+                        <button class="{{ it.font }}" style="display:flex;align-items:center;gap:6px;min-height:44px;padding:0 14px;border:1px solid #dfe6ed;background:transparent;cursor:pointer;font:inherit;font-size:11.5px;font-weight:600;color:#1c4a6b;border-radius:22px;white-space:nowrap" onClick="{{ it.again }}">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#1c4a6b" stroke-width="2" stroke-linecap="round" style="flex:none"><path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1"></path><path d="M3.5 4.5V10H9"></path></svg>
+                          <span>{{ askAgainLabel }}</span>
+                        </button>
+                        <button style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;border:0;background:transparent;cursor:pointer;border-radius:50%;flex:none" onClick="{{ it.remove }}" aria-label="{{ deleteLabel }}" title="{{ deleteLabel }}">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a5323c" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16"></path><path d="M9 7V4.5h6V7"></path><path d="M6.5 7l.8 12a1.5 1.5 0 0 0 1.5 1.4h6.4a1.5 1.5 0 0 0 1.5-1.4L17.5 7"></path></svg>
+                        </button>
+                      </div>
+                    </div>
+                  </sc-for>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+        </div>
+      </sc-if>
     </div>
 
-    <div style="border-top:1px solid #e3e8ee;padding:12px 40px 16px;background:#fff;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+    <div style="border-top:1px solid #e3e8ee;padding:12px clamp(16px,4vw,40px) 16px;background:#fff;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
       <div class="{{ uiFont }}" style="font-size:10.5px;color:#8b98a6;line-height:1.6">{{ footnote }}</div>
       <div class="{{ uiFont }}" style="margin-left:auto;font-size:10.5px;color:#96a3b1;font-variant-numeric:tabular-nums">{{ unitNote }}</div>
     </div>
   </main>
-
-  <sc-if value="{{ modalOpen }}" hint-placeholder-val="{{ false }}">
-    <div style="position:fixed;inset:0;z-index:50;background:rgba(9,18,32,.55);display:flex;align-items:center;justify-content:center;padding:24px" onClick="{{ closeModal }}">
-      <div style="width:min(100%,460px);max-height:82vh;overflow-y:auto;background:#fff;border-radius:14px;box-shadow:0 18px 50px rgba(9,18,32,.35)" onClick="{{ keepOpen }}">
-
-        <div style="display:flex;align-items:center;gap:12px;padding:18px 20px;border-bottom:1px solid #eef2f6">
-          <span style="width:30px;height:30px;border-radius:50%;background:#e8f0f7;display:flex;align-items:center;justify-content:center;flex:none">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2c6d95" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
-          </span>
-          <div class="{{ uiFont }}" style="font-size:15px;font-weight:700;color:#22344a">{{ modalTitle }}</div>
-          <button style="margin-left:auto;border:0;cursor:pointer;background:transparent;font:inherit;width:28px;height:28px;border-radius:50%;color:#8b98a6;display:flex;align-items:center;justify-content:center" onClick="{{ closeModal }}" aria-label="Close">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
-          </button>
-        </div>
-
-        <sc-if value="{{ isHistoryModal }}" hint-placeholder-val="{{ false }}">
-          <div style="padding:20px">
-            <div style="display:flex;gap:12px;align-items:flex-start;background:#fff8e8;border:1px solid #f2e2c0;border-radius:11px;padding:14px 15px">
-              <span style="width:26px;height:26px;border-radius:50%;background:#f7ecd2;display:flex;align-items:center;justify-content:center;flex:none">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a8792a" stroke-width="1.8" stroke-linecap="round"><ellipse cx="12" cy="5.5" rx="8" ry="3"></ellipse><path d="M4 5.5v13c0 1.7 3.6 3 8 3s8-1.3 8-3v-13"></path><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"></path></svg>
-              </span>
-              <div class="{{ uiFont }}" style="font-size:13px;line-height:1.65;color:#6b5420">{{ historyBody }}</div>
-            </div>
-            <div class="{{ uiFont }}" style="font-size:11.5px;line-height:1.7;color:#8b98a6;margin-top:14px">{{ historyNote }}</div>
-          </div>
-        </sc-if>
-
-        <sc-if value="{{ isSettingsModal }}" hint-placeholder-val="{{ false }}">
-          <div style="padding:6px 0 8px">
-
-            <div style="padding:15px 20px;border-bottom:1px solid #f3f6f9">
-              <div class="{{ uiFont }}" style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#8b98a6;margin-bottom:9px">{{ setLangLabel }}</div>
-              <div style="display:flex;gap:8px">
-                <button style="border:1px solid {{ optEnBorder }};cursor:pointer;font:inherit;font-size:12.5px;font-weight:600;padding:8px 15px;border-radius:9px;background:{{ optEnBg }};color:{{ optEnColor }}" onClick="{{ setEN }}">English</button>
-                <button class="ta" style="border:1px solid {{ optTaBorder }};cursor:pointer;font:inherit;font-size:12.5px;font-weight:600;padding:8px 15px;border-radius:9px;background:{{ optTaBg }};color:{{ optTaColor }}" onClick="{{ setTA }}">தமிழ்</button>
-              </div>
-            </div>
-
-            <div style="padding:15px 20px;border-bottom:1px solid #f3f6f9">
-              <div class="{{ uiFont }}" style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#8b98a6;margin-bottom:9px">{{ setCityLabel }}</div>
-              <div style="display:flex;gap:8px;flex-wrap:wrap">
-                <sc-for list="{{ cityOptions }}" as="c" hint-placeholder-count="3">
-                  <button class="{{ uiFont }}" style="border:1px solid {{ c.border }};cursor:pointer;font:inherit;font-size:12.5px;font-weight:600;padding:8px 15px;border-radius:9px;background:{{ c.bg }};color:{{ c.color }}" onClick="{{ c.pick }}">{{ c.label }}</button>
-                </sc-for>
-              </div>
-            </div>
-
-            <div style="padding:15px 20px;border-bottom:1px solid #f3f6f9">
-              <div class="{{ uiFont }}" style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#8b98a6;margin-bottom:9px">{{ setEvidenceLabel }}</div>
-              <button class="{{ uiFont }}" style="border:1px solid {{ evidenceBorder }};cursor:pointer;font:inherit;font-size:12.5px;font-weight:600;padding:8px 15px;border-radius:9px;background:{{ evidenceBg }};color:{{ evidenceColor }}" onClick="{{ toggleAlwaysEvidence }}">{{ evidenceStateLabel }}</button>
-              <div class="{{ uiFont }}" style="font-size:11px;line-height:1.65;color:#8b98a6;margin-top:9px">{{ setEvidenceNote }}</div>
-            </div>
-
-            <div style="padding:15px 20px;border-bottom:1px solid #f3f6f9">
-              <div class="{{ uiFont }}" style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#8b98a6;margin-bottom:9px">{{ setUnitsLabel }}</div>
-              <div class="{{ uiFont }}" style="font-size:12.5px;color:#5f7082;line-height:1.6">{{ setUnitsValue }}</div>
-            </div>
-
-            <div style="padding:15px 20px">
-              <div class="{{ uiFont }}" style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#8b98a6;margin-bottom:7px">{{ setBackendLabel }}</div>
-              <div style="font-size:11px;color:#5f7082;line-height:1.6;word-break:break-all;font-family:ui-monospace,SFMono-Regular,Menlo,monospace">{{ setBackendValue }}</div>
-              <div style="display:flex;align-items:center;gap:7px;margin-top:9px">
-                <span style="width:7px;height:7px;border-radius:50%;background:{{ backendDot }};flex:none"></span>
-                <span class="{{ uiFont }}" style="font-size:11.5px;color:#5f7082">{{ backendStatus }}</span>
-              </div>
-            </div>
-
-          </div>
-        </sc-if>
-
-      </div>
-    </div>
-  </sc-if>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props="{&quot;apiBase&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;https://plaza-syrup-appetizer.ngrok-free.dev&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;simulateFailure&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Demo states&quot;}}">
-// Demo cities: data/cities.json is the source of truth (backend GET /cities).
-// Kept here as the hero-card fallback when the backend is unreachable; lat/lon
-// must stay in sync (a backend test checks them).
+<script type="text/x-dc" data-dc-script data-props="{&quot;apiBase&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;POST /ask&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;simulateFailure&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Demo states&quot;},&quot;simulateMicDenied&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Demo states&quot;},&quot;simulateVoiceInput&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Demo states&quot;}}">
+const LANGS = ["en", "hi", "ta", "te", "mr"];
+const LANG_META = {
+  en: {label: "English", font: ""},
+  hi: {label: "हिन्दी", font: "hi"},
+  ta: {label: "தமிழ்", font: "ta"},
+  te: {label: "తెలుగు", font: "te"},
+  mr: {label: "मराठी", font: "mr"}
+};
+
+const DIR_NAMES = {
+  sw: {en: "southwesterly", hi: "दक्षिण-पश्चिमी", ta: "தென்மேற்கு", te: "దక్షిణ-పశ్చిమ", mr: "दक्षिण-पश्चिम"},
+  w: {en: "westerly", hi: "पश्चिमी", ta: "மேற்கு", te: "పశ్చిమ", mr: "पश्चिम"},
+  nw: {en: "northwesterly", hi: "उत्तर-पश्चिमी", ta: "வடமேற்கு", te: "ఉత్తర-పశ్చిమ", mr: "उत्तर-पश्चिम"}
+};
+
+const WORDS = {
+  en: {temperature: "temperature", humidity: "humidity", wind: "wind", kmh: "km/h", rainChance: "chance of rain", high: "high", low: "low"},
+  hi: {temperature: "तापमान", humidity: "आर्द्रता", wind: "हवा", kmh: "किमी/घंटा", rainChance: "बारिश की संभावना", high: "अधिकतम", low: "न्यूनतम"},
+  ta: {temperature: "வெப்பநிலை", humidity: "ஈரப்பதம்", wind: "காற்று", kmh: "கி.மீ", rainChance: "மழை வாய்ப்பு", high: "அதிகபட்சம்", low: "குறைந்தபட்சம்"},
+  te: {temperature: "ఉష్ణోగ్రత", humidity: "తేమ", wind: "గాలి", kmh: "కిమీ/గంట", rainChance: "వర్ష అవకాశం", high: "గరిష్టం", low: "కనిష్టం"},
+  mr: {temperature: "तापमान", humidity: "आर्द्रता", wind: "वारा", kmh: "किमी/तास", rainChance: "पावसाची शक्यता", high: "कमाल", low: "किमान"}
+};
+
+const SENT = {
+  en: {
+    current: p => `It is ${p.T} in ${p.city} right now, with ${p.cond.toLowerCase()} skies, ${p.hum}% humidity and ${p.dir} wind at ${p.wind} km/h.`,
+    forecast: p => `There is a ${p.prob}% chance of rain in ${p.city} tomorrow — ${p.cond}. High ${p.max}, low ${p.min}.`,
+    sourceCurrent: "Google Weather API · Current Conditions", sourceForecast: "Google Weather API · Daily Forecast",
+    issuedCurrent: i => `Issued ${i} IST · valid 1 h`, issuedForecast: i => `Issued ${i} IST · valid to 20:30`,
+    refusalNoCity: "I don't have data for that location yet. Chennai, Madurai and Coimbatore are live in this prototype.",
+    refusalUnsupported: "I can't answer that one yet. This prototype handles current conditions and rain forecasts.",
+    noToolCall: "No tool call made", refusingGuess: "Refusing rather than guessing"
+  },
+  hi: {
+    current: p => `${p.city} में अभी ${p.T} है, आसमान ${p.cond}, आर्द्रता ${p.hum}%, और ${p.dir} हवा ${p.wind} किमी/घंटा की रफ़्तार से।`,
+    forecast: p => `${p.city} में कल बारिश की ${p.prob}% संभावना है — ${p.cond}। अधिकतम ${p.max}, न्यूनतम ${p.min}।`,
+    sourceCurrent: "Google Weather API · वर्तमान स्थिति", sourceForecast: "Google Weather API · दैनिक पूर्वानुमान",
+    issuedCurrent: i => `${i} IST पर जारी · 1 घंटे के लिए मान्य`, issuedForecast: i => `${i} IST पर जारी · 20:30 तक मान्य`,
+    refusalNoCity: "इस स्थान का डेटा अभी उपलब्ध नहीं है। इस प्रोटोटाइप में केवल चेन्नई, मदुरई और कोयंबटूर उपलब्ध हैं।",
+    refusalUnsupported: "इसका जवाब अभी नहीं दिया जा सकता। यह प्रोटोटाइप केवल वर्तमान मौसम और बारिश के पूर्वानुमान को संभालता है।",
+    noToolCall: "कोई डेटा कॉल नहीं किया गया", refusingGuess: "अनुमान लगाने के बजाय मनाही"
+  },
+  ta: {
+    current: p => `${p.city}யில் இப்போது ${p.T}, ${p.cond}, ஈரப்பதம் ${p.hum}%, ${p.dir} காற்று மணிக்கு ${p.wind} கி.மீ.`,
+    forecast: p => `நாளை ${p.city}யில் மழை பெய்ய ${p.prob}% வாய்ப்பு — ${p.cond}. அதிகபட்சம் ${p.max}, குறைந்தபட்சம் ${p.min}.`,
+    sourceCurrent: "Google Weather API · தற்போதைய நிலை", sourceForecast: "Google Weather API · தினசரி முன்னறிவிப்பு",
+    issuedCurrent: i => `${i} IST வெளியீடு · 1 மணி நேரம்`, issuedForecast: i => `${i} IST வெளியீடு · 20:30 வரை`,
+    refusalNoCity: "இந்த இடத்திற்கான தரவு இன்னும் இல்லை. சென்னை, மதுரை, கோயம்புத்தூர் மட்டும் இப்போது கிடைக்கும்.",
+    refusalUnsupported: "இதற்கு இப்போது பதில் இல்லை. தற்போதைய வானிலை மற்றும் மழை முன்னறிவிப்பு மட்டும்.",
+    noToolCall: "தரவு அழைப்பு இல்லை", refusingGuess: "ஊகிக்காமல் மறுக்கிறோம்"
+  },
+  te: {
+    current: p => `${p.city}లో ఇప్పుడు ${p.T} ఉంది, ఆకాశం ${p.cond}, తేమ ${p.hum}%, ${p.dir} గాలి గంటకు ${p.wind} కిమీ వేగంతో.`,
+    forecast: p => `${p.city}లో రేపు వర్షం పడే అవకాశం ${p.prob}% — ${p.cond}. గరిష్టం ${p.max}, కనిష్టం ${p.min}.`,
+    sourceCurrent: "Google Weather API · ప్రస్తుత పరిస్థితులు", sourceForecast: "Google Weather API · రోజువారీ సూచన",
+    issuedCurrent: i => `${i} IST న విడుదల · 1 గంట వరకు చెల్లుతుంది`, issuedForecast: i => `${i} IST న విడుదల · 20:30 వరకు చెల్లుతుంది`,
+    refusalNoCity: "ఈ ప్రాంతానికి డేటా ఇంకా అందుబాటులో లేదు. ఈ ప్రోటోటైప్‌లో చెన్నై, మధురై, కోయంబత్తూరు మాత్రమే ఉన్నాయి.",
+    refusalUnsupported: "దీనికి ఇప్పుడు సమాధానం లేదు. ఈ ప్రోటోటైప్ ప్రస్తుత వాతావరణం మరియు వర్ష సూచనలను మాత్రమే నిర్వహిస్తుంది.",
+    noToolCall: "డేటా కాల్ చేయలేదు", refusingGuess: "ఊహించకుండా తిరస్కరించడం"
+  },
+  mr: {
+    current: p => `${p.city}मध्ये आता ${p.T} आहे, आकाश ${p.cond}, आर्द्रता ${p.hum}%, आणि ${p.dir} वारा ताशी ${p.wind} किमी वेगाने.`,
+    forecast: p => `${p.city}मध्ये उद्या पाऊस पडण्याची शक्यता ${p.prob}% आहे — ${p.cond}. कमाल ${p.max}, किमान ${p.min}.`,
+    sourceCurrent: "Google Weather API · सध्याची स्थिती", sourceForecast: "Google Weather API · दैनिक अंदाज",
+    issuedCurrent: i => `${i} IST रोजी जारी · 1 तासासाठी वैध`, issuedForecast: i => `${i} IST रोजी जारी · 20:30 पर्यंत वैध`,
+    refusalNoCity: "या ठिकाणासाठी डेटा अजून उपलब्ध नाही. या प्रोटोटाइपमध्ये फक्त चेन्नई, मदुराई आणि कोइम्बतूर उपलब्ध आहेत.",
+    refusalUnsupported: "याचे उत्तर अजून देता येत नाही. हा प्रोटोटाइप फक्त सध्याचे हवामान आणि पावसाचा अंदाज हाताळतो.",
+    noToolCall: "डेटा कॉल केला नाही", refusingGuess: "अंदाज न लावता नकार"
+  }
+};
+
+const STR = {
+  en: {poweredBy: "Powered by Google Weather API", currentWeatherLabel: "Current weather", humidityLabel: "Humidity", windLabel: "Wind", rainLabel: "Chance of rain",
+    feelsLike: t => `Feels like ${t}`, emptyTitle: "Ask about the weather",
+    emptyBody: "Type a question above or tap one of the suggestions. Every answer shows the exact reading it came from.",
+    loadingLabel: "Fetching the latest weather data...", errorTitle: "Unable to fetch weather data",
+    errorBody: "The weather service is currently unavailable. Rather than show a number we can't verify, nothing is reported. Please try again in a few minutes.",
+    retryLabel: "Try again", sourceLabel: "Source:", checkedLabel: "Figures checked against the source", requestLabel: "Request sent",
+    guardrailNote: "Each figure is matched against the raw response before the answer is shown. If one doesn't match, the answer is withheld rather than published.",
+    askPlaceholder: "Ask WeatherGPT about any place...", footnote: "Two intents are wired: current conditions and rain forecast. Weather data © Google.",
+    unitNoteMetric: "Units: METRIC (requested from the API)", unitNoteImperial: "Units: IMPERIAL (requested from the API)",
+    navHome: "Home", navHistory: "History", navSettings: "Settings", evidenceShow: "View source", evidenceHide: "Hide source",
+    noFigures: "No figures claimed", validatorMatched: n => `Validator: ${n}/${n} matched`,
+    audioListen: "Listen", audioStop: "Stop", audioAriaListen: "Listen to the answer", audioAriaStop: "Stop reading the answer",
+    micAskVoice: "Ask by voice", micStopListening: "Stop listening",
+    voiceListeningTitle: "Listening…", voiceTranscribingTitle: "Transcribing…", voiceDeniedTitle: "Microphone access blocked",
+    voiceListeningHint: "Speak your question — it is sent as soon as you stop.",
+    voiceMockHint: "No microphone available — playing back a demo transcript.",
+    voiceTranscribingHint: "The question is sent only after the transcript comes back.",
+    voiceDeniedHint: "Allow the microphone in your browser settings, then try again.",
+    voiceDismiss: "Dismiss", voiceCancel: "Cancel",
+    suggestions: ["What's the weather in Chennai?", "Will it rain tomorrow?", "Madurai today", "Will it rain in Coimbatore tomorrow?"],
+    micPrompts: ["Will it rain in Chennai tomorrow?", "What's the weather in Madurai right now?", "Will it rain in Coimbatore tomorrow?"],
+    signIn: "Sign in with Google", signingIn: "Signing in…", signOut: "Sign out",
+    historyTitle: "History", historyEmptyTitle: "No questions yet",
+    historyEmptyBody: "Questions you ask will appear here, grouped by day.",
+    historySignedOutTitle: "Sign in to see your history",
+    historySignedOutBody: "History is stored against your account, so it needs a signed-in session.",
+    clearAll: "Clear all", askAgain: "Ask again", deleteLabel: "Delete", dayToday: "Today", dayYesterday: "Yesterday",
+    intentCurrent: "Current conditions", intentRain: "Rain forecast", intentUnsupported: "Not supported"},
+  hi: {poweredBy: "Google Weather API द्वारा संचालित", currentWeatherLabel: "वर्तमान मौसम", humidityLabel: "आर्द्रता", windLabel: "हवा", rainLabel: "बारिश की संभावना",
+    feelsLike: t => `अनुभव ${t} जैसा`, emptyTitle: "मौसम के बारे में पूछें",
+    emptyBody: "ऊपर एक सवाल टाइप करें या किसी सुझाव पर टैप करें। हर जवाब में वह सटीक रीडिंग दिखती है जहाँ से वह आया है।",
+    loadingLabel: "Google Weather API से नवीनतम डेटा लिया जा रहा है…", errorTitle: "मौसम डेटा प्राप्त नहीं हो सका",
+    errorBody: "मौसम सेवा अभी उपलब्ध नहीं है। बिना पुष्टि किए गए आँकड़े दिखाने के बजाय, कुछ नहीं दिखाया जाता। कृपया कुछ मिनट बाद फिर से प्रयास करें।",
+    retryLabel: "फिर से प्रयास करें", sourceLabel: "स्रोत:", checkedLabel: "स्रोत के विरुद्ध जाँचे गए आँकड़े", requestLabel: "भेजा गया अनुरोध",
+    guardrailNote: "जवाब में हर आँकड़ा दिखाने से पहले उसे मूल डेटा से मिलाया जाता है। यदि कोई आँकड़ा मेल नहीं खाता, तो जवाब रोक दिया जाता है।",
+    askPlaceholder: "WeatherGPT से किसी भी जगह के बारे में पूछें…", footnote: "दो इंटेंट जोड़े गए हैं: वर्तमान स्थिति और बारिश का पूर्वानुमान। मौसम डेटा © Google।",
+    unitNoteMetric: "इकाई: METRIC (API से मांगी गई)", unitNoteImperial: "इकाई: IMPERIAL (API से मांगी गई)",
+    navHome: "होम", navHistory: "इतिहास", navSettings: "सेटिंग्स", evidenceShow: "स्रोत देखें", evidenceHide: "छुपाएं",
+    noFigures: "कोई आँकड़ा नहीं", validatorMatched: n => `सत्यापन: ${n}/${n} मेल`,
+    audioListen: "सुनें", audioStop: "रोकें", audioAriaListen: "जवाब सुनें", audioAriaStop: "जवाब पढ़ना रोकें",
+    micAskVoice: "आवाज़ से पूछें", micStopListening: "सुनना बंद करें",
+    voiceListeningTitle: "सुन रहा हूँ…", voiceTranscribingTitle: "लिख रहा हूँ…", voiceDeniedTitle: "माइक्रोफ़ोन एक्सेस अवरुद्ध",
+    voiceListeningHint: "अपना सवाल बोलें — रुकते ही यह भेज दिया जाएगा।",
+    voiceMockHint: "माइक्रोफ़ोन उपलब्ध नहीं — डेमो ट्रांसक्रिप्ट दिखाया जा रहा है।",
+    voiceTranscribingHint: "ट्रांसक्रिप्ट आने के बाद ही सवाल भेजा जाता है।",
+    voiceDeniedHint: "अपनी ब्राउज़र सेटिंग्स में माइक्रोफ़ोन को अनुमति दें, फिर पुनः प्रयास करें।",
+    voiceDismiss: "ठीक है", voiceCancel: "रद्द करें",
+    suggestions: ["चेन्नई में अभी मौसम कैसा है?", "क्या कल बारिश होगी?", "मदुरई में आज", "क्या कोयंबटूर में कल बारिश होगी?"],
+    micPrompts: ["क्या कल चेन्नई में बारिश होगी?", "मदुरई में अभी मौसम कैसा है?", "क्या कोयंबटूर में कल बारिश होगी?"],
+    signIn: "Google से साइन इन करें", signingIn: "साइन इन हो रहा है…", signOut: "साइन आउट करें",
+    historyTitle: "इतिहास", historyEmptyTitle: "अभी कोई सवाल नहीं",
+    historyEmptyBody: "आपके पूछे गए सवाल यहाँ दिन के अनुसार दिखेंगे।",
+    historySignedOutTitle: "इतिहास देखने के लिए साइन इन करें",
+    historySignedOutBody: "इतिहास आपके खाते के साथ सुरक्षित रहता है, इसलिए साइन इन करना आवश्यक है।",
+    clearAll: "सब हटाएं", askAgain: "फिर पूछें", deleteLabel: "हटाएं", dayToday: "आज", dayYesterday: "कल",
+    intentCurrent: "वर्तमान स्थिति", intentRain: "बारिश का पूर्वानुमान", intentUnsupported: "समर्थित नहीं"},
+  ta: {poweredBy: "Google Weather API வழங்குகிறது", currentWeatherLabel: "தற்போதைய வானிலை", humidityLabel: "ஈரப்பதம்", windLabel: "காற்று", rainLabel: "மழை வாய்ப்பு",
+    feelsLike: t => `உணரப்படுவது ${t}`, emptyTitle: "வானிலை பற்றி கேளுங்கள்",
+    emptyBody: "மேலே ஒரு கேள்வியைத் தட்டுங்கள் அல்லது தட்டச்சு செய்யுங்கள். ஒவ்வொரு பதிலிலும் எண்கள் எங்கிருந்து வந்தன என்பதைக் காணலாம்.",
+    loadingLabel: "Google Weather API-லிருந்து சமீபத்திய தரவு பெறப்படுகிறது…", errorTitle: "வானிலை தரவு கிடைக்கவில்லை",
+    errorBody: "Google Weather API தற்போது பதிலளிக்கவில்லை. உறுதிப்படுத்த முடியாத எண்ணைக் கூறுவதில்லை — சில நிமிடங்களில் மீண்டும் முயற்சிக்கவும்.",
+    retryLabel: "மீண்டும் முயற்சி", sourceLabel: "ஆதாரம்:", checkedLabel: "சரிபார்க்கப்பட்ட எண்கள்", requestLabel: "அனுப்பப்பட்ட கோரிக்கை",
+    guardrailNote: "பதிலில் உள்ள ஒவ்வொரு எண்ணும் மூல தரவுடன் ஒப்பிடப்பட்ட பிறகே வெளியிடப்படுகிறது. பொருந்தாத எண் இருந்தால் பதில் நிறுத்தப்படும்.",
+    askPlaceholder: "வானிலை பற்றி எதையும் கேளுங்கள்…", footnote: "இரண்டு கேள்விகள் இணைக்கப்பட்டுள்ளன: தற்போதைய வானிலை, மழை முன்னறிவிப்பு. வானிலை தரவு © Google.",
+    unitNoteMetric: "அலகு: METRIC (API கோரிக்கையில்)", unitNoteImperial: "அலகு: IMPERIAL (API கோரிக்கையில்)",
+    navHome: "முகப்பு", navHistory: "வரலாறு", navSettings: "அமைப்புகள்", evidenceShow: "ஆதாரம் பார்", evidenceHide: "மறை",
+    noFigures: "எண் எதுவும் இல்லை", validatorMatched: n => `சரிபார்ப்பு: ${n}/${n} பொருந்தின`,
+    audioListen: "கேட்க", audioStop: "நிறுத்து", audioAriaListen: "பதிலைக் கேட்க", audioAriaStop: "பதிலை நிறுத்து",
+    micAskVoice: "குரலில் கேளுங்கள்", micStopListening: "கேட்பதை நிறுத்து",
+    voiceListeningTitle: "கேட்கிறேன்…", voiceTranscribingTitle: "உரையாக மாற்றப்படுகிறது…", voiceDeniedTitle: "மைக்ரோஃபோன் அனுமதி மறுக்கப்பட்டது",
+    voiceListeningHint: "வானிலை பற்றி பேசுங்கள் — நிறுத்தியதும் கேள்வி அனுப்பப்படும்.",
+    voiceMockHint: "மைக் இல்லை — மாதிரி உரை பயன்படுத்தப்படுகிறது.",
+    voiceTranscribingHint: "குரல் உரையாக மாற்றப்பட்ட பிறகே கேள்வி அனுப்பப்படும்.",
+    voiceDeniedHint: "உலாவி அமைப்புகளில் மைக்ரோஃபோனை அனுமதித்து மீண்டும் முயற்சிக்கவும்.",
+    voiceDismiss: "சரி", voiceCancel: "ரத்து",
+    suggestions: ["சென்னையில் இப்போது வானிலை என்ன?", "நாளை மழை பெய்யுமா?", "மதுரையில் இன்று", "கோயம்புத்தூரில் நாளை மழை?"],
+    micPrompts: ["நாளை சென்னையில் மழை பெய்யுமா?", "மதுரையில் இப்போது வானிலை என்ன?", "கோயம்புத்தூரில் நாளை மழை?"],
+    signIn: "Google மூலம் உள்நுழையவும்", signingIn: "உள்நுழைகிறது…", signOut: "வெளியேறு",
+    historyTitle: "வரலாறு", historyEmptyTitle: "இன்னும் கேள்விகள் இல்லை",
+    historyEmptyBody: "நீங்கள் கேட்கும் கேள்விகள் நாள் வாரியாக இங்கே தோன்றும்.",
+    historySignedOutTitle: "வரலாற்றைப் பார்க்க உள்நுழையவும்",
+    historySignedOutBody: "வரலாறு உங்கள் கணக்கில் சேமிக்கப்படுகிறது, எனவே உள்நுழைவு தேவை.",
+    clearAll: "அனைத்தையும் அழி", askAgain: "மீண்டும் கேள்", deleteLabel: "அழி", dayToday: "இன்று", dayYesterday: "நேற்று",
+    intentCurrent: "தற்போதைய நிலை", intentRain: "மழை முன்னறிவிப்பு", intentUnsupported: "ஆதரிக்கப்படவில்லை"},
+  te: {poweredBy: "Google Weather API అందిస్తోంది", currentWeatherLabel: "ప్రస్తుత వాతావరణం", humidityLabel: "తేమ", windLabel: "గాలి", rainLabel: "వర్ష అవకాశం",
+    feelsLike: t => `అనుభూతి ${t}`, emptyTitle: "వాతావరణం గురించి అడగండి",
+    emptyBody: "పైన ఒక ప్రశ్న టైప్ చేయండి లేదా సూచనలలో ఒకటి నొక్కండి. ప్రతి సమాధానం అది వచ్చిన ఖచ్చితమైన రీడింగ్‌ను చూపుతుంది.",
+    loadingLabel: "Google Weather API నుండి తాజా డేటా పొందబడుతోంది…", errorTitle: "వాతావరణ డేటా పొందడం సాధ్యం కాలేదు",
+    errorBody: "వాతావరణ సేవ ఇప్పుడు అందుబాటులో లేదు. నిర్ధారించలేని సంఖ్యను చూపే బదులు, ఏదీ నివేదించబడదు. కొన్ని నిమిషాల్లో మళ్లీ ప్రయత్నించండి.",
+    retryLabel: "మళ్లీ ప్రయత్నించండి", sourceLabel: "మూలం:", checkedLabel: "మూలంతో సరిపోల్చిన సంఖ్యలు", requestLabel: "పంపిన అభ్యర్థన",
+    guardrailNote: "సమాధానంలో ప్రతి సంఖ్య చూపే ముందు అసలు డేటాతో సరిపోల్చబడుతుంది. ఏదైనా సరిపోలకపోతే, సమాధానం నిలిపివేయబడుతుంది.",
+    askPlaceholder: "ఏ ప్రాంతం గురించైనా WeatherGPTని అడగండి…", footnote: "రెండు ఇంటెంట్‌లు అనుసంధానించబడ్డాయి: ప్రస్తుత పరిస్థితులు మరియు వర్ష సూచన. వాతావరణ డేటా © Google.",
+    unitNoteMetric: "యూనిట్లు: METRIC (API నుండి అభ్యర్థించబడింది)", unitNoteImperial: "యూనిట్లు: IMPERIAL (API నుండి అభ్యర్థించబడింది)",
+    navHome: "హోమ్", navHistory: "చరిత్ర", navSettings: "సెట్టింగ్‌లు", evidenceShow: "మూలం చూడండి", evidenceHide: "దాచు",
+    noFigures: "సంఖ్యలు లేవు", validatorMatched: n => `వాలిడేటర్: ${n}/${n} సరిపోలింది`,
+    audioListen: "వినండి", audioStop: "ఆపు", audioAriaListen: "సమాధానం వినండి", audioAriaStop: "సమాధానం చదవడం ఆపు",
+    micAskVoice: "వాయిస్‌తో అడగండి", micStopListening: "వినడం ఆపు",
+    voiceListeningTitle: "వింటున్నాను…", voiceTranscribingTitle: "లిపిలోకి మారుస్తోంది…", voiceDeniedTitle: "మైక్రోఫోన్ యాక్సెస్ నిరోధించబడింది",
+    voiceListeningHint: "మీ ప్రశ్న చెప్పండి — ఆపిన వెంటనే పంపబడుతుంది.",
+    voiceMockHint: "మైక్రోఫోన్ అందుబాటులో లేదు — డెమో ట్రాన్స్‌క్రిప్ట్ చూపబడుతోంది.",
+    voiceTranscribingHint: "లిపి వచ్చిన తర్వాతే ప్రశ్న పంపబడుతుంది.",
+    voiceDeniedHint: "మీ బ్రౌజర్ సెట్టింగ్‌లలో మైక్రోఫోన్‌ను అనుమతించి, మళ్లీ ప్రయత్నించండి.",
+    voiceDismiss: "సరే", voiceCancel: "రద్దు",
+    suggestions: ["చెన్నైలో ఇప్పుడు వాతావరణం ఎలా ఉంది?", "రేపు వర్షం పడుతుందా?", "మధురైలో ఈరోజు", "కోయంబత్తూరులో రేపు వర్షం పడుతుందా?"],
+    micPrompts: ["రేపు చెన్నైలో వర్షం పడుతుందా?", "మధురైలో ఇప్పుడు వాతావరణం ఎలా ఉంది?", "కోయంబత్తూరులో రేపు వర్షం పడుతుందా?"],
+    signIn: "Google తో సైన్ ఇన్ చేయండి", signingIn: "సైన్ ఇన్ అవుతోంది…", signOut: "సైన్ అవుట్",
+    historyTitle: "చరిత్ర", historyEmptyTitle: "ఇంకా ప్రశ్నలు లేవు",
+    historyEmptyBody: "మీరు అడిగే ప్రశ్నలు రోజు వారీగా ఇక్కడ కనిపిస్తాయి.",
+    historySignedOutTitle: "చరిత్ర చూడడానికి సైన్ ఇన్ చేయండి",
+    historySignedOutBody: "చరిత్ర మీ ఖాతాతో నిల్వ చేయబడుతుంది, కాబట్టి సైన్ ఇన్ అవసరం.",
+    clearAll: "అన్నీ తొలగించు", askAgain: "మళ్లీ అడగండి", deleteLabel: "తొలగించు", dayToday: "ఈరోజు", dayYesterday: "నిన్న",
+    intentCurrent: "ప్రస్తుత పరిస్థితులు", intentRain: "వర్ష సూచన", intentUnsupported: "మద్దతు లేదు"},
+  mr: {poweredBy: "Google Weather API द्वारा समर्थित", currentWeatherLabel: "सध्याचे हवामान", humidityLabel: "आर्द्रता", windLabel: "वारा", rainLabel: "पावसाची शक्यता",
+    feelsLike: t => `जाणवते ${t}`, emptyTitle: "हवामानाबद्दल विचारा",
+    emptyBody: "वर एक प्रश्न टाइप करा किंवा सुचनांपैकी एकावर टॅप करा. प्रत्येक उत्तर ते नेमके कोणत्या रीडिंगवरून आले हे दाखवते.",
+    loadingLabel: "Google Weather API कडून नवीनतम डेटा मिळवला जात आहे…", errorTitle: "हवामान डेटा मिळवता आला नाही",
+    errorBody: "हवामान सेवा सध्या उपलब्ध नाही. खात्री न करता आकडा दाखवण्याऐवजी, काहीही दाखवले जात नाही. कृपया काही मिनिटांत पुन्हा प्रयत्न करा.",
+    retryLabel: "पुन्हा प्रयत्न करा", sourceLabel: "स्रोत:", checkedLabel: "स्रोताशी तपासलेले आकडे", requestLabel: "पाठवलेली विनंती",
+    guardrailNote: "उत्तरातील प्रत्येक आकडा दाखवण्यापूर्वी मूळ डेटाशी जुळवला जातो. जुळत नसेल तर उत्तर रोखले जाते.",
+    askPlaceholder: "कोणत्याही ठिकाणाबद्दल WeatherGPT ला विचारा…", footnote: "दोन इंटेंट जोडले आहेत: सध्याची स्थिती आणि पावसाचा अंदाज. हवामान डेटा © Google.",
+    unitNoteMetric: "एकके: METRIC (API कडून मागवले)", unitNoteImperial: "एकके: IMPERIAL (API कडून मागवले)",
+    navHome: "मुख्यपृष्ठ", navHistory: "इतिहास", navSettings: "सेटिंग्ज", evidenceShow: "स्रोत पहा", evidenceHide: "लपवा",
+    noFigures: "आकडे नाहीत", validatorMatched: n => `पडताळणी: ${n}/${n} जुळले`,
+    audioListen: "ऐका", audioStop: "थांबा", audioAriaListen: "उत्तर ऐका", audioAriaStop: "उत्तर वाचणे थांबवा",
+    micAskVoice: "आवाजाने विचारा", micStopListening: "ऐकणे थांबवा",
+    voiceListeningTitle: "ऐकत आहे…", voiceTranscribingTitle: "मजकुरात रूपांतर करत आहे…", voiceDeniedTitle: "मायक्रोफोन प्रवेश अडवला",
+    voiceListeningHint: "तुमचा प्रश्न बोला — थांबताच तो पाठवला जाईल.",
+    voiceMockHint: "मायक्रोफोन उपलब्ध नाही — डेमो ट्रान्सक्रिप्ट दाखवत आहे.",
+    voiceTranscribingHint: "मजकूर आल्यावरच प्रश्न पाठवला जातो.",
+    voiceDeniedHint: "तुमच्या ब्राउझर सेटिंग्जमध्ये मायक्रोफोनला परवानगी द्या, नंतर पुन्हा प्रयत्न करा.",
+    voiceDismiss: "ठीक आहे", voiceCancel: "रद्द करा",
+    suggestions: ["चेन्नईमध्ये आता हवामान कसे आहे?", "उद्या पाऊस पडेल का?", "मदुराईमध्ये आज", "कोइम्बतूरमध्ये उद्या पाऊस पडेल का?"],
+    micPrompts: ["उद्या चेन्नईमध्ये पाऊस पडेल का?", "मदुराईमध्ये आता हवामान कसे आहे?", "कोइम्बतूरमध्ये उद्या पाऊस पडेल का?"],
+    signIn: "Google सह साइन इन करा", signingIn: "साइन इन होत आहे…", signOut: "साइन आउट करा",
+    historyTitle: "इतिहास", historyEmptyTitle: "अजून प्रश्न नाहीत",
+    historyEmptyBody: "तुम्ही विचारलेले प्रश्न दिवसानुसार येथे दिसतील.",
+    historySignedOutTitle: "इतिहास पाहण्यासाठी साइन इन करा",
+    historySignedOutBody: "इतिहास तुमच्या खात्यासोबत साठवला जातो, म्हणून साइन इन आवश्यक आहे.",
+    clearAll: "सर्व हटवा", askAgain: "पुन्हा विचारा", deleteLabel: "हटवा", dayToday: "आज", dayYesterday: "काल",
+    intentCurrent: "सध्याची स्थिती", intentRain: "पावसाचा अंदाज", intentUnsupported: "समर्थित नाही"}
+};
+
+const PREFS_KEY = "wg-prefs";
+const HIST_KEY = "wg-history";
+function readJSON(key) {
+  try { const raw = window.localStorage.getItem(key); return raw ? JSON.parse(raw) : null; } catch (e) { return null; }
+}
+function writeJSON(key, val) {
+  try { window.localStorage.setItem(key, JSON.stringify(val)); } catch (e) {}
+}
+
+// ---- History (Abel · Supabase, RLS keyed to auth.uid()) ----------------
+// Contract assumed: GET /history -> {items:[{id, query, intent, city, lang, created_at}]}
+//                   DELETE /history/:id, DELETE /history
+const SEED_HISTORY = [
+  {id: -1, query: "What's the weather in Chennai?", time: "08:33", day: "today", intent: "current", cityKey: "chennai"},
+  {id: -2, query: "Madurai today", time: "19:15", day: "yesterday", intent: "current", cityKey: "madurai"},
+  {id: -3, query: "Will it rain in Coimbatore tomorrow?", time: "18:42", day: "yesterday", intent: "rain_tomorrow", cityKey: "coimbatore"}
+];
+
 const CITIES = {
   chennai: {
-    name: {en: "Chennai", ta: "சென்னை"}, region: {en: "Tamil Nadu", ta: "தமிழ்நாடு"}, lat: 13.0827, lon: 80.2707,
-    now: {temp: 32, feels: 36, humidity: 74, wind: 14, dir: "southwesterly", dirTa: "தென்மேற்கு", cardinal: "SW", rain: 10,
-      cond: {en: "Partly cloudy", ta: "பகுதி மேகமூட்டம்"}},
-    tmr: {prob: 68, max: 33, min: 26, cond: {en: "thunderstorm with rain", ta: "இடியுடன் கூடிய மழை"}},
+    name: {en: "Chennai", hi: "चेन्नई", ta: "சென்னை", te: "చెన్నై", mr: "चेन्नई"},
+    region: {en: "Tamil Nadu", hi: "तमिलनाडु", ta: "தமிழ்நாடு", te: "తమిళనాడు", mr: "तामिळनाडू"},
+    lat: 13.0827, lon: 80.2707,
+    now: {temp: 32, feels: 36, humidity: 74, wind: 14, dir: "sw", cardinal: "SW", rain: 10,
+      cond: {en: "Partly cloudy", hi: "आंशिक बादल", ta: "பகுதி மேகமூட்டம்", te: "పాక్షిక మేఘావృతం", mr: "अंशतः ढगाळ"}},
+    tmr: {prob: 68, max: 33, min: 26, cond: {en: "thunderstorm with rain", hi: "बारिश के साथ आंधी", ta: "இடியுடன் கூடிய மழை", te: "వర్షంతో తుఫాను", mr: "पावसासह वादळ"}},
     issued: "08:30"
   },
   madurai: {
-    name: {en: "Madurai", ta: "மதுரை"}, region: {en: "Tamil Nadu", ta: "தமிழ்நாடு"}, lat: 9.9252, lon: 78.1198,
-    now: {temp: 35, feels: 39, humidity: 51, wind: 9, dir: "westerly", dirTa: "மேற்கு", cardinal: "W", rain: 5,
-      cond: {en: "Clear", ta: "தெளிவான வானம்"}},
-    tmr: {prob: 21, max: 36, min: 25, cond: {en: "mostly clear", ta: "பெரும்பாலும் தெளிவு"}},
+    name: {en: "Madurai", hi: "मदुरई", ta: "மதுரை", te: "మధురై", mr: "मदुराई"},
+    region: {en: "Tamil Nadu", hi: "तमिलनाडु", ta: "தமிழ்நாடு", te: "తమిళనాడు", mr: "तामिळनाडू"},
+    lat: 9.9252, lon: 78.1198,
+    now: {temp: 35, feels: 39, humidity: 51, wind: 9, dir: "w", cardinal: "W", rain: 5,
+      cond: {en: "Clear", hi: "साफ़", ta: "தெளிவான வானம்", te: "స్పష్టం", mr: "स्वच्छ"}},
+    tmr: {prob: 21, max: 36, min: 25, cond: {en: "mostly clear", hi: "अधिकतर साफ़", ta: "பெரும்பாலும் தெளிவு", te: "ఎక్కువగా స్పష్టం", mr: "बहुतांश स्वच्छ"}},
     issued: "08:30"
   },
   coimbatore: {
-    name: {en: "Coimbatore", ta: "கோயம்புத்தூர்"}, region: {en: "Tamil Nadu", ta: "தமிழ்நாடு"}, lat: 11.0168, lon: 76.9558,
-    now: {temp: 29, feels: 31, humidity: 66, wind: 11, dir: "northwesterly", dirTa: "வடமேற்கு", cardinal: "NW", rain: 45,
-      cond: {en: "Light rain", ta: "லேசான மழை"}},
-    tmr: {prob: 54, max: 30, min: 22, cond: {en: "light rain", ta: "லேசான மழை"}},
+    name: {en: "Coimbatore", hi: "कोयंबटूर", ta: "கோயம்புத்தூர்", te: "కోయంబత్తూరు", mr: "कोइम्बतूर"},
+    region: {en: "Tamil Nadu", hi: "तमिलनाडु", ta: "தமிழ்நாடு", te: "తమిళనాడు", mr: "तामिळनाडू"},
+    lat: 11.0168, lon: 76.9558,
+    now: {temp: 29, feels: 31, humidity: 66, wind: 11, dir: "nw", cardinal: "NW", rain: 45,
+      cond: {en: "Light rain", hi: "हल्की बारिश", ta: "லேசான மழை", te: "తేలికపాటి వర్షం", mr: "हलका पाऊस"}},
+    tmr: {prob: 54, max: 30, min: 22, cond: {en: "light rain", hi: "हल्की बारिश", ta: "லேசான மழை", te: "తేలికపాటి వర్షం", mr: "हलका पाऊस"}},
     issued: "08:30"
   }
 };
 
-const API_TIMEOUT_MS = 15000;
-
-// ISO timestamp -> "HH:MM IST" (the data's own issue time, from provenance.issued)
-function fmtIssued(iso) {
-  if (!iso) return null;
-  const d = new Date(iso);
-  if (isNaN(d)) return null;
-  return d.toLocaleTimeString("en-IN", {hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Kolkata"}) + " IST";
-}
-
-// Voice input (plan.md §14): records the mic as raw PCM via Web Audio (no
-// MediaRecorder codec, since Bhashini's ASR wants plain 16kHz mono WAV, not
-// webm/opus) and hand-encodes a WAV container client-side — no extra library
-// needed for a hackathon-scale prototype.
-function mergeFloat32(chunks, length) {
-  const out = new Float32Array(length);
-  let offset = 0;
-  for (const chunk of chunks) { out.set(chunk, offset); offset += chunk.length; }
-  return out;
-}
-
-function downsampleTo(input, inputRate, outputRate) {
-  if (outputRate >= inputRate) return input;
-  const ratio = inputRate / outputRate;
-  const out = new Float32Array(Math.round(input.length / ratio));
-  for (let i = 0; i < out.length; i++) out[i] = input[Math.round(i * ratio)];
-  return out;
-}
-
-function encodeWavBase64(float32, sampleRate) {
-  const pcm = new DataView(new ArrayBuffer(float32.length * 2));
-  for (let i = 0; i < float32.length; i++) {
-    const s = Math.max(-1, Math.min(1, float32[i]));
-    pcm.setInt16(i * 2, s < 0 ? s * 0x8000 : s * 0x7fff, true);
-  }
-  const buffer = new ArrayBuffer(44 + pcm.byteLength);
-  const view = new DataView(buffer);
-  const writeStr = (offset, str) => { for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i)); };
-  writeStr(0, "RIFF");
-  view.setUint32(4, 36 + pcm.byteLength, true);
-  writeStr(8, "WAVE");
-  writeStr(12, "fmt ");
-  view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true);          // PCM
-  view.setUint16(22, 1, true);          // mono
-  view.setUint32(24, sampleRate, true);
-  view.setUint32(28, sampleRate * 2, true); // byte rate (16-bit mono)
-  view.setUint16(32, 2, true);          // block align
-  view.setUint16(34, 16, true);         // bits per sample
-  writeStr(36, "data");
-  view.setUint32(40, pcm.byteLength, true);
-  new Uint8Array(buffer, 44).set(new Uint8Array(pcm.buffer));
-
-  let binary = "";
-  const bytes = new Uint8Array(buffer);
-  const chunkSize = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
-  }
-  return btoa(binary);
-}
-
-class WavRecorder {
-  constructor(targetRate = 16000) {
-    this.targetRate = targetRate;
-    this.chunks = [];
-    this.length = 0;
-  }
-
-  async start() {
-    this.stream = await navigator.mediaDevices.getUserMedia({audio: true});
-    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-    this.sourceRate = this.ctx.sampleRate;
-    this.source = this.ctx.createMediaStreamSource(this.stream);
-    // ScriptProcessorNode is deprecated but universally supported and needs no
-    // separate worklet file — fine for a prototype's recording lengths (a few seconds).
-    this.processor = this.ctx.createScriptProcessor(4096, 1, 1);
-    this.chunks = [];
-    this.length = 0;
-    this.processor.onaudioprocess = e => {
-      const data = e.inputBuffer.getChannelData(0);
-      this.chunks.push(new Float32Array(data));
-      this.length += data.length;
-    };
-    this.source.connect(this.processor);
-    this.processor.connect(this.ctx.destination);
-  }
-
-  stop() {
-    if (this.processor) this.processor.disconnect();
-    if (this.source) this.source.disconnect();
-    if (this.stream) this.stream.getTracks().forEach(t => t.stop());
-    const merged = mergeFloat32(this.chunks, this.length);
-    const rate = this.sourceRate;
-    if (this.ctx) this.ctx.close();
-    const down = downsampleTo(merged, rate, this.targetRate);
-    return encodeWavBase64(down, this.targetRate);
-  }
-}
-
 class Component extends DCLogic {
-  // The °C/°F toggle is hidden while wired: the backend is metric-only (no units
-  // param) and converting the narrated sentence client-side breaks on Tamil. A
-  // units param is a separate backend task.
-  state = {lang: "en", unit: "C", city: "chennai", draft: "", records: [], openEvidence: null, seq: 0,
-           hero: null, heroRain: null, warning: null,
-           // modal: null | "history" | "settings". History has no backing store yet
-           // (no DB wired in the prototype), so it explains itself rather than 404ing.
-           modal: null, alwaysEvidence: false, backendOk: null,
-           // voice (plan.md §14): recording -> voiceBusy (transcribing) -> ask(); playingId
-           // tracks which answer's TTS audio is currently playing.
-           recording: false, voiceBusy: false, voiceNotice: null, playingId: null};
-
-  componentDidMount() {
-    this._alive = true;
-    this.loadHero();
-  }
+  state = (() => {
+    const p = readJSON(PREFS_KEY) || {};
+    const stored = readJSON(HIST_KEY);
+    const signedIn = p.auth === "signed_in" && p.user;
+    return {
+      lang: STR[p.lang] ? p.lang : "en",
+      unit: p.unit === "F" ? "F" : "C",
+      city: CITIES[p.city] ? p.city : "chennai",
+      draft: "", records: [], openEvidence: null, seq: 0,
+      voice: "idle", audioId: null, audioPct: 0,
+      auth: signedIn ? "signed_in" : "signed_out", user: signedIn ? p.user : null, userMenuOpen: false,
+      view: "home", historyStatus: "idle",
+      history: Array.isArray(stored) ? stored : SEED_HISTORY
+    };
+  })();
 
   componentDidUpdate() {
-    const key = `${this.state.city}|${this.state.lang}`;
-    if (key !== this._heroKey) this.loadHero();
+    writeJSON(PREFS_KEY, {lang: this.state.lang, unit: this.state.unit, city: this.state.city,
+                          auth: this.state.auth === "signed_in" ? "signed_in" : "signed_out", user: this.state.user});
+    writeJSON(HIST_KEY, this.state.history);
+  }
+
+  showHistory() {
+    this.setState({view: "history", userMenuOpen: false});
+    if (this.state.auth !== "signed_in" || this.historyLoaded) return;
+    this.historyLoaded = true;
+    this.setState({historyStatus: "loading"});
+    this.timers = this.timers || [];
+    this.timers.push(setTimeout(() => this.setState({historyStatus: "ready"}), 650));
+  }
+
+  // ---- Auth (Deepthi · Google OAuth via Supabase) -----------------------
+  // Contract assumed: GET /me -> {id, name, email, avatar_url} | 401
+  signIn() {
+    this.setState({auth: "signing_in"});
+    this.timers = this.timers || [];
+    this.timers.push(setTimeout(() => {
+      this.historyLoaded = false;
+      this.setState({auth: "signed_in", user: {name: "Priya Menon", email: "priya.menon@gmail.com"}});
+      if (this.state.view === "history") this.showHistory();
+    }, 900));
+  }
+
+  signOut() {
+    this.historyLoaded = false;
+    this.setState({auth: "signed_out", user: null, userMenuOpen: false, historyStatus: "idle"});
   }
 
   componentWillUnmount() {
-    this._alive = false;
-    if (this._recorder) { try { this._recorder.stop(); } catch (e) {} }
+    (this.timers || []).forEach(clearTimeout);
+    clearInterval(this.audioTimer);
+    this.stopSpeech();
+    if (this.recog) { try { this.recog.abort(); } catch (e) {} }
   }
 
-  // One fetch seam. simulateFailure (canvas prop) points it at a dead base so the
-  // error card stays demoable. Times out via AbortController.
-  async api(path, params) {
-    const base = this.props.simulateFailure ? "http://127.0.0.1:1" : (this.props.apiBase || "");
-    const url = `${base}${path}?` + new URLSearchParams(params);
-    const ctl = new AbortController();
-    const timer = setTimeout(() => ctl.abort(), API_TIMEOUT_MS);
-    try {
-      const r = await fetch(url, {signal: ctl.signal, headers: {"ngrok-skip-browser-warning": "1"}});
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      return await r.json();
-    } finally {
-      clearTimeout(timer);
-    }
+  // ---- Voice input (Niranjan · POST /stt) -------------------------------
+  // Contract assumed: POST /stt {audio: blob, lang: "en-IN"|"ta-IN"}
+  //   -> {transcript, confidence, lang, duration_ms}
+  micPrompt() {
+    return (STR[this.state.lang] || STR.en).micPrompts;
   }
 
-  // POST seam for /asr and /tts — JSON bodies, same timeout/simulateFailure behavior as api().
-  async apiPost(path, body) {
-    const base = this.props.simulateFailure ? "http://127.0.0.1:1" : (this.props.apiBase || "");
-    const ctl = new AbortController();
-    const timer = setTimeout(() => ctl.abort(), API_TIMEOUT_MS);
-    try {
-      const r = await fetch(`${base}${path}`, {
-        method: "POST",
-        signal: ctl.signal,
-        headers: {"ngrok-skip-browser-warning": "1", "Content-Type": "application/json"},
-        body: JSON.stringify(body),
-      });
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      return await r.json();
-    } finally {
-      clearTimeout(timer);
-    }
+  onMicClick() {
+    if (this.state.voice === "listening" || this.state.voice === "transcribing") return this.cancelVoice();
+    if (this.state.voice === "denied") return this.setState({voice: "idle"});
+    this.startVoice();
   }
 
-  async toggleMic() {
-    const ta = this.state.lang === "ta";
-    if (this.state.voiceBusy) return;  // ignore taps while transcribing
-
-    if (this.state.recording) {
-      this.setState({recording: false, voiceBusy: true});
-      let audioB64;
+  startVoice() {
+    this.timers = this.timers || [];
+    if (this.props.simulateMicDenied) return this.setState({voice: "denied"});
+    this.setState({voice: "listening", draft: "", voiceMock: false});
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (this.props.simulateVoiceInput) return this.mockVoice(true);
+    if (SR) {
       try {
-        audioB64 = this._recorder.stop();
-      } catch (e) {
-        this.setIfAlive({voiceBusy: false, voiceNotice: ta ? "பதிவு தோல்வியடைந்தது." : "Recording failed."});
+        const r = new SR();
+        this.recog = r;
+        r.lang = this.state.lang === "ta" ? "ta-IN" : "en-IN";
+        r.interimResults = true;
+        r.continuous = false;
+        r.onresult = ev => {
+          let text = "";
+          for (let i = 0; i < ev.results.length; i++) text += ev.results[i][0].transcript;
+          this.setState({draft: text});
+          if (ev.results[ev.results.length - 1].isFinal) {
+            this.setState({voice: "transcribing"});
+            this.timers.push(setTimeout(() => { this.setState({voice: "idle"}); this.ask(text); }, 450));
+          }
+        };
+        r.onerror = () => this.mockVoice(true);
+        r.onend = () => { if (this.state.voice === "listening" && !this.state.voiceMock) this.mockVoice(true); };
+        r.start();
         return;
-      }
-      try {
-        const res = await this.apiPost("/asr", {audio: audioB64, lang: this.state.lang});
-        if (res && res.text) {
-          this.setIfAlive({voiceBusy: false, voiceNotice: null});
-          this.ask(res.text);
-        } else {
-          this.setIfAlive({voiceBusy: false,
-            voiceNotice: (res && res.message) || (ta ? "குரல் புரியவில்லை." : "Couldn't understand the audio.")});
-        }
-      } catch (e) {
-        this.setIfAlive({voiceBusy: false, voiceNotice: ta ? "குரல் சேவை கிடைக்கவில்லை." : "Voice service unavailable."});
-      }
-      return;
+      } catch (e) { /* fall through to mock */ }
     }
-
-    try {
-      this._recorder = new WavRecorder();
-      await this._recorder.start();
-      this.setIfAlive({recording: true, voiceNotice: null});
-    } catch (e) {
-      this.setIfAlive({voiceNotice: ta ? "மைக்ரோஃபோன் அணுகல் மறுக்கப்பட்டது." : "Microphone access denied."});
-    }
+    this.mockVoice(true);
   }
 
-  async playAnswer(rec) {
-    if (!rec.data || !rec.data.response) return;
-    // Web Audio (decodeAudioData + BufferSource), not <audio>: for a short clip
-    // that's already fully in memory this is far more reliable — new Audio(dataURI)
-    // .play() was observed to hang forever (never resolves/rejects, no events at
-    // all) on some Chrome builds, even for a well-formed 16-bit PCM WAV.
-    // Context is created synchronously here, still inside the click's call stack,
-    // so it isn't autoplay-blocked once we resume() after the await below.
-    const ctx = this._playbackCtx || (this._playbackCtx = new (window.AudioContext || window.webkitAudioContext)());
-    this.setState({playingId: rec.id, voiceNotice: null});
+  mockVoice(simulated) {
+    this.timers = this.timers || [];
+    const list = this.micPrompt();
+    const phrase = list[Math.floor(Math.random() * list.length)];
+    this.setState({voice: "listening", draft: "", voiceMock: !!simulated});
+    this.timers.push(setTimeout(() => this.setState({draft: phrase.slice(0, Math.ceil(phrase.length * 0.55)) + "…"}), 700));
+    this.timers.push(setTimeout(() => this.setState({voice: "transcribing", draft: phrase}), 1500));
+    this.timers.push(setTimeout(() => { this.setState({voice: "idle"}); this.ask(phrase); }, 2200));
+  }
+
+  cancelVoice() {
+    if (this.recog) { try { this.recog.abort(); } catch (e) {} }
+    (this.timers || []).forEach(clearTimeout);
+    this.timers = [];
+    this.setState({voice: "idle", draft: "", voiceMock: false});
+  }
+
+  // ---- Answer playback (Niranjan · POST /tts) ---------------------------
+  // Contract assumed: POST /tts {text, lang} -> {audio_url, duration_ms, voice}
+  stopSpeech() {
+    try { window.speechSynthesis && window.speechSynthesis.cancel(); } catch (e) {}
+  }
+
+  toggleAudio(id, text) {
+    clearInterval(this.audioTimer);
+    this.stopSpeech();
+    if (this.state.audioId === id) return this.setState({audioId: null, audioPct: 0});
+    const words = (text || "").split(/\s+/).length;
+    const durationMs = Math.max(3200, words * 380);
+    this.setState({audioId: id, audioPct: 0});
+    const started = Date.now();
+    this.audioTimer = setInterval(() => {
+      const pct = Math.min(1, (Date.now() - started) / durationMs);
+      this.setState({audioPct: pct});
+      if (pct >= 1) { clearInterval(this.audioTimer); this.setState({audioId: null, audioPct: 0}); }
+    }, 90);
     try {
-      const res = await this.apiPost("/tts", {text: rec.data.response, lang: rec.lang});
-      if (res && res.audio) {
-        if (ctx.state === "suspended") await ctx.resume();
-        const bytes = Uint8Array.from(atob(res.audio), c => c.charCodeAt(0));
-        const buffer = await ctx.decodeAudioData(bytes.buffer);
-        const source = ctx.createBufferSource();
-        source.buffer = buffer;
-        source.connect(ctx.destination);
-        source.onended = () => this.setIfAlive({playingId: null});
-        source.start();
-        return;
+      if (window.speechSynthesis && text) {
+        const utt = new SpeechSynthesisUtterance(text);
+        const wantLang = this.state.lang + "-IN";
+        utt.lang = wantLang;
+        utt.rate = 0.98;
+        const voices = window.speechSynthesis.getVoices();
+        // Browser TTS voice packs vary a lot by OS/browser — most demo
+        // environments only ship en-US and silently no-op or mispronounce
+        // hi/ta/te/mr text with no matching voice installed. Pick the
+        // closest available voice instead of leaving it unset. The real
+        // product uses Bhashini TTS (POST /tts contract), which always
+        // returns real hi/ta/te/mr audio regardless of the client's voices.
+        const exact = voices.find(v => v.lang === wantLang);
+        const prefix = voices.find(v => v.lang && v.lang.toLowerCase().startsWith(this.state.lang));
+        const voice = exact || prefix;
+        if (voice) utt.voice = voice;
+        else if (this.state.lang !== "en") utt.lang = "en-IN"; // avoid dead silence on no-match
+        window.speechSynthesis.speak(utt);
       }
     } catch (e) {}
-    const ta = rec.lang === "ta";
-    this.setIfAlive({playingId: null, voiceNotice: ta ? "குரலில் இயக்க முடியவில்லை." : "Couldn't play audio."});
   }
 
-  setIfAlive(update) { if (this._alive) this.setState(update); }
-
-  async loadHero() {
-    const city = this.state.city, lang = this.state.lang;
-    this._heroKey = `${city}|${lang}`;
-    try {
-      const [cur, rain, warn] = await Promise.all([
-        this.api("/facts", {city, lang}),
-        this.api("/facts", {city, lang, intent: "will_it_rain", day: "today"}),
-        // Backends without this route yet (plan.md §14 Task D) 404 — swallow that
-        // here rather than let it fail the hero/rain fetches too.
-        this.api("/warnings", {city, lang}).catch(() => null)
-      ]);
-      if (this._heroKey !== `${city}|${lang}`) return;  // superseded
-      this.setIfAlive({hero: cur.facts ? cur : null, heroRain: rain.facts ? rain : null,
-        warning: (warn && warn.warning) || null, backendOk: true});
-    } catch (e) {
-      this.setIfAlive({hero: null, heroRain: null, warning: null, backendOk: false});  // renderVals falls back to CITIES
-    }
+  temp(celsius) {
+    return this.state.unit === "C" ? celsius : Math.round(celsius * 9 / 5 + 32);
   }
 
   matchCity(text) {
     const s = (text || "").toLowerCase().trim();
     if (!s) return null;
-    return Object.keys(CITIES).find(k => s.includes(k) || s.includes(CITIES[k].name.ta)) || null;
+    return Object.keys(CITIES).find(k => s.includes(k) || LANGS.some(l => CITIES[k].name[l] && s.includes(CITIES[k].name[l]))) || null;
   }
 
-  async ask(q) {
+  classify(q) {
+    const s = (q || "").toLowerCase();
+    if (/rain|மழை|tomorrow|நாளை|forecast|முன்னறிவிப்பு|बारिश|कल|पूर्वानुमान|వర్షం|రేపు|సూచన|पाऊस|उद्या|अंदाज/.test(s)) return "rain_tomorrow";
+    if (/weather|temp|hot|now|today|இப்போது|வானிலை|இன்று|मौसम|अभी|आज|వాతావరణం|ఇప్పుడు|ఈరోజు|हवामान|आता/.test(s)) return "current";
+    return "unsupported";
+  }
+
+  buildAnswer(intent, cityKey, lang) {
+    const c = CITIES[cityKey];
+    const S = SENT[lang] || SENT.en;
+    const W = WORDS[lang] || WORDS.en;
+    const u = this.state.unit === "C" ? "°C" : "°F";
+    const T = v => `${this.temp(v)}${u}`;
+    const city = c.name[lang] || c.name.en;
+    if (intent === "current") {
+      const n = c.now;
+      const cond = n.cond[lang] || n.cond.en;
+      const dir = (DIR_NAMES[n.dir] && DIR_NAMES[n.dir][lang]) || DIR_NAMES[n.dir].en;
+      return {
+        headline: S.current({city, T: T(n.temp), cond, hum: n.humidity, dir, wind: n.wind}),
+        sourceName: S.sourceCurrent,
+        issued: S.issuedCurrent(c.issued),
+        endpoint: `GET weather.googleapis.com/v1/currentConditions:lookup?location.latitude=${c.lat}&location.longitude=${c.lon}&unitsSystem=${this.state.unit === "C" ? "METRIC" : "IMPERIAL"}`,
+        tokens: [
+          {reading: `${T(n.temp)} ${W.temperature}`, path: "temperature.degrees"},
+          {reading: `${n.humidity}% ${W.humidity}`, path: "relativeHumidity"},
+          {reading: `${n.wind} ${W.kmh} ${W.wind}`, path: "wind.speed.value"}
+        ]
+      };
+    }
+    const f = c.tmr;
+    const cond = f.cond[lang] || f.cond.en;
+    return {
+      headline: S.forecast({city, prob: f.prob, cond, max: T(f.max), min: T(f.min)}),
+      sourceName: S.sourceForecast,
+      issued: S.issuedForecast(c.issued),
+      endpoint: `GET weather.googleapis.com/v1/forecast/days:lookup?location.latitude=${c.lat}&location.longitude=${c.lon}&days=2&unitsSystem=${this.state.unit === "C" ? "METRIC" : "IMPERIAL"}`,
+      tokens: [
+        {reading: `${f.prob}% ${W.rainChance}`, path: "precipitation.probability.percent"},
+        {reading: `${T(f.max)} ${W.high}`, path: "maxTemperature.degrees"},
+        {reading: `${T(f.min)} ${W.low}`, path: "minTemperature.degrees"}
+      ]
+    };
+  }
+
+  refusal(cityKey, lang) {
+    const S = SENT[lang] || SENT.en;
+    return {
+      headline: !cityKey ? S.refusalNoCity : S.refusalUnsupported,
+      sourceName: S.noToolCall,
+      issued: S.refusingGuess,
+      endpoint: null,
+      tokens: []
+    };
+  }
+
+  answerFor(rec, lang) {
+    const grounded = rec.cityKey && rec.intent !== "unsupported";
+    return grounded ? this.buildAnswer(rec.intent, rec.cityKey, lang) : this.refusal(rec.cityKey, lang);
+  }
+
+  ask(q) {
     const query = (q || "").trim();
     if (!query) return;
     const id = this.state.seq + 1;
-    const lang = this.state.lang;
+    const fail = !!this.props.simulateFailure || /offline|fail/i.test(query);
     const cityKey = this.matchCity(query) || this.state.city;
     const time = new Date().toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"});
-    const rec = {id, query, time, lang, status: "pending"};
-    this.setState(s => ({seq: id, draft: "", records: [...s.records, rec], city: cityKey}));
-
-    const patch = fields => this.setIfAlive(s => ({
-      records: s.records.map(r => r.id === id ? Object.assign({}, r, fields) : r)
+    const rec = {id, query, time, intent: this.classify(query), cityKey, status: "pending"};
+    this.setState(s => ({
+      seq: id, draft: "", records: [...s.records, rec], city: cityKey, view: "home",
+      history: [{id, query, time, day: "today", intent: rec.intent, cityKey}, ...s.history]
     }));
-    try {
-      // city param disambiguates queries that name no city ("will it rain tomorrow?")
-      const data = await this.api("/ask", {text: query, lang, city: cityKey});
-      patch({status: "ok", data});
-      if (data.city) this.setIfAlive({city: data.city});
-    } catch (e) {
-      patch({status: "error", errorInfo: String(e && e.message || e)});
-    }
-  }
-
-  entryFrom(rec, ta, uiFont) {
-    const d = rec.data || {};
-    const font = rec.lang === "ta" ? "ta" : "";  // the query/answer keep the language they were asked in
-    // Settings' "always show source" opens every panel; the per-entry toggle
-    // still collapses the one you click.
-    const open = this.state.alwaysEvidence
-      ? this.state.openEvidence !== rec.id
-      : this.state.openEvidence === rec.id;
-    const base = {
-      query: rec.query, time: rec.time, font, chromeFont: uiFont,  // chrome follows the current UI language
-      isPending: rec.status === "pending",
-      isError: rec.status === "error",
-      isAnswer: rec.status === "ok",
-      evidenceOpen: open,
-      evidenceLabel: open ? (ta ? "மறை" : "Hide source") : (ta ? "ஆதாரம் பார்" : "View source"),
-      toggleEvidence: () => this.setState(s => ({openEvidence: s.openEvidence === rec.id ? null : rec.id})),
-      errorCode: rec.errorInfo || "",
-      retry: () => this.ask(rec.query)
-    };
-    if (rec.status !== "ok") return {...base, headline: "", hasFigures: false, sourceName: "", issued: "",
-      validatorChip: "", tokens: [], liveBadge: "", liveColor: "transparent", narrationTag: "", dataNote: "",
-      hasEvidence: false, canSpeak: false, isPlaying: false, playLabel: "", onPlay: () => {}};
-
-    const g = d.grounding, p = d.provenance;
-    const speak = {
-      canSpeak: !!d.response,
-      isPlaying: this.state.playingId === rec.id,
-      playLabel: this.state.playingId === rec.id
-        ? (ta ? "▶ ஒலிக்கிறது…" : "▶ Playing…")
-        : (ta ? "🔊 கேளுங்கள்" : "🔊 Listen"),
-      onPlay: () => this.playAnswer(rec),
-    };
-    if (!d.response) {
-      // backend message: unsupported / unrecognized / no city / no data / guardrail refusal
-      return {...base, ...speak, headline: d.message || "", hasFigures: false,
-        sourceName: ta ? "தரவு அழைப்பு இல்லை" : "No tool call made",
-        issued: ta ? "ஊகிக்காமல் மறுக்கிறோம்" : "Refusing rather than guessing",
-        validatorChip: ta ? "எண் எதுவும் இல்லை" : "No figures claimed",
-        tokens: [], liveBadge: "", liveColor: "transparent", narrationTag: "", dataNote: ""};
-    }
-    const live = !!(p && p.is_live);
-    const issued = fmtIssued(p && p.issued);
-    return {...base, ...speak,
-      headline: d.response,
-      hasFigures: !!(g && g.total > 0),
-      sourceName: (p && p.source) || "",
-      issued: issued ? (ta ? `${issued} வெளியீடு` : `Issued ${issued}`) : "",
-      validatorChip: g
-        ? (ta ? `சரிபார்ப்பு: ${g.matched}/${g.total} பொருந்தின` : `Validator: ${g.matched}/${g.total} matched`)
-        : "",
-      tokens: ((g && g.figures) || []).map(f => ({reading: f.reading, path: f.path || ""})),
-      liveBadge: live ? (ta ? "நேரலை" : "live") : (ta ? "சேமிப்பு" : "snapshot"),
-      liveColor: live ? "#3fb27f" : "#c9a227",
-      narrationTag: g && g.narration === "llm" ? (ta ? "LLM விவரணை" : "LLM-narrated") : (ta ? "வார்ப்புரு" : "template"),
-      dataNote: [live ? (ta ? "நேரடி Google Weather API" : "Live Google Weather API") : (ta ? "சேமித்த பதில்" : "Cached snapshot"),
-                 issued ? `issued ${issued}` : null,
-                 g && g.fallback_used ? (ta ? "LLM பதில் நிராகரிக்கப்பட்டது" : "LLM answer rejected by the guardrail") : null]
-                .filter(Boolean).join(" · "),
-      hasEvidence: true
-    };
+    this.timers = this.timers || [];
+    this.timers.push(setTimeout(() => {
+      this.setState(s => ({records: s.records.map(r => r.id === id ? Object.assign({}, r, {status: fail ? "error" : "ok"}) : r)}));
+    }, 950));
   }
 
   renderVals() {
     const lang = this.state.lang;
     const ta = lang === "ta";
-    const uiFont = ta ? "ta" : "";
-    const modal = this.state.modal;
-    const on = {bg: "#1c4a6b", color: "#fff", border: "#1c4a6b"};
-    const off = {bg: "#fff", color: "#4a5c6f", border: "#d7dfe7"};
-    const pill = active => active ? on : off;
+    const L = STR[lang] || STR.en;
+    const uiFont = LANG_META[lang].font;
+    const signedIn = this.state.auth === "signed_in";
+    const intentLabel = it => it === "current" ? L.intentCurrent : it === "rain_tomorrow" ? L.intentRain : L.intentUnsupported;
+    const historyGroups = ["today", "yesterday"].map(day => ({
+      day: day === "today" ? L.dayToday : L.dayYesterday,
+      items: this.state.history.filter(h => (h.day || "today") === day).map(h => ({
+        query: h.query, time: h.time, font: uiFont,
+        intentLabel: intentLabel(h.intent),
+        cityLabel: (CITIES[h.cityKey] && (CITIES[h.cityKey].name[lang] || CITIES[h.cityKey].name.en)) || "",
+        again: () => this.ask(h.query),
+        remove: () => this.setState(s => ({history: s.history.filter(x => x.id !== h.id)}))
+      }))
+    })).filter(g => g.items.length > 0);
     const c = CITIES[this.state.city] || CITIES.chennai;
     const n = c.now;
-    const u = "°C";
+    const u = this.state.unit === "C" ? "°C" : "°F";
 
-    // Hero: backend facts when available, CITIES mock otherwise.
-    const h = this.state.hero, hf = h && h.facts;
-    const hr = this.state.heroRain && this.state.heroRain.facts;
-    const nowCity = hf ? h.city_name : (c.name[lang] || c.name.en);
-    const nowCondition = hf ? (h.condition_label || "") : (n.cond[lang] || n.cond.en);
-    const nowTemp = hf ? `${hf.temp_c}` : `${n.temp}`;
-    const feels = hf ? hf.feels_like_c : n.feels;
-    const humidity = hf ? hf.humidity_pct : n.humidity;
-    const wind = hf ? `${hf.wind_kmh} km/h ${hf.wind_dir || ""}`.trim() : `${n.wind} km/h ${n.cardinal}`;
-    const rain = hr ? hr.rain_probability_pct : n.rain;
-
-    // IMD warning colour code (plan.md §14 Task D — stand-in until the real
-    // CAP feed lands, plan.md §3.3 / Phase 4). `warning` is null when the
-    // backend has no fixture for this city, or doesn't have the route yet.
-    const w = this.state.warning;
-    const IMD_PALETTE = {
-      green:  {fg: "#2e7d32", bg: "#e8f5e9", border: "#a5d6a7"},
-      yellow: {fg: "#f9a825", bg: "#fffde7", border: "#fff59d"},
-      orange: {fg: "#ef6c00", bg: "#fff3e0", border: "#ffcc80"},
-      red:    {fg: "#c62828", bg: "#ffebee", border: "#ef9a9a"}
-    };
-    const warningVisible = !!(w && ["yellow", "orange", "red"].includes(w.colour));
-    const warningColour = (w && w.colour) || "green";
-    const warningPalette = IMD_PALETTE[warningColour] || IMD_PALETTE.green;
-    const fmtWarningDate = iso => {
-      if (!iso) return "";
-      const d = new Date(iso);
-      if (isNaN(d)) return "";
-      return d.toLocaleString(ta ? "ta-IN" : "en-IN",
-        {day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
-         hour12: false, timeZone: "Asia/Kolkata"});
-    };
-    const warningValid = w
-      ? `${fmtWarningDate(w.valid_from)} – ${fmtWarningDate(w.valid_to)} IST`
-      : "";
-
-    const entries = this.state.records.map(rec => this.entryFrom(rec, ta, uiFont));
-
-    const sugg = ta
-      ? ["சென்னையில் இப்போது வானிலை என்ன?", "நாளை மழை பெய்யுமா?", "மதுரையில் இன்று", "கோயம்புத்தூரில் நாளை மழை?"]
-      : ["What's the weather in Chennai?", "Will it rain tomorrow?", "Madurai today", "Will it rain in Coimbatore tomorrow?"];
+    const entries = this.state.records.map(rec => {
+      const a = this.answerFor(rec, lang);
+      const open = this.state.openEvidence === rec.id;
+      return {
+        query: rec.query,
+        time: rec.time,
+        font: uiFont,
+        isPending: rec.status === "pending",
+        isError: rec.status === "error",
+        isAnswer: rec.status === "ok",
+        headline: a.headline,
+        hasFigures: !!a.endpoint,
+        sourceName: a.sourceName,
+        issued: a.issued,
+        endpoint: a.endpoint || "",
+        tokens: a.tokens,
+        validatorChip: a.endpoint ? L.validatorMatched(a.tokens.length) : L.noFigures,
+        evidenceOpen: open,
+        evidenceLabel: open ? L.evidenceHide : L.evidenceShow,
+        toggleEvidence: () => this.setState(s => ({openEvidence: s.openEvidence === rec.id ? null : rec.id})),
+        errorCode: "504 · weather.googleapis.com",
+        retry: () => this.ask(rec.query),
+        audioPlaying: this.state.audioId === rec.id,
+        audioIdle: this.state.audioId !== rec.id,
+        audioPct: Math.round(this.state.audioPct * 100) + "%",
+        audioBg: this.state.audioId === rec.id ? "#e8f0f7" : "transparent",
+        audioBorder: this.state.audioId === rec.id ? "#b9d0e0" : "#dfe6ed",
+        audioLabel: this.state.audioId === rec.id ? L.audioStop : L.audioListen,
+        audioAria: this.state.audioId === rec.id ? L.audioAriaStop : L.audioAriaListen,
+        toggleAudio: () => this.toggleAudio(rec.id, a.headline)
+      };
+    });
 
     return {
       uiFont,
-      showFahrenheit: false,
-      enBg: ta ? "transparent" : "#1c4a6b", enColor: ta ? "#5f7082" : "#fff",
-      taBg: ta ? "#1c4a6b" : "transparent", taColor: ta ? "#fff" : "#5f7082",
-      setEN: () => this.setState({lang: "en"}),
-      setTA: () => this.setState({lang: "ta"}),
-      cBg: "#1c4a6b", cColor: "#fff",
-      fBg: "transparent", fColor: "#5f7082",
-      setC: () => {},
-      setF: () => {},
+      langOptions: LANGS.map(l => ({
+        label: LANG_META[l].label, font: LANG_META[l].font,
+        bg: lang === l ? "#1c4a6b" : "transparent", color: lang === l ? "#fff" : "#5f7082",
+        pick: () => this.setState({lang: l})
+      })),
+      cBg: this.state.unit === "C" ? "#1c4a6b" : "transparent", cColor: this.state.unit === "C" ? "#fff" : "#5f7082",
+      fBg: this.state.unit === "F" ? "#1c4a6b" : "transparent", fColor: this.state.unit === "F" ? "#fff" : "#5f7082",
+      setC: () => this.setState({unit: "C"}),
+      setF: () => this.setState({unit: "F"}),
       navItems: [
-        {label: ta ? "முகப்பு" : "Home", active: modal === null, go: () => this.setState({modal: null})},
-        {label: ta ? "வரலாறு" : "History", active: modal === "history", go: () => this.setState({modal: "history"})},
-        {label: ta ? "அமைப்புகள்" : "Settings", active: modal === "settings", go: () => this.setState({modal: "settings"})}
+        {label: L.navHome, active: this.state.view === "home", go: () => this.setState({view: "home"})},
+        {label: L.navHistory, active: this.state.view === "history", go: () => this.showHistory()},
+        {label: L.navSettings, active: false, go: () => {}}
       ].map(i => ({
-        label: i.label,
         go: i.go,
+        label: i.label,
         weight: i.active ? "600" : "400",
         color: i.active ? "#17324a" : "#4a5c6f",
         bg: i.active ? "#eaf1f7" : "transparent",
         rule: i.active ? "#1c4a6b" : "transparent",
         dot: i.active ? "#4a86ad" : "#c6d0da"
       })),
-      poweredBy: ta ? "Google Weather API வழங்குகிறது" : "Powered by Google Weather API",
-      currentWeatherLabel: ta ? "தற்போதைய வானிலை" : "Current weather",
-      nowCity,
-      nowCondition,
-      nowTemp,
+      poweredBy: L.poweredBy,
+      currentWeatherLabel: L.currentWeatherLabel,
+      nowCity: c.name[lang] || c.name.en,
+      nowCondition: n.cond[lang] || n.cond.en,
+      nowTemp: `${this.temp(n.temp)}`,
       unitLabel: u,
-      nowFeels: feels == null ? "" : (ta ? `உணரப்படுவது ${feels}${u}` : `Feels like ${feels}${u}`),
-      humidityLabel: ta ? "ஈரப்பதம்" : "Humidity",
-      humidityValue: humidity == null ? "—" : `${humidity}%`,
-      windLabel: ta ? "காற்று" : "Wind",
-      windValue: wind,
-      rainLabel: ta ? "மழை வாய்ப்பு" : "Chance of rain",
-      rainValue: rain == null ? "—" : `${rain}%`,
-
-      // --- IMD warning colour code (plan.md §14 Task D) ---
-      warningVisible,
-      warningColour,
-      warningBg: warningPalette.bg,
-      warningFg: warningPalette.fg,
-      warningBorder: warningPalette.border,
-      warningLabel: ta ? "எச்சரிக்கை" : "Warning",
-      warningHeadline: (w && w.headline) || "",
-      warningCategory: (w && w.category) || "",
-      warningAdvice: (w && w.advice) || "",
-      warningValid,
-      noWarningVisible: !!w && !warningVisible,
-      noWarningText: ta ? "எச்சரிக்கை இல்லை" : "No IMD warning in force",
-
+      nowFeels: L.feelsLike(`${this.temp(n.feels)}${u}`),
+      humidityLabel: L.humidityLabel,
+      humidityValue: `${n.humidity}%`,
+      windLabel: L.windLabel,
+      windValue: `${n.wind} km/h ${n.cardinal}`,
+      rainLabel: L.rainLabel,
+      rainValue: `${n.rain}%`,
       isEmpty: this.state.records.length === 0,
-      emptyTitle: ta ? "வானிலை பற்றி கேளுங்கள்" : "Ask about the weather",
-      emptyBody: ta
-        ? "மேலே ஒரு கேள்வியைத் தட்டுங்கள் அல்லது தட்டச்சு செய்யுங்கள். ஒவ்வொரு பதிலிலும் எண்கள் எங்கிருந்து வந்தன என்பதைக் காணலாம்."
-        : "Type a question above or tap one of the suggestions. Every answer shows the exact reading it came from.",
+      emptyTitle: L.emptyTitle,
+      emptyBody: L.emptyBody,
       entries,
-      loadingLabel: ta ? "Google Weather API-லிருந்து சமீபத்திய தரவு பெறப்படுகிறது…" : "Fetching the latest weather data...",
-      errorTitle: ta ? "வானிலை தரவு கிடைக்கவில்லை" : "Unable to reach WeatherGPT",
-      errorBody: ta
-        ? "சேவை தற்போது பதிலளிக்கவில்லை. உறுதிப்படுத்த முடியாத எண்ணைக் கூறுவதில்லை — சில நிமிடங்களில் மீண்டும் முயற்சிக்கவும்."
-        : "The service didn't respond. Rather than show a number we can't verify, nothing is reported. Please try again in a moment.",
-      retryLabel: ta ? "மீண்டும் முயற்சி" : "Try again",
-      sourceLabel: ta ? "ஆதாரம்:" : "Source:",
-      checkedLabel: ta ? "சரிபார்க்கப்பட்ட எண்கள்" : "Figures checked against the source",
-      dataLabel: ta ? "தரவு" : "Data",
-      guardrailNote: ta
-        ? "பதிலில் உள்ள ஒவ்வொரு எண்ணும் மூல தரவுடன் ஒப்பிடப்பட்ட பிறகே வெளியிடப்படுகிறது. பொருந்தாத எண் இருந்தால் பதில் நிறுத்தப்படும்."
-        : "Each figure is matched against the raw response before the answer is shown. If one doesn't match, the answer is withheld rather than published.",
-      suggestions: sugg.map(label => ({label, font: uiFont, pick: () => this.ask(label)})),
+      loadingLabel: L.loadingLabel,
+      errorTitle: L.errorTitle,
+      errorBody: L.errorBody,
+      retryLabel: L.retryLabel,
+      sourceLabel: L.sourceLabel,
+      checkedLabel: L.checkedLabel,
+      requestLabel: L.requestLabel,
+      guardrailNote: L.guardrailNote,
+      suggestions: L.suggestions.map(label => ({label, font: uiFont, pick: () => this.ask(label)})),
+      micRing: this.state.voice === "listening" ? "wg-ring" : "",
+      micBg: this.state.voice === "listening" ? "#1c4a6b" : (this.state.voice === "denied" ? "#fdeeef" : "transparent"),
+      micBorder: this.state.voice === "listening" ? "#1c4a6b" : (this.state.voice === "denied" ? "#f2c9cd" : "#dfe6ed"),
+      micStroke: this.state.voice === "listening" ? "#fff" : (this.state.voice === "denied" ? "#c0424c" : "#5f7082"),
+      micAria: this.state.voice === "listening" ? L.micStopListening : L.micAskVoice,
+      onMic: () => this.onMicClick(),
+      voiceOpen: this.state.voice !== "idle",
+      voiceListening: this.state.voice === "listening",
+      voiceBusy: this.state.voice === "transcribing",
+      voiceDenied: this.state.voice === "denied",
+      voiceTitleColor: this.state.voice === "denied" ? "#a5323c" : "#22344a",
+      voiceTitle: this.state.voice === "listening" ? L.voiceListeningTitle
+        : this.state.voice === "transcribing" ? L.voiceTranscribingTitle : L.voiceDeniedTitle,
+      voiceHint: this.state.voice === "listening"
+        ? (this.state.voiceMock ? L.voiceMockHint : L.voiceListeningHint)
+        : this.state.voice === "transcribing" ? L.voiceTranscribingHint : L.voiceDeniedHint,
+      voiceActionLabel: this.state.voice === "denied" ? L.voiceDismiss : L.voiceCancel,
+      onVoiceDismiss: () => this.cancelVoice(),
+      sttContract: this.state.voice === "denied"
+        ? "mic · permission denied"
+        : (this.state.voiceMock ? `mock /stt · ${lang}-IN` : `POST /stt · ${lang}-IN`),
+      eqBars: [0, 1, 2, 3, 4].map(i => ({delay: (i * 0.12) + "s"})),
       draft: this.state.draft,
       onDraft: e => this.setState({draft: e.target.value}),
       onDraftKey: e => { if (e.key === "Enter") { e.preventDefault(); this.ask(this.state.draft); } },
       onSend: () => this.ask(this.state.draft),
-      askPlaceholder: ta ? "வானிலை பற்றி எதையும் கேளுங்கள்…" : "Ask WeatherGPT about any place...",
-
-      // --- Voice input (mic) ---
-      onMic: () => this.toggleMic(),
-      micBg: this.state.recording ? "#c0424c" : (this.state.voiceBusy ? "#c9a227" : "#e8f0f7"),
-      micColor: (this.state.recording || this.state.voiceBusy) ? "#fff" : "#1c4a6b",
-      micLabel: this.state.recording
-        ? (ta ? "பதிவை நிறுத்து" : "Stop recording")
-        : (ta ? "குரலால் கேளுங்கள்" : "Ask by voice"),
-      voiceNotice: this.state.recording
-        ? (ta ? "கேட்கிறேன்… (நிறுத்த தட்டவும்)" : "Listening… (tap to stop)")
-        : this.state.voiceBusy
-        ? (ta ? "குரலை உரையாக்குகிறது…" : "Transcribing…")
-        : (this.state.voiceNotice || ""),
-      voiceNoticeVisible: this.state.recording || this.state.voiceBusy || !!this.state.voiceNotice,
-      footnote: ta
-        ? "இரண்டு கேள்விகள் இணைக்கப்பட்டுள்ளன: தற்போதைய வானிலை, மழை முன்னறிவிப்பு. வானிலை தரவு © Google."
-        : "Two intents are wired: current conditions and rain forecast. Weather data © Google.",
-      unitNote: ta ? "அலகு: METRIC (API கோரிக்கையில்)" : "Units: METRIC (requested from the API)",
-
-      // --- History / Settings modal ---
-      modalOpen: modal !== null,
-      isHistoryModal: modal === "history",
-      isSettingsModal: modal === "settings",
-      closeModal: () => this.setState({modal: null}),
-      // backdrop closes; the card swallows the click so changing a setting
-      // doesn't dismiss the panel mid-demo
-      keepOpen: e => e.stopPropagation(),
-      modalTitle: modal === "history"
-        ? (ta ? "வரலாறு" : "History")
-        : (ta ? "அமைப்புகள்" : "Settings"),
-      historyBody: ta
-        ? "வரலாறு இன்னும் தரவுத்தளத்துடன் இணைக்கப்படவில்லை. இந்த முன்மாதிரியில் கேள்விகள் உலாவியில் மட்டுமே உள்ளன — பக்கத்தைப் புதுப்பித்தால் அவை மறைந்துவிடும்."
-        : "History isn't connected to a database yet. In this prototype your questions live only in the browser tab — refresh the page and they're gone.",
-      historyNote: ta
-        ? "நிரந்தர வரலாறு Postgres தேவைப்படுகிறது (docker-compose-ல் உள்ளது, இன்னும் /ask-உடன் இணைக்கப்படவில்லை)."
-        : "Persistent history needs the Postgres service (it's in docker-compose, just not wired to /ask yet).",
-
-      setLangLabel: ta ? "மொழி" : "Language",
-      optEnBg: pill(!ta).bg, optEnColor: pill(!ta).color, optEnBorder: pill(!ta).border,
-      optTaBg: pill(ta).bg, optTaColor: pill(ta).color, optTaBorder: pill(ta).border,
-
-      setCityLabel: ta ? "இயல்புநிலை நகரம்" : "Default city",
-      cityOptions: Object.keys(CITIES).map(k => {
-        const p = pill(this.state.city === k);
-        return {label: CITIES[k].name[lang] || CITIES[k].name.en,
-                bg: p.bg, color: p.color, border: p.border,
-                pick: () => this.setState({city: k})};
-      }),
-
-      setEvidenceLabel: ta ? "ஆதாரப் பலகம்" : "Source panel",
-      evidenceStateLabel: this.state.alwaysEvidence
-        ? (ta ? "எப்போதும் காட்டு" : "Always shown")
-        : (ta ? "தட்டும்போது காட்டு" : "Shown on tap"),
-      evidenceBg: pill(this.state.alwaysEvidence).bg,
-      evidenceColor: pill(this.state.alwaysEvidence).color,
-      evidenceBorder: pill(this.state.alwaysEvidence).border,
-      toggleAlwaysEvidence: () => this.setState(s => ({alwaysEvidence: !s.alwaysEvidence, openEvidence: null})),
-      setEvidenceNote: ta
-        ? "ஒவ்வொரு பதிலிலும் எண்கள் எங்கிருந்து வந்தன என்பதை தானாகவே விரித்துக் காட்டும்."
-        : "Expands the figures-and-source panel under every answer automatically.",
-
-      setUnitsLabel: ta ? "அலகுகள்" : "Units",
-      setUnitsValue: ta
-        ? "METRIC (°C, km/h) — backend அலகு மாற்றத்தை இன்னும் ஆதரிக்கவில்லை."
-        : "Metric (°C, km/h) — the backend is metric-only, so the °F toggle stays hidden.",
-
-      setBackendLabel: ta ? "பின்தளம்" : "Backend",
-      setBackendValue: this.props.simulateFailure
-        ? (ta ? "தோல்வி உருவகப்படுத்தப்படுகிறது" : "simulating failure")
-        : (this.props.apiBase || "(same origin)"),
-      backendDot: this.state.backendOk === false ? "#c0424c" : (this.state.backendOk ? "#3fb27f" : "#c6d0da"),
-      backendStatus: this.state.backendOk === false
-        ? (ta ? "அடைய முடியவில்லை — மாதிரி தரவு காட்டப்படுகிறது" : "Unreachable — showing sample data")
-        : (this.state.backendOk
-            ? (ta ? "இணைக்கப்பட்டது" : "Connected")
-            : (ta ? "சரிபார்க்கப்படுகிறது…" : "Checking…"))
+      askPlaceholder: L.askPlaceholder,
+      footnote: L.footnote,
+      unitNote: this.state.unit === "C" ? L.unitNoteMetric : L.unitNoteImperial,
+      isSignedOut: this.state.auth === "signed_out",
+      isSigningIn: this.state.auth === "signing_in",
+      isSignedIn: this.state.auth === "signed_in",
+      signInLabel: L.signIn, signingInLabel: L.signingIn, signOutLabel: L.signOut,
+      onSignIn: () => this.signIn(),
+      onSignOut: () => this.signOut(),
+      onToggleUserMenu: () => this.setState(s => ({userMenuOpen: !s.userMenuOpen})),
+      userMenuOpen: this.state.userMenuOpen,
+      userName: this.state.user ? this.state.user.name : "",
+      userEmail: this.state.user ? this.state.user.email : "",
+      userInitial: this.state.user ? this.state.user.name.charAt(0) : "",
+      isHomeView: this.state.view === "home",
+      isHistoryView: this.state.view === "history",
+      historyTitle: L.historyTitle,
+      historySignedOut: !signedIn,
+      historyLoading: signedIn && this.state.historyStatus === "loading",
+      historyEmpty: signedIn && this.state.historyStatus !== "loading" && this.state.history.length === 0,
+      historyReady: signedIn && this.state.historyStatus !== "loading" && this.state.history.length > 0,
+      historyHasItems: signedIn && this.state.historyStatus !== "loading" && this.state.history.length > 0,
+      historyEmptyTitle: L.historyEmptyTitle, historyEmptyBody: L.historyEmptyBody,
+      historySignedOutTitle: L.historySignedOutTitle, historySignedOutBody: L.historySignedOutBody,
+      clearAllLabel: L.clearAll, askAgainLabel: L.askAgain, deleteLabel: L.deleteLabel,
+      onClearHistory: () => this.setState({history: []}),
+      historySkeleton: ["72%", "58%", "66%"].map(w => ({w})),
+      historyGroups
     };
   }
 }
