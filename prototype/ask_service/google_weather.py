@@ -31,7 +31,7 @@ ENDPOINTS = {
     "history_hours": "history/hours:lookup",
 }
 TTL_SECONDS = {"current_conditions": 900, "forecast_days": 21600, "history_hours": 3600}
-FORECAST_DAYS = 2
+FORECAST_DAYS = 5
 HISTORY_HOURS = 24
 TIMEOUT = 10.0
 

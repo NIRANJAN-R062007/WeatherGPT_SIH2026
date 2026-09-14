@@ -35,16 +35,16 @@ def test_values_match_fixtures():
     assert (cur["temp_c"], cur["feels_like_c"], cur["humidity_pct"],
             cur["wind_kmh"], cur["wind_dir"]) == (28, 32.5, 81, 16, "SSW")
     rain = weather_data.get_weather("chennai", "will_it_rain", "tomorrow")
-    assert (rain["rain_probability_pct"], rain["high_c"], rain["low_c"]) == (20, 33.6, 28)
+    assert (rain["rain_probability_pct"], rain["high_c"], rain["low_c"]) == (5, 32.6, 26.7)
 
 
 def test_day_selection():
     def rain(day):
         return weather_data.get_weather("chennai", "will_it_rain", day)["rain_probability_pct"]
 
-    assert rain("today") == 30
-    assert rain("tomorrow") == 20
-    assert rain("tonight") == 45
+    assert rain("today") == 25
+    assert rain("tomorrow") == 5
+    assert rain("tonight") == 0
 
 
 def test_weather_tomorrow_routes_to_forecast():
@@ -185,14 +185,19 @@ def test_rain_so_far_falls_back_to_24h_qpf_when_history_none(monkeypatch):
 
 
 def test_multi_day_facts_caps_at_available_days():
-    facts = weather_data.multi_day_facts("chennai", 5)
-    assert facts["days_requested"] == 5
-    assert facts["days_counted"] == 2
-    assert len(facts["days"]) == 2
+    from google_weather import FORECAST_DAYS
+
+    facts = weather_data.multi_day_facts("chennai", 7)
+    assert facts["days_requested"] == 7
+    assert facts["days_counted"] == FORECAST_DAYS
+    assert len(facts["days"]) == FORECAST_DAYS
     assert facts["days"][0]["label"] == "today"
     assert facts["days"][1]["label"] == "tomorrow"
 
 
 def test_forecast_day_strict_none_beyond_range():
+    from google_weather import FORECAST_DAYS
+
     assert weather_data.forecast_day("chennai", 0) is not None
-    assert weather_data.forecast_day("chennai", 2) is None  # only 2 days in fixture
+    # only FORECAST_DAYS days in the fixture; STRICT, no clamping
+    assert weather_data.forecast_day("chennai", FORECAST_DAYS) is None

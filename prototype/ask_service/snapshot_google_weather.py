@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 
 import config
 import httpx
-from google_weather import ENDPOINTS, HISTORY_HOURS
+from google_weather import ENDPOINTS, FORECAST_DAYS, HISTORY_HOURS
 
 CITIES_PATH = config.DATA_DIR / "cities.json"
 OUT_DIR = config.FIXTURES_DIR / "google_weather"
@@ -102,7 +102,7 @@ def main() -> int:
                     choices=["all", "chennai", "madurai", "coimbatore"])
     ap.add_argument("--kind", default="all",
                     choices=["all", "current_conditions", "forecast_days", "history_hours"])
-    ap.add_argument("--days", type=int, default=2)
+    ap.add_argument("--days", type=int, default=FORECAST_DAYS)
     ap.add_argument("--units", default="METRIC")
     ap.add_argument("--force", action="store_true", help="overwrite existing fixtures")
     ap.add_argument("--dry-run", action="store_true", help="fetch and report, do not write")

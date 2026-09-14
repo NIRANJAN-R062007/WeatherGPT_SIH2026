@@ -4,6 +4,8 @@ narration_facts(): the parameter-scoped subset of facts sent to the prompt
 """
 
 import router
+import weather_data
+from google_weather import FORECAST_DAYS
 from nlu import ParsedQuery
 
 
@@ -30,9 +32,15 @@ def test_forecast_today():
     assert data is not None and "high_c" in data
 
 
-def test_day_after_tomorrow_returns_none_on_two_day_fixture():
+def test_day_after_tomorrow_resolves_with_five_day_fixture():
     data = router.route(_pq(intent="forecast", time_window="day_after_tomorrow"), "chennai")
-    assert data is None  # only 2 forecast days in the fixture; STRICT, no clamping
+    assert data is not None and "high_c" in data
+
+
+def test_forecast_day_strict_none_beyond_fixture():
+    # FORECAST_DAYS (5) worth of days are snapshotted; offset == FORECAST_DAYS is
+    # one past the last available index. STRICT: no clamping to another day.
+    assert weather_data.forecast_day("chennai", FORECAST_DAYS) is None
 
 
 def test_will_it_rain_today_tonight_tomorrow():
@@ -43,9 +51,9 @@ def test_will_it_rain_today_tonight_tomorrow():
 
 def test_forecast_next_n_days_caps_at_available():
     data = router.route(
-        _pq(intent="forecast", time_window="next_n_days", days=5), "chennai"
+        _pq(intent="forecast", time_window="next_n_days", days=7), "chennai"
     )
-    assert data["days_counted"] == 2 and data["days_requested"] == 5
+    assert data["days_counted"] == FORECAST_DAYS and data["days_requested"] == 7
 
 
 def test_will_it_rain_next_n_days():

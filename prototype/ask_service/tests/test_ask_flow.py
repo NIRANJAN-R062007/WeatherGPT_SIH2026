@@ -215,11 +215,13 @@ def test_next_n_days_caps_and_grounds(monkeypatch):
     assert body["grounding"]["ok"] is True
 
 
-def test_day_after_tomorrow_refuses(monkeypatch):
+def test_day_after_tomorrow_resolves(monkeypatch):
+    # With FORECAST_DAYS raised to 5, day_after_tomorrow (offset 2) is within the
+    # fixture range and now answers instead of refusing.
     monkeypatch.setattr(main, "narrate", lambda *a, **k: None)
     body = _ask("day after tomorrow weather in Chennai")
-    assert "response" not in body
-    assert body["message"] == main._msg("no_data", "en")
+    assert "response" in body
+    assert set(body["provenance"]) == {"source", "issued", "is_live", "retrieved_at"}
 
 
 def test_out_of_scope_cyclone_returns_message_no_response():
