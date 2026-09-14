@@ -461,6 +461,7 @@ const STR = {
     voiceListeningHint: "Speak your question — it is sent as soon as you stop.",
     voiceTranscribingHint: "The question is sent only after the transcript comes back.",
     voiceDeniedHint: "Allow the microphone in your browser settings, then try again.",
+    voiceUnsupportedHint: "Microphone isn't available in this in-app browser (e.g. WhatsApp/Instagram). Open this link in Chrome or Safari instead, then try again.",
     voiceDismiss: "Dismiss", voiceCancel: "Cancel",
     micDenied: "Microphone access denied.", micRecordingFailed: "Recording failed.",
     micNoSpeech: "Couldn't understand the audio.", micServiceUnavailable: "Voice service unavailable.",
@@ -1059,6 +1060,13 @@ class Component extends DCLogic {
       } catch (e) {
         this.setIfAlive({voice: "idle", micNotice: L.micServiceUnavailable});
       }
+      return;
+    }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      // In-app browsers (WhatsApp/Instagram/etc.) commonly don't expose
+      // getUserMedia at all, so there's never a permission prompt to grant —
+      // "denied"'s "allow it in settings" hint is actively wrong there.
+      this.setIfAlive({voice: "idle", micNotice: L.voiceUnsupportedHint || L.voiceDeniedHint});
       return;
     }
     try {
