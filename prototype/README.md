@@ -362,3 +362,20 @@ requests get `route="unmatched"`):
 services (and gateway/orchestrator if you started them together); the
 `postgres`/`redis` data volumes and the compose network are shared with the
 rest of the stack as usual.
+
+## Kubernetes
+
+A kustomize base for `gateway` and `orchestrator` (Deployments, Services, an
+Ingress, HPAs, Prometheus scrape annotations) lives in `k8s/base/`. CI
+validates the rendered manifests with kubeconform and publishes both images
+to GHCR on pushes to `main`. See `k8s/README.md` for apply steps, a kind
+quick-start, and what's deliberately absent from this base (Postgres, Redis,
+metrics-server, Ollama).
+
+## Load test
+
+`loadtest/` has two k6 scripts run through `loadtest/run.sh`: a 150 rps
+traffic spike across `/ask`, `/facts` and `/warnings`, and an abuse run
+(through the gateway) proving the per-client rate limit and the request
+body-size cap. See `loadtest/README.md` for exact commands and this
+project's own results.

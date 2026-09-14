@@ -1,0 +1,24 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: weathergpt
+
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - secret.yaml
+  - gateway.yaml
+  - orchestrator.yaml
+  - ingress.yaml
+  - hpa.yaml
+
+images:
+  - name: ghcr.io/niranjan-r062007/weathergpt-gateway
+    newTag: latest
+  - name: ghcr.io/niranjan-r062007/weathergpt-orchestrator
+    newTag: latest
+
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: weathergpt
+    includeSelectors: false

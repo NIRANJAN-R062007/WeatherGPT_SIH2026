@@ -7,3 +7,11 @@ __pycache__/
 data/fixtures/*.local.json
 data/fixtures/**/*.local.json
 .idea/
+
+# Kubernetes real secret (see k8s/base/secret.example.yaml)
+k8s/base/secret.yaml
+
+# k6 load test server logs and timestamped result files
+loadtest/results/*.log
+loadtest/results/spike-*.json
+loadtest/results/abuse-*.json

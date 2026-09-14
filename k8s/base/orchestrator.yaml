@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orchestrator
+  namespace: weathergpt
+  labels:
+    app.kubernetes.io/name: orchestrator
+    app.kubernetes.io/part-of: weathergpt
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: orchestrator
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: orchestrator
+        app.kubernetes.io/part-of: weathergpt
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8001"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+        - name: orchestrator
+          image: ghcr.io/niranjan-r062007/weathergpt-orchestrator:latest
+          ports:
+            - containerPort: 8001
+          envFrom:
+            - configMapRef:
+                name: weathergpt-config
+            - secretRef:
+                name: weathergpt-secrets
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 1Gi
+          # /livez does no I/O (pure liveness check).
+          livenessProbe:
+            httpGet:
+              path: /livez
+              port: 8001
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          # /health may probe Ollama (config.OLLAMA_BASE, absent by default in
+          # this base manifest) and always returns 200 regardless of whether
+          # that probe succeeds — but give it generous slack for a slow
+          # connect/DNS failure to an unreachable host.
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8001
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 10
+            failureThreshold: 6
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: orchestrator
+  namespace: weathergpt
+  labels:
+    app.kubernetes.io/name: orchestrator
+    app.kubernetes.io/part-of: weathergpt
+spec:
+  selector:
+    app.kubernetes.io/name: orchestrator
+  ports:
+    - name: http
+      port: 8001
+      targetPort: 8001

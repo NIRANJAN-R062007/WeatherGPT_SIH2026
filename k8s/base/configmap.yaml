@@ -1,0 +1,37 @@
+# Non-secret config, mirrors .env.example (repo root). Real API keys and
+# other secrets live in secret.yaml (gitignored) — see secret.example.yaml.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: weathergpt-config
+  namespace: weathergpt
+data:
+  # LLM providers (models only — keys are in the Secret)
+  GEMINI_MODEL: "gemini-flash-latest"
+  GROQ_MODEL: "openai/gpt-oss-120b"
+
+  # Third provider: local Ollama, tried after Gemini/Groq (or first when
+  # OFFLINE_MODE=1). Point this at an in-cluster Ollama Service if/when one
+  # is added — see k8s/README.md "what's deliberately absent".
+  OLLAMA_BASE: "http://ollama:11434"
+  OLLAMA_MODEL: "llama3.2:3b"
+  OLLAMA_TIMEOUT: "30"
+
+  # Public-surface limits (services/orchestrator/limits.py)
+  MAX_BODY_BYTES: "2097152"
+  RATE_LIMIT_PER_MINUTE: "30"
+
+  # CORS for the /ask surface — comma-separated origins; unset means "*"
+  ALLOWED_ORIGINS: ""
+
+  # Weather source + kill switches
+  WEATHER_MODE: "auto"
+  OFFLINE_MODE: "0"
+  RAG_ENABLED: "1"
+
+  # Supabase project URL (anon key is a secret — see secret.example.yaml)
+  SUPABASE_URL: ""
+
+  # Gateway -> orchestrator wiring (docker-compose.yml's equivalent)
+  ORCHESTRATOR_URL: "http://orchestrator:8001"
+  PROXY_TIMEOUT: "60"
