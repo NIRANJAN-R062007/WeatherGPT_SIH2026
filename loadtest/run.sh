@@ -81,14 +81,16 @@ cleanup() {
 trap cleanup EXIT
 
 echo "starting orchestrator on :8001..."
-(cd "$ROOT/services/orchestrator" && "$ROOT/$VENV/uvicorn" main:app --port 8001 >> "$ORCH_LOG" 2>&1) &
+# `exec` so $! is uvicorn itself, not a wrapper subshell — otherwise the EXIT
+# trap kills the wrapper and leaves the server holding the port.
+(cd "$ROOT/services/orchestrator" && exec "$ROOT/$VENV/uvicorn" main:app --port 8001 >> "$ORCH_LOG" 2>&1) &
 ORCH_PID=$!
 
 echo "starting gateway on :8000..."
 export ORCHESTRATOR_URL=http://localhost:8001
 export DATABASE_URL=postgresql://weathergpt:weathergpt_dev@localhost:5432/weathergpt
 export REDIS_URL=redis://localhost:6379/0
-(cd "$ROOT/services/gateway" && "$ROOT/$VENV/uvicorn" main:app --port 8000 >> "$GW_LOG" 2>&1) &
+(cd "$ROOT/services/gateway" && exec "$ROOT/$VENV/uvicorn" main:app --port 8000 >> "$GW_LOG" 2>&1) &
 GW_PID=$!
 
 # Prefer /livez (no I/O, added alongside /metrics by a parallel workstream —

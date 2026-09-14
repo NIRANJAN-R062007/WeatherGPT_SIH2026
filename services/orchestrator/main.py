@@ -461,4 +461,6 @@ def _frontend_index():
     return RedirectResponse("/WeatherGPT.dc.html")
 
 
-app.mount("/", StaticFiles(directory=_FRONTEND_DIR), name="frontend")
+# check_dir=False: an image built without prototype/frontend (API-only) must
+# still boot — StaticFiles otherwise raises at import and crash-loops the pod.
+app.mount("/", StaticFiles(directory=_FRONTEND_DIR, check_dir=False), name="frontend")

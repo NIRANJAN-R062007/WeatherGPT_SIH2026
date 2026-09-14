@@ -66,61 +66,32 @@ default) — that's expected and not a manifest bug.
 A real run (kind v0.24.0, kubectl v1.31.0, `:dev` images built from this
 checkout) got the cluster up, images loaded, and the manifests applied
 cleanly — `kubectl apply -k` succeeded first try, kubeconform found no
-schema issues, and the HPAs, Services and Ingress all registered. But the
-Deployments themselves did not go healthy, for two reasons that are bugs in
-the application images this base points at, not in the manifests:
+schema issues, and the HPAs, Services and Ingress all registered. The
+Deployments did **not** go healthy on that first run, which exposed two bugs
+in the application images (not the manifests). Both are now fixed on `main`:
 
-1. **Gateway crashes at import if `DATABASE_URL`/`REDIS_URL` are empty
+1. **Gateway crashed at import when `DATABASE_URL`/`REDIS_URL` were empty
    strings.** `secret.example.yaml` ships both empty on purpose (no
-   Postgres/Redis in this base — see above), and `envFrom: secretRef` sets
-   the container's `DATABASE_URL` env var to `""`. `services/gateway/main.py`
-   does `os.getenv("DATABASE_URL", "<default>")` — since the var *is* set
-   (to an empty string), Python's `os.getenv` returns `""` rather than
-   falling through to the default, and `sqlalchemy.create_engine("")` raises
-   at import time, crash-looping the pod. Confirmed fix (verified live, not
-   applied to committed files — out of this task's file ownership):
-   `kubectl -n weathergpt set env deploy/gateway
-   DATABASE_URL=postgresql://weathergpt:weathergpt_dev@localhost:5432/weathergpt
-   REDIS_URL=redis://localhost:6379/0` — with those set to any
-   syntactically valid (even unreachable) URL, the gateway pod goes
-   `1/1 Running` immediately. **Until `services/gateway/main.py` is changed
-   to treat an empty string the same as unset (matching the
-   `os.getenv(...) or default` pattern `services/orchestrator/config.py`
-   already uses elsewhere), a real deployment of this base needs
-   `secret.yaml` to carry at least syntactically valid `DATABASE_URL` and
-   `REDIS_URL` values, not empty ones** — flag this to whoever owns
-   `services/gateway/main.py`.
-2. **Orchestrator crashes at import: `RuntimeError: Directory
-   '/app/prototype/frontend' does not exist`.** `services/orchestrator/main.py`
-   mounts `StaticFiles(directory=_FRONTEND_DIR)` at `REPO_ROOT / "prototype"
-   / "frontend"`, but `services/orchestrator/Dockerfile` only `COPY`s
-   `services/orchestrator` and `data` into the image — `prototype/frontend`
-   is never baked in. This is invisible in `docker-compose.yml` because that
-   service bind-mounts the whole repo (`volumes: - .:/app`), which papers
-   over the missing directory at runtime; it only surfaces when the image
-   runs standalone, as Kubernetes must. Every orchestrator pod
-   crash-loop-backed off on this in the kind run. **This is a real bug in
-   the orchestrator image (Dockerfile or main.py, both outside this task's
-   file ownership) that will affect any non-compose deployment, including
-   `kubectl apply -k`, `docker run` on its own, or Kubernetes** — flag it
-   to whoever owns `services/orchestrator/`.
+   Postgres/Redis in this base), and `envFrom: secretRef` sets the variable
+   to `""` — `os.getenv(name, default)` then returns `""` and
+   `create_engine("")` raised. `services/gateway/main.py` now uses
+   `os.getenv(name) or default`, so empty means "use the default (and let
+   `/health` report the connection error)".
+2. **Orchestrator crashed at import with `Directory '/app/prototype/frontend'
+   does not exist`.** `main.py` mounts the web UI from there but the
+   Dockerfile never copied it in — invisible under docker-compose, which
+   bind-mounts the whole repo. The Dockerfile now `COPY`s
+   `prototype/frontend`, and the mount uses `check_dir=False` so an
+   API-only image still boots.
 
-With the gateway's DB/Redis vars patched live, the gateway pods came up and
-the proxy behaved exactly as designed: `curl localhost:18000/health`
-returned Postgres/Redis/orchestrator each independently reporting a
-connection error (200 status, as coded) and `curl
-localhost:18000/ask?text=weather%20in%20Chennai` returned `{"error":
-"orchestrator unreachable", "detail": "ConnectError"}` — correct behavior
-given the orchestrator pods were down. The gateway pods also restarted once
-each on `/livez` — expected, since the images built from this checkout
-predate the parallel workstream that's adding `/livez`/`/metrics`; once that
-lands in the images, the liveness probe will pass on the first check.
-`kubectl -n weathergpt get hpa` showed `cpu: <unknown>/60%` for both HPAs, as
-expected with no metrics-server in a bare kind cluster.
-
-The cluster was deleted afterward (`kind delete cluster --name weathergpt`)
-along with the local `:dev` images and the temporary image-override overlay
-used to apply them.
+With the gateway's DB/Redis vars patched live during that run, its pods came
+up and the proxy behaved exactly as designed: `/health` returned
+Postgres/Redis/orchestrator each independently reporting a connection error
+(200 status, as coded) and `/ask` returned `{"error": "orchestrator
+unreachable"}` while the orchestrator pods were down. `kubectl -n weathergpt
+get hpa` showed `cpu: <unknown>/60%` for both HPAs, as expected with no
+metrics-server in a bare kind cluster. The cluster and local `:dev` images
+were deleted afterward.
 
 ## Validating manifests without a cluster (used in CI and here)
 

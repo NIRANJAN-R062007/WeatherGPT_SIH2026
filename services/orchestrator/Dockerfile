@@ -16,6 +16,9 @@ RUN pip install --no-cache-dir -r services/orchestrator/requirements.txt
 
 COPY services/orchestrator services/orchestrator
 COPY data data
+# main.py serves the web UI from here (plan.md §14 host pin); without it the
+# image is API-only, which is fine behind a separate frontend host.
+COPY prototype/frontend prototype/frontend
 
 WORKDIR /app/services/orchestrator
 

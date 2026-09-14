@@ -24,11 +24,14 @@ from sqlalchemy import create_engine, text
 app = FastAPI(title="WeatherGPT Gateway", version="0.1.0")
 app.add_middleware(metrics.HTTPMetrics, service="gateway")
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://weathergpt:weathergpt_dev@localhost:5432/weathergpt")
-REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-ORCHESTRATOR_URL = os.getenv("ORCHESTRATOR_URL", "http://localhost:8001").rstrip("/")
+# `or default`, not getenv's second argument: a k8s Secret with an empty value
+# still *sets* the variable, and create_engine("") raises at import.
+DATABASE_URL = (os.getenv("DATABASE_URL")
+                or "postgresql://weathergpt:weathergpt_dev@localhost:5432/weathergpt")
+REDIS_URL = os.getenv("REDIS_URL") or "redis://localhost:6379/0"
+ORCHESTRATOR_URL = (os.getenv("ORCHESTRATOR_URL") or "http://localhost:8001").rstrip("/")
 # /tts and LLM narration can take a while; connect fast, read slow.
-PROXY_TIMEOUT = httpx.Timeout(float(os.getenv("PROXY_TIMEOUT", "60")), connect=5.0)
+PROXY_TIMEOUT = httpx.Timeout(float(os.getenv("PROXY_TIMEOUT") or "60"), connect=5.0)
 
 engine = create_engine(DATABASE_URL)
 redis_client = redis.Redis.from_url(REDIS_URL)
