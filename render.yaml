@@ -1,0 +1,52 @@
+# Render Blueprint for the WeatherGPT orchestrator (the actual public
+# entrypoint today — it serves /ask, /facts, /cities, and the frontend HTML
+# itself; see prototype/frontend/WeatherGPT.dc.html's apiBase).
+#
+# Deploy: Render dashboard -> New -> Blueprint -> point at this repo.
+# Every env var below is `sync: false` on purpose — Render prompts you to
+# paste each value once in its dashboard after the first deploy; nothing
+# secret is checked into this file. See .env.example for what each key does.
+
+services:
+  - type: web
+    name: weathergpt-orchestrator
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./services/orchestrator/Dockerfile
+    dockerContext: .
+    envVars:
+      - key: GOOGLE_WEATHER_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-flash-latest
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GROQ_MODEL
+        value: openai/gpt-oss-120b
+      - key: OFFLINE_MODE
+        value: "0"
+      - key: RAG_ENABLED
+        value: "1"
+      - key: WARNINGS_ENABLED
+        value: "0"
+      - key: MAX_BODY_BYTES
+        value: "2097152"
+      - key: RATE_LIMIT_PER_MINUTE
+        value: "30"
+      - key: BHASHINI_USER_ID
+        sync: false
+      - key: BHASHINI_ULCA_API_KEY
+        sync: false
+      - key: BHASHINI_INFERENCE_KEY
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: WEATHER_MODE
+        value: auto
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
