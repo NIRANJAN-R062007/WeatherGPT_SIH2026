@@ -268,12 +268,21 @@ def _language_from_script(script: str, lang_hint: str | None) -> str | None:
     return None
 
 
-def parse(text: str, lang_hint: str | None = None) -> ParsedQuery:
+def parse(text: str, lang_hint: str | None = None, city_hint: str | None = None) -> ParsedQuery:
     script = detect_script(text)
     language = _language_from_script(script, lang_hint)
 
     pq = parse_rules(text, script)
     pq.language = language
+
+    # No city named in the text (e.g. "will it rain tomorrow?") but the intent
+    # is clearly weather-shaped: fall back to the UI's currently selected city
+    # rather than paying for a full LLM round trip just to learn there's no
+    # city to disambiguate.
+    if pq.city is None and pq.intent in _P0_INTENTS:
+        resolved_hint = cities.resolve(city_hint)
+        if resolved_hint is not None:
+            pq.city = resolved_hint
 
     keyword_hit = bool(_KEYWORD_HIT_RE.search(text))
     if _rule_accepted(pq, keyword_hit):

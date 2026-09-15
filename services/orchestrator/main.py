@@ -368,7 +368,7 @@ def warnings_route(city: str, lang: str = "en"):
 def ask(text: str, lang: str = "en", city: str | None = None,
         token: str | None = Depends(get_bearer_token)):
     lang = lang if lang in SUPPORTED_LANGUAGES else "en"
-    pq = nlu.parse(text, lang_hint=lang)
+    pq = nlu.parse(text, lang_hint=lang, city_hint=city)
     notice = _msg("language_unsupported", lang) if pq.language is None else None
 
     if pq.intent in ("unrecognized", "unsupported_city", "out_of_scope"):
