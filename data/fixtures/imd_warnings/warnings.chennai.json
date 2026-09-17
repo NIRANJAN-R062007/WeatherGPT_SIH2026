@@ -14,7 +14,10 @@
     "advice": "Avoid low-lying and waterlogging-prone areas; keep essential travel to a minimum.",
     "labels": {
       "en": {"headline": "Orange alert: heavy rainfall expected"},
-      "ta": {"headline": "ஆரஞ்சு எச்சரிக்கை: கனமழை எதிர்பார்க்கப்படுகிறது"}
+      "ta": {"headline": "ஆரஞ்சு எச்சரிக்கை: கனமழை எதிர்பார்க்கப்படுகிறது"},
+      "hi": {"headline": "नारंगी अलर्ट: भारी बारिश की आशंका"},
+      "te": {"headline": "నారింజ హెచ్చరిక: భారీ వర్షం ఆశించబడుతోంది"},
+      "mr": {"headline": "नारिंगी इशारा: मुसळधार पावसाची शक्यता"}
     }
   }
 }

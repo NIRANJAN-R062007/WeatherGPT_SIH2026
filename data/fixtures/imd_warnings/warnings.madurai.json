@@ -14,7 +14,10 @@
     "advice": "Avoid open fields and sheltering under trees during thunderstorm activity.",
     "labels": {
       "en": {"headline": "Yellow alert: thunderstorm with lightning"},
-      "ta": {"headline": "மஞ்சள் எச்சரிக்கை: இடியுடன் கூடிய மழை"}
+      "ta": {"headline": "மஞ்சள் எச்சரிக்கை: இடியுடன் கூடிய மழை"},
+      "hi": {"headline": "पीला अलर्ट: बिजली के साथ आंधी-तूफान"},
+      "te": {"headline": "పసుపు హెచ్చరిక: మెరుపులతో కూడిన ఉరుములతో గాలివాన"},
+      "mr": {"headline": "पिवळा इशारा: विजांच्या कडकडाटासह वादळ"}
     }
   }
 }

@@ -14,7 +14,10 @@
     "advice": "No significant weather warning in force; normal activities can continue.",
     "labels": {
       "en": {"headline": "No warning in force"},
-      "ta": {"headline": "எச்சரிக்கை இல்லை"}
+      "ta": {"headline": "எச்சரிக்கை இல்லை"},
+      "hi": {"headline": "कोई चेतावनी नहीं"},
+      "te": {"headline": "హెచ్చరిక లేదు"},
+      "mr": {"headline": "कोणताही इशारा नाही"}
     }
   }
 }

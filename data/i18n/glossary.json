@@ -1,0 +1,56 @@
+{
+  "_meta": {
+    "description": "Canonical glossary for reusable lookup terms that aren't full sentence/phrase templates (those live in services/orchestrator/i18n.py). Covers plan.md §14's leftover 'glossary as a file' item: IMD warning colour-code meanings and IMD warning category names, in all 5 supported languages (en, ta, hi, te, mr).",
+    "id_convention": "colour_<name> for the 4 IMD colour codes (sourced from data/imd_reference/imd_reference.json's colour_code entries); category_<name> for warning category labels that appear in data/fixtures/imd_warnings/*.json's response.category field ('category_no_warning' covers the null/no-category case).",
+    "native_qa_convention": "Each per-language entry carries its own \"native_qa\" flag, same intent as the TODO/native-speaker-reviewed comments in i18n.py, just expressed as JSON data instead of a Python comment. English is the authored source text (native_qa: true trivially). No native speaker was available to review the ta/hi/te/mr text in this pass, so all four are flagged native_qa: false — direct, careful translations of the English source, not paraphrases, but unreviewed. Update the flag to true once a native speaker confirms a given language's text, matching how i18n.py tracks the same thing."
+  },
+  "colour_green": {
+    "en": {"text": "Green means no warning: no significant severe weather is expected, so no specific action is needed beyond normal precautions.", "native_qa": true},
+    "ta": {"text": "பச்சை என்பது எச்சரிக்கை இல்லை என்பதைக் குறிக்கிறது: குறிப்பிடத்தக்க கடுமையான வானிலை எதிர்பார்க்கப்படவில்லை, எனவே வழக்கமான முன்னெச்சரிக்கைகளைத் தவிர வேறு நடவடிக்கை தேவையில்லை.", "native_qa": false},
+    "hi": {"text": "हरा रंग दर्शाता है कि कोई चेतावनी नहीं है: किसी गंभीर खराब मौसम की आशंका नहीं है, इसलिए सामान्य सावधानियों के अलावा किसी विशेष कार्रवाई की आवश्यकता नहीं है।", "native_qa": false},
+    "te": {"text": "ఆకుపచ్చ రంగు హెచ్చరిక లేదని సూచిస్తుంది: ముఖ్యమైన తీవ్ర వాతావరణం ఆశించబడదు, కాబట్టి సాధారణ జాగ్రత్తలు తప్ప ప్రత్యేక చర్య అవసరం లేదు.", "native_qa": false},
+    "mr": {"text": "हिरवा रंग म्हणजे कोणताही इशारा नाही: कोणत्याही गंभीर हवामानाची शक्यता नाही, त्यामुळे नेहमीच्या खबरदारीशिवाय विशेष कृतीची गरज नाही.", "native_qa": false}
+  },
+  "colour_yellow": {
+    "en": {"text": "Yellow means watch and stay updated: be aware of developing weather conditions and keep checking for the latest forecasts, as the situation could worsen.", "native_qa": true},
+    "ta": {"text": "மஞ்சள் என்பது கவனமாக இருங்கள், புதுப்பிப்புகளைப் பின்பற்றுங்கள் என்பதைக் குறிக்கிறது: வளர்ந்து வரும் வானிலை நிலைமைகளை அறிந்திருங்கள், நிலைமை மோசமடையக்கூடும் என்பதால் சமீபத்திய முன்னறிவிப்புகளைத் தொடர்ந்து சரிபார்க்கவும்.", "native_qa": false},
+    "hi": {"text": "पीला रंग दर्शाता है कि सतर्क रहें और अपडेट रहें: बदलते मौसम की स्थिति पर ध्यान दें और नवीनतम पूर्वानुमान लगातार देखते रहें, क्योंकि स्थिति और बिगड़ सकती है।", "native_qa": false},
+    "te": {"text": "పసుపు రంగు అప్రమత్తంగా ఉండి తాజా సమాచారం తెలుసుకోమని సూచిస్తుంది: అభివృద్ధి చెందుతున్న వాతావరణ పరిస్థితులపై అవగాహన కలిగి ఉండండి మరియు పరిస్థితి మరింత దిగజారవచ్చు కాబట్టి తాజా సూచనలను ఎప్పటికప్పుడు తనిఖీ చేయండి.", "native_qa": false},
+    "mr": {"text": "पिवळा रंग म्हणजे सतर्क राहा आणि माहिती अद्ययावत ठेवा: विकसित होत असलेल्या हवामान परिस्थितीची जाणीव ठेवा आणि परिस्थिती अधिक बिघडू शकते म्हणून नवीनतम अंदाज सतत तपासत रहा.", "native_qa": false}
+  },
+  "colour_orange": {
+    "en": {"text": "Orange means be prepared: severe weather is likely, so people should stay alert, prepare for disruption, and follow guidance from local authorities.", "native_qa": true},
+    "ta": {"text": "ஆரஞ்சு என்பது தயாராக இருங்கள் என்பதைக் குறிக்கிறது: கடுமையான வானிலை ஏற்படும் வாய்ப்புள்ளது, எனவே மக்கள் விழிப்புடன் இருந்து, இடையூறுகளுக்குத் தயாராகி, உள்ளூர் அதிகாரிகளின் வழிகாட்டுதலைப் பின்பற்ற வேண்டும்.", "native_qa": false},
+    "hi": {"text": "नारंगी रंग दर्शाता है कि तैयार रहें: गंभीर मौसम की संभावना है, इसलिए लोगों को सतर्क रहना चाहिए, व्यवधान के लिए तैयार रहना चाहिए और स्थानीय अधिकारियों के मार्गदर्शन का पालन करना चाहिए।", "native_qa": false},
+    "te": {"text": "నారింజ రంగు సిద్ధంగా ఉండమని సూచిస్తుంది: తీవ్రమైన వాతావరణం అవకాశం ఉంది, కాబట్టి ప్రజలు అప్రమత్తంగా ఉండి, అంతరాయాలకు సిద్ధంగా ఉండి, స్థానిక అధికారుల మార్గదర్శకాలను పాటించాలి.", "native_qa": false},
+    "mr": {"text": "नारिंगी रंग म्हणजे तयार राहा: गंभीर हवामानाची शक्यता आहे, त्यामुळे लोकांनी सतर्क राहावे, अडथळ्यांसाठी तयार राहावे आणि स्थानिक प्रशासनाच्या सूचनांचे पालन करावे.", "native_qa": false}
+  },
+  "colour_red": {
+    "en": {"text": "Red means take action: very severe weather is expected, so people should follow official advisories, avoid unnecessary travel, and take protective action immediately.", "native_qa": true},
+    "ta": {"text": "சிவப்பு என்பது நடவடிக்கை எடுங்கள் என்பதைக் குறிக்கிறது: மிகக் கடுமையான வானிலை எதிர்பார்க்கப்படுகிறது, எனவே மக்கள் அதிகாரப்பூர்வ ஆலோசனைகளைப் பின்பற்றி, தேவையற்ற பயணத்தைத் தவிர்த்து, உடனடியாக பாதுகாப்பு நடவடிக்கை எடுக்க வேண்டும்.", "native_qa": false},
+    "hi": {"text": "लाल रंग दर्शाता है कि कार्रवाई करें: बहुत गंभीर मौसम की आशंका है, इसलिए लोगों को आधिकारिक सलाह का पालन करना चाहिए, अनावश्यक यात्रा से बचना चाहिए और तुरंत सुरक्षात्मक कदम उठाने चाहिए।", "native_qa": false},
+    "te": {"text": "ఎరుపు రంగు చర్య తీసుకోమని సూచిస్తుంది: అత్యంత తీవ్రమైన వాతావరణం ఆశించబడుతోంది, కాబట్టి ప్రజలు అధికారిక సూచనలను పాటించి, అనవసర ప్రయాణాన్ని నివారించి, వెంటనే రక్షణ చర్యలు తీసుకోవాలి.", "native_qa": false},
+    "mr": {"text": "लाल रंग म्हणजे कृती करा: अत्यंत तीव्र हवामानाची शक्यता आहे, त्यामुळे लोकांनी अधिकृत सूचनांचे पालन करावे, अनावश्यक प्रवास टाळावा आणि त्वरित संरक्षणात्मक उपाययोजना कराव्यात.", "native_qa": false}
+  },
+  "category_heavy_rainfall": {
+    "en": {"text": "Heavy rainfall", "native_qa": true},
+    "ta": {"text": "கனமழை", "native_qa": false},
+    "hi": {"text": "भारी बारिश", "native_qa": false},
+    "te": {"text": "భారీ వర్షం", "native_qa": false},
+    "mr": {"text": "मुसळधार पाऊस", "native_qa": false}
+  },
+  "category_thunderstorm_with_lightning": {
+    "en": {"text": "Thunderstorm with lightning", "native_qa": true},
+    "ta": {"text": "இடியுடன் கூடிய மழை", "native_qa": false},
+    "hi": {"text": "बिजली के साथ आंधी-तूफान", "native_qa": false},
+    "te": {"text": "మెరుపులతో కూడిన ఉరుములతో గాలివాన", "native_qa": false},
+    "mr": {"text": "विजांच्या कडकडाटासह वादळ", "native_qa": false}
+  },
+  "category_no_warning": {
+    "en": {"text": "No warning in force", "native_qa": true},
+    "ta": {"text": "எச்சரிக்கை இல்லை", "native_qa": false},
+    "hi": {"text": "कोई चेतावनी नहीं", "native_qa": false},
+    "te": {"text": "హెచ్చరిక లేదు", "native_qa": false},
+    "mr": {"text": "कोणताही इशारा नाही", "native_qa": false}
+  }
+}

@@ -52,6 +52,18 @@ def test_fixture_is_well_formed(city):
     assert "en" in response["labels"] and response["labels"]["en"]["headline"]
 
 
+@pytest.mark.parametrize("city", CITIES)
+def test_fixture_has_all_five_languages(city):
+    # plan.md §14: hi/te/mr were missing from labels and silently fell back
+    # to English — make sure a future edit can't drop one by accident.
+    path = WARN_DIR / f"warnings.{city}.json"
+    env = json.loads(path.read_text(encoding="utf-8"))
+    labels = env["response"]["labels"]
+    for lang in ("en", "ta", "hi", "te", "mr"):
+        assert lang in labels, f"{city} fixture missing '{lang}' label"
+        assert labels[lang]["headline"], f"{city} fixture has an empty '{lang}' headline"
+
+
 def test_warnings_disabled_by_default():
     # config.WARNINGS_ENABLED defaults off — the fixture is fake data, not a
     # live feed, so /warnings shouldn't serve it as if it were real.
@@ -86,9 +98,36 @@ def test_tamil_headline(_warnings_enabled):
     assert body["warning"]["headline"] == "ஆரஞ்சு எச்சரிக்கை: கனமழை எதிர்பார்க்கப்படுகிறது"
 
 
+@pytest.mark.parametrize(
+    "lang,expected",
+    [
+        ("hi", "नारंगी अलर्ट: भारी बारिश की आशंका"),
+        ("te", "నారింజ హెచ్చరిక: భారీ వర్షం ఆశించబడుతోంది"),
+        ("mr", "नारिंगी इशारा: मुसळधार पावसाची शक्यता"),
+    ],
+)
+def test_chennai_headline_all_languages(_warnings_enabled, lang, expected):
+    # plan.md §14: hi/te/mr headlines were missing from the fixtures and
+    # silently fell back to English (imd_warnings.public()'s
+    # `labels.get(lang) or labels["en"]`) — now all 5 languages have real text.
+    body = client.get("/warnings", params={"city": "chennai", "lang": lang}).json()
+    assert body["warning"]["headline"] == expected
+
+
 def test_unsupported_lang_falls_back_to_english(_warnings_enabled):
-    body = client.get("/warnings", params={"city": "chennai", "lang": "hi"}).json()
-    assert body["warning"]["headline"] == "Orange alert: heavy rainfall expected"
+    # All 5 SUPPORTED_LANGUAGES now have real headlines in the fixtures, so
+    # the /warnings route's own _require_lang(lang) rejects anything else
+    # with a 422 before imd_warnings.public() is even reached — the
+    # labels.get(lang) or labels["en"] fallback in public() is no longer
+    # reachable through the route. Exercise it directly against the module
+    # instead, with a language the fixture genuinely doesn't carry.
+    warning = warnings_module.public("chennai", "fr")
+    assert warning["headline"] == "Orange alert: heavy rainfall expected"
+
+
+def test_route_rejects_unsupported_lang(_warnings_enabled):
+    resp = client.get("/warnings", params={"city": "chennai", "lang": "fr"})
+    assert resp.status_code == 422
 
 
 def test_unknown_city_is_404():
