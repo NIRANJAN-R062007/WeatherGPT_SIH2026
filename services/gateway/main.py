@@ -12,6 +12,7 @@ them, so the demo path (`uvicorn main:app --port 8000` + ngrok) has no
 database dependency.
 """
 
+import logging
 import os
 
 import httpx
@@ -20,6 +21,8 @@ import redis
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 from sqlalchemy import create_engine, text
+
+_LOG = logging.getLogger("weathergpt.gateway")
 
 app = FastAPI(title="WeatherGPT Gateway", version="0.1.0")
 app.add_middleware(metrics.HTTPMetrics, service="gateway")
@@ -63,7 +66,10 @@ def _forward_headers(request: Request) -> dict[str, str]:
 @app.get("/health")
 async def health():
     """Gateway health: Postgres+PostGIS, Redis, and the orchestrator behind us.
-    Each check is independent — a dead database must not hide a live orchestrator."""
+    Each check is independent — a dead database must not hide a live orchestrator.
+    This endpoint is unauthenticated and internet-facing, so responses stay
+    generic ("ok"/"error") — full exception details (which can include internal
+    hostnames/DSNs) go to the server log only, not the caller."""
     status: dict = {"postgres": "unknown", "postgis": "unknown", "redis": "unknown",
                     "orchestrator": "unknown"}
 
@@ -73,22 +79,24 @@ async def health():
             status["postgres"] = "ok"
             postgis_version = conn.execute(text("SELECT PostGIS_Version()")).scalar()
             status["postgis"] = f"ok ({postgis_version})"
-    except Exception as e:
-        status["postgres"] = f"error: {e}"
+    except Exception:
+        _LOG.exception("health check: postgres/postgis failed")
+        status["postgres"] = "error"
         status["postgis"] = "error"
 
     try:
         redis_client.ping()
         status["redis"] = "ok"
-    except Exception as e:
-        status["redis"] = f"error: {e}"
+    except Exception:
+        _LOG.exception("health check: redis failed")
+        status["redis"] = "error"
 
     try:
         r = await _client.get("/health", timeout=5.0)
-        status["orchestrator"] = (r.json() if r.status_code == 200
-                                  else f"error: HTTP {r.status_code}")
-    except Exception as e:
-        status["orchestrator"] = f"error: {e}"
+        status["orchestrator"] = r.json() if r.status_code == 200 else "error"
+    except Exception:
+        _LOG.exception("health check: orchestrator unreachable")
+        status["orchestrator"] = "error"
 
     return status
 
