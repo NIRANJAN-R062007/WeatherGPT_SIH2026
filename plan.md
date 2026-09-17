@@ -245,8 +245,10 @@ Sequential build order — each phase should be working end-to-end before the ne
 
 ### Phase 1 — Data layer
 - One ingestion module per Google Weather API endpoint (current conditions, hourly forecast, daily forecast, recent history). — **Syed**
-- Decoder tables (weather condition codes, wind directions, precipitation categories, UV bands). — **Syed + Deepthi**
-- Store into Postgres/Redis with TTLs. — **Syed**, with **Niranjan** on schema/infra support and **Deepthi** on cache-strategy tuning
+- Decoder tables (weather condition codes, wind directions, precipitation categories, UV bands). — **Deepthi**, reviewed by **Syed**
+- Store into Postgres/Redis with TTLs. — **Syed**
+- Schema/infra support for the data layer. — **Niranjan**
+- Cache-strategy tuning (TTL policy per product). — **Deepthi**
 - *Output:* real, decoded weather facts queryable straight from the DB.
 
 ### Phase 2 — Grounding core
@@ -259,25 +261,40 @@ Sequential build order — each phase should be working end-to-end before the ne
 
 ### Phase 3 — Channels & UI
 - Flutter chat UI wired to `/ask`. — **Chelsea**
-- Web dashboard. — **Mahesh + Chelsea**
-- Text translation layer + `data/i18n/` glossary (canonical keys, official warning category text, phrase templates) for all five languages; Telugu-script + Devanagari font bundles + layout check; native-speaker spot-check for any language no one on the team speaks. — **partial:** translation + phrase templates + native QA for all five ✅ done (Sep 13, **Syed**, `i18n.py` / `bhashini.translate`); still open: `data/i18n/` glossary as a file, warning-category text, Telugu/Devanagari font bundles + layout check in the UI — **Chelsea / Mahesh**
+- Web dashboard — UI/UX. — **Chelsea**
+- Web dashboard — data wiring / integration with `/ask`. — **Mahesh**
+- Text translation layer + `data/i18n/` glossary (canonical keys, official warning category text, phrase templates) for all five languages; Telugu-script + Devanagari font bundles + layout check; native-speaker spot-check for any language no one on the team speaks. — translation + phrase templates + native QA for all five ✅ done (Sep 13) — **Syed** (`i18n.py` / `bhashini.translate`)
+- Still open: `data/i18n/` glossary as a file + official warning-category text. — **Mahesh**
+- Still open: Telugu-script + Devanagari font bundles and layout check in the UI. — **Chelsea**
 - Warning colour-code rendering. — **Chelsea** (mobile); ~~**Mahesh** (web)~~ ✅ web done (Sep 14) — `GET /warnings` + IMD colour banner in `WeatherGPT.dc.html`, backed by hand-written district fixtures in `data/fixtures/imd_warnings/` until the CAP feed (Phase 4) lands
 - ~~**Security pass on the API surface** (auth, rate limiting on `/ask` and any public endpoints) before channels go live.~~ ✅ done (Sep 14, picked up by **Mahesh**) — `limits.py`: body-size cap + per-client rate limit on `/ask`, `/asr`, `/tts`; `lang`/intent validation; `DELETE /history` for the privacy review (commits ebb5178, 218a3b0). Originally **Abel**.
 
 ### Phase 4 — Voice & last-mile
 - ~~Bhashini ASR/TTS (voice) in the app, all five languages (English, Hindi, Tamil, Telugu, Marathi).~~ ✅ done for the web prototype (Sep 12, `POST /asr` + `POST /tts`, mic + playback in `WeatherGPT.dc.html`; see §14). Flutter app still pending (Chelsea). — **Niranjan**
 - IVR channel (phone call → speech → `/ask` → spoken answer). — **Niranjan**
-- Proactive alerts (CAP → geofence → push). — **Syed** (CAP parsing) + **Niranjan** (alert engine)
+- Proactive alerts — CAP parsing. — **Syed**
+- Proactive alerts — alert engine (geofence match → push dispatch). — **Niranjan**
 - **Harden the alert pipeline against spoofed/malformed CAP messages** — a fake cyclone warning pushed to real users is the worst-case failure for this project. — **Abel**
-- **Persona-aware advisories**: farmer / fisherman / aviation / city-official profile flag reframes the same grounded data into role-relevant wording (e.g. spraying/harvest windows for farmers, wind/wave cautions for fishermen) — narration-layer only, no new numeric facts, so the guardrail still grounds every figure. — **Mahesh** (persona prompt/template logic) + **Niranjan** (profile flag plumbing through `/ask`)
+- **Persona-aware advisories**: farmer / fisherman / aviation / city-official profile flag reframes the same grounded data into role-relevant wording (e.g. spraying/harvest windows for farmers, wind/wave cautions for fishermen) — narration-layer only, no new numeric facts, so the guardrail still grounds every figure. Persona prompt/template logic. — **Mahesh**
+- Persona-aware advisories — profile-flag plumbing through `/ask`. — **Niranjan**
 
 ### Phase 5 — Differentiators (only if time remains)
-- Cyclone map. — **Mahesh + Chelsea** (rendering) + **Syed** (data)
-- METAR decoder, climate trend charts, WhatsApp bot. — **Syed + Deepthi** (climate trend data/analysis) / **Mahesh**, split by availability. Cyclone map and climate trends need a supplementary government data source layered in alongside Google Weather API (see §6 P2).
+- Cyclone map — data. — **Syed**
+- Cyclone map — rendering (web). — **Mahesh**
+- Cyclone map — rendering (mobile). — **Chelsea**
+- METAR decoder. — **Mahesh**
+- Climate trend data & analysis. — **Syed**
+- Climate trend charts — data structuring / cache support. — **Deepthi**
+- WhatsApp bot. — **Mahesh**
+- Cyclone map and climate trends need a supplementary government data source layered in alongside Google Weather API (see §6 P2).
 
 ### Phase 6 — Hardening (pre-finale)
-- ~~K8s manifests, Grafana/Prometheus dashboards, CI/CD.~~ ✅ done (Sep 14) — `k8s/base/` kustomize (Deployments/Services/Ingress/HPA, `/livez` liveness, `/health` readiness, Prometheus scrape annotations; validated with kubeconform and a real kind apply); `/metrics` on both services + `docker compose --profile monitoring` brings Prometheus and a provisioned Grafana dashboard "WeatherGPT — latency & grounding" (p95 vs the 2 s target, req/s, errors, `/ask` by provider, fallback ratio); CI now validates the rendered manifests and publishes both images to GHCR on pushes to `main`. Postgres/Redis deliberately not in the k8s base yet; no Helm chart yet. — **Mahesh + Niranjan** (DevOps), **Syed** backup
-- ~~Load testing for a high-traffic weather-event spike.~~ ✅ done (Sep 14) — `loadtest/spike.js` (k6, 0→150 rps ramp, 60 s hold): 12 374 requests, 117.8 req/s, p95 16 ms, 0 % failed on the template path (the floor the LLM path sits on); `loadtest/abuse.js` covers Abel's angle through the gateway — per-client limiter keys the first X-Forwarded-For hop (30×200 then 429 + `Retry-After: 60`, independent client unaffected), 3 MB body → 413. Results in `loadtest/results/`. — **Abel** (security/abuse angle) + **Mahesh + Niranjan** (infra)
+- ~~K8s manifests, Grafana/Prometheus dashboards, CI/CD.~~ ✅ done (Sep 14) — `k8s/base/` kustomize (Deployments/Services/Ingress/HPA, `/livez` liveness, `/health` readiness, Prometheus scrape annotations; validated with kubeconform and a real kind apply); `/metrics` on both services + `docker compose --profile monitoring` brings Prometheus and a provisioned Grafana dashboard "WeatherGPT — latency & grounding" (p95 vs the 2 s target, req/s, errors, `/ask` by provider, fallback ratio); CI now validates the rendered manifests and publishes both images to GHCR on pushes to `main`. Postgres/Redis deliberately not in the k8s base yet; no Helm chart yet. — **Mahesh** (DevOps)
+- Same K8s/Grafana/CI-CD work above. — **Niranjan** (DevOps)
+- Backup support on the above. — **Syed**
+- ~~Load testing for a high-traffic weather-event spike.~~ ✅ done (Sep 14) — `loadtest/abuse.js` covers the security/abuse angle through the gateway — per-client limiter keys the first X-Forwarded-For hop (30×200 then 429 + `Retry-After: 60`, independent client unaffected), 3 MB body → 413. — **Abel**
+- `loadtest/spike.js` (k6, 0→150 rps ramp, 60 s hold): 12 374 requests, 117.8 req/s, p95 16 ms, 0 % failed on the template path (the floor the LLM path sits on). Results in `loadtest/results/`. — **Mahesh** (infra)
+- Same load-test infra work above. — **Niranjan** (infra)
 - ~~Offline-mode fallback (local LLM + snapshotted data).~~ ✅ done (Sep 13) — `OFFLINE_MODE=1` → fixtures + Ollama (`llama3.2:3b`) → template; `offline_check.py` preflight; compose `offline` profile — **Mahesh**
 - Data-privacy review (location data, phone numbers used for IVR/WhatsApp). — **Abel**
 
@@ -351,39 +368,50 @@ Five minutes.
 
 ## 12. Repo structure
 
+**As actually built today** (Sep 17):
+
 ```
 weathergpt/
 ├── docker-compose.yml
-├── k8s/                      # manifests + helm chart (show these to judges)
+├── amplify.yml                  # Amplify build spec — frontend deploy
+├── render.yaml                  # Render deploy config
+├── k8s/
+│   ├── base/                    # kustomize: namespace, gateway, orchestrator, hpa, ingress, configmap, secret.example
+│   └── README.md
 ├── services/
-│   ├── gateway/              # FastAPI, auth, rate limit, session
-│   ├── orchestrator/         # NLU, tool router, guardrail, composer
-│   ├── ingestion/
-│   │   ├── google_weather/   # one module per Google Weather API endpoint + decoders
-│   │   ├── cap/              # SACHET/CAP parser
-│   │   ├── nwp/              # GFS GRIB fetch + xarray subset
-│   │   └── metar/
-│   ├── alerts/               # geofence match + dispatch
-│   └── channels/
-│       ├── whatsapp/
-│       └── ivr/
+│   ├── gateway/                 # FastAPI reverse proxy — auth passthrough, rate limit, /health, /metrics
+│   └── orchestrator/             # the real brain: nlu.py, router.py, guardrail.py, narrate.py, retrieval.py (RAG),
+│       │                         #   i18n.py, bhashini.py, google_weather.py, imd_warnings.py, history.py, limits.py
+│       └── tests/                 # unit tests + eval + live-smoke, per module above
 ├── ml/
-│   ├── nlu/                  # intents, entity schemas, eval set (5-language query coverage)
-│   ├── language/             # Bhashini + IndicTrans2 wrappers, per-language routing
-│   └── guardrail/            # numeric validator + tests
-├── mobile/                   # Flutter
-├── web/                      # dashboard
+│   ├── nlu/                      # eval_set.jsonl (70-row, 5-language intent/entity coverage) + run_eval.py
+│   └── language/bhashini/         # Bhashini client + check_coverage.py (per-language quota/coverage check)
+├── prototype/
+│   ├── ask_service/                # original hackathon prototype backend (superseded by services/orchestrator)
+│   └── frontend/                    # WeatherGPT.dc.html demo UI + Supabase auth.js — deployed via Amplify
 ├── data/
-│   ├── fixtures/             # snapshotted Google Weather API responses — CRITICAL
-│   ├── decoders/             # weather/warning/wind codes → canonical English keys
-│   ├── i18n/                 # canonical keys + official warning category text + warning/advisory phrase templates → en/hi/ta/te/mr, plus pre-rendered verified TTS for warning phrases
-│   └── climate/              # gridded historical subsets (if a supplementary climate source is added)
-├── docs/
-│   ├── architecture.md
-│   ├── demo-script.md
-│   └── jury-qa.md            # anticipated questions + answers
-└── tests/
+│   ├── cities.json
+│   ├── decoders/                    # weather_conditions.json, wind_cardinals.json → canonical keys
+│   ├── fixtures/                     # snapshotted Google Weather API, Gemini, and IMD-warning responses — CRITICAL
+│   └── imd_reference/                 # IMD reference text (colour codes, rainfall categories, glossary) feeding RAG narration
+├── monitoring/
+│   ├── prometheus.yml
+│   └── grafana/                       # provisioned "WeatherGPT — latency & grounding" dashboard
+├── loadtest/                           # k6 spike.js + abuse.js, results/
+├── discord-notifier/                    # Lambda: Amplify build status → Discord webhook
+└── .github/workflows/ci.yml              # manifest validation + image publish to GHCR
 ```
+
+**Still on the roadmap, not built yet** (target layout from earlier planning — see §8 for owners):
+- `services/ingestion/{cap,nwp,metar}/` — CAP/SACHET parser, GFS GRIB fetch, METAR decoder (Google Weather ingestion currently lives inline as `orchestrator/google_weather.py`, not yet split into per-source modules)
+- `services/alerts/` — geofence match + dispatch (Phase 4, open)
+- `services/channels/{whatsapp,ivr}/` — WhatsApp bot (P2) and IVR channel (Phase 4, open)
+- `mobile/` — Flutter app (Chelsea)
+- `web/` — standalone dashboard (currently folded into `prototype/frontend/`)
+- `data/i18n/` — canonical i18n glossary as a file (translation logic itself already ships in `orchestrator/i18n.py`)
+- `data/climate/` — gridded historical subsets, if a supplementary climate source is added
+- `docs/` — architecture.md, demo-script.md, jury-qa.md
+- top-level `tests/` — currently per-service (`services/orchestrator/tests/`, `services/gateway/tests/`) rather than centralized
 
 ---
 
