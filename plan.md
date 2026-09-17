@@ -269,6 +269,7 @@ Sequential build order — each phase should be working end-to-end before the ne
 - IVR channel (phone call → speech → `/ask` → spoken answer). — **Niranjan**
 - Proactive alerts (CAP → geofence → push). — **Syed** (CAP parsing) + **Niranjan** (alert engine)
 - **Harden the alert pipeline against spoofed/malformed CAP messages** — a fake cyclone warning pushed to real users is the worst-case failure for this project. — **Abel**
+- **Persona-aware advisories**: farmer / fisherman / aviation / city-official profile flag reframes the same grounded data into role-relevant wording (e.g. spraying/harvest windows for farmers, wind/wave cautions for fishermen) — narration-layer only, no new numeric facts, so the guardrail still grounds every figure. — **Mahesh** (persona prompt/template logic) + **Niranjan** (profile flag plumbing through `/ask`)
 
 ### Phase 5 — Differentiators (only if time remains)
 - Cyclone map. — **Mahesh + Chelsea** (rendering) + **Syed** (data)
