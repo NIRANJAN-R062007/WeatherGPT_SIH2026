@@ -1,0 +1,57 @@
+/* Settings — a small two-column sheet: preferences form on the left, the
+   grounding explainer (a genuine four-step sequence, hence numbered) on the right. */
+
+.settings {
+  max-width: 1000px; margin: 0 auto; padding: 28px 20px 16px;
+  display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 32px;
+  align-items: start;
+}
+@media (max-width: 760px) { .settings { grid-template-columns: 1fr; gap: 24px; } }
+
+.prefs { display: grid; gap: 22px; }
+.prefs h1 { font-size: 24px; font-weight: 700; letter-spacing: -.015em; }
+.group { border: 0; padding: 0; margin: 0; display: grid; gap: 10px; }
+.group legend { font-weight: 700; font-size: 14px; padding: 0; margin-bottom: 8px; }
+.hint { font-size: 13px; color: var(--ink-2); max-width: 52ch; }
+
+.radio-list { display: grid; gap: 6px; }
+.radio-list label {
+  display: flex; align-items: center; gap: 10px; padding: 9px 12px;
+  border: 1px solid var(--line); border-radius: 8px; background: var(--surface); cursor: pointer;
+}
+.radio-list label:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+.radio-list input { accent-color: var(--accent); margin: 0; }
+.radio-list .native { font-size: 16px; font-weight: 600; }
+.radio-list .code { margin-left: auto; font-size: 12px; color: var(--muted); font-family: ui-monospace, Menlo, Consolas, monospace; }
+
+.segmented { display: inline-flex; justify-self: start; border: 1px solid var(--line-strong); border-radius: 8px; overflow: hidden; }
+.segmented label { position: relative; }
+.segmented input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
+.segmented span { display: block; padding: 8px 18px; font-weight: 600; font-family: var(--font-latin); }
+.segmented label + label span { border-left: 1px solid var(--line-strong); }
+.segmented input:checked + span { background: var(--accent); color: var(--accent-ink); }
+.segmented input:focus-visible + span { outline: 2px solid var(--focus); outline-offset: -2px; }
+
+.backend { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.backend .url { font-size: 13px; background: var(--surface-2); padding: 4px 8px; border-radius: 6px; overflow-wrap: anywhere; }
+.backend code.url { font-family: ui-monospace, Menlo, Consolas, monospace; }
+.status { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--ink-2); }
+.status::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--line-strong); }
+.status[data-state="ok"] { color: var(--live); }
+.status[data-state="ok"]::before { background: var(--live); }
+.status[data-state="down"] { color: var(--danger); }
+.status[data-state="down"]::before { background: var(--danger); }
+
+.explainer {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 22px 22px 18px;
+  display: grid; gap: 14px;
+}
+.explainer h2 { font-size: 18px; font-weight: 700; }
+.steps { margin: 0; padding: 0; list-style: none; counter-reset: step; display: grid; gap: 12px; }
+.steps li { display: grid; grid-template-columns: 30px 1fr; gap: 10px; align-items: start; font-size: 14.5px; }
+.steps li::before {
+  counter-increment: step; content: counter(step);
+  width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 13px; font-family: var(--font-latin);
+}
+.foot-note { font-size: 13px; color: var(--ink-2); padding-top: 10px; border-top: 1px dashed var(--line-strong); }

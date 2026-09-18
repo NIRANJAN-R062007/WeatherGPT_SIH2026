@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>WeatherGPT — Warnings</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Noto+Sans+Tamil:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;500;600;700&family=Noto+Sans+Telugu:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="./css/base.css">
+<link rel="stylesheet" href="./css/warnings.css">
+</head>
+<body>
+<header class="shell" data-shell="warnings"></header>
+
+<main class="bulletin">
+  <div class="bulletin-head">
+    <h1 id="title">Warnings</h1>
+    <p class="lead" id="lead"></p>
+    <ul class="legend" id="legend" aria-label="IMD colour codes"></ul>
+  </div>
+  <div id="list" class="bands"></div>
+</main>
+
+<footer class="page-foot" id="foot"></footer>
+<script type="module" src="./js/warnings.js"></script>
+</body>
+</html>

@@ -261,11 +261,11 @@ Sequential build order — each phase should be working end-to-end before the ne
 
 ### Phase 3 — Channels & UI
 - Flutter chat UI wired to `/ask`. — **Chelsea**
-- Web dashboard — UI/UX. — **Chelsea**
-- Web dashboard — data wiring / integration with `/ask`. — **Mahesh**
+- ~~Web dashboard — UI/UX.~~ ✅ done (Sep 19) — standalone real-product frontend in top-level `web/` (not the frozen hackathon page): vanilla HTML/CSS/JS ES modules, no bundler, four purpose-built pages with distinct layouts — **Ask** (`index.html`: query → `/ask`, every answer carries source, issued time in IST, live/snapshot badge, validator matched/total and an expandable figure → matched-reading evidence table), **Dashboard** (`dashboard.html`: dark monitoring board, three city columns from `/facts` ×3 + `/warnings`, hero temperature, stat tiles, chance-of-rain meter, tomorrow high/low, IMD status chip), **Warnings** (`warnings.html`: colour-code legend + one severity band per city sorted red→green, validity window, issuer, empty state), **Settings** (`settings.html`: 5-language switcher, °C/°F, backend check, grounding explainer). IMD status is always icon + label + colour. All five languages with Noto Sans Tamil / Devanagari / Telugu per language; checked in headless Chromium at 1280 px and 390 px for en/hi/te. Same-origin API default + `?apiBase=` override; the orchestrator serves it at `/web/`. E2E: `web/tests_e2e_web.py` (11 pass). `web/README.md` has the run/verify steps. — **Chelsea**
+- ~~Web dashboard — data wiring / integration with `/ask`.~~ ✅ folded into the line above (`web/js/api.js` wires `/cities`, `/facts`, `/warnings`, `/ask`, `/livez`; no new backend). The hackathon page `WeatherGPT.dc.html` also gained a "Dashboard" view on Sep 18, kept as-is (its e2e harness now proxies the real `apiBase` default and polls `/livez`; 7/8 pass, the Tamil one is the pre-existing 50%→20% fixture drift). — **Mahesh**
 - Text translation layer + `data/i18n/` glossary (canonical keys, official warning category text, phrase templates) for all five languages; Telugu-script + Devanagari font bundles + layout check; native-speaker spot-check for any language no one on the team speaks. — translation + phrase templates + native QA for all five ✅ done (Sep 13) — **Syed** (`i18n.py` / `bhashini.translate`)
 - Still open: `data/i18n/` glossary as a file + official warning-category text. — **Mahesh**
-- Still open: Telugu-script + Devanagari font bundles and layout check in the UI. — **Chelsea**
+- ~~Still open: Telugu-script + Devanagari font bundles and layout check in the UI.~~ ✅ done (Sep 18/19) — Noto Sans Tamil / Devanagari / Telugu are loaded from Google Fonts and applied per language via `.ta` / `.hi,.mr` / `.te` in both the prototype page and `web/css/base.css`; layout checked in headless Chromium at 1280 px and 390 px (prototype: en/hi/ta/te Home + Dashboard views; `web/`: en/hi/te on all four pages) — no overflow, no clipping. Strings new to `web/` are flagged `nativeQa: false` in `web/js/i18n.js` pending the same native-speaker pass as `data/i18n/glossary.json`. — **Chelsea**
 - Warning colour-code rendering. — **Chelsea** (mobile); ~~**Mahesh** (web)~~ ✅ web done (Sep 14) — `GET /warnings` + IMD colour banner in `WeatherGPT.dc.html`, backed by hand-written district fixtures in `data/fixtures/imd_warnings/` until the CAP feed (Phase 4) lands
 - ~~**Security pass on the API surface** (auth, rate limiting on `/ask` and any public endpoints) before channels go live.~~ ✅ done (Sep 14, picked up by **Mahesh**) — `limits.py`: body-size cap + per-client rate limit on `/ask`, `/asr`, `/tts`; `lang`/intent validation; `DELETE /history` for the privacy review (commits ebb5178, 218a3b0). Originally **Abel**.
 
@@ -368,7 +368,7 @@ Five minutes.
 
 ## 12. Repo structure
 
-**As actually built today** (Sep 17):
+**As actually built today** (Sep 19):
 
 ```
 weathergpt/
@@ -386,9 +386,16 @@ weathergpt/
 ├── ml/
 │   ├── nlu/                      # eval_set.jsonl (70-row, 5-language intent/entity coverage) + run_eval.py
 │   └── language/bhashini/         # Bhashini client + check_coverage.py (per-language quota/coverage check)
+├── web/                          # Phase 3 real-product web frontend — vanilla HTML/CSS/JS ES modules, no bundler
+│   ├── index.html                 #   Ask (query → /ask, provenance + evidence + validator on every answer)
+│   ├── dashboard.html             #   three-city monitoring board (/facts + /warnings)
+│   ├── warnings.html              #   IMD colour-code bulletin (/warnings)
+│   ├── settings.html              #   language / units / backend check / grounding explainer
+│   ├── css/, js/                  #   base tokens + per-page layouts; api.js, i18n.js (5 langs), prefs.js, shell.js
+│   └── tests_e2e_web.py           #   Playwright e2e (backend in fixtures mode + http.server)
 ├── prototype/
 │   ├── ask_service/                # original hackathon prototype backend (superseded by services/orchestrator)
-│   └── frontend/                    # WeatherGPT.dc.html demo UI + Supabase auth.js — deployed via Amplify
+│   └── frontend/                    # WeatherGPT.dc.html hackathon demo UI + Supabase auth.js — deployed via Amplify; frozen
 ├── data/
 │   ├── cities.json
 │   ├── decoders/                    # weather_conditions.json, wind_cardinals.json → canonical keys
@@ -407,7 +414,7 @@ weathergpt/
 - `services/alerts/` — geofence match + dispatch (Phase 4, open)
 - `services/channels/{whatsapp,ivr}/` — WhatsApp bot (P2) and IVR channel (Phase 4, open)
 - `mobile/` — Flutter app (Chelsea)
-- `web/` — standalone dashboard (currently folded into `prototype/frontend/`)
+- `web/` voice (`/asr`, `/tts`) and Supabase sign-in / history — still only in the prototype page; port once the Flutter app settles the shared auth flow
 - `data/i18n/` — canonical i18n glossary as a file (translation logic itself already ships in `orchestrator/i18n.py`)
 - `data/climate/` — gridded historical subsets, if a supplementary climate source is added
 - `docs/` — architecture.md, demo-script.md, jury-qa.md

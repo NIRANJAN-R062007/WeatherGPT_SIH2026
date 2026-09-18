@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>WeatherGPT — Ask</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Noto+Sans+Tamil:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;500;600;700&family=Noto+Sans+Telugu:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="./css/base.css">
+<link rel="stylesheet" href="./css/ask.css">
+</head>
+<body>
+<header class="shell" data-shell="ask"></header>
+
+<main class="ask">
+  <section class="ask-head">
+    <h1 id="ask-title">Ask about the weather</h1>
+    <p class="lead" id="ask-lead"></p>
+    <form id="ask-form" class="ask-form" autocomplete="off">
+      <label class="field city-field">
+        <span class="eyebrow" id="city-label">City</span>
+        <select id="city" name="city"></select>
+      </label>
+      <label class="field q-field">
+        <span class="sr-only" id="q-label">Question</span>
+        <input id="q" name="q" type="text" required maxlength="300" placeholder="">
+      </label>
+      <button class="btn btn-primary" id="send" type="submit">Ask</button>
+    </form>
+    <div id="suggestions" class="chips" role="list"></div>
+  </section>
+
+  <section id="transcript" class="transcript" aria-live="polite"></section>
+</main>
+
+<footer class="page-foot" id="foot"></footer>
+<script type="module" src="./js/ask.js"></script>
+</body>
+</html>

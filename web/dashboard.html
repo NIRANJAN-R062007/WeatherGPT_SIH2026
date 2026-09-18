@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>WeatherGPT — Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Noto+Sans+Tamil:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;500;600;700&family=Noto+Sans+Telugu:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="./css/base.css">
+<link rel="stylesheet" href="./css/dashboard.css">
+</head>
+<body class="board-page">
+<header class="shell" data-shell="dashboard"></header>
+
+<main class="board" data-testid="dashboard">
+  <div class="board-head">
+    <div>
+      <h1 id="title">Dashboard</h1>
+      <p class="lead" id="lead"></p>
+    </div>
+    <div class="board-meta">
+      <span id="updated" class="tnum"></span>
+      <button type="button" class="btn" id="refresh" aria-label="Refresh">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5"/></svg>
+      </button>
+    </div>
+  </div>
+  <div id="cities" class="board-grid"></div>
+</main>
+
+<footer class="page-foot" id="foot"></footer>
+<script type="module" src="./js/dashboard.js"></script>
+</body>
+</html>
