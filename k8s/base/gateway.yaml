@@ -47,11 +47,11 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 3
             failureThreshold: 3
-          # /health touches Postgres/Redis, which are absent in this base
-          # manifest (see k8s/README.md) — each check there is independent
-          # and the handler always returns 200 with a status dict even when
-          # a dependency errors, but give it generous slack anyway in case a
-          # DNS lookup or TCP connect to a missing host is slow to fail.
+          # /health touches Postgres/Redis (postgres.yaml/redis.yaml provision
+          # both in-cluster now, see k8s/README.md) — each check there is
+          # independent and the handler always returns 200 with a status dict
+          # even when a dependency errors, but give it generous slack anyway
+          # in case a slow DNS lookup or TCP connect delays that check.
           readinessProbe:
             httpGet:
               path: /health

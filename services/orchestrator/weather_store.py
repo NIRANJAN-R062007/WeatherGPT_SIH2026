@@ -14,6 +14,13 @@ Both are best-effort and silently degrade to a no-op on any error (dead
 connection, unreachable host, missing table) — a broken cache/DB must never
 break `/ask`, same rule gateway/main.py's `/health` and history.py already
 follow. Neither is touched at all in WEATHER_MODE=fixtures (offline demo).
+
+Redis/Postgres are now provisioned for real, not just in docker-compose's
+dev containers: `render.yaml` (weathergpt-redis, weathergpt-postgres) for the
+live Render deploy, `k8s/base/redis.yaml` + `k8s/base/postgres.yaml` for the
+k8s target. The best-effort fallback above stays regardless — it's what lets
+this run in any environment that hasn't (yet) provisioned either, e.g. a
+bare `uvicorn main:app` with no .env DB config at all.
 """
 
 import json

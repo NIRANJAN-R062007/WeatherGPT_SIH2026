@@ -1,0 +1,100 @@
+# Postgres+PostGIS for services/orchestrator/weather_store.py's weather_facts
+# durable history (plan.md §8 Phase 1). Mirrors docker-compose.yml's
+# `postgres` service (postgis/postgis:16-3.4, same demo credentials) — see
+# k8s/README.md for why this was absent before and what changed.
+#
+# StatefulSet (not Deployment): a single replica needs a stable identity and
+# its own PersistentVolumeClaim that survives a pod restart. Nothing here
+# scales past 1 replica — this is a single demo-stage instance, not HA.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: weathergpt
+  labels:
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/part-of: weathergpt
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: postgres
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: postgres
+        app.kubernetes.io/part-of: weathergpt
+    spec:
+      containers:
+        - name: postgres
+          image: postgis/postgis:16-3.4
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: weathergpt-secrets
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: weathergpt-secrets
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: weathergpt-secrets
+                  key: POSTGRES_DB
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "$(POSTGRES_USER)", "-d", "$(POSTGRES_DB)"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "$(POSTGRES_USER)", "-d", "$(POSTGRES_DB)"]
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            timeoutSeconds: 5
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: weathergpt
+  labels:
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/part-of: weathergpt
+spec:
+  # Headless: StatefulSet pods get a stable DNS name
+  # (postgres-0.postgres.weathergpt.svc.cluster.local); plain
+  # postgres.weathergpt.svc.cluster.local also resolves and load-balances
+  # across ready pods, which is fine at replicas: 1.
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432

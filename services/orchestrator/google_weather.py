@@ -3,9 +3,16 @@
 Replaces the hardcoded stub in weather_data.py's data path.
 
 - TTL cache (plan.md §5): current conditions 15 min, daily forecast 6 h.
-- The cache is an in-memory module dict ON PURPOSE — the demo runs one uvicorn
-  process and must not depend on Redis (that is post-hackathon). Running with
-  --workers > 1 gives each worker its own cache and multiplies API calls.
+- L1 is an in-memory module dict, checked first — zero network, so a single
+  --workers=1 uvicorn process (the local/offline demo shape) never needs
+  Redis reachable at all. Running with --workers > 1 gives each worker its
+  own L1 and multiplies API calls between them, same as before.
+- L2 is Redis (weather_store.py), shared across workers/replicas/restarts —
+  provisioned for real in Render (render.yaml) and k8s (k8s/base/redis.yaml)
+  as of plan.md §8 Phase 1, not just docker-compose's dev-only container.
+  Both L1 and L2 are best-effort: a dead/unreachable Redis is caught and
+  logged inside weather_store.py, never raised, so this stays safe to run
+  anywhere Redis isn't (yet) provisioned.
 - On any live-call failure (timeout, non-200, no key) the committed snapshots
   in data/fixtures/google_weather/ are replayed, so the demo needs no network
   (plan.md §2.5 offline-degradable, R5 venue-wifi). Only live results are
