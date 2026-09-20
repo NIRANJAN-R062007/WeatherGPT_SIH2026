@@ -1,0 +1,79 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-ui: 'IBM Plex Sans', 'Noto Sans Devanagari', 'Noto Sans Tamil', 'Noto Sans Telugu',
+    system-ui, sans-serif;
+  --leading-ui: 1.5;
+}
+
+html[lang='ta'] {
+  --font-ui: 'Noto Sans Tamil', 'IBM Plex Sans', system-ui, sans-serif;
+  --leading-ui: 1.7;
+}
+
+html[lang='hi'],
+html[lang='mr'] {
+  --font-ui: 'Noto Sans Devanagari', 'IBM Plex Sans', system-ui, sans-serif;
+  --leading-ui: 1.7;
+}
+
+html[lang='te'] {
+  --font-ui: 'Noto Sans Telugu', 'IBM Plex Sans', system-ui, sans-serif;
+  --leading-ui: 1.75;
+}
+
+@layer base {
+  html {
+    /* Lenis drives scrolling; native smooth-scroll would fight it. */
+    scroll-behavior: auto;
+  }
+
+  body {
+    @apply bg-paper text-ink font-sans antialiased;
+    line-height: var(--leading-ui);
+    overflow-wrap: anywhere;
+    font-synthesis: none;
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+    line-height: calc(var(--leading-ui) - 0.2);
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  html.lenis,
+  html.lenis body {
+    height: auto;
+  }
+
+  .lenis.lenis-smooth {
+    scroll-behavior: auto !important;
+  }
+
+  ::selection {
+    @apply bg-monsoon-tint text-ink;
+  }
+}
+
+@layer utilities {
+  .gpu {
+    will-change: transform;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
