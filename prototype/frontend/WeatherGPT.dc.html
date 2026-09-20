@@ -42,7 +42,7 @@ a:hover{color:#1d5b7e}
       <span>{{ nowCity }}</span>
     </div>
     <div style="display:flex;flex-direction:column;gap:4px">
-      <sc-for list="{{ navItems }}" as="n" hint-placeholder-count="4">
+      <sc-for list="{{ navItems }}" as="n" hint-placeholder-count="3">
         <button style="display:flex;align-items:center;gap:11px;padding:10px 12px;border:0;border-left:2px solid {{ n.rule }};border-radius:9px;cursor:pointer;text-align:left;font:inherit;font-size:14px;min-height:44px;font-weight:{{ n.weight }};color:{{ n.color }};background:{{ n.bg }}" onClick="{{ n.go }}">
           <span style="width:6px;height:6px;border-radius:50%;background:{{ n.dot }};flex:none"></span>
           <span class="{{ uiFont }}">{{ n.label }}</span>
@@ -471,99 +471,6 @@ a:hover{color:#1d5b7e}
           </div>
         </div>
       </sc-if>
-
-      <sc-if value="{{ isDashboardView }}" hint-placeholder-val="{{ false }}">
-        <div style="margin:26px clamp(16px,4vw,40px) 34px;display:flex;flex-direction:column;gap:14px" data-testid="dashboard">
-          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-            <div class="{{ uiFont }}" style="font-size:15px;font-weight:700;color:#fff;text-shadow:0 1px 5px rgba(0,0,0,.4)">{{ dashTitle }}</div>
-            <span style="font-family:ui-monospace,Menlo,monospace;font-size:10px;color:#dbe4ec;text-shadow:0 1px 4px rgba(0,0,0,.4)">GET /facts · GET /warnings</span>
-          </div>
-          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,250px),1fr));gap:14px">
-            <sc-for list="{{ dashCards }}" as="d" hint-placeholder-count="3">
-              <div style="background:rgba(255,255,255,.94);border-radius:14px;box-shadow:0 6px 26px rgba(9,18,32,.18);padding:18px 18px 16px;display:flex;flex-direction:column;gap:14px" data-testid="dash-card">
-                <div style="display:flex;align-items:flex-start;gap:10px">
-                  <div style="flex:1;min-width:0">
-                    <div class="{{ uiFont }}" style="font-size:15px;font-weight:700;color:#22344a">{{ d.name }}</div>
-                    <div class="{{ uiFont }}" style="font-size:12px;color:#5f7082;margin-top:2px">{{ d.condition }}</div>
-                  </div>
-                  <button class="{{ uiFont }}" style="min-height:36px;padding:0 12px;border:1px solid #cfd9e2;background:transparent;cursor:pointer;font:inherit;font-size:11.5px;font-weight:600;color:#1c4a6b;border-radius:18px;white-space:nowrap" onClick="{{ d.ask }}">{{ askLabel }}</button>
-                </div>
-
-                <sc-if value="{{ d.isPending }}" hint-placeholder-val="{{ false }}">
-                  <div class="wg-pulse" style="display:flex;flex-direction:column;gap:8px">
-                    <span style="display:block;height:44px;width:40%;border-radius:8px;background:#e6ecf2"></span>
-                    <span style="display:block;height:11px;width:70%;border-radius:6px;background:#eef2f6"></span>
-                  </div>
-                </sc-if>
-
-                <sc-if value="{{ d.isError }}" hint-placeholder-val="{{ false }}">
-                  <div class="{{ uiFont }}" style="display:flex;align-items:center;gap:8px;font-size:12px;color:#a5323c;background:#fdeeef;border:1px solid #f7dcdf;border-radius:10px;padding:10px 12px">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c0424c" stroke-width="1.8" stroke-linecap="round" style="flex:none"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg>
-                    <span>{{ errorTitle }}</span>
-                  </div>
-                </sc-if>
-
-                <sc-if value="{{ d.isReady }}" hint-placeholder-val="{{ true }}">
-                  <div style="display:flex;align-items:flex-start;gap:2px">
-                    <span style="font-size:48px;font-weight:600;letter-spacing:-.03em;line-height:1;color:#1b2a3b">{{ d.temp }}</span>
-                    <span style="font-size:16px;font-weight:600;color:#5f7082;margin-top:6px">{{ unitLabel }}</span>
-                    <span class="{{ uiFont }}" style="margin-left:auto;align-self:flex-end;font-size:11.5px;color:#6b7c8e">{{ d.feels }}</span>
-                  </div>
-
-                  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
-                    <div style="background:#f3f6f9;border-radius:10px;padding:9px 10px">
-                      <div class="{{ uiFont }}" style="font-size:10.5px;color:#6b7c8e">{{ humidityLabel }}</div>
-                      <div style="font-size:15px;font-weight:600;color:#22344a;margin-top:3px">{{ d.humidity }}</div>
-                    </div>
-                    <div style="background:#f3f6f9;border-radius:10px;padding:9px 10px">
-                      <div class="{{ uiFont }}" style="font-size:10.5px;color:#6b7c8e">{{ windLabel }}</div>
-                      <div style="font-size:15px;font-weight:600;color:#22344a;margin-top:3px;white-space:nowrap">{{ d.wind }}</div>
-                    </div>
-                    <div style="background:#f3f6f9;border-radius:10px;padding:9px 10px">
-                      <div class="{{ uiFont }}" style="font-size:10.5px;color:#6b7c8e">{{ uvLabel }}</div>
-                      <div style="font-size:15px;font-weight:600;color:#22344a;margin-top:3px">{{ d.uv }}</div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <div style="display:flex;align-items:baseline;gap:8px">
-                      <span class="{{ uiFont }}" style="font-size:10.5px;color:#6b7c8e">{{ rainLabel }}</span>
-                      <span style="margin-left:auto;font-size:12.5px;font-weight:600;color:#22344a">{{ d.rainToday }}</span>
-                    </div>
-                    <div style="height:6px;border-radius:3px;background:#dbe8f1;overflow:hidden;margin-top:5px" role="meter" aria-label="{{ rainLabel }}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ d.rainPct }}">
-                      <div style="height:6px;border-radius:3px;background:#2c6d95;width:{{ d.rainPct }}%"></div>
-                    </div>
-                  </div>
-
-                  <div style="display:flex;align-items:center;gap:8px;border-top:1px solid #eef1f4;padding-top:11px">
-                    <span class="{{ uiFont }}" style="font-size:10.5px;color:#6b7c8e">{{ tomorrowLabel }}</span>
-                    <span style="font-size:12.5px;font-weight:600;color:#22344a">{{ d.tmrRange }}</span>
-                    <span class="{{ uiFont }}" style="margin-left:auto;font-size:11.5px;color:#5f7082">{{ d.tmrRain }}</span>
-                  </div>
-
-                  <sc-if value="{{ d.warnKnown }}" hint-placeholder-val="{{ true }}">
-                  <div style="display:flex;align-items:center;gap:7px;border-radius:9px;padding:7px 10px;background:{{ d.warnBg }};border:1px solid {{ d.warnBorder }}" data-testid="dash-warning">
-                    <sc-if value="{{ d.warnClear }}" hint-placeholder-val="{{ true }}">
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="{{ d.warnFg }}" stroke-width="2.2" stroke-linecap="round" style="flex:none"><path d="M20 6 9 17l-5-5"></path></svg>
-                    </sc-if>
-                    <sc-if value="{{ d.warnActive }}" hint-placeholder-val="{{ false }}">
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="{{ d.warnFg }}" stroke-width="2" stroke-linecap="round" style="flex:none"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg>
-                    </sc-if>
-                    <span class="{{ uiFont }}" style="font-size:11.5px;font-weight:600;color:{{ d.warnFg }};min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ d.warnText }}</span>
-                  </div>
-                  </sc-if>
-
-                  <div style="display:flex;align-items:center;gap:6px;font-size:10.5px;color:#96a3b1">
-                    <span style="width:7px;height:7px;border-radius:50%;background:{{ d.liveColor }};flex:none"></span>
-                    <span class="{{ uiFont }}">{{ d.liveBadge }}</span>
-                    <span style="margin-left:auto;font-variant-numeric:tabular-nums">{{ d.issued }}</span>
-                  </div>
-                </sc-if>
-              </div>
-            </sc-for>
-          </div>
-        </div>
-      </sc-if>
     </div>
 
     <div style="border-top:1px solid #e3e8ee;padding:12px clamp(16px,4vw,40px) 16px;background:#fff;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
@@ -593,7 +500,7 @@ const STR = {
     guardrailNote: "Each figure is matched against the raw response before the answer is shown. If one doesn't match, the answer is withheld rather than published.",
     askPlaceholder: "Ask WeatherGPT about any place...", footnote: "Two intents are wired: current conditions and rain forecast. Weather data © Google.",
     unitNoteMetric: "Units: METRIC (requested from the API)", unitNoteImperial: "Units: IMPERIAL (requested from the API)",
-    navDashboard: "Dashboard", uvLabel: "UV index", tomorrowLabel: "Tomorrow", askLabel: "Ask", navHome: "Home", navHistory: "History", navSettings: "Settings", evidenceShow: "View source", evidenceHide: "Hide source",
+    navHome: "Home", navHistory: "History", navSettings: "Settings", evidenceShow: "View source", evidenceHide: "Hide source",
     noFigures: "No figures claimed", validatorMatched: (m, t) => `Validator: ${m}/${t} matched`,
     audioListen: "Listen", audioStop: "Stop", audioAriaListen: "Listen to the answer", audioAriaStop: "Stop reading the answer",
     micAskVoice: "Ask by voice", micStopListening: "Stop listening",
@@ -630,7 +537,7 @@ const STR = {
     guardrailNote: "जवाब में हर आँकड़ा दिखाने से पहले उसे मूल डेटा से मिलाया जाता है। यदि कोई आँकड़ा मेल नहीं खाता, तो जवाब रोक दिया जाता है।",
     askPlaceholder: "WeatherGPT से किसी भी जगह के बारे में पूछें…", footnote: "दो इंटेंट जोड़े गए हैं: वर्तमान स्थिति और बारिश का पूर्वानुमान। मौसम डेटा © Google।",
     unitNoteMetric: "इकाई: METRIC (API से मांगी गई)", unitNoteImperial: "इकाई: IMPERIAL (API से मांगी गई)",
-    navDashboard: "डैशबोर्ड", uvLabel: "यूवी सूचकांक", tomorrowLabel: "कल", askLabel: "पूछें", navHome: "होम", navHistory: "इतिहास", navSettings: "सेटिंग्स", evidenceShow: "स्रोत देखें", evidenceHide: "छुपाएं",
+    navHome: "होम", navHistory: "इतिहास", navSettings: "सेटिंग्स", evidenceShow: "स्रोत देखें", evidenceHide: "छुपाएं",
     noFigures: "कोई आँकड़ा नहीं", validatorMatched: (m, t) => `सत्यापन: ${m}/${t} मेल`,
     audioListen: "सुनें", audioStop: "रोकें", audioAriaListen: "जवाब सुनें", audioAriaStop: "जवाब पढ़ना रोकें",
     micAskVoice: "आवाज़ से पूछें", micStopListening: "सुनना बंद करें",
@@ -666,7 +573,7 @@ const STR = {
     guardrailNote: "பதிலில் உள்ள ஒவ்வொரு எண்ணும் மூல தரவுடன் ஒப்பிடப்பட்ட பிறகே வெளியிடப்படுகிறது. பொருந்தாத எண் இருந்தால் பதில் நிறுத்தப்படும்.",
     askPlaceholder: "வானிலை பற்றி எதையும் கேளுங்கள்…", footnote: "இரண்டு கேள்விகள் இணைக்கப்பட்டுள்ளன: தற்போதைய வானிலை, மழை முன்னறிவிப்பு. வானிலை தரவு © Google.",
     unitNoteMetric: "அலகு: METRIC (API கோரிக்கையில்)", unitNoteImperial: "அலகு: IMPERIAL (API கோரிக்கையில்)",
-    navDashboard: "டாஷ்போர்டு", uvLabel: "UV குறியீடு", tomorrowLabel: "நாளை", askLabel: "கேள்", navHome: "முகப்பு", navHistory: "வரலாறு", navSettings: "அமைப்புகள்", evidenceShow: "ஆதாரம் பார்", evidenceHide: "மறை",
+    navHome: "முகப்பு", navHistory: "வரலாறு", navSettings: "அமைப்புகள்", evidenceShow: "ஆதாரம் பார்", evidenceHide: "மறை",
     noFigures: "எண் எதுவும் இல்லை", validatorMatched: (m, t) => `சரிபார்ப்பு: ${m}/${t} பொருந்தின`,
     audioListen: "கேட்க", audioStop: "நிறுத்து", audioAriaListen: "பதிலைக் கேட்க", audioAriaStop: "பதிலை நிறுத்து",
     micAskVoice: "குரலில் கேளுங்கள்", micStopListening: "கேட்பதை நிறுத்து",
@@ -702,7 +609,7 @@ const STR = {
     guardrailNote: "సమాధానంలో ప్రతి సంఖ్య చూపే ముందు అసలు డేటాతో సరిపోల్చబడుతుంది. ఏదైనా సరిపోలకపోతే, సమాధానం నిలిపివేయబడుతుంది.",
     askPlaceholder: "ఏ ప్రాంతం గురించైనా WeatherGPTని అడగండి…", footnote: "రెండు ఇంటెంట్‌లు అనుసంధానించబడ్డాయి: ప్రస్తుత పరిస్థితులు మరియు వర్ష సూచన. వాతావరణ డేటా © Google.",
     unitNoteMetric: "యూనిట్లు: METRIC (API నుండి అభ్యర్థించబడింది)", unitNoteImperial: "యూనిట్లు: IMPERIAL (API నుండి అభ్యర్థించబడింది)",
-    navDashboard: "డాష్‌బోర్డ్", uvLabel: "UV సూచిక", tomorrowLabel: "రేపు", askLabel: "అడగండి", navHome: "హోమ్", navHistory: "చరిత్ర", navSettings: "సెట్టింగ్‌లు", evidenceShow: "మూలం చూడండి", evidenceHide: "దాచు",
+    navHome: "హోమ్", navHistory: "చరిత్ర", navSettings: "సెట్టింగ్‌లు", evidenceShow: "మూలం చూడండి", evidenceHide: "దాచు",
     noFigures: "సంఖ్యలు లేవు", validatorMatched: (m, t) => `వాలిడేటర్: ${m}/${t} సరిపోలింది`,
     audioListen: "వినండి", audioStop: "ఆపు", audioAriaListen: "సమాధానం వినండి", audioAriaStop: "సమాధానం చదవడం ఆపు",
     micAskVoice: "వాయిస్‌తో అడగండి", micStopListening: "వినడం ఆపు",
@@ -738,7 +645,7 @@ const STR = {
     guardrailNote: "उत्तरातील प्रत्येक आकडा दाखवण्यापूर्वी मूळ डेटाशी जुळवला जातो. जुळत नसेल तर उत्तर रोखले जाते.",
     askPlaceholder: "कोणत्याही ठिकाणाबद्दल WeatherGPT ला विचारा…", footnote: "दोन इंटेंट जोडले आहेत: सध्याची स्थिती आणि पावसाचा अंदाज. हवामान डेटा © Google.",
     unitNoteMetric: "एकके: METRIC (API कडून मागवले)", unitNoteImperial: "एकके: IMPERIAL (API कडून मागवले)",
-    navDashboard: "डॅशबोर्ड", uvLabel: "यूव्ही निर्देशांक", tomorrowLabel: "उद्या", askLabel: "विचारा", navHome: "मुख्यपृष्ठ", navHistory: "इतिहास", navSettings: "सेटिंग्ज", evidenceShow: "स्रोत पहा", evidenceHide: "लपवा",
+    navHome: "मुख्यपृष्ठ", navHistory: "इतिहास", navSettings: "सेटिंग्ज", evidenceShow: "स्रोत पहा", evidenceHide: "लपवा",
     noFigures: "आकडे नाहीत", validatorMatched: (m, t) => `पडताळणी: ${m}/${t} जुळले`,
     audioListen: "ऐका", audioStop: "थांबा", audioAriaListen: "उत्तर ऐका", audioAriaStop: "उत्तर वाचणे थांबवा",
     micAskVoice: "आवाजाने विचारा", micStopListening: "ऐकणे थांबवा",
@@ -918,13 +825,6 @@ const CITIES = {
   }
 };
 
-const IMD_PALETTE = {
-  green:  {fg: "#2e7d32", bg: "#e8f5e9", border: "#a5d6a7"},
-  yellow: {fg: "#f9a825", bg: "#fffde7", border: "#fff59d"},
-  orange: {fg: "#ef6c00", bg: "#fff3e0", border: "#ffcc80"},
-  red:    {fg: "#c62828", bg: "#ffebee", border: "#ef9a9a"}
-};
-
 class Component extends DCLogic {
   // The backend is metric-only; °F on the hero card is a client-side display
   // conversion of the raw Celsius reading only -- the narrated /ask answer text
@@ -944,8 +844,7 @@ class Component extends DCLogic {
       voice: "idle", micNotice: null,
       playingId: null, audioPct: 0,
       auth: "signed_out", user: null, userMenuOpen: false,
-      view: "home", historyStatus: "idle", history: [],
-      dash: {}
+      view: "home", historyStatus: "idle", history: []
     };
   })();
 
@@ -962,7 +861,6 @@ class Component extends DCLogic {
     writeJSON(PREFS_KEY, {lang: this.state.lang, unit: this.state.unit, city: this.state.city});
     const key = `${this.state.city}|${this.state.lang}`;
     if (key !== this._heroKey) this.loadHero();
-    if (this.state.view === "dashboard" && this.state.lang !== this._dashLang) this.loadDashboard();
   }
 
   componentWillUnmount() {
@@ -986,16 +884,8 @@ class Component extends DCLogic {
     return this._authToken ? {Authorization: "Bearer " + this._authToken} : {};
   }
 
-  // `?apiBase=http://localhost:8001` overrides the baked-in default so the
-  // page can be run against a local backend without editing this file.
-  baseUrl() {
-    if (this.props.simulateFailure) return "http://127.0.0.1:1";
-    const override = new URLSearchParams(window.location.search).get("apiBase");
-    return (override || this.props.apiBase || "http://localhost:8001").replace(/\/+$/, "");
-  }
-
   async api(path, params, extraHeaders) {
-    const base = this.baseUrl();
+    const base = this.props.simulateFailure ? "http://127.0.0.1:1" : (this.props.apiBase || "http://localhost:8001");
     const qs = params && Object.keys(params).length ? "?" + new URLSearchParams(params) : "";
     const ctl = new AbortController();
     const timer = setTimeout(() => ctl.abort(), API_TIMEOUT_MS);
@@ -1012,7 +902,7 @@ class Component extends DCLogic {
   }
 
   async apiPost(path, body, extraHeaders) {
-    const base = this.baseUrl();
+    const base = this.props.simulateFailure ? "http://127.0.0.1:1" : (this.props.apiBase || "http://localhost:8001");
     const ctl = new AbortController();
     const timer = setTimeout(() => ctl.abort(), API_TIMEOUT_MS);
     try {
@@ -1030,7 +920,7 @@ class Component extends DCLogic {
   }
 
   async apiDelete(path, extraHeaders) {
-    const base = this.baseUrl();
+    const base = this.props.simulateFailure ? "http://127.0.0.1:1" : (this.props.apiBase || "http://localhost:8001");
     const ctl = new AbortController();
     const timer = setTimeout(() => ctl.abort(), API_TIMEOUT_MS);
     try {
@@ -1127,38 +1017,6 @@ class Component extends DCLogic {
     } catch (e) {
       this.setIfAlive({hero: null, heroRain: null, warning: null, backendOk: false});  // renderVals falls back to CITIES
     }
-  }
-
-  // ---- Dashboard (GET /facts x3 + GET /warnings, per demo city) -------------
-  showDashboard() {
-    this.setState({view: "dashboard", userMenuOpen: false});
-    if (this.state.lang !== this._dashLang) this.loadDashboard();
-  }
-
-  async loadDashboard() {
-    const lang = this.state.lang;
-    this._dashLang = lang;
-    const pending = {};
-    Object.keys(CITIES).forEach(k => { pending[k] = {status: "pending"}; });
-    this.setState({dash: pending});
-    await Promise.all(Object.keys(CITIES).map(async city => {
-      let card;
-      try {
-        const [cur, today, tmr, warn] = await Promise.all([
-          this.api("/facts", {city, lang}),
-          this.api("/facts", {city, lang, intent: "will_it_rain", day: "today"}),
-          this.api("/facts", {city, lang, intent: "will_it_rain", day: "tomorrow"}),
-          this.api("/warnings", {city, lang}).catch(() => null)
-        ]);
-        card = cur && cur.facts
-          ? {status: "ok", cur, today: today && today.facts ? today : null, tmr: tmr && tmr.facts ? tmr : null, warning: (warn && warn.warning) || null}
-          : {status: "error"};
-      } catch (e) {
-        card = {status: "error"};
-      }
-      if (this._dashLang !== lang) return;  // superseded by a language switch
-      this.setIfAlive(s => ({dash: Object.assign({}, s.dash, {[city]: card})}));
-    }));
   }
 
   temp(celsius) {
@@ -1439,6 +1297,12 @@ class Component extends DCLogic {
     // IMD warning colour code -- `warning` is null when the backend has no
     // fixture for this city, or a 404 from /warnings was swallowed in loadHero().
     const w = this.state.warning;
+    const IMD_PALETTE = {
+      green:  {fg: "#2e7d32", bg: "#e8f5e9", border: "#a5d6a7"},
+      yellow: {fg: "#f9a825", bg: "#fffde7", border: "#fff59d"},
+      orange: {fg: "#ef6c00", bg: "#fff3e0", border: "#ffcc80"},
+      red:    {fg: "#c62828", bg: "#ffebee", border: "#ef9a9a"}
+    };
     const warningVisible = !!(w && ["yellow", "orange", "red"].includes(w.colour));
     const warningColour = (w && w.colour) || "green";
     const warningPalette = IMD_PALETTE[warningColour] || IMD_PALETTE.green;
@@ -1454,40 +1318,6 @@ class Component extends DCLogic {
     const warningValid = w ? `${fmtWarningDate(w.valid_from)} – ${fmtWarningDate(w.valid_to)} IST` : "";
 
     const entries = this.state.records.map(rec => this.entryFrom(rec));
-
-    const dashCards = Object.keys(CITIES).map(key => {
-      const d = this.state.dash[key] || {status: "pending"};
-      const f = d.cur && d.cur.facts, t = d.today && d.today.facts, m = d.tmr && d.tmr.facts;
-      const cw = d.warning;
-      const colour = (cw && cw.colour) || "green";
-      const pal = IMD_PALETTE[colour] || IMD_PALETTE.green;
-      const rainPct = t && "rain_probability_pct" in t ? t.rain_probability_pct : null;
-      const live = !!(f && f.is_live);
-      const issuedDisplay = fmtIssued(f && f.issued) || "";
-      return {
-        name: (d.cur && d.cur.city_name) || CITIES[key].name[lang] || CITIES[key].name.en,
-        condition: (d.cur && d.cur.condition_label) || "",
-        ask: () => this.setState({city: key, view: "home"}),
-        isPending: d.status === "pending",
-        isError: d.status === "error",
-        isReady: d.status === "ok",
-        temp: f && "temp_c" in f ? `${this.temp(f.temp_c)}` : "—",
-        feels: f && "feels_like_c" in f ? L.feelsLike(`${this.temp(f.feels_like_c)}${u}`) : "",
-        humidity: f && "humidity_pct" in f ? `${f.humidity_pct}%` : "—",
-        wind: f && "wind_kmh" in f ? `${f.wind_kmh} km/h ${f.wind_dir || ""}`.trim() : "—",
-        uv: f && "uv_index" in f ? `${f.uv_index}` : "—",
-        rainToday: rainPct == null ? "—" : `${rainPct}%`,
-        rainPct: rainPct == null ? 0 : rainPct,
-        tmrRange: m && "high_c" in m && "low_c" in m ? `${this.temp(Math.round(m.high_c))}° / ${this.temp(Math.round(m.low_c))}°` : "—",
-        tmrRain: m && "rain_probability_pct" in m ? `${L.rainLabel} ${m.rain_probability_pct}%` : "",
-        warnBg: pal.bg, warnBorder: pal.border, warnFg: pal.fg,
-        warnKnown: !!cw, warnClear: colour === "green", warnActive: colour !== "green",
-        warnText: colour !== "green" ? (cw.headline || `${L.warningLabel}: ${colour.toUpperCase()}`) : L.noWarningText,
-        liveBadge: live ? L.liveLabel : L.snapshotLabel,
-        liveColor: live ? "#3fb27f" : "#c9a227",
-        issued: issuedDisplay ? L.issuedPrefix(issuedDisplay) : ""
-      };
-    });
 
     // History: bucket by the row's real created_at (local-calendar-day
     // comparison), with a fallback "older" bucket for rows beyond yesterday
@@ -1523,7 +1353,6 @@ class Component extends DCLogic {
       setF: () => this.setState({unit: "F"}),
       navItems: [
         {label: L.navHome, active: this.state.view === "home", go: () => this.setState({view: "home"})},
-        {label: L.navDashboard, active: this.state.view === "dashboard", go: () => this.showDashboard()},
         {label: L.navHistory, active: this.state.view === "history", go: () => this.showHistory()},
         {label: L.navSettings, active: this.state.view === "settings", go: () => this.setState({view: "settings", userMenuOpen: false})}
       ].map(i => ({
@@ -1620,9 +1449,6 @@ class Component extends DCLogic {
       isHomeView: this.state.view === "home",
       isHistoryView: this.state.view === "history",
       isSettingsView: this.state.view === "settings",
-      isDashboardView: this.state.view === "dashboard",
-      dashTitle: L.navDashboard, dashCards,
-      uvLabel: L.uvLabel, tomorrowLabel: L.tomorrowLabel, askLabel: L.askLabel,
       settingsTitle: L.navSettings,
       historyTitle: L.historyTitle,
       historySignedOut: !signedIn,

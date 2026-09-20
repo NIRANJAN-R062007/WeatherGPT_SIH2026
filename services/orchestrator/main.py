@@ -29,7 +29,7 @@ import router
 import weather_data
 from auth import get_bearer_token, get_current_user
 from config import ALLOWED_ORIGINS, REPO_ROOT
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -457,16 +457,9 @@ _FRONTEND_DIR = REPO_ROOT / "prototype" / "frontend"
 
 
 @app.get("/")
-def _frontend_index(request: Request):
-    qs = request.url.query
-    return RedirectResponse("/WeatherGPT.dc.html" + (f"?{qs}" if qs else ""))
+def _frontend_index():
+    return RedirectResponse("/WeatherGPT.dc.html")
 
-
-# Phase 3 web frontend (web/, plan.md §8 / §11): served at /web/ on the same
-# origin, so its same-origin API default needs no configuration. Mounted
-# before "/" so the prototype's catch-all mount can't shadow it.
-_WEB_DIR = REPO_ROOT / "web"
-app.mount("/web", StaticFiles(directory=_WEB_DIR, html=True, check_dir=False), name="web")
 
 # check_dir=False: an image built without prototype/frontend (API-only) must
 # still boot — StaticFiles otherwise raises at import and crash-loops the pod.
