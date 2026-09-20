@@ -12,7 +12,9 @@ import pytest
 from config import FIXTURES_DIR
 
 CC = "current_conditions"
+FH = "forecast_hours"
 FD = "forecast_days"
+HH = "history_hours"
 
 
 @pytest.fixture(autouse=True)
@@ -35,9 +37,11 @@ def live_stub(monkeypatch):
     calls = {"n": 0}
     monkeypatch.setattr(config, "GOOGLE_WEATHER_API_KEY", "test-key")
 
+    _path_to_kind = {v: k for k, v in google_weather.ENDPOINTS.items()}
+
     def _fetch(path, params, timeout=google_weather.TIMEOUT):
         calls["n"] += 1
-        kind = CC if "currentConditions" in path else FD
+        kind = _path_to_kind[path]
         city = next(c for c in ("chennai", "madurai", "coimbatore")
                     if abs(params["location.latitude"] - cities.CITIES[c].lat) < 1e-6)
         return _fixture_response(kind, city)
@@ -149,6 +153,22 @@ def test_decode_condition_unknown_enum_logs(caplog):
 def test_params_history_hours_has_hours_param():
     params = google_weather._params("history_hours", "chennai")
     assert params["hours"] == google_weather.HISTORY_HOURS
+
+
+def test_params_forecast_hours_has_hours_param():
+    params = google_weather._params("forecast_hours", "chennai")
+    assert params["hours"] == google_weather.FORECAST_HOURS
+
+
+def test_forecast_hours_live_and_fixture(live_stub):
+    snap = google_weather.snapshot(FH, "chennai")
+    assert snap.is_live is True
+    assert snap.payload == _fixture_response(FH, "chennai")
+
+
+def test_forecast_hours_fixture_exists_for_every_demo_city():
+    for city in ("chennai", "madurai", "coimbatore"):
+        assert _fixture_response(FH, city)
 
 
 def test_cache_stats_shape(live_stub):
