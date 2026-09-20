@@ -71,12 +71,13 @@ Deployments did **not** go healthy on that first run, which exposed two bugs
 in the application images (not the manifests). Both are now fixed on `main`:
 
 1. **Gateway crashed at import when `DATABASE_URL`/`REDIS_URL` were empty
-   strings.** `secret.example.yaml` ships both empty on purpose (no
-   Postgres/Redis in this base), and `envFrom: secretRef` sets the variable
-   to `""` — `os.getenv(name, default)` then returns `""` and
-   `create_engine("")` raised. `services/gateway/main.py` now uses
-   `os.getenv(name) or default`, so empty means "use the default (and let
-   `/health` report the connection error)".
+   strings.** At the time, `secret.example.yaml` shipped both empty on
+   purpose (no Postgres/Redis in this base yet — see below, since fixed), and
+   `envFrom: secretRef` sets the variable to `""` — `os.getenv(name, default)`
+   then returns `""` and `create_engine("")` raised. `services/gateway/main.py`
+   (and now `services/orchestrator/weather_store.py`) use `os.getenv(name) or
+   default` for exactly this reason: an empty Secret value must fall back to
+   the default, not crash the pod.
 2. **Orchestrator crashed at import with `Directory '/app/prototype/frontend'
    does not exist`.** `main.py` mounts the web UI from there but the
    Dockerfile never copied it in — invisible under docker-compose, which
@@ -108,23 +109,27 @@ docker run --rm -v "$PWD/k8s:/k8s" registry.k8s.io/kubectl:v1.31.0 \
   -strict -summary -ignore-missing-schemas -
 ```
 
-## What's deliberately absent
+## Postgres and Redis
 
-**Postgres and Redis.** The gateway's `/health` checks them but the reverse
-proxy itself works without them (see `services/gateway/main.py` — each
-`/health` sub-check is independent, and `DATABASE_URL`/`REDIS_URL` default to
-`localhost` if unset, which will simply show `error: ...` in `/health` rather
-than crash the pod). This base manifest ships neither a Postgres nor a Redis
-workload, so `/history` (Supabase-backed, not Postgres-in-cluster anyway) and
-the gateway's own DB/cache checks will report errors — expected, and harmless
-for the `/ask`, `/facts`, `/warnings` and `/asr` paths this cluster is meant to
-serve. To add them later: a `StatefulSet` + `Service` for
-`postgis/postgis:16-3.4` (mirroring `docker-compose.yml`'s `postgres`
-service, with a `PersistentVolumeClaim` for `/var/lib/postgresql/data`) and a
-`Deployment` + `Service` for `redis:7-alpine`, then point `DATABASE_URL` /
-`REDIS_URL` in `secret.yaml` at their in-cluster Service DNS names
-(`postgres.weathergpt.svc.cluster.local`, etc.) instead of leaving them
-empty.
+`postgres.yaml` (a single-replica `StatefulSet` + PVC, `postgis/postgis:16-3.4`,
+mirroring `docker-compose.yml`'s `postgres` service) and `redis.yaml` (a
+`Deployment`, `redis:7-alpine`) are now part of this base — added for
+`services/orchestrator/weather_store.py`'s L2 cache and `weather_facts`
+durable history (plan.md §8 Phase 1). `secret.example.yaml`'s `DATABASE_URL`/
+`REDIS_URL` point at their in-cluster Service DNS names
+(`postgres.weathergpt.svc.cluster.local`, `redis.weathergpt.svc.cluster.local`)
+by default, and `POSTGRES_USER`/`POSTGRES_PASSWORD`/`POSTGRES_DB` (same demo
+credentials as `docker-compose.yml`) feed `postgres.yaml`'s container env.
+
+Both remain optional on the request path by design — a dead/unreachable
+Postgres or Redis is caught and logged, never raised (same rule the
+gateway's own lazy `/health` checks follow), so `/ask`/`/facts` keep working
+even if these pods are down or not yet applied. The gateway's own `/health`
+checks them too, independent of the orchestrator's usage.
+
+Not yet validated against a real `kubectl apply -k` run with these two new
+manifests in place — only `kubeconform`/rendered-output validation (below)
+and the kind run summarized above, which predates them.
 
 **metrics-server / Prometheus / Grafana.** Pods carry
 `prometheus.io/scrape`, `prometheus.io/port`, `prometheus.io/path`
