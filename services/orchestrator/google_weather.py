@@ -24,14 +24,20 @@ from datetime import datetime, timezone
 import cities
 import config
 import httpx
+import weather_store
 
 ENDPOINTS = {
     "current_conditions": "currentConditions:lookup",
+    "forecast_hours": "forecast/hours:lookup",
     "forecast_days": "forecast/days:lookup",
     "history_hours": "history/hours:lookup",
 }
-TTL_SECONDS = {"current_conditions": 900, "forecast_days": 21600, "history_hours": 3600}
+TTL_SECONDS = {
+    "current_conditions": 900, "forecast_hours": 3600,
+    "forecast_days": 21600, "history_hours": 3600,
+}
 FORECAST_DAYS = 5
+FORECAST_HOURS = 24
 HISTORY_HOURS = 24
 TIMEOUT = 10.0
 
@@ -81,6 +87,8 @@ def _params(kind: str, city_key: str) -> dict:
     }
     if kind == "forecast_days":
         params["days"] = FORECAST_DAYS
+    if kind == "forecast_hours":
+        params["hours"] = FORECAST_HOURS
     if kind == "history_hours":
         params["hours"] = HISTORY_HOURS
     return params
@@ -131,6 +139,15 @@ def snapshot(kind: str, city_key: str, *, force_refresh: bool = False) -> Snapsh
         if cached and _monotonic() - cached[0] < TTL_SECONDS[kind]:
             return cached[1]
 
+        # L2: Redis, shared across processes/replicas and survives a restart
+        # the in-memory dict wouldn't. Populates L1 so the next call in this
+        # process skips Redis entirely.
+        remote = weather_store.redis_get(kind, city_key)
+        if remote is not None:
+            snap = Snapshot(kind=kind, city=city_key, **remote)
+            _CACHE[cache_key] = (_monotonic(), snap)
+            return snap
+
     try:
         snap = _live(kind, city_key)
     except (httpx.HTTPError, config.ConfigError, ValueError, KeyError) as exc:
@@ -141,6 +158,10 @@ def snapshot(kind: str, city_key: str, *, force_refresh: bool = False) -> Snapsh
         return _fixture(kind, city_key)
 
     _CACHE[cache_key] = (_monotonic(), snap)
+    fields = {"payload": snap.payload, "is_live": snap.is_live,
+              "retrieved_at": snap.retrieved_at, "source": snap.source}
+    weather_store.redis_set(kind, city_key, fields, TTL_SECONDS[kind])
+    weather_store.persist(kind, city_key, fields)
     return snap
 
 

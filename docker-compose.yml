@@ -69,8 +69,14 @@ services:
       - .env
     environment:
       OLLAMA_BASE: ${OLLAMA_BASE:-http://localhost:11434}
+      DATABASE_URL: postgresql://weathergpt:weathergpt_dev@postgres:5432/weathergpt
+      REDIS_URL: redis://redis:6379/0
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    # No depends_on for postgres/redis on purpose: weather_store.py's Redis
+    # cache + Postgres persistence are best-effort (plan.md §8 Phase 1) and
+    # must never gate the orchestrator's own startup or /ask — same demo-day
+    # "no DB dependency on the request path" rule as the gateway's /health.
     ports:
       - "8001:8001"
     volumes:

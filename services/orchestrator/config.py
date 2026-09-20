@@ -86,6 +86,15 @@ WEATHER_MODE: str = "fixtures" if OFFLINE_MODE else (os.getenv("WEATHER_MODE") o
 SUPABASE_URL: str | None = os.getenv("SUPABASE_URL")
 SUPABASE_ANON_KEY: str | None = os.getenv("SUPABASE_ANON_KEY")
 
+# Redis (L2 weather-snapshot cache) + Postgres (weather_facts durable history,
+# plan.md §8 Phase 1) — see weather_store.py. `or default`, not getenv's
+# second arg: a k8s Secret with an empty value still *sets* the variable, and
+# create_engine("") raises at import. Same defaults as services/gateway/main.py
+# so a plain `docker compose up` needs no extra config.
+DATABASE_URL: str = (os.getenv("DATABASE_URL")
+                      or "postgresql://weathergpt:weathergpt_dev@localhost:5432/weathergpt")
+REDIS_URL: str = os.getenv("REDIS_URL") or "redis://localhost:6379/0"
+
 
 class ConfigError(RuntimeError):
     pass

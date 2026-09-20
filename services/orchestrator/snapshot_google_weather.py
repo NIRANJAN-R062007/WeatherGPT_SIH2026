@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 
 import config
 import httpx
-from google_weather import ENDPOINTS, FORECAST_DAYS, HISTORY_HOURS
+from google_weather import ENDPOINTS, FORECAST_DAYS, FORECAST_HOURS, HISTORY_HOURS
 
 CITIES_PATH = config.DATA_DIR / "cities.json"
 OUT_DIR = config.FIXTURES_DIR / "google_weather"
@@ -73,6 +73,8 @@ def snapshot(city_key: str, cities: dict, *, days: int, units: str,
         extra = {"unitsSystem": units}
         if name == "forecast_days":
             extra["days"] = days
+        if name == "forecast_hours":
+            extra["hours"] = FORECAST_HOURS
         if name == "history_hours":
             extra["hours"] = HISTORY_HOURS
         status, body = fetch(endpoint, lat, lon, **extra)
@@ -101,7 +103,8 @@ def main() -> int:
     ap.add_argument("--city", default="all",
                     choices=["all", "chennai", "madurai", "coimbatore"])
     ap.add_argument("--kind", default="all",
-                    choices=["all", "current_conditions", "forecast_days", "history_hours"])
+                    choices=["all", "current_conditions", "forecast_hours",
+                             "forecast_days", "history_hours"])
     ap.add_argument("--days", type=int, default=FORECAST_DAYS)
     ap.add_argument("--units", default="METRIC")
     ap.add_argument("--force", action="store_true", help="overwrite existing fixtures")

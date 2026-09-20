@@ -244,9 +244,9 @@ Sequential build order — each phase should be working end-to-end before the ne
 - *Why first:* if the Google Weather API key/billing setup is blocked or the response schema differs from expected, you need to know before anyone writes code against it.
 
 ### Phase 1 — Data layer
-- One ingestion module per Google Weather API endpoint (current conditions, hourly forecast, daily forecast, recent history). — **Syed**
+- ~~One ingestion module per Google Weather API endpoint (current conditions, hourly forecast, daily forecast, recent history).~~ ✅ done (2026-09-20) — `google_weather.py`'s `ENDPOINTS`/`TTL_SECONDS` now cover all four (`current_conditions`, `forecast_hours`, `forecast_days`, `history_hours`); `forecast_hours` was the missing one, added with live fixtures snapshotted for all three demo cities. — **Syed**, finished by **Mahesh**
 - Decoder tables (weather condition codes, wind directions, precipitation categories, UV bands). — **Deepthi**, reviewed by **Syed**
-- Store into Postgres/Redis with TTLs. — **Syed**
+- ~~Store into Postgres/Redis with TTLs.~~ ✅ done (2026-09-20) — `weather_store.py`: Redis is the L2 cache (SETEX per-kind TTL, shared across processes/restarts, layered under `google_weather.py`'s existing in-memory L1); every live snapshot is also appended to Postgres `weather_facts` (`sql/weather_facts.sql`) as durable/audit history. Both are best-effort — any Redis/Postgres failure is swallowed and logged, never raised, so `/ask` still has no hard DB dependency (verified: killed both mid-demo path, `/facts` kept answering from the in-memory/fixture chain). Wired into `docker-compose.yml`'s `orchestrator` service via `DATABASE_URL`/`REDIS_URL`, deliberately with no `depends_on` on postgres/redis so a slow/unhealthy DB container can't block orchestrator startup. — **Syed**, finished by **Mahesh**
 - Schema/infra support for the data layer. — **Niranjan**
 - Cache-strategy tuning (TTL policy per product). — **Deepthi**
 - *Output:* real, decoded weather facts queryable straight from the DB.
@@ -381,7 +381,9 @@ weathergpt/
 ├── services/
 │   ├── gateway/                 # FastAPI reverse proxy — auth passthrough, rate limit, /health, /metrics
 │   └── orchestrator/             # the real brain: nlu.py, router.py, guardrail.py, narrate.py, retrieval.py (RAG),
-│       │                         #   i18n.py, bhashini.py, google_weather.py, imd_warnings.py, history.py, limits.py
+│       │                         #   i18n.py, bhashini.py, google_weather.py, weather_store.py (Redis+Postgres),
+│       │                         #   imd_warnings.py, history.py, limits.py
+│       ├── sql/                   # weather_facts.sql — weather_store.py's Postgres table (also self-applied)
 │       └── tests/                 # unit tests + eval + live-smoke, per module above
 ├── ml/
 │   ├── nlu/                      # eval_set.jsonl (70-row, 5-language intent/entity coverage) + run_eval.py
