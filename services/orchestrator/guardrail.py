@@ -71,26 +71,28 @@ _WORD_UNIT_MARKERS: dict[str, list[tuple[str, str]]] = {
         ("டிகிரி செல்சியஸ்", "celsius"),
         ("சதவீத", "percent"),
         ("கிமீ", "speed_kmh"),
-        ("மி.மீ", "millimetres"),
+        ("மி.மீ", "millimetres"),  # TODO: native_qa
     ],
-    # Reviewed by a native speaker — confirmed accurate (plan.md §13).
+    # celsius/percent/speed_kmh rows reviewed by a native speaker on Sep 13
+    # (commit fce2ad9, plan.md §13). The millimetres rows came later (Sep 14)
+    # and are unreviewed first drafts in every language, Tamil included.
     "hi": [
         ("डिग्री सेल्सियस", "celsius"),
         ("प्रतिशत", "percent"),
         ("किमी", "speed_kmh"),
-        ("मिमी", "millimetres"),
+        ("मिमी", "millimetres"),  # TODO: native_qa
     ],
     "te": [
         ("డిగ్రీల సెల్సియస్", "celsius"),
         ("శాతం", "percent"),
         ("కిమీ", "speed_kmh"),
-        ("మి.మీ", "millimetres"),
+        ("మి.మీ", "millimetres"),  # TODO: native_qa
     ],
     "mr": [
         ("अंश सेल्सिअस", "celsius"),
         ("टक्के", "percent"),
         ("किमी", "speed_kmh"),
-        ("मिमी", "millimetres"),
+        ("मिमी", "millimetres"),  # TODO: native_qa
     ],
 }
 
