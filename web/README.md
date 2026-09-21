@@ -40,11 +40,22 @@ re-translate it, and it does not keep its own copy: the warning colour
 words, colour meanings and category labels come from
 `data/i18n/glossary.json` via `/warnings` (`legend`, `warning.colour_label`,
 `warning.category_label`) and `/glossary`, so that text has one source, not
-three. The ~26 UI-chrome strings below were authored directly in
-`src/i18n/strings.ts` (nav labels, form labels, error/notice copy, settings
-copy) and are flagged `nativeQa: false` for hi/te/mr pending native-speaker
-review, matching the convention used in `services/orchestrator/i18n.py` and
-`data/i18n/glossary.json`:
+three. Whether the API's own text has been reviewed is tracked at its
+source: the `# TODO: native_qa` markers in `services/orchestrator/i18n.py`
+and the per-entry `native_qa` flags the `/glossary` and `/warnings` legend
+payloads carry (all `false` for ta/hi/te/mr today).
+
+The only native-speaker review of this project's Indic text happened on
+Sep 13 (commit `fce2ad9`) and covered the hi/te/mr strings that
+`services/orchestrator/i18n.py` and `main.py` held at that commit. Nothing
+in `src/i18n/strings.ts` existed then — the file was authored on Sep 20 —
+so **every non-English bundle in it is flagged `nativeQa: false`, Tamil
+included** (audit item 4.2; an earlier revision marked Tamil `true` on the
+grounds that it followed the same hand-checked convention as the `i18n.py`
+Tamil strings, but those were reverse-engineered from real Bhashini output
+and these were not). The flag is metadata only; no component reads it. The
+~26 UI-chrome strings authored directly in `strings.ts` (nav labels, form
+labels, error/notice copy, settings copy) are:
 
 - Nav labels: Ask, Dashboard, Warnings, Settings
 - `askTitle`, `askPlaceholder`, `askSubmit`, `cityFromQuestion`, `city`
@@ -53,12 +64,15 @@ review, matching the convention used in `services/orchestrator/i18n.py` and
 - `templateAnswer`, `fixtureData`, `liveData`, `notReported`
 - `language`, `defaultCity`, `saved`, `aboutData`, `cityImage`, `notFound`
 
-Tamil (`ta`) is marked `nativeQa: true` since it follows the same
-hand-checked convention as the Tamil strings in `i18n.py`; the one
-exception is `warningsUnavailable`, authored later without that check. All
-other strings in `strings.ts` (condition-table labels, example queries) are
-copied verbatim from already-reviewed backend source files, cited inline as
-comments.
+The remaining strings are copied verbatim from backend sources, cited inline
+as comments, and inherit those sources' status rather than any review of
+their own: `feelsLike` and `humidity` come from `_CURRENT_PHRASES` strings
+the Sep 13 review covered (hi/te/mr); `uvIndex` comes from the `uv` phrase
+added on Sep 14, which is `# TODO: native_qa` in every non-English language; and
+`exampleQueries` come from `ml/nlu/eval_set.jsonl` rows that are flagged
+`native_qa: false` for every language but English. Set a bundle's
+`nativeQa` to `true` only once a native speaker has confirmed that bundle's
+exact text.
 
 Known gap: a warning's `advice` is free text from the feed and arrives in
 English whatever the UI language, so the Warnings page labels it

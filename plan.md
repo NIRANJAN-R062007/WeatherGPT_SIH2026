@@ -256,7 +256,7 @@ Sequential build order — each phase should be working end-to-end before the ne
 - ~~NLU: LLM → structured intent (location/time/parameter).~~ ✅ done (Sep 12) — `prototype/ask_service/nlu.py`: EN/TA rule fast path → Gemini/Groq structured output → validated fallback — **Mahesh**
 - ~~Tool router: intent → correct Phase 1 data call.~~ ✅ done (Sep 12) — `router.py`, plus `history/hours` for rainfall-so-far — **Mahesh**
 - ~~Guardrail/validator: every number in the answer must exist in the tool's raw response.~~ ✅ done (Sep 12) — one regenerate-with-feedback attempt before template fallback — **Mahesh**
-- ~~NLU eval set: test queries with expected intent/entities across all five languages.~~ ✅ done (Sep 12) — `ml/nlu/eval_set.jsonl` (70 rows); hi/te/mr rows still need native-speaker QA — **Mahesh**
+- ~~NLU eval set: test queries with expected intent/entities across all five languages.~~ ✅ done (Sep 12) — `ml/nlu/eval_set.jsonl` (70 rows); the ta/hi/te/mr rows are author-written and flagged `native_qa: false` — the Sep 13 native-speaker review (commit fce2ad9) covered the `i18n.py`/`main.py` hi/te/mr strings only, not these rows, so they still need native-speaker QA — **Mahesh**
 - ~~RAG (§7 AI/LLM role): ground narration wording on IMD reference text.~~ ✅ done (Sep 14) — `retrieval.py` (pure-Python BM25) over `data/imd_reference/` (colour codes, rainfall categories, UV bands, glossary; 27 entries) feeds ≤2 passages into the narration prompt for category wording only; guardrail still grounds every figure against the weather facts. `RAG_ENABLED` toggle. — **Mahesh**
 - *Output:* ✅ working `/ask` endpoint — text in, grounded English answer with provenance out (translation into the other four added in Phase 3).
 
@@ -264,7 +264,7 @@ Sequential build order — each phase should be working end-to-end before the ne
 - Flutter chat UI wired to `/ask`. — **Chelsea**
 - Web dashboard — UI/UX. — **Chelsea**
 - Web dashboard — data wiring / integration with `/ask`. — **Mahesh**
-- Text translation layer + `data/i18n/` glossary (canonical keys, official warning category text, phrase templates) for all five languages; Telugu-script + Devanagari font bundles + layout check; native-speaker spot-check for any language no one on the team speaks. — translation + phrase templates + native QA for all five ✅ done (Sep 13) — **Syed** (`i18n.py` / `bhashini.translate`)
+- Text translation layer + `data/i18n/` glossary (canonical keys, official warning category text, phrase templates) for all five languages; Telugu-script + Devanagari font bundles + layout check; native-speaker spot-check for any language no one on the team speaks. — translation + phrase templates + native QA for all five ✅ done (Sep 13) — **Syed** (`i18n.py` / `bhashini.translate`) — native QA covers exactly the hi/te/mr strings `i18n.py`, `main.py` `_MESSAGES` and `guardrail.py`'s unit words held as of Sep 13 (commit fce2ad9), all unchanged since; text added later — the `uv` phrase (Sep 14), `DAY_LABELS` (Sep 21), `data/i18n/glossary.json` (Sep 17), `web/src/i18n/strings.ts` (Sep 20), the `ml/nlu/eval_set.jsonl` rows, `guardrail.py`'s millimetre rows (Sep 14) — is unreviewed in every language and, bar the guardrail rows, marked `TODO: native_qa` / `native_qa: false` at its source (audit item 4.2)
 - Still open: `data/i18n/` glossary as a file + official warning-category text. — **Mahesh**
 - Still open: Telugu-script + Devanagari font bundles and layout check in the UI. — **Chelsea**
 - Warning colour-code rendering. — **Chelsea** (mobile); ~~**Mahesh** (web)~~ ✅ web done (Sep 14) — `GET /warnings` + IMD colour banner in `WeatherGPT.dc.html`, backed by hand-written district fixtures in `data/fixtures/imd_warnings/` until the CAP feed (Phase 4) lands
@@ -509,8 +509,15 @@ are "add for the first time," not "extend."
   Telugu, and Marathi added on top (condition names, sentence templates,
   guardrail unit markers); `bhashini.py` generalized from
   `translate_to_tamil()` to `translate(text, target_lang)`. Native-speaker
-  QA done and TODOs updated (commit fce2ad9); 399 tests passing, 5
-  languages supported end to end.
+  QA done and TODOs updated (commit fce2ad9) — scope: exactly the hi/te/mr
+  strings `i18n.py`, `main.py` `_MESSAGES` and `guardrail.py`'s unit words
+  held at that commit, unchanged since; everything added afterwards (`uv`
+  phrase, `DAY_LABELS`, `glossary.json`, `web/` strings, eval rows) is
+  unreviewed and marked `TODO: native_qa` / `native_qa: false` at its
+  source, except the `guardrail.py` millimetre rows (Sep 14, ebb5178), which
+  are equally unreviewed but still sit under that file's blanket Sep 13
+  "Reviewed" comment (audit item 4.2); 399 tests passing, 5 languages
+  supported end to end.
 - [x] **Chelsea — UI/UX.** ✅ done (Sep 14) — integrated everyone else's
   surface into `WeatherGPT.dc.html`: real Google sign-in via `auth.js` + `/me`
   (Deepthi), real history via `GET`/`DELETE /history` (Abel), real mic input

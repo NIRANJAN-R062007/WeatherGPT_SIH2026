@@ -15,6 +15,11 @@ export const LANGUAGES: { code: Lang; native: string; english: string }[] = [
 ];
 
 export interface UiStrings {
+  // True only when a native speaker has confirmed this bundle's exact text.
+  // The one native-speaker review so far (Sep 13, commit fce2ad9) covered the
+  // hi/te/mr strings in services/orchestrator/i18n.py at that commit and
+  // nothing in this file, which was authored on Sep 20 — so every Indic
+  // bundle here is false, Tamil included. See web/README.md.
   nativeQa: boolean;
 
   // Nav / shell (authored, nativeQa: false — see web/README.md).
@@ -31,7 +36,9 @@ export interface UiStrings {
   city: string;
 
   // Stat labels — sourced verbatim from services/orchestrator/i18n.py
-  // `_CURRENT_PHRASES` (label portion, `{v}` and unit stripped).
+  // `_CURRENT_PHRASES` (label portion, `{v}` and unit stripped). feelsLike and
+  // humidity come from strings the Sep 13 review covered; uvIndex's source
+  // string is itself `# TODO: native_qa` there.
   feelsLike: string;
   humidity: string;
   uvIndex: string;
@@ -68,7 +75,8 @@ export interface UiStrings {
   notFound: string;
 
   // Ask page example chips — sourced verbatim from ml/nlu/eval_set.jsonl
-  // rows 001-003 for this language.
+  // rows 001-003 for this language. Those rows are flagged native_qa: false
+  // for every language but English, so copying them confers no review.
   exampleQueries: [string, string, string];
 }
 
@@ -117,7 +125,10 @@ export const STRINGS: Record<Lang, UiStrings> = {
     ],
   },
   ta: {
-    nativeQa: true,
+    // Authored Sep 20 (commit 94b87f7): not reverse-engineered from Bhashini
+    // output like the i18n.py Tamil strings, and never native-reviewed
+    // (audit item 4.2).
+    nativeQa: false,
     navAsk: 'கேள்வி',
     navDashboard: 'டாஷ்போர்டு',
     navWarnings: 'எச்சரிக்கைகள்',
