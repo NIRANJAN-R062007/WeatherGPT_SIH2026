@@ -50,7 +50,7 @@ def test_get_is_forwarded_with_query_and_client_ip(upstream):
     assert "content-encoding" not in r.headers  # httpx already decoded the body
 
 
-def test_existing_forwarded_for_keeps_first_hop(upstream):
+def test_existing_forwarded_for_gets_the_peer_appended_as_last_hop(upstream):
     client.get("/facts?city=chennai", headers={"x-forwarded-for": "203.0.113.9"})
     assert upstream.last.headers["x-forwarded-for"] == "203.0.113.9, testclient"
 
@@ -89,6 +89,7 @@ def test_health_is_the_gateways_own_and_reports_orchestrator(upstream, monkeypat
 
     monkeypatch.setattr(main, "engine", _DeadEngine())
     monkeypatch.setattr(main, "redis_client", _DeadRedis())
+    monkeypatch.setattr(main, "_health_cache", None)  # force a real probe
     r = client.get("/health")
     assert r.status_code == 200
     body = r.json()
