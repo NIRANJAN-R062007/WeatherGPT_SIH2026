@@ -54,7 +54,10 @@ services:
         condition: service_healthy
       orchestrator:
         condition: service_started
-    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    # --no-proxy-headers on both services: a container never sees a 127.0.0.1
+    # peer, so uvicorn's default X-Forwarded-For rewrite can't fire here anyway
+    # — belt and braces for the limiter, which reads the header itself.
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload --no-proxy-headers
 
   # Conversation orchestrator (plan.md §4) — the former prototype/ask_service.
   # Reachable directly on :8001 and via the gateway on :8000.
@@ -71,6 +74,9 @@ services:
       OLLAMA_BASE: ${OLLAMA_BASE:-http://localhost:11434}
       DATABASE_URL: postgresql://weathergpt:weathergpt_dev@postgres:5432/weathergpt
       REDIS_URL: redis://redis:6379/0
+      # The demo page at / (main.py) — same path in the image and under the
+      # bind mount below; unset = API-only.
+      FRONTEND_DIR: /app/prototype/frontend
     extra_hosts:
       - "host.docker.internal:host-gateway"
     # No depends_on for postgres/redis on purpose: weather_store.py's Redis
@@ -82,7 +88,7 @@ services:
     volumes:
       - .:/app
     working_dir: /app/services/orchestrator
-    command: uvicorn main:app --host 0.0.0.0 --port 8001 --reload
+    command: uvicorn main:app --host 0.0.0.0 --port 8001 --reload --no-proxy-headers
 
   # Local LLM offline fallback (plan.md §8 Phase 6) — only started with
   # `docker compose --profile offline up`. Point the orchestrator's OLLAMA_BASE at

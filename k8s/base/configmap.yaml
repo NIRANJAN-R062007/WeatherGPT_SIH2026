@@ -29,6 +29,10 @@ data:
   # CORS for the /ask surface — comma-separated origins; unset means "*"
   ALLOWED_ORIGINS: ""
 
+  # Static demo page the orchestrator serves at / (services/orchestrator/main.py),
+  # baked into its image at this path. Empty means API-only.
+  FRONTEND_DIR: "/app/prototype/frontend"
+
   # Weather source + kill switches
   WEATHER_MODE: "auto"
   OFFLINE_MODE: "0"

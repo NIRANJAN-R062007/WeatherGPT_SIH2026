@@ -29,7 +29,7 @@ import nlu
 import router
 import weather_data
 from auth import get_bearer_token, get_current_user
-from config import ALLOWED_ORIGINS, REPO_ROOT
+from config import ALLOWED_ORIGINS
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse, Response
@@ -41,11 +41,12 @@ from narrate import narrate
 from pydantic import BaseModel, Field
 from weather_data import get_weather
 
-app = FastAPI(title="WeatherGPT /ask prototype", version="0.0.1")
+app = FastAPI(title="WeatherGPT Orchestrator", version="0.1.0")
 
-# The frontend is served from a different origin (http.server) and calls this
-# directly — see prototype/README.md "Integration". POST is for /asr and /tts
-# (JSON bodies too large/binary for query params), no credentials.
+# The deployed frontend (prototype/frontend on Amplify) calls this from its own
+# origin, as does frontend-only local dev — see prototype/README.md
+# "Integration". POST is for /asr and /tts (JSON bodies too large/binary for
+# query params), no credentials.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
@@ -472,16 +473,19 @@ def ask(text: str, lang: str = "en", city: str | None = None,
 
 # Serves the frontend on the same origin/tunnel as the API (plan.md §14 host
 # pin — one stable ngrok URL instead of a second tunnel, which the free tier
-# doesn't support running concurrently). Mounted last so it never shadows the
-# API routes above.
-_FRONTEND_DIR = REPO_ROOT / "prototype" / "frontend"
+# doesn't support running concurrently). Opt-in via FRONTEND_DIR (config.py):
+# unset — a bare `uvicorn main:app` — is API-only, and `/` just points at
+# /health and /docs. Mounted last so it never shadows the API routes above.
+if config.FRONTEND_DIR is None:
+    @app.get("/")
+    def _api_index():
+        return {"service": app.title, "health": "/health", "docs": "/docs"}
+else:
+    @app.get("/")
+    def _frontend_index():
+        return RedirectResponse("/WeatherGPT.dc.html")
 
-
-@app.get("/")
-def _frontend_index():
-    return RedirectResponse("/WeatherGPT.dc.html")
-
-
-# check_dir=False: an image built without prototype/frontend (API-only) must
-# still boot — StaticFiles otherwise raises at import and crash-loops the pod.
-app.mount("/", StaticFiles(directory=_FRONTEND_DIR, check_dir=False), name="frontend")
+    # check_dir=False: a FRONTEND_DIR missing from the image must still boot —
+    # StaticFiles otherwise raises at import and crash-loops the pod.
+    app.mount("/", StaticFiles(directory=config.FRONTEND_DIR, check_dir=False),
+              name="frontend")

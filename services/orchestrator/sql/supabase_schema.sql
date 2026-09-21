@@ -48,7 +48,7 @@ create trigger on_auth_user_created
   for each row execute procedure public.handle_new_user();
 
 -- plan.md §14 Abel track — one row per answered /ask query. `user_id`
--- defaults to auth.uid() so the backend (prototype/ask_service/history.py)
+-- defaults to auth.uid() so the backend (services/orchestrator/history.py)
 -- never has to send it explicitly: it just POSTs with the caller's own
 -- session token and PostgREST resolves the JWT for us, same trust boundary
 -- as auth.py's /me.
