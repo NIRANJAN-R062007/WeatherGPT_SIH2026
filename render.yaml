@@ -43,6 +43,11 @@ services:
         value: "2097152"
       - key: RATE_LIMIT_PER_MINUTE
         value: "30"
+      # Proxies between the internet and the orchestrator: only Render's edge,
+      # which appends the client address as the rightmost X-Forwarded-For hop
+      # (no gateway here) = 1. See services/orchestrator/limits.py.
+      - key: TRUSTED_PROXY_HOPS
+        value: "1"
       - key: BHASHINI_USER_ID
         sync: false
       - key: BHASHINI_ULCA_API_KEY

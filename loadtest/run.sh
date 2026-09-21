@@ -83,14 +83,21 @@ trap cleanup EXIT
 echo "starting orchestrator on :8001..."
 # `exec` so $! is uvicorn itself, not a wrapper subshell — otherwise the EXIT
 # trap kills the wrapper and leaves the server holding the port.
-(cd "$ROOT/services/orchestrator" && exec "$ROOT/$VENV/uvicorn" main:app --port 8001 >> "$ORCH_LOG" 2>&1) &
+#
+# --no-proxy-headers on both servers: uvicorn's default is to trust
+# X-Forwarded-For from 127.0.0.1 and rewrite `request.client` from it. k6
+# connects from 127.0.0.1, so without this the gateway would "append" whatever
+# abuse.js put in the header instead of the real peer, and the limiter
+# (TRUSTED_PROXY_HOPS=1, the gateway being the one proxy here) would key on
+# the spoof. The containers don't hit this — their peers are never 127.0.0.1.
+(cd "$ROOT/services/orchestrator" && exec "$ROOT/$VENV/uvicorn" main:app --no-proxy-headers --port 8001 >> "$ORCH_LOG" 2>&1) &
 ORCH_PID=$!
 
 echo "starting gateway on :8000..."
 export ORCHESTRATOR_URL=http://localhost:8001
 export DATABASE_URL=postgresql://weathergpt:weathergpt_dev@localhost:5432/weathergpt
 export REDIS_URL=redis://localhost:6379/0
-(cd "$ROOT/services/gateway" && exec "$ROOT/$VENV/uvicorn" main:app --port 8000 >> "$GW_LOG" 2>&1) &
+(cd "$ROOT/services/gateway" && exec "$ROOT/$VENV/uvicorn" main:app --no-proxy-headers --port 8000 >> "$GW_LOG" 2>&1) &
 GW_PID=$!
 
 # Prefer /livez (no I/O, added alongside /metrics by a parallel workstream —

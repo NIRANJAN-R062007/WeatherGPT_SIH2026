@@ -64,6 +64,14 @@ OLLAMA_TIMEOUT: float = _float_env("OLLAMA_TIMEOUT", 30.0)
 # Public-surface limits (limits.py). 0 disables the rate limit.
 MAX_BODY_BYTES: int = int(_float_env("MAX_BODY_BYTES", 2 * 1024 * 1024))
 RATE_LIMIT_PER_MINUTE: int = int(_float_env("RATE_LIMIT_PER_MINUTE", 30))
+# Proxies between the internet and the orchestrator, the gateway counting as
+# one (the gateway reads the same variable, same meaning): that many
+# X-Forwarded-For hops from the right were appended by something we trust, and
+# the limiter keys on the outermost of them — never the client-controlled
+# leftmost entry. 1 = gateway alone or Render's edge; 2 = behind ngrok or the
+# k8s ingress; 0 = nothing in front. Table in limits.py. `_float_env` uses
+# `or default`, so an empty k8s value still lands on 1.
+TRUSTED_PROXY_HOPS: int = int(_float_env("TRUSTED_PROXY_HOPS", 1))
 
 BHASHINI_USER_ID: str | None = os.getenv("BHASHINI_USER_ID")
 BHASHINI_ULCA_API_KEY: str | None = os.getenv("BHASHINI_ULCA_API_KEY")
