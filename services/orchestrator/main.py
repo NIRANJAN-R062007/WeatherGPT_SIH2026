@@ -17,6 +17,7 @@ from datetime import datetime, timezone
 import bhashini
 import cities
 import config
+import glossary
 import guardrail
 import history
 import httpx
@@ -374,8 +375,6 @@ def glossary_route(lang: str = "en"):
     meanings and the category labels every surface should render from rather
     than carry its own copy (plan.md §3.1). Entries keep their native_qa flag
     so a client can mark unreviewed translations."""
-    import glossary  # local: keeps the shared import block above untouched; hoist when convenient
-
     _require_lang(lang)
     return {"lang": lang, "entries": glossary.entries(lang)}
 
