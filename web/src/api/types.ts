@@ -79,11 +79,14 @@ export interface WarningsResponse {
 }
 
 /**
- * A backend that predates `status`, or a payload whose `warning` doesn't
- * back its status, is treated as unavailable — never as an all-clear.
+ * A payload whose `warning` doesn't back its status is treated as
+ * unavailable — never as an all-clear. A backend that predates `status` but
+ * did return a warning object gets the status its colour implies: hiding a
+ * live orange alert behind a missing field would be the worse failure.
  */
 export function warningStatus(r: WarningsResponse): WarningStatus {
   if ((r.status === 'active' || r.status === 'clear') && r.warning) return r.status;
+  if (r.status === undefined && r.warning) return r.warning.colour === 'green' ? 'clear' : 'active';
   return 'unavailable';
 }
 
