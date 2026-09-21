@@ -19,12 +19,21 @@ import json
 import logging
 
 import config
+import glossary
 
 _LOG = logging.getLogger("weathergpt.warnings")
 
 _WARNINGS_DIR = config.FIXTURES_DIR / "imd_warnings"
 
 _CACHE: dict[str, dict | None] = {}
+
+# What public() can say about a city. "No verdict" and "checked, nothing in
+# force" are deliberately distinct: with WARNINGS_ENABLED off — the default,
+# so every current deploy — the answer is UNAVAILABLE, and a UI must render
+# that as "not available", never as a green all-clear (plan.md §2 principle 3).
+STATUS_UNAVAILABLE = "unavailable"  # feed off, or no usable fixture for the city
+STATUS_CLEAR = "clear"              # feed checked: green, nothing in force
+STATUS_ACTIVE = "active"            # yellow / orange / red in force
 
 
 def load(city_key: str) -> dict | None:
@@ -48,7 +57,9 @@ def load(city_key: str) -> dict | None:
         _ = (response["district"], response["colour"], response["valid_from"],
              response["valid_to"], response["advice"], response["labels"],
              meta["issued_by"])
-    except (OSError, json.JSONDecodeError, KeyError, TypeError) as exc:
+        if response["colour"] not in glossary.COLOURS:  # public() looks the word up
+            raise ValueError(f"unknown colour {response['colour']!r}")
+    except (OSError, ValueError, KeyError, TypeError) as exc:  # json errors are ValueErrors
         _LOG.warning("malformed IMD warning fixture for %s (%s): %s", city_key, path, exc)
         _CACHE[city_key] = None
         return None
@@ -57,28 +68,44 @@ def load(city_key: str) -> dict | None:
     return env
 
 
-def public(city_key: str, lang: str) -> dict | None:
-    """Flattened shape for the API. Returns None if no warning fixture is
-    available for this city (caller decides what that means for the response),
-    or if config.WARNINGS_ENABLED is off (the default) — the fixture is fake
-    data, not a live feed, so it shouldn't read as a real alert unless someone
-    deliberately turns it on for a demo."""
-    if not config.WARNINGS_ENABLED:
-        return None
-    env = load(city_key)
+def public(city_key: str, lang: str) -> dict:
+    """What the API says about a city's warning, in `lang`:
+
+        {"status": STATUS_*, "warning": {...} | None, "legend": [...]}
+
+    `warning` is the flattened fixture (colour, headline, advice, validity,
+    provenance) plus glossary-sourced `colour_label` and `category_label`;
+    `category` stays the feed's own text. It is None exactly when status is
+    UNAVAILABLE, so a consumer that only knows `warning` (prototype/frontend's
+    loadHero) keeps working. Green is CLEAR and the object is still returned:
+    it carries the feed's own "nothing in force" headline, validity window
+    and issuer, which is what a checked all-clear should show. `legend` is
+    glossary.legend(lang), so a banner can explain its colour code without a
+    second call.
+
+    UNAVAILABLE covers config.WARNINGS_ENABLED off (the default — the fixture
+    is fake data, not a live feed, and shouldn't read as a real alert unless
+    someone deliberately turns it on for a demo) and a missing or malformed
+    fixture for the city.
+    """
+    legend = glossary.legend(lang)
+    env = load(city_key) if config.WARNINGS_ENABLED else None
     if env is None:
-        return None
+        return {"status": STATUS_UNAVAILABLE, "warning": None, "legend": legend}
 
     response = env["response"]
     meta = env["_meta"]
     labels = response["labels"]
     label = labels.get(lang) or labels["en"]
+    colour = response["colour"]
 
-    return {
+    warning = {
         "city": city_key,
         "district": response["district"],
-        "colour": response["colour"],
+        "colour": colour,
+        "colour_label": glossary.text(f"colour_word_{colour}", lang),
         "category": response.get("category"),
+        "category_label": glossary.category_label(response.get("category"), lang),
         "headline": label.get("headline") or labels["en"]["headline"],
         "advice": response["advice"],
         "valid_from": response["valid_from"],
@@ -86,6 +113,8 @@ def public(city_key: str, lang: str) -> dict | None:
         "issued_by": meta["issued_by"],
         "source": "fixture",
     }
+    status = STATUS_CLEAR if colour == "green" else STATUS_ACTIVE
+    return {"status": status, "warning": warning, "legend": legend}
 
 
 def cache_clear() -> None:

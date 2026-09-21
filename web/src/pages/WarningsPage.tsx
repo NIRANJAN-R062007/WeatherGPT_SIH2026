@@ -1,5 +1,6 @@
 import { useSearchParams } from 'react-router-dom';
 import { ApiError, fetchWarning } from '../api/client';
+import { warningStatus } from '../api/types';
 import type { WarningColour } from '../api/types';
 import { CityPicker } from '../components/CityPicker';
 import { Notice } from '../components/Notice';
@@ -46,12 +47,15 @@ export function WarningsPage() {
     [cityKey, lang],
   );
 
-  const legend: { colour: WarningColour; word: string; meaning: string }[] = [
-    { colour: 'green', word: t.colourGreen, meaning: t.colourMeaningGreen },
-    { colour: 'yellow', word: t.colourYellow, meaning: t.colourMeaningYellow },
-    { colour: 'orange', word: t.colourOrange, meaning: t.colourMeaningOrange },
-    { colour: 'red', word: t.colourRed, meaning: t.colourMeaningRed },
-  ];
+  // The feed's verdict for this city. Anything short of one — the feed
+  // switched off (every deploy's default), no fixture, an older backend
+  // without `status` — is "unavailable" and renders as such, never as green.
+  const result = status === 'ok' ? data : undefined;
+  const verdict = result ? warningStatus(result) : null;
+  const warning = result?.warning ?? null;
+  const validity = warning
+    ? formatDateRange(warning.valid_from, warning.valid_to, city?.timezone ?? 'Asia/Kolkata', lang)
+    : '';
 
   if (citiesStatus === 'loading') {
     return <Skeleton kind="lines" count={4} />;
@@ -97,57 +101,73 @@ export function WarningsPage() {
           </Notice>
         )}
 
-        {status === 'ok' && data?.warning && (
+        {verdict === 'unavailable' && (
+          <Notice variant="refusal">{t.warningsUnavailable}</Notice>
+        )}
+
+        {verdict === 'active' && warning && (
           <section
             aria-labelledby="warning-headline"
-            className={`border-l-8 p-5 ${BANNER_CLASSES[data.warning.colour]}`}
+            className={`border-l-8 p-5 ${BANNER_CLASSES[warning.colour]}`}
           >
             <p className="font-mono text-xs uppercase tracking-[0.18em] text-ink">
-              {legend.find((l) => l.colour === data.warning!.colour)?.word} · {t.alert}
+              {warning.colour_label} · {t.alert}
             </p>
             <h2 id="warning-headline" className="mt-2 break-words text-2xl text-ink">
-              {data.warning.headline}
+              {warning.headline}
             </h2>
             <p className="mt-1 text-sm text-ink-dim">
-              {data.warning.category} · {data.warning.district}
+              {warning.category_label} · {warning.district}
             </p>
             <p className="mt-3 text-sm text-ink">
-              {t.valid}: {formatDateRange(data.warning.valid_from, data.warning.valid_to, city?.timezone ?? 'Asia/Kolkata', lang)}
+              {t.valid}: {validity}
             </p>
+            {/* Free text from the feed, English only — see web/README.md. */}
             <p className="mt-3 break-words text-ink" lang="en">
-              {data.warning.advice}
+              {warning.advice}
             </p>
             <p className="mt-4 font-mono text-xs text-ink-faint">
-              {data.warning.issued_by} · {data.warning.source}
+              {warning.issued_by} · {warning.source}
             </p>
           </section>
         )}
 
-        {status === 'ok' && data && !data.warning && (
+        {verdict === 'clear' && warning && result && (
           <div className="rounded-sm border border-line p-5">
             <span aria-hidden className="inline-block h-3 w-3 rounded-full bg-imd-green" />
-            <h2 className="mt-2 text-2xl text-ink">{t.noWarning}</h2>
+            <h2 className="mt-2 break-words text-2xl text-ink">{warning.headline}</h2>
             <p className="mt-1 break-words text-ink-dim">
-              {t.noWarningBody} {data.city_name}.
+              {t.noWarningBody} {result.city_name}.
             </p>
-            <Placeholder ratio="4/3" glyph="flag" label={t.noWarning} className="mt-4 max-w-xs" />
+            <p className="mt-3 text-sm text-ink">
+              {t.valid}: {validity}
+            </p>
+            <p className="mt-3 break-words text-ink" lang="en">
+              {warning.advice}
+            </p>
+            <p className="mt-4 font-mono text-xs text-ink-faint">
+              {warning.issued_by} · {warning.source}
+            </p>
+            <Placeholder ratio="4/3" glyph="flag" label={warning.headline} className="mt-4 max-w-xs" />
           </div>
         )}
       </div>
 
-      <Reveal className="mt-10">
-        <div className="grid gap-px bg-line md:grid-cols-[8rem_1fr]">
-          {legend.map((row) => (
-            <div key={row.colour} className="contents">
-              <div className="flex items-center gap-2 bg-paper p-3">
-                <span aria-hidden className={`h-3 w-3 rounded-sm ${SWATCH_CLASSES[row.colour]}`} />
-                <span className="text-sm text-ink">{row.word}</span>
+      {result?.legend && result.legend.length > 0 && (
+        <Reveal className="mt-10">
+          <div className="grid gap-px bg-line md:grid-cols-[8rem_1fr]">
+            {result.legend.map((row) => (
+              <div key={row.colour} className="contents">
+                <div className="flex items-center gap-2 bg-paper p-3">
+                  <span aria-hidden className={`h-3 w-3 rounded-sm ${SWATCH_CLASSES[row.colour]}`} />
+                  <span className="text-sm text-ink">{row.label}</span>
+                </div>
+                <div className="bg-paper p-3 text-sm text-ink-dim">{row.meaning}</div>
               </div>
-              <div className="bg-paper p-3 text-sm text-ink-dim">{row.meaning}</div>
-            </div>
-          ))}
-        </div>
-      </Reveal>
+            ))}
+          </div>
+        </Reveal>
+      )}
     </div>
   );
 }
