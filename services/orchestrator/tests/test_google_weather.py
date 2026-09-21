@@ -9,6 +9,7 @@ import config
 import google_weather
 import httpx
 import pytest
+import weather_store
 from config import FIXTURES_DIR
 
 CC = "current_conditions"
@@ -24,6 +25,16 @@ def _auto_mode(monkeypatch):
     """
     monkeypatch.setattr(config, "WEATHER_MODE", "auto")
     monkeypatch.setattr(config, "GOOGLE_WEATHER_API_KEY", "test-key")
+
+
+@pytest.fixture(autouse=True)
+def persist_calls(monkeypatch):
+    """Record weather_store.persist() calls instead of starting its writer
+    thread against a Postgres that isn't there (test_weather_store covers it)."""
+    calls = []
+    monkeypatch.setattr(weather_store, "persist",
+                        lambda kind, city, fields: calls.append((kind, city, fields)))
+    return calls
 
 
 def _fixture_response(kind, city):
@@ -175,6 +186,33 @@ def test_cache_stats_shape(live_stub):
     google_weather.snapshot(CC, "chennai")
     stats = google_weather.cache_stats()
     assert stats == {"entries": 1, "live": 1, "snapshot": 0}
+
+
+def test_live_fetch_persists_exactly_once(live_stub, persist_calls):
+    google_weather.snapshot(CC, "chennai")
+    google_weather.snapshot(CC, "chennai")  # L1 hit: no fetch, no persist
+    assert [(k, c) for k, c, _ in persist_calls] == [(CC, "chennai")]
+    fields = persist_calls[0][2]
+    assert fields["is_live"] is True
+    assert fields["payload"] == _fixture_response(CC, "chennai")
+
+
+def test_only_live_fetches_persist(monkeypatch, persist_calls):
+    def _boom(*a, **k):
+        raise httpx.ConnectError("down")
+
+    monkeypatch.setattr(google_weather, "fetch_json", _boom)
+    assert google_weather.snapshot(CC, "chennai").is_live is False  # fixture fallback
+
+    remote = {"payload": {}, "is_live": True, "retrieved_at": "2026-09-20T00:00:00+00:00",
+              "source": "live"}
+    monkeypatch.setattr(weather_store, "redis_get", lambda kind, city: remote)
+    assert google_weather.snapshot(FD, "chennai").is_live is True  # L2 hit, not a fetch
+
+    monkeypatch.setattr(config, "WEATHER_MODE", "fixtures")
+    google_weather.snapshot(FD, "madurai")
+
+    assert persist_calls == []
 
 
 def test_live_failure_log_never_contains_the_api_key(monkeypatch, caplog):
