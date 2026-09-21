@@ -208,12 +208,13 @@ def test_tamil_wind_speed_word_unit_matches_correct_field():
 
 
 # --- hi/te/mr word-unit coverage (plan.md §13) ---
-# First-draft guesses at Bhashini's spelled-out unit words for these three
-# languages, NOT reverse-engineered from real translated output the way the
-# Tamil cases above were — see the TODO on guardrail._WORD_UNIT_MARKERS.
-# These tests only prove the guardrail table mechanics are unit-aware for
-# each language; they do not prove the marker strings match real Bhashini
-# output, which still needs a native-speaker + live-translation QA pass.
+# The celsius/percent/speed_kmh words were native-speaker reviewed on Sep 13
+# (commit fce2ad9); the millimetres rows were not (see the TODO markers on
+# guardrail._WORD_UNIT_MARKERS). Neither set was reverse-engineered from real
+# translated output the way the Tamil cases above were. These tests only prove
+# the guardrail table mechanics are unit-aware for each language; they do not
+# prove the marker strings match real Bhashini output, which still needs a
+# live-translation QA pass.
 
 _WORD_UNIT_CASES = [
     ("hi", "चेन्नई: 20 डिग्री सेल्सियस.",
