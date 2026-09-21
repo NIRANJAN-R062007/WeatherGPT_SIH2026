@@ -17,8 +17,19 @@ Tamil strings taken from the frontend's CITIES object where present.
 
 hi/te/mr entries are first-draft machine translations by a non-native
 speaker, NOT reverse-engineered from real Bhashini output the way the Tamil
-strings were. A native speaker has since reviewed the hi/te/mr strings and
-confirmed them accurate — plan.md §13.
+strings were. Native-speaker QA (plan.md §13) happened once, on Sep 13
+(commit fce2ad9), and covered exactly the hi/te/mr strings this file held at
+that commit: CONDITIONS, UNRECOGNIZED, the now/feels_like/humidity phrases of
+_CURRENT_PHRASES, and all of _MULTI_DAY_PHRASES, _RAIN_SO_FAR_PHRASES and
+_FORECAST_PHRASES. None of those strings has changed since, so the "Reviewed
+by a native speaker" comments below hold for them and for nothing else.
+Everything added later is unreviewed in every language and carries a
+`# TODO: native_qa` marker: the whole DAY_LABELS table (Sep 21, Tamil row
+included) and the "uv" phrase in _CURRENT_PHRASES (Sep 14, Tamil included —
+that one is not from Bhashini output either). Keep the marker on any new or
+edited hi/te/mr string until a native speaker has confirmed that exact text;
+main.py's _MESSAGES and data/i18n/glossary.json track the same thing with a
+block comment and per-entry `native_qa` flags respectively.
 """
 
 SUPPORTED_LANGUAGES = ("en", "ta", "hi", "te", "mr")
@@ -56,7 +67,8 @@ CONDITIONS: dict[str, dict[str, str]] = {
         "scattered_thunderstorms": "சிதறலான இடியுடன் மழை",
         "unknown": "நிலையற்ற வானிலை",
     },
-    # Reviewed by a native speaker — confirmed accurate (plan.md §13).
+    # Reviewed by a native speaker — confirmed accurate (Sep 13, commit fce2ad9;
+    # plan.md §13). Unchanged since; re-add `# TODO: native_qa` if any row is edited.
     "hi": {
         "clear": "साफ आसमान",
         "mostly_clear": "अधिकतर साफ",
@@ -73,7 +85,8 @@ CONDITIONS: dict[str, dict[str, str]] = {
         "scattered_thunderstorms": "छिटपुट गरज के साथ बारिश",
         "unknown": "अस्थिर मौसम",
     },
-    # Reviewed by a native speaker — confirmed accurate (plan.md §13).
+    # Reviewed by a native speaker — confirmed accurate (Sep 13, commit fce2ad9;
+    # plan.md §13). Unchanged since; re-add `# TODO: native_qa` if any row is edited.
     "te": {
         "clear": "స్పష్టమైన ఆకాశం",
         "mostly_clear": "ఎక్కువగా స్పష్టం",
@@ -90,7 +103,8 @@ CONDITIONS: dict[str, dict[str, str]] = {
         "scattered_thunderstorms": "అక్కడక్కడా ఉరుములతో వర్షం",
         "unknown": "అస్థిర వాతావరణం",
     },
-    # Reviewed by a native speaker — confirmed accurate (plan.md §13).
+    # Reviewed by a native speaker — confirmed accurate (Sep 13, commit fce2ad9;
+    # plan.md §13). Unchanged since; re-add `# TODO: native_qa` if any row is edited.
     "mr": {
         "clear": "स्वच्छ आकाश",
         "mostly_clear": "बहुतांश स्वच्छ",
@@ -153,8 +167,8 @@ DAY_LABELS: dict[str, dict[str, str]] = {
         "sunday": "ஞாயிற்றுக்கிழமை",
         "later": "பின்னர்",
     },
-    # Day names are a first-draft machine translation, not native-speaker
-    # reviewed yet (unlike the rest of this file — plan.md §13).
+    # Day names are a first-draft machine translation (Sep 21), not native-speaker
+    # reviewed — the Sep 13 review predates this table (see the module docstring).
     "hi": {  # TODO: native_qa
         "today": "आज",
         "tomorrow": "कल",
@@ -167,8 +181,8 @@ DAY_LABELS: dict[str, dict[str, str]] = {
         "sunday": "रविवार",
         "later": "बाद में",
     },
-    # Day names are a first-draft machine translation, not native-speaker
-    # reviewed yet (unlike the rest of this file — plan.md §13).
+    # Day names are a first-draft machine translation (Sep 21), not native-speaker
+    # reviewed — the Sep 13 review predates this table (see the module docstring).
     "te": {  # TODO: native_qa
         "today": "ఈరోజు",
         "tomorrow": "రేపు",
@@ -181,8 +195,8 @@ DAY_LABELS: dict[str, dict[str, str]] = {
         "sunday": "ఆదివారం",
         "later": "తర్వాత",
     },
-    # Day names are a first-draft machine translation, not native-speaker
-    # reviewed yet (unlike the rest of this file — plan.md §13).
+    # Day names are a first-draft machine translation (Sep 21), not native-speaker
+    # reviewed — the Sep 13 review predates this table (see the module docstring).
     "mr": {  # TODO: native_qa
         "today": "आज",
         "tomorrow": "उद्या",
@@ -201,9 +215,9 @@ DAY_LABELS: dict[str, dict[str, str]] = {
 UNRECOGNIZED = {
     "en": "Sorry, I couldn't understand that.",
     "ta": "மன்னிக்கவும், புரியவில்லை.",
-    "hi": "माफ़ कीजिए, मुझे समझ नहीं आया।",  # Reviewed by native speaker.
-    "te": "క్షమించండి, అర్థం కాలేదు.",  # Reviewed by native speaker.
-    "mr": "माफ करा, समजले नाही.",  # Reviewed by native speaker.
+    "hi": "माफ़ कीजिए, मुझे समझ नहीं आया।",  # Reviewed by native speaker (Sep 13, fce2ad9).
+    "te": "క్షమించండి, అర్థం కాలేదు.",  # Reviewed by native speaker (Sep 13, fce2ad9).
+    "mr": "माफ करा, समजले नाही.",  # Reviewed by native speaker (Sep 13, fce2ad9).
 }
 
 # Per-fragment phrase tables for each render function below. Symbols (°C, %)
@@ -214,21 +228,23 @@ _CURRENT_PHRASES = {
     "en": {"now": "{city}: {cond}, {temp}°C right now",
            "feels_like": "feels like {v}°C", "humidity": "humidity {v}%",
            "uv": "UV index {v}"},
+    # UV phrase is a first draft by a non-native speaker (Sep 14), NOT
+    # reverse-engineered from real Bhashini output like the rest of this row.
     "ta": {"now": "{city}: {cond}, {temp}°C",
            "feels_like": "உணரப்படுவது {v}°C", "humidity": "ஈரப்பதம் {v}%",
-           "uv": "UV குறியீடு {v}"},
-    # UV phrase is a first-draft machine translation, not native-speaker
-    # reviewed yet (unlike the rest of this table — plan.md §13).
+           "uv": "UV குறியீடு {v}"},  # TODO: native_qa
+    # UV phrase is a first-draft machine translation (Sep 14), not native-speaker
+    # reviewed — added after the Sep 13 review that covers the rest of this row.
     "hi": {"now": "{city}: {cond}, अभी {temp}°C",
            "feels_like": "महसूस होता है {v}°C जैसा", "humidity": "आर्द्रता {v}%",
            "uv": "यूवी इंडेक्स {v}"},  # TODO: native_qa
-    # UV phrase is a first-draft machine translation, not native-speaker
-    # reviewed yet (unlike the rest of this table — plan.md §13).
+    # UV phrase is a first-draft machine translation (Sep 14), not native-speaker
+    # reviewed — added after the Sep 13 review that covers the rest of this row.
     "te": {"now": "{city}: {cond}, ప్రస్తుతం {temp}°C",
            "feels_like": "అనుభూతి {v}°C", "humidity": "తేమ {v}%",
            "uv": "యూవీ సూచిక {v}"},  # TODO: native_qa
-    # UV phrase is a first-draft machine translation, not native-speaker
-    # reviewed yet (unlike the rest of this table — plan.md §13).
+    # UV phrase is a first-draft machine translation (Sep 14), not native-speaker
+    # reviewed — added after the Sep 13 review that covers the rest of this row.
     "mr": {"now": "{city}: {cond}, सध्या {temp}°C",
            "feels_like": "जाणवते {v}°C", "humidity": "आर्द्रता {v}%",
            "uv": "यूव्ही निर्देशांक {v}"},  # TODO: native_qa
@@ -319,8 +335,9 @@ def _render_current(city: str, data: dict, lang: str) -> str:
 
 
 def _render_multi_day(city: str, data: dict, lang: str) -> str:
-    """N-day outlook. hi/te/mr phrases reviewed by a native speaker (plan.md
-    §13); the day labels are not yet (see DAY_LABELS).
+    """N-day outlook. hi/te/mr phrases reviewed by a native speaker (Sep 13,
+    fce2ad9; plan.md §13) and unchanged since; the day labels are not reviewed
+    in any language (see DAY_LABELS).
     """
     table = condition_table(lang)
     labels = DAY_LABELS.get(lang, DAY_LABELS["en"])
@@ -346,7 +363,9 @@ def _render_multi_day(city: str, data: dict, lang: str) -> str:
 
 
 def _render_rain_so_far(city: str, data: dict, lang: str) -> str:
-    """Rain-so-far-today. hi/te/mr text reviewed by a native speaker (plan.md §13)."""
+    """Rain-so-far-today. hi/te/mr text reviewed by a native speaker (Sep 13,
+    fce2ad9; plan.md §13) and unchanged since.
+    """
     table = condition_table(lang)
     phrases = _RAIN_SO_FAR_PHRASES.get(lang, _RAIN_SO_FAR_PHRASES["en"])
     hours = data.get("hours_counted")

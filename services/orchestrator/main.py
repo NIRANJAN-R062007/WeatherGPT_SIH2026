@@ -60,8 +60,14 @@ app.add_middleware(metrics.HTTPMetrics, service="orchestrator")
 
 
 # hi/te/mr strings are first-draft machine translations, not reverse-engineered
-# from native usage like the ta strings were. Reviewed by a native speaker —
-# confirmed accurate (plan.md §13).
+# from native usage like the ta strings were. The one native-speaker review so
+# far (Sep 13, commit fce2ad9; plan.md §13) covered exactly the eight keys this
+# dict held then — unrecognized, unsupported_city, no_city, no_data, ungrounded,
+# out_of_scope, language_unsupported, voice_unavailable — and their hi/te/mr
+# text is unchanged since, so those eight count as reviewed. Any key added or
+# any hi/te/mr string edited after fce2ad9 is a first draft and must carry a
+# `# TODO: native_qa` marker until a native speaker confirms that exact text
+# (same convention as i18n.py and data/i18n/glossary.json's native_qa flags).
 _MESSAGES = {
     "unrecognized": {
         "en": "Sorry, I couldn't understand that request.",
