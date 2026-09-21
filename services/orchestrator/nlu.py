@@ -4,8 +4,8 @@ safety net when the rules don't confidently fit. See plan.md §8.
 
 `intent.py` (untouched, still has its own 6 tests) does the base city/day/rain
 extraction; this module layers time-window, next-N-days, day-after-tomorrow,
-rainfall-so-far and out-of-scope detection on top, then decides whether that
-rule result is trustworthy enough to use directly.
+rainfall-so-far, warnings and out-of-scope detection on top, then decides
+whether that rule result is trustworthy enough to use directly.
 """
 
 import json
@@ -19,7 +19,10 @@ import httpx
 import narrate
 from intent import parse_intent
 
-INTENTS = ("current_weather", "forecast", "will_it_rain", "rainfall_so_far_today", "out_of_scope")
+INTENTS = (
+    "current_weather", "forecast", "will_it_rain", "rainfall_so_far_today", "warnings",
+    "out_of_scope",
+)
 TIME_WINDOWS = ("today", "tonight", "tomorrow", "day_after_tomorrow", "next_n_days")
 PARAMETERS = ("general", "temperature", "rain", "humidity", "wind", "uv")
 LANGUAGES = ("en", "hi", "ta", "te", "mr")
@@ -27,10 +30,27 @@ LANGUAGES = ("en", "hi", "ta", "te", "mr")
 _P0_INTENTS = {"current_weather", "forecast", "will_it_rain", "rainfall_so_far_today"}
 _LOG = logging.getLogger("weathergpt.nlu")
 
+# Warning-shaped questions are answered from imd_warnings (the district colour
+# code), so they are `warnings`, whatever the hazard: "cyclone warning for
+# Chennai" and "வெள்ள எச்சரிக்கை" ask about a warning IMD colour-codes.
+# `out_of_scope` is reserved for products plan.md §3.1 ("Coverage gap") says we
+# don't have — a cyclone's track / landfall, tsunami, earthquake, marine /
+# fishermen bulletins — which _OUT_OF_SCOPE_RE catches even when phrased as a
+# warning question ("tsunami warning?"), plus a bare hazard word with no
+# warning word ("is a cyclone hitting Chennai?", "will Chennai flood?"): only a
+# track or river-basin product could answer those, so _HAZARD_RE keeps them
+# out of scope unless _WARNINGS_RE also hits.
 _OUT_OF_SCOPE_RE = re.compile(
-    r"\b(cyclone|storm warning|warning|alert|flood|tsunami|earthquake)\b|புயல்|சூறாவளி|வெள்ள",
+    r"\b(?:cyclone|storm)\s+(?:track|path)\b|\b(?:track|path)\s+of\s+(?:the\s+)?(?:cyclone|storm)\b"
+    r"|\b(?:landfall|tsunami|earthquake|marine|fisher(?:men|man)|storm\s+surge)\b"
+    r"|\b(?:rough|high)\s+seas?\b|\bsea\s+(?:condition|state)s?\b"
+    r"|சுனாமி|நிலநடுக்கம்|மீனவர்|கரையை(?:க்)?\s*கடக்க",
     re.IGNORECASE,
 )
+_WARNINGS_RE = re.compile(
+    r"\b(?:warnings?|alerts?|advisor(?:y|ies))\b|எச்சரிக்கை|அலர்ட்", re.IGNORECASE,
+)
+_HAZARD_RE = re.compile(r"\bcyclon\w*|\bflood\w*|புயல்|சூறாவளி|வெள்ள", re.IGNORECASE)
 _RAIN_SO_FAR_RE = re.compile(
     r"(how much|amount of)\s+rain|rain(?:fall)?\s+(?:so far|till now|until now|today so far)"
     r"|has it rained|இதுவரை.*மழை|எவ்வளவு மழை",
@@ -62,8 +82,11 @@ _NLU_PROMPT = (
     "- intent: current_weather = conditions right now / today. forecast = conditions on "
     "a future day or over several days. will_it_rain = chance of rain. "
     "rainfall_so_far_today = how much rain has already fallen today / till now. "
-    "out_of_scope = greetings, chit-chat, non-weather, or weather products we do not have "
-    "(cyclones, warnings/alerts, floods, tsunami, marine, air quality, past days).\n"
+    "warnings = whether an IMD weather warning / alert / colour code (red, orange, yellow) "
+    "is in force for a place, for any hazard (rain, thunderstorm, cyclone, flood, heat). "
+    "out_of_scope = greetings, chit-chat, non-weather, or products we do not have: a "
+    "cyclone's track or landfall, whether a place will flood, tsunami, earthquake, marine / "
+    "fishermen bulletins, air quality, past days.\n"
     '- city: exactly "chennai", "madurai" or "coimbatore" when the message names one of '
     "them in ANY language, script or spelling ({city_list}). Any other place: copy the "
     "place name as written. No place named: null. Never invent a city.\n"
@@ -87,6 +110,8 @@ _NLU_PROMPT = (
     '"time_window":"next_n_days","days":3,"parameter":"general","language":"mr","confidence":0.9}}\n'
     '"is a cyclone hitting Chennai tomorrow?" -> {{"intent":"out_of_scope","city":"chennai",'
     '"time_window":"tomorrow","days":null,"parameter":"general","language":"en","confidence":0.9}}\n'
+    '"is there any red alert for Chennai?" -> {{"intent":"warnings","city":"chennai",'
+    '"time_window":"today","days":null,"parameter":"general","language":"en","confidence":0.95}}\n'
     '"weather in Mumbai" -> {{"intent":"current_weather","city":"Mumbai","time_window":"today",'
     '"days":null,"parameter":"general","language":"en","confidence":0.9}}\n'
     "Message: {text}"
@@ -171,7 +196,10 @@ def parse_rules(text: str, script: str) -> ParsedQuery:
     next_n_match = _NEXT_N_RE.search(text)
     is_day_after = bool(_DAY_AFTER_RE.search(text))
     is_rain_so_far = bool(_RAIN_SO_FAR_RE.search(text))
-    is_out_of_scope = bool(_OUT_OF_SCOPE_RE.search(text))
+    is_warnings = bool(_WARNINGS_RE.search(text))
+    is_out_of_scope = bool(_OUT_OF_SCOPE_RE.search(text)) or (
+        bool(_HAZARD_RE.search(text)) and not is_warnings
+    )
     has_rain_word = bool(_RAIN_WORD_RE.search(text))
 
     if next_n_match:
@@ -183,6 +211,8 @@ def parse_rules(text: str, script: str) -> ParsedQuery:
 
     if is_out_of_scope:
         final_intent = "out_of_scope"
+    elif is_warnings and base_intent != "unsupported_city":  # "warning in Mumbai" stays a refusal
+        final_intent = "warnings"
     elif is_rain_so_far:
         final_intent, time_window, parameter = "rainfall_so_far_today", "today", "rain"
     elif next_n_match or is_day_after:
@@ -198,7 +228,9 @@ def parse_rules(text: str, script: str) -> ParsedQuery:
 
 
 def _rule_accepted(pq: ParsedQuery, keyword_hit: bool) -> bool:
-    if pq.intent == "out_of_scope" and pq.language in ("en", "ta"):
+    # A warning word or an unsupported product decides on its own — no city or
+    # weather keyword needed, and no LLM round trip to confirm it.
+    if pq.intent in ("out_of_scope", "warnings") and pq.language in ("en", "ta"):
         return True
     return (
         pq.intent in _P0_INTENTS

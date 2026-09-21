@@ -20,7 +20,13 @@ _ROWS = [
 _RULES_ROWS = [r for r in _ROWS if r["path"] == "rules"]
 _LLM_ROWS = [r for r in _ROWS if r["path"] == "llm"]
 
-_P0_INTENTS = {"current_weather", "forecast", "will_it_rain", "rainfall_so_far_today"}
+# Intents the rules pass must decide outright (source "rules", never
+# "rules_fallback"): the P0 weather intents, plus warnings / out_of_scope,
+# which short-circuit on the text alone.
+_RULES_INTENTS = {
+    "current_weather", "forecast", "will_it_rain", "rainfall_so_far_today", "warnings",
+    "out_of_scope",
+}
 
 
 def _assert_row(row: dict, pq) -> None:
@@ -41,7 +47,7 @@ def test_rules_path_rows(monkeypatch, row):
     monkeypatch.setattr(config, "GROQ_API_KEY", None)
     pq = nlu.parse(row["text"])
     _assert_row(row, pq)
-    if row["expected"]["intent"] in _P0_INTENTS:
+    if row["expected"]["intent"] in _RULES_INTENTS:
         assert pq.source == "rules"
 
 

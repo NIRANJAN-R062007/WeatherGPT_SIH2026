@@ -66,6 +66,7 @@ def main() -> int:
     if args.path == "rules":  # same isolation as test_nlu_eval.py: rules rows never hit an LLM
         config.GEMINI_API_KEY = None
         config.GROQ_API_KEY = None
+        config.OLLAMA_MODEL = None  # defaults ON — a local Ollama would otherwise answer
 
     rows = _load_rows(args.path, args.lang)
     if not rows:

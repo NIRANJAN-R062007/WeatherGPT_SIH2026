@@ -96,11 +96,111 @@ def test_rules_wind_param():
     assert pq.parameter == "wind"
 
 
+# --- warnings vs out_of_scope (audit 2.3) -----------------------------------
+# A warning / alert question is answered from imd_warnings, whatever the
+# hazard; the products plan.md §3.1 says we don't have (cyclone track /
+# landfall, tsunami, marine / fishermen bulletins) and bare hazard questions
+# with no warning word stay out of scope.
+
+@pytest.mark.parametrize("text,city", [
+    ("is there any warning for Chennai?", "chennai"),
+    ("red alert in Chennai today?", "chennai"),
+    ("flood warning for Madurai tomorrow?", "madurai"),
+    ("cyclone warning for Chennai?", "chennai"),
+    ("storm warning for Chennai", "chennai"),
+    ("heavy rain warning in Coimbatore", "coimbatore"),
+    ("any weather alerts in Madurai?", "madurai"),
+    ("weather advisory for Madurai", "madurai"),
+    ("சென்னைக்கு ஏதேனும் எச்சரிக்கை உள்ளதா?", "chennai"),
+    ("சென்னையில் வெள்ள எச்சரிக்கை உள்ளதா?", "chennai"),
+    ("மதுரைக்கு ரெட் அலர்ட் உள்ளதா?", "madurai"),
+])
+def test_rules_warning_shaped_query_is_warnings(text, city):
+    pq = nlu.parse(text)
+    assert (pq.intent, resolve_city(pq.city), pq.source, pq.confidence) == \
+        ("warnings", city, "rules", 0.9)
+
+
+@pytest.mark.parametrize("text", [
+    "is a cyclone hitting Chennai tomorrow?",
+    "will Chennai flood tomorrow?",
+    "where will the cyclone make landfall?",
+    "cyclone track near Chennai",
+    "path of the cyclone",
+    "tsunami warning for Chennai?",
+    "is there a warning for fishermen in Chennai?",
+    "marine bulletin for Chennai",
+    "storm surge warning Chennai",
+    "rough sea warning",
+    "சென்னையில் புயல் வருமா?",
+    "சுனாமி எச்சரிக்கை உள்ளதா?",
+    "மீனவர்களுக்கு எச்சரிக்கை உள்ளதா?",
+    "புயல் கரையைக் கடக்குமா?",
+])
+def test_rules_unsupported_products_stay_out_of_scope(text):
+    pq = nlu.parse(text)
+    assert (pq.intent, pq.source) == ("out_of_scope", "rules")
+
+
+def test_rules_warnings_hit_needs_no_city():
+    pq = nlu.parse("is there any warning?")
+    assert (pq.intent, pq.city, pq.source) == ("warnings", None, "rules")
+
+
+def test_rules_warnings_hit_never_calls_the_llm(monkeypatch):
+    monkeypatch.setattr(config, "GEMINI_API_KEY", "k")
+    monkeypatch.setattr(config, "GROQ_API_KEY", "k")
+
+    def _boom(*a, **k):
+        raise AssertionError("generate() was called")
+
+    monkeypatch.setattr(narrate, "generate", _boom)
+    monkeypatch.setattr(narrate, "generate_groq", _boom)
+    pq = nlu.parse("is there any warning for Chennai?")
+    assert pq.intent == "warnings" and pq.source == "rules"
+
+
+def test_rules_warning_for_unsupported_city_is_a_refusal():
+    pq = nlu.parse("warning in Mumbai")
+    assert pq.intent == "unsupported_city"
+
+
+def test_warnings_in_llm_schema_enum():
+    assert "warnings" in nlu._NLU_SCHEMA["properties"]["intent"]["enum"]
+
+
+def test_llm_warnings_intent_is_accepted(monkeypatch):
+    monkeypatch.setattr(config, "GEMINI_API_KEY", "k")
+    monkeypatch.setattr(
+        narrate, "generate",
+        lambda *a, **k: '{"intent":"warnings","city":"chennai","time_window":"today",'
+                        '"days":null,"parameter":"general","language":"hi","confidence":0.9}',
+    )
+    pq = nlu.parse("क्या चेन्नई के लिए कोई चेतावनी है?")
+    assert (pq.intent, pq.city, pq.language, pq.source) == ("warnings", "chennai", "hi", "llm")
+
+
+def test_llm_warnings_for_unknown_city_becomes_unsupported_city(monkeypatch):
+    monkeypatch.setattr(config, "GEMINI_API_KEY", "k")
+    monkeypatch.setattr(
+        narrate, "generate",
+        lambda *a, **k: '{"intent":"warnings","city":"Mumbai","time_window":"today",'
+                        '"days":null,"parameter":"general","language":"hi","confidence":0.9}',
+    )
+    pq = nlu.parse("क्या मुंबई के लिए कोई चेतावनी है?")
+    assert pq.intent == "unsupported_city" and pq.source == "llm"
+
+
 # --- precedence --------------------------------------------------------------
 
 def test_precedence_out_of_scope_beats_rain():
     pq = nlu.parse("is a cyclone hitting Chennai tomorrow?")
     assert pq.intent == "out_of_scope"
+
+
+def test_precedence_warning_word_beats_rain_so_far():
+    pq = nlu.parse("how much rain so far in Chennai, any warning?")
+    assert pq.intent == "warnings"
 
 
 def test_precedence_rain_so_far_beats_will_it_rain():

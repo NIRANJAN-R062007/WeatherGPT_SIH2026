@@ -3,6 +3,7 @@ narration_facts(): the parameter-scoped subset of facts sent to the prompt
 (the guardrail always checks the FULL facts, never this trimmed dict).
 """
 
+import pytest
 import router
 import weather_data
 from google_weather import FORECAST_DAYS
@@ -71,6 +72,15 @@ def test_rainfall_so_far_today_any_time_window():
 def test_out_of_scope_returns_none():
     data = router.route(_pq(intent="out_of_scope"), "chennai")
     assert data is None
+
+
+def test_warnings_never_reaches_weather_data(monkeypatch):
+    # main.py answers `warnings` from imd_warnings before routing; if it ever
+    # got here it must not turn into a weather lookup.
+    monkeypatch.setattr(weather_data, "get_weather",
+                        lambda *a, **k: pytest.fail("weather_data called for warnings"))
+    assert router.route(_pq(intent="warnings"), "chennai") is None
+    assert router.route(_pq(intent="warnings", time_window="tomorrow"), "chennai") is None
 
 
 def test_legacy_day_passthrough():

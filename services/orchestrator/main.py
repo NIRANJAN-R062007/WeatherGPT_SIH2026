@@ -106,18 +106,34 @@ _MESSAGES = {
         "mr": "माफ करा, यासाठी खात्रीशीर उत्तर देऊ शकलो नाही.",
     },
     "out_of_scope": {
-        "en": "Sorry, I can only answer current weather, forecasts, rain chances and "
-        "rainfall so far — not warnings, alerts or other non-weather questions.",
-        "ta": "மன்னிக்கவும், தற்போதைய வானிலை, முன்னறிவிப்பு, மழை வாய்ப்பு, இதுவரை பெய்த "
-        "மழை ஆகியவற்றுக்கு மட்டுமே பதிலளிக்க முடியும்.",
-        "hi": "माफ़ कीजिए, मैं केवल वर्तमान मौसम, पूर्वानुमान, बारिश की संभावना और अब तक हुई "
-        "बारिश के बारे में बता सकता हूँ — चेतावनी, अलर्ट या अन्य गैर-मौसम प्रश्नों के बारे में नहीं।",
-        "te": "క్షమించండి, నేను ప్రస్తుత వాతావరణం, సూచన, వర్షం అవకాశం మరియు ఇప్పటివరకు కురిసిన "
-        "వర్షం గురించి మాత్రమే సమాధానం ఇవ్వగలను — హెచ్చరికలు, అలర్ట్‌లు లేదా ఇతర "
-        "వాతావరణేతర ప్రశ్నలకు కాదు.",
-        "mr": "माफ करा, मी फक्त सध्याचे हवामान, अंदाज, पावसाची शक्यता आणि आतापर्यंत झालेला "
-        "पाऊस याबद्दलच उत्तर देऊ शकतो — इशारे, सूचना किंवा इतर हवामानाशी संबंधित नसलेल्या "
-        "प्रश्नांबद्दल नाही.",
+        "en": "Sorry, I can only answer current weather, forecasts, rain chances, rainfall "
+        "so far and weather warnings — not cyclone tracks, marine bulletins or other "
+        "non-weather questions.",
+        "ta": "மன்னிக்கவும், தற்போதைய வானிலை, முன்னறிவிப்பு, மழை வாய்ப்பு, இதுவரை பெய்த "  # TODO: native_qa
+        "மழை, வானிலை எச்சரிக்கைகள் ஆகியவற்றுக்கு மட்டுமே பதிலளிக்க முடியும் — புயல் பாதை, "
+        "கடல் அறிவிப்புகள் போன்றவற்றுக்கு அல்ல.",
+        "hi": "माफ़ कीजिए, मैं केवल वर्तमान मौसम, पूर्वानुमान, बारिश की संभावना, "  # TODO: native_qa
+        "अब तक हुई बारिश और मौसम चेतावनियों के बारे में बता सकता हूँ — चक्रवात के मार्ग, "
+        "समुद्री बुलेटिन या अन्य गैर-मौसम प्रश्नों के बारे में नहीं।",
+        "te": "క్షమించండి, నేను ప్రస్తుత వాతావరణం, సూచన, వర్షం అవకాశం, ఇప్పటివరకు కురిసిన "  # TODO: native_qa
+        "వర్షం మరియు వాతావరణ హెచ్చరికల గురించి మాత్రమే సమాధానం ఇవ్వగలను — తుఫాను మార్గం, "
+        "సముద్ర బులెటిన్‌లు లేదా ఇతర వాతావరణేతర ప్రశ్నలకు కాదు.",
+        "mr": "माफ करा, मी फक्त सध्याचे हवामान, अंदाज, पावसाची शक्यता, आतापर्यंत झालेला "  # TODO: native_qa
+        "पाऊस आणि हवामान इशारे याबद्दलच उत्तर देऊ शकतो — चक्रीवादळाचा मार्ग, सागरी बुलेटिन "
+        "किंवा इतर हवामानाशी संबंधित नसलेल्या प्रश्नांबद्दल नाही.",
+    },
+    # Not an all-clear (plan.md §2 principle 3): the feed had no verdict.
+    "warnings_unavailable": {
+        "en": "Weather warnings aren't available right now — I can't confirm whether an "
+        "alert is in force.",
+        "ta": "வானிலை எச்சரிக்கைகள் இப்போது கிடைக்கவில்லை — எச்சரிக்கை ஏதும் அமலில் உள்ளதா "  # TODO: native_qa
+        "என உறுதிப்படுத்த முடியவில்லை.",
+        "hi": "मौसम चेतावनियाँ अभी उपलब्ध नहीं हैं — कोई अलर्ट लागू है या नहीं, यह पुष्टि "  # TODO: native_qa
+        "नहीं कर सकता।",
+        "te": "వాతావరణ హెచ్చరికలు ప్రస్తుతం అందుబాటులో లేవు — ఏదైనా అలర్ట్ అమలులో ఉందో లేదో "  # TODO: native_qa
+        "నిర్ధారించలేను.",
+        "mr": "हवामान इशारे सध्या उपलब्ध नाहीत — कोणताही इशारा लागू आहे की नाही "  # TODO: native_qa
+        "याची खात्री देऊ शकत नाही.",
     },
     "language_unsupported": {
         "en": "I couldn't recognise that language yet — answering in English.",
@@ -399,12 +415,64 @@ def ask(text: str, lang: str = "en", city: str | None = None,
             resp["notice"] = notice
         return resp
 
-    # weather intent: resolve the city from the query, else the explicit param
+    # weather or warnings intent: resolve the city from the query, else the explicit param
     key = cities.resolve(pq.city) or cities.resolve(city)
     if key is None:  # §2.3: refuse rather than guess
         resp = {"intent": pq.intent, "message": _msg("no_city", lang), "nlu": pq.as_dict()}
         if notice:
             resp["notice"] = notice
+        return resp
+
+    if pq.intent == "warnings":
+        # The /warnings payload (status, warning, legend) inside the /ask
+        # envelope. The answer text is the feed's own headline, verbatim
+        # (plan.md §2 principle 4): no LLM narration, and no guardrail pass —
+        # there are no narrated numbers to check against a facts dict, and the
+        # headline is the official category text, not something we generated.
+        verdict = warnings_module.public(key, lang)
+        warning = verdict["warning"]
+        if warning is None:  # feed off or no usable fixture: no verdict, NOT an all-clear
+            resp = {"intent": pq.intent, "city": key,
+                    "message": _msg("warnings_unavailable", lang), **verdict,
+                    "nlu": pq.as_dict()}
+            if notice:
+                resp["notice"] = notice
+            return resp
+
+        candidate = warning["headline"]
+        # Nothing was narrated or validated, so the report is the empty one a
+        # figure-free answer gets; provider/narration say where the text came from.
+        grounding = {**asdict(guardrail.Report(ok=True, matched=0, total=0)),
+                     "fallback_used": False, "narration": "verbatim", "attempts": 0,
+                     "provider": "feed"}
+        metrics.observe_ask(intent=pq.intent, lang=lang, provider="feed", narration="verbatim",
+                            fallback_used=False, no_llm=True)
+        resp = {
+            "intent": pq.intent,
+            "city": key,
+            "response": candidate,
+            **verdict,
+            "provenance": {
+                "source": warning["source"],
+                "issued_by": warning["issued_by"],
+                "valid_from": warning["valid_from"],
+                "valid_to": warning["valid_to"],
+                "is_live": warning["source"] != "fixture",
+                "retrieved_at": datetime.now(timezone.utc).isoformat(),
+            },
+            "grounding": grounding,
+            "nlu": pq.as_dict(),
+        }
+        if notice:
+            resp["notice"] = notice
+
+        if token is not None:
+            try:
+                history.record(token, query=text, intent=pq.intent, city=key,
+                                lang=lang, response=candidate)
+            except Exception:
+                pass  # best-effort, as below
+
         return resp
 
     data = router.route(pq, key)
