@@ -4,11 +4,12 @@ Hand-written phrase templates, not live Bhashini translation — faster and
 safer for a stage demo than translating untested output live.
 
 Table architecture: every piece of language-specific text (condition names,
-per-fragment phrases, the "couldn't understand" fallback) lives in a dict
-keyed by language code, looked up once per render call. Adding a 6th language
-is "add one entry to each table below," not touching any function body — see
-the consistency check at the bottom of this file, which fails loudly at
-import time if a table is missing an entry for a supported language.
+day labels, per-fragment phrases, the "couldn't understand" fallback) lives in
+a dict keyed by language code, looked up once per render call. Adding a 6th
+language is "add one entry to each table below," not touching any function
+body — see the consistency check at the bottom of this file, which fails
+loudly at import time if a table is missing an entry for a supported language
+or a language's row lacks a key the English row has.
 
 CONDITION_* keys are the canonical decoder targets: lowercased Google
 Weather API weatherCondition.type. data/decoders/ maps raw type -> these.
@@ -118,6 +119,83 @@ CONDITION_TA = CONDITIONS["ta"]
 def condition_table(lang: str) -> dict[str, str]:
     """The condition-name table for `lang`, falling back to English."""
     return CONDITIONS.get(lang, CONDITIONS["en"])
+
+
+# Keys are weather_data's canonical day labels ("today"/"tomorrow" by position,
+# else the weekday, else "later" for an entry whose date can't be read). The
+# multi-day template used to interpolate the raw key, so a Tamil outlook read
+# "today ..., tomorrow ..., wednesday ..." on exactly the offline path (plan.md
+# §11 R5) where no LLM/Bhashini could paper over it.
+DAY_LABELS: dict[str, dict[str, str]] = {
+    "en": {
+        "today": "today",
+        "tomorrow": "tomorrow",
+        "monday": "Monday",
+        "tuesday": "Tuesday",
+        "wednesday": "Wednesday",
+        "thursday": "Thursday",
+        "friday": "Friday",
+        "saturday": "Saturday",
+        "sunday": "Sunday",
+        "later": "later",
+    },
+    # Day names are a first draft by a non-native speaker, NOT reverse-engineered
+    # from real Bhashini output like the rest of the Tamil strings.
+    "ta": {  # TODO: native_qa
+        "today": "இன்று",
+        "tomorrow": "நாளை",
+        "monday": "திங்கட்கிழமை",
+        "tuesday": "செவ்வாய்க்கிழமை",
+        "wednesday": "புதன்கிழமை",
+        "thursday": "வியாழக்கிழமை",
+        "friday": "வெள்ளிக்கிழமை",
+        "saturday": "சனிக்கிழமை",
+        "sunday": "ஞாயிற்றுக்கிழமை",
+        "later": "பின்னர்",
+    },
+    # Day names are a first-draft machine translation, not native-speaker
+    # reviewed yet (unlike the rest of this file — plan.md §13).
+    "hi": {  # TODO: native_qa
+        "today": "आज",
+        "tomorrow": "कल",
+        "monday": "सोमवार",
+        "tuesday": "मंगलवार",
+        "wednesday": "बुधवार",
+        "thursday": "गुरुवार",
+        "friday": "शुक्रवार",
+        "saturday": "शनिवार",
+        "sunday": "रविवार",
+        "later": "बाद में",
+    },
+    # Day names are a first-draft machine translation, not native-speaker
+    # reviewed yet (unlike the rest of this file — plan.md §13).
+    "te": {  # TODO: native_qa
+        "today": "ఈరోజు",
+        "tomorrow": "రేపు",
+        "monday": "సోమవారం",
+        "tuesday": "మంగళవారం",
+        "wednesday": "బుధవారం",
+        "thursday": "గురువారం",
+        "friday": "శుక్రవారం",
+        "saturday": "శనివారం",
+        "sunday": "ఆదివారం",
+        "later": "తర్వాత",
+    },
+    # Day names are a first-draft machine translation, not native-speaker
+    # reviewed yet (unlike the rest of this file — plan.md §13).
+    "mr": {  # TODO: native_qa
+        "today": "आज",
+        "tomorrow": "उद्या",
+        "monday": "सोमवार",
+        "tuesday": "मंगळवार",
+        "wednesday": "बुधवार",
+        "thursday": "गुरुवार",
+        "friday": "शुक्रवार",
+        "saturday": "शनिवार",
+        "sunday": "रविवार",
+        "later": "नंतर",
+    },
+}
 
 
 UNRECOGNIZED = {
@@ -241,14 +319,18 @@ def _render_current(city: str, data: dict, lang: str) -> str:
 
 
 def _render_multi_day(city: str, data: dict, lang: str) -> str:
-    """N-day outlook. hi/te/mr text reviewed by a native speaker (plan.md §13)."""
+    """N-day outlook. hi/te/mr phrases reviewed by a native speaker (plan.md
+    §13); the day labels are not yet (see DAY_LABELS).
+    """
     table = condition_table(lang)
+    labels = DAY_LABELS.get(lang, DAY_LABELS["en"])
     phrases = _MULTI_DAY_PHRASES.get(lang, _MULTI_DAY_PHRASES["en"])
     segments = []
     for day in data["days"]:
+        label = labels.get(day["label"], day["label"])
         cond = table.get(day.get("condition"), day.get("condition"))
         pct, high, low = day.get("rain_probability_pct"), day.get("high_c"), day.get("low_c")
-        seg = f"{day['label']} {cond}" if cond else day["label"]
+        seg = f"{label} {cond}" if cond else label
         if pct is not None:
             seg += phrases["rain_pct"].format(v=pct)
         if high is not None and low is not None:
@@ -287,12 +369,14 @@ def _render_forecast(city: str, data: dict, lang: str) -> str:
     return ", ".join(parts) + "."
 
 
-# Fail loudly at import time if a table is missing a supported language,
-# rather than silently falling back to English at render time — the whole
-# point of the table architecture is that a missing 6th-language entry is
-# caught immediately, not discovered live during a demo.
+# Fail loudly at import time if a table is missing a supported language, or a
+# language's row is missing a key the English row has, rather than silently
+# falling back to English (or the raw key) at render time — the whole point of
+# the table architecture is that a missing 6th-language entry or a forgotten
+# weekday is caught immediately, not discovered live during a demo.
 for _name, _table in (
     ("CONDITIONS", CONDITIONS),
+    ("DAY_LABELS", DAY_LABELS),
     ("UNRECOGNIZED", UNRECOGNIZED),
     ("_CURRENT_PHRASES", _CURRENT_PHRASES),
     ("_MULTI_DAY_PHRASES", _MULTI_DAY_PHRASES),
@@ -302,4 +386,9 @@ for _name, _table in (
     _missing = set(SUPPORTED_LANGUAGES) - set(_table)
     if _missing:
         raise RuntimeError(f"i18n.{_name} is missing language entries: {sorted(_missing)}")
-del _name, _table, _missing
+    _keyed = isinstance(_table["en"], dict)  # UNRECOGNIZED is a flat lang -> str table
+    for _lang in SUPPORTED_LANGUAGES:
+        _missing = set(_table["en"]) ^ set(_table[_lang]) if _keyed else set()
+        if _missing:
+            raise RuntimeError(f"i18n.{_name}[{_lang!r}] keys differ from en: {sorted(_missing)}")
+del _name, _table, _keyed, _lang, _missing

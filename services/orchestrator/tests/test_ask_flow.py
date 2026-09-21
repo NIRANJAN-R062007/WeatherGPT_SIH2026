@@ -2,12 +2,17 @@
 -> refuse. The guardrail runs on whatever the LLM produces.
 """
 
+import copy
+import re
+
 import cities
 import config
 import google_weather
 import httpx
+import i18n
 import main
 import pytest
+import weather_data
 from fastapi.testclient import TestClient
 
 client = TestClient(main.app)
@@ -214,6 +219,46 @@ def test_next_n_days_caps_and_grounds(monkeypatch):
     body = _ask("5 day forecast for Chennai")
     assert body["nlu"]["days"] == 5
     assert body["grounding"]["ok"] is True
+
+
+@pytest.mark.parametrize("break_start_time", [False, True])
+def test_next_n_days_tamil_template_grounds_with_malformed_display_date(
+        monkeypatch, break_start_time):
+    # Audit 2.2: the old "day{index}" fallback label put a bare digit in the
+    # template that nothing could ground, so /ask refused a good forecast.
+    # Audit 2.1: the offline (template) path must also render the labels in
+    # Tamil, not "today ..., wednesday ...".
+    monkeypatch.setattr(main, "narrate", lambda *a, **k: None)
+    monkeypatch.setattr(main.bhashini, "is_configured", lambda: False)
+    orig = google_weather.snapshot
+
+    def _malformed(kind, city_key, **kw):
+        snap = orig(kind, city_key, **kw)
+        if kind == "forecast_days":
+            payload = copy.deepcopy(snap.payload)
+            for entry in payload["forecastDays"][2:]:
+                entry["displayDate"] = {"year": "2026", "month": None}
+                if break_start_time:
+                    entry["interval"] = {}
+            return google_weather.Snapshot(snap.kind, snap.city, payload,
+                                           snap.is_live, snap.retrieved_at, snap.source)
+        return snap
+
+    monkeypatch.setattr(google_weather, "snapshot", _malformed)
+    body = _ask("அடுத்த 5 நாட்கள் சென்னை வானிலை எப்படி இருக்கும்?", lang="ta")
+    assert body["nlu"]["time_window"] == "next_n_days" and body["nlu"]["days"] == 5
+    assert "response" in body and "message" not in body  # not the "ungrounded" refusal
+    assert body["grounding"]["ok"] is True
+    assert body["grounding"]["narration"] == "template"
+    assert body["grounding"]["matched"] == body["grounding"]["total"] == 1 + 3 * 5
+    assert not re.search(r"[A-Za-z]{2,}", body["response"]), body["response"]
+    labels = [d["label"] for d in weather_data.multi_day_facts("chennai", 5)["days"]]
+    if break_start_time:
+        assert labels[2:] == ["later"] * 3
+    else:
+        assert all(label in weather_data._WEEKDAYS for label in labels[2:])
+    for label in labels:
+        assert i18n.DAY_LABELS["ta"][label] in body["response"]
 
 
 def test_day_after_tomorrow_resolves(monkeypatch):

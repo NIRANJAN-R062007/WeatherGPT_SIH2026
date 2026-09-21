@@ -22,7 +22,13 @@ _DAY_BY_OFFSET = {0: "today", 1: "tomorrow", 2: "day_after_tomorrow"}
 _DAY_PERIOD = {"tonight": "nighttimeForecast"}
 _FORECAST_DAYS = ("tomorrow", "tonight")
 
+# Canonical day keys (multi_day_facts `label`, forecast_day `day`): "today" /
+# "tomorrow" by position, then the weekday, then "later" when the entry's date
+# is unparseable. Never a bare number — "day3" reads as a figure with no unit,
+# which guardrail._match can't ground, failing a perfectly good forecast.
+# i18n.DAY_LABELS renders these; narrate._DAY_PHRASES phrases them for the LLM.
 _WEEKDAYS = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
+_LATER = "later"
 
 
 def get_weather(city: str, intent: str = "current_weather", day: str = "today") -> dict | None:
@@ -110,12 +116,12 @@ def forecast_day(key: str, offset: int, period: str = "daytimeForecast") -> dict
         return None
 
     facts: dict = {"source": snap.source, "is_live": snap.is_live,
-                   "day": _DAY_BY_OFFSET.get(offset, _day_label(offset, days[offset]))}
+                   "day": _DAY_BY_OFFSET.get(offset, _day_label(key, offset, days[offset]))}
     facts.update(_entry_facts(days[offset], period))
     return facts
 
 
-def _day_label(index: int, entry: dict) -> str:
+def _day_label(key: str, index: int, entry: dict) -> str:
     if index == 0:
         return "today"
     if index == 1:
@@ -126,7 +132,13 @@ def _day_label(index: int, entry: dict) -> str:
             return _WEEKDAYS[datetime(d["year"], d["month"], d["day"]).weekday()]
         except (KeyError, ValueError, TypeError):
             pass
-    return f"day{index}"
+    start = _dig(entry, "interval.startTime")
+    if start:
+        try:  # a day's interval starts in the local morning, so read the date in city time
+            return _WEEKDAYS[_parse_ts(start).astimezone(_city_timezone(key)).weekday()]
+        except (ValueError, TypeError):
+            pass
+    return _LATER
 
 
 def multi_day_facts(key: str, days_requested: int) -> dict | None:
@@ -142,7 +154,7 @@ def multi_day_facts(key: str, days_requested: int) -> dict | None:
     for i in range(counted):
         ef = _entry_facts(days[i], "daytimeForecast")
         out_days.append({
-            "label": _day_label(i, days[i]),
+            "label": _day_label(key, i, days[i]),
             "condition": ef.get("condition"),
             "rain_probability_pct": ef.get("rain_probability_pct"),
             "high_c": ef.get("high_c"),
