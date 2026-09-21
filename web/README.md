@@ -32,6 +32,15 @@ npm run lint    # oxlint
   time by the host and is never committed. `src/config.ts` is the only file
   that reads this variable.
 
+## Deployment status
+
+Not deployed, by decision (2026-09-21): `prototype/frontend/WeatherGPT.dc.html`
+on Amplify remains the shipped UI, and this app is hosted locally until it is
+finished. CI type-checks, lints and builds it on every push (`web` job in
+`.github/workflows/ci.yml`). Point `VITE_API_BASE` at a backend per
+`web/.env.example` — `http://localhost:8001` for a local orchestrator, or the
+live bare deployment the Amplify page uses.
+
 ## Authored Indic strings awaiting native QA
 
 Everything the API returns (condition names, warning headlines, refusal

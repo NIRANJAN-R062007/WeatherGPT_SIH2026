@@ -247,28 +247,33 @@ Sequential build order — each phase should be working end-to-end before the ne
 - ~~One ingestion module per Google Weather API endpoint (current conditions, hourly forecast, daily forecast, recent history).~~ ✅ done (2026-09-20) — `google_weather.py`'s `ENDPOINTS`/`TTL_SECONDS` now cover all four (`current_conditions`, `forecast_hours`, `forecast_days`, `history_hours`); `forecast_hours` was the missing one, added with live fixtures snapshotted for all three demo cities. — **Syed**, finished by **Mahesh**
 - Decoder tables (weather condition codes, wind directions, precipitation categories, UV bands). — **Deepthi**, reviewed by **Syed**
 - ~~Store into Postgres/Redis with TTLs.~~ ✅ done (2026-09-20) — `weather_store.py`: Redis is the L2 cache (SETEX per-kind TTL, shared across processes/restarts, layered under `google_weather.py`'s existing in-memory L1); every live snapshot is also appended to Postgres `weather_facts` (`sql/weather_facts.sql`) as durable/audit history. Both are best-effort — any Redis/Postgres failure is swallowed and logged, never raised, so `/ask` still has no hard DB dependency (verified: killed both mid-demo path, `/facts` kept answering from the in-memory/fixture chain). Wired into `docker-compose.yml`'s `orchestrator` service via `DATABASE_URL`/`REDIS_URL`, deliberately with no `depends_on` on postgres/redis so a slow/unhealthy DB container can't block orchestrator startup. — **Syed**, finished by **Mahesh**
+  - ✅ 2026-09-21 (audit 1.5) — the Postgres write no longer sits on the request path: `weather_store.persist()` only queues the row (bounded queue of 64) and a daemon worker thread does the INSERT; a failed write parks Postgres for a 60 s cooldown (one warning per window) instead of costing every live fetch the 2 s connect timeout that used to eat the whole p95 budget when the DB wasn't provisioned. — **Mahesh**
   - ~~Provision Redis/Postgres for real (not just docker-compose's dev containers), so this isn't silently dead on the actual deploy targets.~~ ✅ done (2026-09-20) — `render.yaml`: added `weathergpt-redis` (`type: redis`, free plan) and `weathergpt-postgres` (managed Postgres, free plan) resources, with `DATABASE_URL`/`REDIS_URL` on the orchestrator service now `fromDatabase`/`fromService` instead of unset. `k8s/base/postgres.yaml` (single-replica `StatefulSet` + PVC, `postgis/postgis:16-3.4`) and `k8s/base/redis.yaml` (`Deployment`, `redis:7-alpine`) mirror `docker-compose.yml`'s two containers; `secret.example.yaml`'s `DATABASE_URL`/`REDIS_URL` now point at their in-cluster Service DNS names instead of empty. **Not verified against a real Render account or a live `kubectl apply -k` run with these two new manifests** — only `docker compose`/local testing, ruff/pytest, and kubeconform's schema validation. — **Mahesh**
 - Schema/infra support for the data layer. — **Niranjan**
 - Cache-strategy tuning (TTL policy per product). — **Deepthi**
 - *Output:* real, decoded weather facts queryable straight from the DB.
 
 ### Phase 2 — Grounding core
-- ~~NLU: LLM → structured intent (location/time/parameter).~~ ✅ done (Sep 12) — `prototype/ask_service/nlu.py`: EN/TA rule fast path → Gemini/Groq structured output → validated fallback — **Mahesh**
+- ~~NLU: LLM → structured intent (location/time/parameter).~~ ✅ done (Sep 12) — `services/orchestrator/nlu.py` (then `prototype/ask_service/`): EN/TA rule fast path → Gemini/Groq structured output → validated fallback — **Mahesh**
+  - ✅ 2026-09-21 (audit 2.3) — `warnings` intent: warning/alert/advisory-shaped queries (any hazard, EN/TA rules + LLM schema) no longer land in `out_of_scope`; `/ask` answers them from `imd_warnings.public()` with the feed's verbatim headline + provenance (§2 principle 4 — no narration, no re-grading), and with the feed off (the default) says warnings aren't available rather than implying an all-clear. Cyclone track/landfall, tsunami, earthquake and marine/fishermen bulletins stay `out_of_scope` per §3.1. — **Mahesh**
 - ~~Tool router: intent → correct Phase 1 data call.~~ ✅ done (Sep 12) — `router.py`, plus `history/hours` for rainfall-so-far — **Mahesh**
 - ~~Guardrail/validator: every number in the answer must exist in the tool's raw response.~~ ✅ done (Sep 12) — one regenerate-with-feedback attempt before template fallback — **Mahesh**
-- ~~NLU eval set: test queries with expected intent/entities across all five languages.~~ ✅ done (Sep 12) — `ml/nlu/eval_set.jsonl` (70 rows); the ta/hi/te/mr rows are author-written and flagged `native_qa: false` — the Sep 13 native-speaker review (commit fce2ad9) covered the `i18n.py`/`main.py` hi/te/mr strings only, not these rows, so they still need native-speaker QA — **Mahesh**
+- ~~NLU eval set: test queries with expected intent/entities across all five languages.~~ ✅ done (Sep 12) — `ml/nlu/eval_set.jsonl` (70 rows); the ta/hi/te/mr rows are author-written and flagged `native_qa: false` — the Sep 13 native-speaker review (commit fce2ad9) covered the `i18n.py`/`main.py` hi/te/mr strings only, not these rows, so they still need native-speaker QA — **Mahesh**. 2026-09-21: 98 rows after the `warnings`-intent additions (both sides of the warnings/out-of-scope boundary in all five languages); rules path 61/61, the new hi/te/mr LLM rows not yet run against Gemini/Groq.
 - ~~RAG (§7 AI/LLM role): ground narration wording on IMD reference text.~~ ✅ done (Sep 14) — `retrieval.py` (pure-Python BM25) over `data/imd_reference/` (colour codes, rainfall categories, UV bands, glossary; 27 entries) feeds ≤2 passages into the narration prompt for category wording only; guardrail still grounds every figure against the weather facts. `RAG_ENABLED` toggle. — **Mahesh**
 - *Output:* ✅ working `/ask` endpoint — text in, grounded English answer with provenance out (translation into the other four added in Phase 3).
 
 ### Phase 3 — Channels & UI
 - Flutter chat UI wired to `/ask`. — **Chelsea**
-- Web dashboard — UI/UX. — **Chelsea**
+- Web dashboard — UI/UX. — **Chelsea** — `web/` (Vite + React, Ask/Dashboard/Warnings/Settings pages, five languages) landed Sep 20 (94b87f7); decision 2026-09-21: `prototype/frontend/WeatherGPT.dc.html` on Amplify stays the shipped UI, `web/` stays in the repo, built in CI, hosted locally until it's finished (no deploy config on purpose).
 - Web dashboard — data wiring / integration with `/ask`. — **Mahesh**
 - Text translation layer + `data/i18n/` glossary (canonical keys, official warning category text, phrase templates) for all five languages; Telugu-script + Devanagari font bundles + layout check; native-speaker spot-check for any language no one on the team speaks. — translation + phrase templates + native QA for all five ✅ done (Sep 13) — **Syed** (`i18n.py` / `bhashini.translate`) — native QA covers exactly the hi/te/mr strings `i18n.py`, `main.py` `_MESSAGES` and `guardrail.py`'s unit words held as of Sep 13 (commit fce2ad9), all unchanged since; text added later — the `uv` phrase (Sep 14), `DAY_LABELS` (Sep 21), `data/i18n/glossary.json` (Sep 17), `web/src/i18n/strings.ts` (Sep 20), the `ml/nlu/eval_set.jsonl` rows, `guardrail.py`'s millimetre rows (Sep 14) — is unreviewed in every language and marked `TODO: native_qa` / `native_qa: false` at its source (audit item 4.2)
-- Still open: `data/i18n/` glossary as a file + official warning-category text. — **Mahesh**
+  - ✅ 2026-09-21 (audit 2.1/2.2) — the template path (the one that fires when Bhashini/the LLM is down, R5) rendered multi-day labels raw ("today/tomorrow/wednesday" inside a Tamil answer) and could emit `day3`, a bare digit the guardrail can't ground; `i18n.DAY_LABELS` now renders canonical day keys in all five languages and `weather_data` never emits a number (weekday from `displayDate`, else from `interval.startTime` in city time, else `later`). Day names for ta/hi/te/mr are first drafts (`TODO: native_qa`). — **Mahesh**
+- ~~Still open: `data/i18n/` glossary as a file + official warning-category text.~~ ✅ done — file landed Sep 17 (34c8e61: IMD colour-code meanings + warning categories, five languages, `native_qa: false` for ta/hi/te/mr); 2026-09-21 (audit 4.1) it became the single source at runtime: `glossary.py` loads it, `GET /glossary?lang=` serves it, `/warnings` embeds the legend + glossary colour word/category label, and `web/` dropped its hand-copied text. — **Mahesh**
 - Still open: Telugu-script + Devanagari font bundles and layout check in the UI. — **Chelsea**
 - Warning colour-code rendering. — **Chelsea** (mobile); ~~**Mahesh** (web)~~ ✅ web done (Sep 14) — `GET /warnings` + IMD colour banner in `WeatherGPT.dc.html`, backed by hand-written district fixtures in `data/fixtures/imd_warnings/` until the CAP feed (Phase 4) lands
+  - ✅ 2026-09-21 (audit Phase 3) — `WARNINGS_ENABLED` stays OFF everywhere (the fixture is fake data), but `/warnings` now says so: `status` is `unavailable` (feed off / no fixture), `clear` (checked, green) or `active`; `web/` renders `unavailable` as "warnings not available", never as a green all-clear (§2 principle 3). Documented in `.env.example` and the k8s ConfigMap. `warning.advice` is still English-only feed text (known gap, labelled `lang="en"`). — **Mahesh**
 - ~~**Security pass on the API surface** (auth, rate limiting on `/ask` and any public endpoints) before channels go live.~~ ✅ done (Sep 14, picked up by **Mahesh**) — `limits.py`: body-size cap + per-client rate limit on `/ask`, `/asr`, `/tts`; `lang`/intent validation; `DELETE /history` for the privacy review (commits ebb5178, 218a3b0). Originally **Abel**.
+  - ✅ 2026-09-21 (audit 1.1–1.4) — the limiter keyed on the *first* X-Forwarded-For hop, which the client controls, so rotating the header escaped the 30/min cap; it now keys on the `TRUSTED_PROXY_HOPS`-th hop from the right (proxies in front of the orchestrator, the gateway counting as one: compose/Render 1, k8s ingress 2, bare 0 = socket peer) and shares its 60 s sliding window through Redis (Lua-scripted ZSET; 30 s cooldown back to the in-process deque when Redis is down) so k8s replicas no longer multiply the budget. Gateway: bodies are refused at `MAX_BODY_BYTES` before being buffered (streamed, chunked included), `/health` is cached 10 s and rate limited (it was an unauthenticated Postgres+Redis+upstream probe per hit). uvicorn runs with `--no-proxy-headers` everywhere — its default rewrote `request.client` from the header whenever the peer was 127.0.0.1 (i.e. behind ngrok), which reproduced the bypass. Behind ngrok the real `.env` needs `TRUSTED_PROXY_HOPS=2`. — **Mahesh**
 
 ### Phase 4 — Voice & last-mile
 - ~~Bhashini ASR/TTS (voice) in the app, all five languages (English, Hindi, Tamil, Telugu, Marathi).~~ ✅ done for the web prototype (Sep 12, `POST /asr` + `POST /tts`, mic + playback in `WeatherGPT.dc.html`; see §14). Flutter app still pending (Chelsea). — **Niranjan**
@@ -291,9 +296,11 @@ Sequential build order — each phase should be working end-to-end before the ne
 
 ### Phase 6 — Hardening (pre-finale)
 - ~~K8s manifests, Grafana/Prometheus dashboards, CI/CD.~~ ✅ done (Sep 14) — `k8s/base/` kustomize (Deployments/Services/Ingress/HPA, `/livez` liveness, `/health` readiness, Prometheus scrape annotations; validated with kubeconform and a real kind apply); `/metrics` on both services + `docker compose --profile monitoring` brings Prometheus and a provisioned Grafana dashboard "WeatherGPT — latency & grounding" (p95 vs the 2 s target, req/s, errors, `/ask` by provider, fallback ratio); CI now validates the rendered manifests and publishes both images to GHCR on pushes to `main`. Postgres/Redis added 2026-09-20 (`k8s/base/postgres.yaml`, `k8s/base/redis.yaml`, see §8 Phase 1); no Helm chart yet. — **Mahesh** (DevOps)
+  - ✅ 2026-09-21 (audit 5.1) — CI `web` job: `npm ci`, `tsc -b`, oxlint, `vite build` on every push/PR (the React app had merged without ever being type-checked; `vite build` alone doesn't type-check, so the `tsc -b` step is the one that goes red — verified with an injected type error). — **Mahesh**
+  - ✅ 2026-09-21 (audit 5.3) — the orchestrator is no longer wired to `prototype/`: it's titled `WeatherGPT Orchestrator` 0.1.0, serves a static frontend only when `FRONTEND_DIR` is set (API-only otherwise; compose, `render.yaml` and the k8s ConfigMap set `/app/prototype/frontend`, so deployed behaviour is unchanged), the Supabase schema of record lives at `services/orchestrator/sql/supabase_schema.sql`, and `data/cities.json` names the real loader. `render.yaml` remains an unapplied blueprint — the backend actually serving the Amplify page today is the bare deployment at `https://3-108-52-61.sslip.io` (verified live 2026-09-21; the ngrok reserved domain was down). — **Mahesh**
 - Same K8s/Grafana/CI-CD work above. — **Niranjan** (DevOps)
 - Backup support on the above. — **Syed**
-- ~~Load testing for a high-traffic weather-event spike.~~ ✅ done (Sep 14) — `loadtest/abuse.js` covers the security/abuse angle through the gateway — per-client limiter keys the first X-Forwarded-For hop (30×200 then 429 + `Retry-After: 60`, independent client unaffected), 3 MB body → 413. — **Abel**
+- ~~Load testing for a high-traffic weather-event spike.~~ ✅ done (Sep 14) — `loadtest/abuse.js` covers the security/abuse angle through the gateway — 30×200 then 429 + `Retry-After: 60`, 3 MB body → 413. — **Abel**. Rewritten 2026-09-21 (audit 1.1): the old "independent client" scenario set its own `X-Forwarded-For` and *expected* a separate budget — that was the bypass, not a feature. Scenario 2 is now a spoofing client rotating the header, and the thresholds prove it shares the one 30/min budget (exactly 30 successes across both scenarios); genuine per-client independence is covered by unit tests, since k6 on one host can't present two source addresses. Re-run green end to end (66/66 checks) with a real Redis behind the limiter.
 - `loadtest/spike.js` (k6, 0→150 rps ramp, 60 s hold): 12 374 requests, 117.8 req/s, p95 16 ms, 0 % failed on the template path (the floor the LLM path sits on). Results in `loadtest/results/`. — **Mahesh** (infra)
 - Same load-test infra work above. — **Niranjan** (infra)
 - ~~Offline-mode fallback (local LLM + snapshotted data).~~ ✅ done (Sep 13) — `OFFLINE_MODE=1` → fixtures + Ollama (`llama3.2:3b`) → template; `offline_check.py` preflight; compose `offline` profile — **Mahesh**
@@ -369,40 +376,42 @@ Five minutes.
 
 ## 12. Repo structure
 
-**As actually built today** (Sep 17):
+**As actually built today** (2026-09-21):
 
 ```
 weathergpt/
 ├── docker-compose.yml
 ├── amplify.yml                  # Amplify build spec — frontend deploy
-├── render.yaml                  # Render deploy config
+├── render.yaml                  # Render blueprint — never applied; the live backend is the bare deployment at https://3-108-52-61.sslip.io
 ├── k8s/
 │   ├── base/                    # kustomize: namespace, gateway, orchestrator, hpa, ingress, configmap, secret.example
 │   └── README.md
 ├── services/
-│   ├── gateway/                 # FastAPI reverse proxy — auth passthrough, rate limit, /health, /metrics
+│   ├── gateway/                 # FastAPI reverse proxy — body cap, cached + rate-limited /health, /metrics; appends the peer to X-Forwarded-For
 │   └── orchestrator/             # the real brain: nlu.py, router.py, guardrail.py, narrate.py, retrieval.py (RAG),
 │       │                         #   i18n.py, bhashini.py, google_weather.py, weather_store.py (Redis+Postgres),
-│       │                         #   imd_warnings.py, history.py, limits.py
-│       ├── sql/                   # weather_facts.sql — weather_store.py's Postgres table (also self-applied)
+│       │                         #   imd_warnings.py, glossary.py, history.py, limits.py (Redis-shared window, TRUSTED_PROXY_HOPS)
+│       ├── sql/                   # weather_facts.sql (weather_store.py's table, self-applied) + supabase_schema.sql (history/profiles, applied in Supabase)
 │       └── tests/                 # unit tests + eval + live-smoke, per module above
 ├── ml/
-│   ├── nlu/                      # eval_set.jsonl (70-row, 5-language intent/entity coverage) + run_eval.py
+│   ├── nlu/                      # eval_set.jsonl (98-row, 5-language intent/entity coverage) + run_eval.py
 │   └── language/bhashini/         # Bhashini client + check_coverage.py (per-language quota/coverage check)
 ├── prototype/
-│   ├── ask_service/                # original hackathon prototype backend (superseded by services/orchestrator)
-│   └── frontend/                    # WeatherGPT.dc.html demo UI + Supabase auth.js — deployed via Amplify
+│   └── frontend/                    # WeatherGPT.dc.html demo UI + Supabase auth.js — the shipped UI, deployed via Amplify;
+│                                    #   the orchestrator serves it at / only when FRONTEND_DIR is set (ask_service/ moved to services/orchestrator on Sep 14)
+├── web/                             # Vite + React dashboard (Ask/Dashboard/Warnings/Settings, five languages) — built in CI, hosted locally, not deployed by decision (2026-09-21)
 ├── data/
 │   ├── cities.json
 │   ├── decoders/                    # weather_conditions.json, wind_cardinals.json → canonical keys
 │   ├── fixtures/                     # snapshotted Google Weather API, Gemini, and IMD-warning responses — CRITICAL
+│   ├── i18n/                          # glossary.json — IMD colour-code meanings + warning categories, five languages; served by GET /glossary, embedded in /warnings
 │   └── imd_reference/                 # IMD reference text (colour codes, rainfall categories, glossary) feeding RAG narration
 ├── monitoring/
 │   ├── prometheus.yml
 │   └── grafana/                       # provisioned "WeatherGPT — latency & grounding" dashboard
 ├── loadtest/                           # k6 spike.js + abuse.js, results/
 ├── discord-notifier/                    # Lambda: Amplify build status → Discord webhook
-└── .github/workflows/ci.yml              # manifest validation + image publish to GHCR
+└── .github/workflows/ci.yml              # ruff + pytest (both services), web/ type-check/lint/build, compose build, manifest validation, image publish to GHCR
 ```
 
 **Still on the roadmap, not built yet** (target layout from earlier planning — see §8 for owners):
@@ -410,8 +419,6 @@ weathergpt/
 - `services/alerts/` — geofence match + dispatch (Phase 4, open)
 - `services/channels/{whatsapp,ivr}/` — WhatsApp bot (P2) and IVR channel (Phase 4, open)
 - `mobile/` — Flutter app (Chelsea)
-- `web/` — standalone dashboard (currently folded into `prototype/frontend/`)
-- `data/i18n/` — canonical i18n glossary as a file (translation logic itself already ships in `orchestrator/i18n.py`)
 - `data/climate/` — gridded historical subsets, if a supplementary climate source is added
 - `docs/` — architecture.md, demo-script.md, jury-qa.md
 - top-level `tests/` — currently per-service (`services/orchestrator/tests/`, `services/gateway/tests/`) rather than centralized
@@ -422,12 +429,12 @@ weathergpt/
 
 **Owner: whole team, by end of week 1.**
 
-- [x] ~~**Get a Google Cloud project + billing account + API key for Google Weather API, curl every endpoint in §3.1, and save the JSON into `data/fixtures/`.**~~ ✅ done — current conditions, daily forecast and hourly history snapshotted for all three demo cities in `data/fixtures/google_weather/` (`snapshot_google_weather.py`). Hourly *forecast* endpoint not yet snapshotted.
+- [x] ~~**Get a Google Cloud project + billing account + API key for Google Weather API, curl every endpoint in §3.1, and save the JSON into `data/fixtures/`.**~~ ✅ done — current conditions, daily forecast and hourly history snapshotted for all three demo cities in `data/fixtures/google_weather/` (`snapshot_google_weather.py`); hourly *forecast* (`forecast_hours.*.json`) added Sep 20 (commit 4441c51), so all four §3.1 endpoints are on disk. Snapshots date from Sep 10–20 — refresh before a demo, since `WEATHER_MODE=fixtures` replays them verbatim ("rainfall since midnight" replays a Sep 12 day).
 - [x] ~~Confirm Bhashini API access + quota, and that ASR / TTS / translate all work for the five languages (en/hi/ta/te/mr).~~ ✅ done (Sep 13) — ASR/TTS verified live in `bhashini.py` (commit 643c269), translate generalized to all four target languages (commit b072272).
 - [x] ~~Line up a native Telugu speaker and a native Marathi speaker for translation QA.~~ ✅ done (Sep 13)
 - [x] ~~Stand up the repo, Docker Compose (Postgres+PostGIS, Redis, FastAPI), CI.~~ ✅ done (Sep 4)
 - [ ] Build the decoder tables (weather condition codes, wind directions, precipitation categories, UV bands). — **partial:** condition codes + wind directions done (`data/decoders/`); precipitation categories and UV bands still missing.
-- [x] ~~Ship the thin slice: text query → Google Weather API data → grounded English answer with provenance.~~ ✅ done — `/ask` in `prototype/ask_service/` (see §14).
+- [x] ~~Ship the thin slice: text query → Google Weather API data → grounded English answer with provenance.~~ ✅ done — `/ask` in `services/orchestrator/` (originally `prototype/ask_service/`, see §14).
 
 ---
 
@@ -441,7 +448,7 @@ weathergpt/
 - **Text only.** No voice (ASR/TTS) — that's a P1 item (§6) requiring Bhashini setup time we don't have tonight.
 - **One data source, two intents.** Google Weather API current conditions + daily forecast only. Intents: *"what's the weather in `<city>`"* and *"will it rain in `<city>` `<day>`"*. No warnings, no cyclone map, no climate trends.
 - **Grounding guardrail stays non-negotiable** even in the cut-down build — it's the one thing the demo script and jury story depend on; skipping it defeats the point of the prototype.
-- ~~**Frontend calls `prototype/ask_service` directly** (decided 2026-09-11), not through `services/gateway` — the gateway has no `/ask` route and a DB/Redis-dependent health check that adds demo-day risk. The prototype migrates into `services/orchestrator/` behind the gateway post-hackathon.~~ ✅ migrated (Sep 14, **Mahesh**) — `prototype/ask_service/` → `services/orchestrator/`; `services/gateway` is now a reverse proxy (`:8000` → `:8001`, X-Forwarded-For preserved for the rate limiter) whose DB/Redis checks are lazy and confined to `/health`, so the demo still has no database dependency. The tunnel points at the gateway; `:8001` direct still works. Frontend stays in `prototype/frontend/` (served by the orchestrator, proxied by the gateway).
+- ~~**Frontend calls `prototype/ask_service` directly** (decided 2026-09-11), not through `services/gateway` — the gateway has no `/ask` route and a DB/Redis-dependent health check that adds demo-day risk. The prototype migrates into `services/orchestrator/` behind the gateway post-hackathon.~~ ✅ migrated (Sep 14, **Mahesh**) — `prototype/ask_service/` → `services/orchestrator/`; `services/gateway` is now a reverse proxy (`:8000` → `:8001`, X-Forwarded-For preserved for the rate limiter) whose DB/Redis checks are lazy and confined to `/health`, so the demo still has no database dependency. The tunnel points at the gateway; `:8001` direct still works. Frontend stays in `prototype/frontend/` (served by the orchestrator only when `FRONTEND_DIR` points at it — API-only by default since 2026-09-21 — and proxied by the gateway).
 - **Demo cities: Chennai, Madurai, Coimbatore.** Real Google Weather API responses for all three are snapshotted into `data/fixtures/google_weather/`.
 
 **Tonight — build tasks:**
@@ -491,7 +498,7 @@ are "add for the first time," not "extend."
   (`bhashini._wav_to_pcm16_base64`). Verified end-to-end live (real Bhashini
   keys) via curl and in-browser for both languages; 312 backend tests pass.
 - [x] **Deepthi — Google OAuth + Supabase.** Done — Supabase Auth with Google
-  provider (`auth.py`, `frontend/auth.js`, `supabase_schema.sql`, `GET /me`)
+  provider (`auth.py`, `frontend/auth.js`, `supabase_schema.sql` — now at `services/orchestrator/sql/`, `GET /me`)
   on the pinned ngrok host.
 - [x] ~~**Abel — link history to the database.**~~ ✅ done (Sep 13, picked
   up by Niranjan since it was unblocked and Abel hadn't started): `history`
