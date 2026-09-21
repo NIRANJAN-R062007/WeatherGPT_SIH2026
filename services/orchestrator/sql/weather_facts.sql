@@ -4,9 +4,10 @@
 -- it by hand is only useful for inspecting the schema or running it via a
 -- migration tool later — nothing depends on this file being run manually.
 --
--- Write-only from the request path: /ask always reads through
--- google_weather.py's in-memory cache / Redis / live API / fixture chain,
--- never from this table. This is an audit/replay log, not a read cache.
+-- Write-only, and written off the request path by weather_store.py's worker
+-- thread: /ask always reads through google_weather.py's in-memory cache /
+-- Redis / live API / fixture chain, never from this table. This is an
+-- audit/replay log, not a read cache.
 
 CREATE TABLE IF NOT EXISTS weather_facts (
     id BIGSERIAL PRIMARY KEY,

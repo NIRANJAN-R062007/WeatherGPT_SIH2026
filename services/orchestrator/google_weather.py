@@ -12,7 +12,9 @@ Replaces the hardcoded stub in weather_data.py's data path.
   as of plan.md §8 Phase 1, not just docker-compose's dev-only container.
   Both L1 and L2 are best-effort: a dead/unreachable Redis is caught and
   logged inside weather_store.py, never raised, so this stays safe to run
-  anywhere Redis isn't (yet) provisioned.
+  anywhere Redis isn't (yet) provisioned. Live snapshots are also handed to
+  weather_store.persist() for the Postgres audit log — enqueue-only, written
+  by its worker thread, so a dead Postgres costs the request nothing.
 - On any live-call failure (timeout, non-200, no key) the committed snapshots
   in data/fixtures/google_weather/ are replayed, so the demo needs no network
   (plan.md §2.5 offline-degradable, R5 venue-wifi). Only live results are
@@ -168,7 +170,7 @@ def snapshot(kind: str, city_key: str, *, force_refresh: bool = False) -> Snapsh
     fields = {"payload": snap.payload, "is_live": snap.is_live,
               "retrieved_at": snap.retrieved_at, "source": snap.source}
     weather_store.redis_set(kind, city_key, fields, TTL_SECONDS[kind])
-    weather_store.persist(kind, city_key, fields)
+    weather_store.persist(kind, city_key, fields)  # enqueue only; the INSERT is off-thread
     return snap
 
 
