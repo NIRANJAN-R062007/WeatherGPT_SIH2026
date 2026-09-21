@@ -276,3 +276,151 @@ def test_load_returns_none_for_missing_fixture(tmp_path, monkeypatch):
 def test_load_returns_none_for_malformed_fixture(_fixture_dir):
     (_fixture_dir / "warnings.chennai.json").write_text("{not valid json", encoding="utf-8")
     assert warnings_module.load("chennai") is None
+
+
+# --- /ask warnings intent (audit 2.3) ---------------------------------------
+# A warning-shaped question used to be refused as out_of_scope; now it carries
+# the /warnings payload inside the /ask envelope. The answer text is the
+# feed's own headline, never narrated (plan.md §2 principle 4).
+
+
+def _ask(text, **params):
+    return client.get("/ask", params={"text": text, **params}).json()
+
+
+def test_ask_warnings_unavailable_by_default():
+    body = _ask("is there any warning for Chennai?")
+    assert body["intent"] == "warnings" and body["city"] == "chennai"
+    assert body["status"] == "unavailable" and body["warning"] is None
+    assert body["message"] == main._msg("warnings_unavailable", "en")
+    assert "response" not in body
+    assert body["message"] not in (main._msg("no_data", "en"), main._msg("out_of_scope", "en"))
+    assert [row["colour"] for row in body["legend"]] == ["green", "yellow", "orange", "red"]
+    assert body["nlu"]["intent"] == "warnings" and body["nlu"]["source"] == "rules"
+
+
+@pytest.mark.parametrize("lang", LANGS)
+def test_ask_warnings_unavailable_message_in_requested_language(lang):
+    body = _ask("is there any warning for Chennai?", lang=lang)
+    assert body["status"] == "unavailable"
+    assert body["message"] == main._msg("warnings_unavailable", lang)
+
+
+def test_ask_warnings_unavailable_when_fixture_missing(_warnings_enabled, _fixture_dir):
+    body = _ask("is there any warning for Chennai?")
+    assert body["status"] == "unavailable" and body["warning"] is None
+    assert body["message"] == main._msg("warnings_unavailable", "en")
+
+
+def test_ask_warnings_active_is_the_verbatim_headline(_warnings_enabled):
+    body = _ask("is there any warning for Chennai?")
+    assert body["intent"] == "warnings" and body["city"] == "chennai"
+    assert body["status"] == "active"
+    assert body["response"] == body["warning"]["headline"] == \
+        "Orange alert: heavy rainfall expected"
+    assert "message" not in body
+    assert body["warning"]["colour"] == "orange"
+    assert body["warning"]["category"] == "Heavy rainfall"
+    assert body["legend"] == glossary.legend("en")
+    assert set(body["provenance"]) == {
+        "source", "issued_by", "valid_from", "valid_to", "is_live", "retrieved_at",
+    }
+    assert body["provenance"]["issued_by"] == "IMD (fixture)"
+    assert body["provenance"]["source"] == "fixture" and body["provenance"]["is_live"] is False
+    assert body["provenance"]["valid_from"] == body["warning"]["valid_from"]
+    assert body["provenance"]["valid_to"] == body["warning"]["valid_to"]
+    assert body["nlu"]["intent"] == "warnings"
+
+
+def test_ask_warnings_grounding_block_says_verbatim_feed(_warnings_enabled):
+    # The web AskPage reads grounding.provider / fallback_used on any answer
+    # that has a `response`, so the block must exist — and must not claim a
+    # validator pass that never ran: nothing narrated, no figures.
+    g = _ask("is there any warning for Chennai?")["grounding"]
+    assert g == {"ok": True, "matched": 0, "total": 0, "figures": [], "fallback_used": False,
+                 "narration": "verbatim", "attempts": 0, "provider": "feed"}
+
+
+def test_ask_warnings_active_headline_in_requested_language(_warnings_enabled):
+    body = _ask("சென்னைக்கு ஏதேனும் எச்சரிக்கை உள்ளதா?", lang="ta")
+    assert body["status"] == "active"
+    assert body["response"] == "ஆரஞ்சு எச்சரிக்கை: கனமழை எதிர்பார்க்கப்படுகிறது"
+    assert body["warning"]["colour_label"] == "ஆரஞ்சு"
+    assert "notice" not in body
+
+
+def test_ask_warnings_clear_for_green_fixture(_warnings_enabled):
+    body = _ask("any alert in Coimbatore?")
+    assert body["status"] == "clear"
+    assert body["response"] == "No warning in force"
+    assert body["warning"]["colour"] == "green"
+    assert body["provenance"]["issued_by"] == "IMD (fixture)"
+
+
+def test_ask_warnings_never_narrates_or_runs_the_guardrail(_warnings_enabled, monkeypatch):
+    monkeypatch.setattr(main, "narrate", lambda *a, **k: pytest.fail("narrate() called"))
+    monkeypatch.setattr(main.guardrail, "check",
+                        lambda *a, **k: pytest.fail("guardrail.check() called"))
+    monkeypatch.setattr(main.router, "route", lambda *a, **k: pytest.fail("router.route() called"))
+    body = _ask("is there any warning for Chennai?")
+    assert body["status"] == "active" and body["grounding"]["attempts"] == 0
+
+
+def test_ask_warnings_no_city_is_a_refusal():
+    body = _ask("is there any warning?")
+    assert body["intent"] == "warnings"
+    assert body["message"] == main._msg("no_city", "en")
+    assert "status" not in body and "city" not in body
+
+
+def test_ask_warnings_city_param_fills_in(_warnings_enabled):
+    body = _ask("is there any warning?", city="madurai")
+    assert body["city"] == "madurai" and body["status"] == "active"
+    assert body["warning"]["colour"] == "yellow"
+
+
+def test_ask_warnings_unknown_city_is_unsupported_city():
+    body = _ask("warning in Mumbai")
+    assert body["intent"] == "unsupported_city"
+    assert body["message"] == main._msg("unsupported_city", "en")
+
+
+def test_ask_warnings_records_history_when_signed_in(_warnings_enabled, monkeypatch):
+    seen = []
+    monkeypatch.setattr(main.history, "record", lambda token, **row: seen.append((token, row)))
+    body = client.get("/ask", params={"text": "is there any warning for Chennai?"},
+                      headers={"Authorization": "Bearer tok"}).json()
+    assert seen == [("tok", {"query": "is there any warning for Chennai?", "intent": "warnings",
+                             "city": "chennai", "lang": "en", "response": body["response"]})]
+
+
+def test_ask_warnings_unavailable_is_not_recorded(monkeypatch):
+    monkeypatch.setattr(main.history, "record",
+                        lambda *a, **k: pytest.fail("refusal written to history"))
+    body = client.get("/ask", params={"text": "is there any warning for Chennai?"},
+                      headers={"Authorization": "Bearer tok"}).json()
+    assert body["status"] == "unavailable"
+
+
+def test_ask_warnings_counts_in_metrics(_warnings_enabled):
+    _ask("is there any warning for Chennai?")
+    body = client.get("/metrics").text
+    assert any(
+        line.startswith("weathergpt_ask_total{") and 'intent="warnings"' in line
+        and 'provider="feed"' in line and 'narration="verbatim"' in line
+        for line in body.splitlines()
+    )
+
+
+def test_ask_cyclone_track_still_out_of_scope():
+    body = _ask("where will the cyclone make landfall near Chennai?")
+    assert body["intent"] == "out_of_scope" and "response" not in body
+    assert body["message"] == main._msg("out_of_scope", "en")
+
+
+@pytest.mark.parametrize("lang", LANGS)
+def test_out_of_scope_message_no_longer_disowns_warnings(lang):
+    # The old text promised "not warnings, alerts"; warnings are a product now.
+    msg = main._msg("out_of_scope", lang)
+    assert "not warnings" not in msg
+    assert msg != main._msg("warnings_unavailable", lang)

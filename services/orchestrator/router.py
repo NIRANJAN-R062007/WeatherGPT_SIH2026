@@ -2,6 +2,10 @@
 right `weather_data` call, and trims the resulting facts down to what the
 narration prompt needs for the asked parameter (the guardrail still checks
 against the FULL facts dict, never this trimmed subset).
+
+The `warnings` intent is not a `weather_data` call: main.py's /ask answers it
+straight from imd_warnings.public() before routing, so route() returns None
+for it like any other non-weather intent.
 """
 
 import weather_data
