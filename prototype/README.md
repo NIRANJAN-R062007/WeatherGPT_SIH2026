@@ -6,7 +6,9 @@ task list, and explicit out-of-scope list.
 **Layout (post-hackathon, 2026-09-14):** the backend that started life as
 `prototype/ask_service/` now lives at **`services/orchestrator/`** and sits
 behind `services/gateway/` (a reverse proxy on `:8000`). Only the frontend
-(`prototype/frontend/`) and this README remain under `prototype/`. Module
+(`prototype/frontend/`, deployed via `amplify.yml`), `run_tunnel.sh`, the
+Playwright e2e test and this README remain under `prototype/`; the Supabase
+schema moved to `services/orchestrator/sql/supabase_schema.sql`. Module
 paths below are relative to `services/orchestrator/`.
 
 ## What's here
@@ -81,17 +83,18 @@ and "View source" panel:
 
 The frontend goes **through `services/gateway`** (`:8000`), which reverse-
 proxies every path except its own `/health` to the orchestrator (`:8001`) and
-appends the client address to `X-Forwarded-For` so the orchestrator's
-per-client rate limit still keys the real caller. The gateway's Postgres/Redis
+appends the address it accepted the connection from to `X-Forwarded-For` —
+the hop the orchestrator's per-client rate limit keys on (`TRUSTED_PROXY_HOPS`,
+see "Public-surface limits"). The gateway's Postgres/Redis
 checks are lazy and only affect `/health`, so the proxy works with neither
 running — the demo still depends on two uvicorn processes and nothing else.
 Hitting the orchestrator directly on `:8001` keeps working (set
-`TUNNEL_PORT=8001` for `run_tunnel.sh`). The frontend's `apiBase` is the
-fixed ngrok hostname, so it needed no change — only what the tunnel points at
-did. (Before 2026-09-14 the frontend called the prototype directly because the
-old gateway had no `/ask` route and a DB-dependent `/health`.)
+`TUNNEL_PORT=8001` for `run_tunnel.sh`). The frontend needed no change for
+this — only what the tunnel points at did. (Before 2026-09-14 the frontend
+called the prototype directly because the old gateway had no `/ask` route and
+a DB-dependent `/health`.)
 
-CORS on `/ask` is open (`ALLOWED_ORIGINS`, default `*`) — GET-only, no
+CORS on `/ask` is open (`ALLOWED_ORIGINS`, default `*`) — GET/POST/DELETE, no
 credentials, and it covers a `file://` origin.
 
 **`WEATHER_MODE`** (`.env`): `auto` (default — live, fixture fallback) |
@@ -180,8 +183,11 @@ cd services/orchestrator && python snapshot_google_weather.py --city all --force
 ```
 cd services/orchestrator
 OFFLINE_MODE=1 python offline_check.py       # exit 0 = go; see below on read
-OFFLINE_MODE=1 uvicorn main:app --port 8001
+OFFLINE_MODE=1 FRONTEND_DIR=../../prototype/frontend uvicorn main:app --port 8001 --no-proxy-headers
 ```
+
+(`FRONTEND_DIR` serves the demo page at `/`; `--no-proxy-headers` is explained
+under "Run it" — both as in the Dockerfiles and compose.)
 
 `offline_check.py` checks every fixture (OK/STALE/MISSING, with the exact
 refresh command printed for a STALE row), Ollama reachability + a warm-up
@@ -222,16 +228,21 @@ host.docker.internal:host-gateway` is wired in case that needs
 ```
 python -m venv .venv && .venv/bin/pip install -r services/orchestrator/requirements.txt -r services/gateway/requirements.txt
 
-# terminal 1 — orchestrator (API + serves the frontend)
-cd services/orchestrator && ../../.venv/bin/uvicorn main:app --reload --port 8001
+# terminal 1 — orchestrator (API; FRONTEND_DIR also serves the demo page at /)
+cd services/orchestrator && FRONTEND_DIR=../../prototype/frontend ../../.venv/bin/uvicorn main:app --reload --port 8001 --no-proxy-headers
 
 # terminal 2 — gateway (reverse proxy; ORCHESTRATOR_URL defaults to http://localhost:8001)
-cd services/gateway && ../../.venv/bin/uvicorn main:app --reload --port 8000
+cd services/gateway && ../../.venv/bin/uvicorn main:app --reload --port 8000 --no-proxy-headers
 ```
 
 Open http://localhost:8000/ (via the gateway) or http://localhost:8001/ (direct).
-`python -m http.server 8777` in `prototype/frontend/` still works for
-frontend-only dev against either port.
+Without `FRONTEND_DIR` the orchestrator is API-only — no static mount, and `/`
+answers with a pointer to `/health` and `/docs`; `python -m http.server 8777`
+in `prototype/frontend/` then serves the page for frontend-only dev against
+either port. `--no-proxy-headers` stops uvicorn rewriting the peer address
+from `X-Forwarded-For` for connections from 127.0.0.1 (the ngrok agent is one),
+which would hand the rate limiter a client-chosen address — see
+"Public-surface limits". The Dockerfiles and compose pass it too.
 
 ```
 curl "http://localhost:8001/health"
@@ -248,10 +259,14 @@ The ngrok URL is world-reachable and `/ask`, `/asr`, `/tts` have no auth, so
   rejected with 413 before it reaches Bhashini. `/asr` `audio` and `/tts`
   `text` also carry field-level caps (422).
 - **Rate limit** — `RATE_LIMIT_PER_MINUTE` (default 30) requests per client
-  per minute on the three expensive routes, keyed by the first
-  `X-Forwarded-For` hop (ngrok sets it) → 429 with `Retry-After`. Set it to
-  `0` to disable (the test suite does). One uvicorn worker only — this is a
-  demo guard, not a gateway.
+  per minute on the three expensive routes → 429 with `Retry-After`. The
+  client is the `TRUSTED_PROXY_HOPS`-th `X-Forwarded-For` hop from the right
+  — the proxies in front of the orchestrator, the gateway counting as one: 1
+  for compose/Render, 2 behind ngrok or the k8s ingress, 0 with no proxy at
+  all — never the client-supplied leftmost one (`limits.py` has the table).
+  The window is shared through Redis when it's reachable, so replicas share
+  one budget; per-process otherwise. Set it to `0` to disable (the test suite
+  does).
 - **Validation** — `lang` must be one of the five supported codes on `/asr`,
   `/tts`, `/facts` (422); `/ask` falls back to English for anything else.
   `/facts` rejects unknown `intent`/`day` rather than silently answering for
@@ -259,19 +274,20 @@ The ngrok URL is world-reachable and `/ask`, `/asr`, `/tts` have no auth, so
 - **History retention** — `history` rows (query text, answer, city, lang) are
   kept until the user clears them: `DELETE /history` with the session token
   erases the caller's rows (RLS `auth.uid() = user_id`). There is no
-  server-side retention job yet; re-run `supabase_schema.sql` to pick up the
-  delete policy.
+  server-side retention job yet; re-run
+  `services/orchestrator/sql/supabase_schema.sql` to pick up the delete policy.
 
 The Playwright end-to-end test lives at `prototype/tests_e2e_frontend.py`,
 outside `prototype/frontend/` — that folder is served verbatim by the static
-mount, so nothing but the page and its assets belongs there.
+mount (`FRONTEND_DIR`), so nothing but the page and its assets belongs there.
 
 ## Public URL (stable host pin, plan.md §14 — Niranjan)
 
 Fixed hostname: **`https://plaza-syrup-appetizer.ngrok-free.dev`** → forwards to
-the gateway on `:8000` → orchestrator on `:8001`, which also serves the frontend directly
-(`prototype/frontend/`, mounted as static files in `main.py`, `/` redirects to
-`WeatherGPT.dc.html`) — one tunnel, one URL, for both API and UI. The free
+the gateway on `:8000` → orchestrator on `:8001`, which also serves the frontend
+directly when started with `FRONTEND_DIR=../../prototype/frontend` (mounted as
+static files in `main.py`, `/` redirects to `WeatherGPT.dc.html`; see "Run
+it") — one tunnel, one URL, for both API and UI. The free
 ngrok tier only supports one online tunnel at a time, so the frontend isn't
 tunneled separately; it no longer needs its own `python -m http.server 8777`
 for the public demo (that's still fine for local-only dev). This replaces the
@@ -294,8 +310,10 @@ One-time machine setup (already done on this host, needed on any other):
 
 Free-tier ngrok domains show an interstitial warning page to plain browser
 requests; the frontend's `api()` fetch sends `ngrok-skip-browser-warning: 1`
-to skip it (`WeatherGPT.dc.html`). `apiBase` in the canvas now defaults to
-the fixed ngrok URL instead of the old Cloudflare one.
+to skip it (`WeatherGPT.dc.html`). `apiBase` in the canvas defaults to the
+live backend, `https://3-108-52-61.sslip.io` (what the Amplify-deployed page
+talks to), not this tunnel — set the prop to the ngrok URL to demo against a
+local stack.
 
 ## Tests
 

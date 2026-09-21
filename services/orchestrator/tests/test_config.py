@@ -3,6 +3,7 @@ and /ask keeps working whether or not any key is set.
 """
 
 import importlib
+from pathlib import Path
 
 import config
 import pytest
@@ -60,6 +61,20 @@ def test_trusted_proxy_hops_empty_value_means_default(monkeypatch):
         assert importlib.reload(config).TRUSTED_PROXY_HOPS == 1
         monkeypatch.setenv("TRUSTED_PROXY_HOPS", "2")
         assert importlib.reload(config).TRUSTED_PROXY_HOPS == 2
+    finally:
+        monkeypatch.undo()
+        importlib.reload(config)
+
+
+def test_frontend_dir_unset_or_empty_means_api_only(monkeypatch):
+    # Same empty-ConfigMap-value rule as TRUSTED_PROXY_HOPS above.
+    monkeypatch.delenv("FRONTEND_DIR", raising=False)
+    try:
+        assert importlib.reload(config).FRONTEND_DIR is None
+        monkeypatch.setenv("FRONTEND_DIR", "")
+        assert importlib.reload(config).FRONTEND_DIR is None
+        monkeypatch.setenv("FRONTEND_DIR", "/app/prototype/frontend")
+        assert importlib.reload(config).FRONTEND_DIR == Path("/app/prototype/frontend")
     finally:
         monkeypatch.undo()
         importlib.reload(config)

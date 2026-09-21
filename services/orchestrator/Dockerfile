@@ -5,7 +5,9 @@
 # breaks that path and every DATA_DIR-relative lookup at startup.
 #
 #   docker build -f services/orchestrator/Dockerfile -t weathergpt-orchestrator .
-#   docker run --env-file .env -p 8001:8001 weathergpt-orchestrator
+#   docker run --env-file .env -p 8001:8001 weathergpt-orchestrator   # API only
+#   docker run --env-file .env -e FRONTEND_DIR=/app/prototype/frontend \
+#     -p 8001:8001 weathergpt-orchestrator                             # + the demo page at /
 
 FROM python:3.11-slim
 
@@ -16,12 +18,16 @@ RUN pip install --no-cache-dir -r services/orchestrator/requirements.txt
 
 COPY services/orchestrator services/orchestrator
 COPY data data
-# main.py serves the web UI from here (plan.md §14 host pin); without it the
-# image is API-only, which is fine behind a separate frontend host.
+# The demo page main.py serves at `/` — only when FRONTEND_DIR points here
+# (docker-compose.yml, render.yaml and k8s/base/configmap.yaml all do); the
+# image is API-only without it.
 COPY prototype/frontend prototype/frontend
 
 WORKDIR /app/services/orchestrator
 
 EXPOSE 8001
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001"]
+# --no-proxy-headers: a container never sees a 127.0.0.1 peer, so uvicorn's
+# default X-Forwarded-For rewrite can't fire here anyway — belt and braces for
+# the limiter (limits.py), which reads the header itself.
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001", "--no-proxy-headers"]

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "note": "Source of truth for demo cities. Backend loader: prototype/ask_service/cities.py. The frontend CITIES object in prototype/frontend/WeatherGPT.dc.html must stay in sync until it fetches GET /cities. Lat/lon and Tamil names copied verbatim from that frontend object. hi/te/mr names are a first-draft transliteration, not native-speaker verified (plan.md §13 open item) — TODO QA before demo.",
+  "note": "Source of truth for demo cities. Backend loader: services/orchestrator/cities.py. The frontend CITIES object in prototype/frontend/WeatherGPT.dc.html must stay in sync until it fetches GET /cities. Lat/lon and Tamil names copied verbatim from that frontend object. hi/te/mr names are a first-draft transliteration, not native-speaker verified (plan.md §13 open item) — TODO QA before demo.",
   "cities": [
     {
       "key": "chennai",

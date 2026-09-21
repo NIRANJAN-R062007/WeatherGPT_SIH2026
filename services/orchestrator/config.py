@@ -1,4 +1,4 @@
-"""Central config for the /ask prototype: paths, API keys, CORS origins.
+"""Central config for the orchestrator: paths, API keys, CORS origins.
 
 Keys come from a repo-root .env (gitignored), loaded here once. Nothing raises
 at import time — /ask must import with an empty environment (CI has no .env).
@@ -81,6 +81,14 @@ BHASHINI_INFERENCE_KEY: str | None = os.getenv("BHASHINI_INFERENCE_KEY")
 
 _origins = (os.getenv("ALLOWED_ORIGINS") or "").strip()
 ALLOWED_ORIGINS: list[str] = [o.strip() for o in _origins.split(",") if o.strip()] or ["*"]
+
+# Directory of static files main.py serves at `/` next to the API (the
+# prototype/frontend demo page — plan.md §14 host pin, one tunnel for UI and
+# API). Unset = API-only, no mount, no `/` redirect. Every deployed surface
+# (compose, render.yaml, k8s configmap) sets it; a bare `uvicorn main:app`
+# doesn't. `or None` so an empty k8s value means unset, not "".
+_frontend_dir = (os.getenv("FRONTEND_DIR") or "").strip()
+FRONTEND_DIR: Path | None = Path(_frontend_dir) if _frontend_dir else None
 
 # Weather data source: "auto" (live, fixture fallback) | "live" (no fallback) |
 # "fixtures" (offline; the demo-morning kill switch). OFFLINE_MODE forces

@@ -4,7 +4,7 @@ Supabase schema landed; keyed off her `public.profiles` table).
 No service-role key here either (see config.py's note on auth.py) — every
 read/write goes through Supabase PostgREST using the *caller's own* session
 token, so Postgres RLS (public.history: auth.uid() = user_id, see
-prototype/supabase_schema.sql) is what actually keeps one user's history from
+sql/supabase_schema.sql) is what actually keeps one user's history from
 another's. `user_id` is never sent on insert — the column defaults to
 `auth.uid()`, which PostgREST resolves from the same bearer token.
 """

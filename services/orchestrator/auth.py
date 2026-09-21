@@ -1,4 +1,4 @@
-"""Supabase session verification for the /ask prototype (plan.md §14 Deepthi track).
+"""Supabase session verification for the orchestrator (plan.md §14 Deepthi track).
 
 The frontend signs in with Google via Supabase Auth (see prototype/frontend/auth.js)
 and gets back a session access token. It sends that token as
