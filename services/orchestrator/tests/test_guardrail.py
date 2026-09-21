@@ -266,6 +266,21 @@ def test_wind_speed_word_unit_matches_correct_field(lang, unit_swap_answer, matc
     assert report.figures[0]["path"] == "wind_kmh"
 
 
+@pytest.mark.parametrize("lang", ["en", "ta", "hi", "te", "mr"])
+@pytest.mark.parametrize("city", sorted(["chennai", "madurai", "coimbatore"]))
+def test_translated_day_labels_add_nothing_for_the_guardrail_to_match(lang, city):
+    # i18n.DAY_LABELS renders the multi-day labels in-language (audit 2.1). They
+    # are words, not figures, so the only numbers left are "next N days" plus
+    # pct/high/low per day — every one grounded, nothing new for _match to learn.
+    from weather_data import multi_day_facts
+
+    facts = multi_day_facts(city, 5)
+    answer = render("forecast", city.capitalize(), facts, lang)
+    report = guardrail.check(answer, facts)
+    assert report.ok
+    assert report.matched == report.total == 1 + 3 * facts["days_counted"]
+
+
 def test_unmarked_number_cannot_borrow_a_unit_bearing_field():
     raw = {"temp_c": 30, "humidity_pct": 65, "wind_kmh": 12}
     report = guardrail.check("The wind speed is 65 right now.", raw)

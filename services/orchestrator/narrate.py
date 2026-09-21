@@ -64,10 +64,12 @@ _INTENT_HINTS: dict[str, str] = {
 
 # `day` is stripped from the facts JSON (_SKIP) so the model never echoes the
 # field name, but it still has to know WHICH day the figures are for — without
-# this a "tomorrow" forecast was being narrated as "today".
+# this a "tomorrow" forecast was being narrated as "today". Weekday keys fall
+# through to "on Friday"; "later" is weather_data's key for an entry whose date
+# couldn't be read, so the hint stays honest rather than naming a day.
 _DAY_PHRASES: dict[str, str] = {
     "today": "today", "tonight": "tonight", "tomorrow": "tomorrow",
-    "day_after_tomorrow": "the day after tomorrow",
+    "day_after_tomorrow": "the day after tomorrow", "later": "a later day",
 }
 
 

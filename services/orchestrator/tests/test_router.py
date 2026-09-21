@@ -115,3 +115,14 @@ def test_narration_facts_filters_multi_day():
     for day in trimmed["days"]:
         assert "high_c" not in day and "rain_probability_pct" in day
     assert trimmed["days_counted"] == facts["days_counted"]
+
+
+def test_narration_facts_passes_day_labels_through_unchanged():
+    # Labels are weather_data's canonical keys (weekday / "later"); the trim
+    # must neither drop nor rewrite them — i18n and narrate render them.
+    facts = router.route(
+        _pq(intent="forecast", time_window="next_n_days", days=5), "chennai"
+    )
+    facts["days"][4]["label"] = "later"
+    trimmed = router.narration_facts(facts, "temperature")
+    assert [d["label"] for d in trimmed["days"]] == [d["label"] for d in facts["days"]]

@@ -2,8 +2,11 @@
 dict of exactly the keys an answer may quote. Runs on the committed fixtures.
 """
 
+import copy
+import re
 from datetime import datetime, timezone
 
+import google_weather
 import pytest
 import weather_data
 
@@ -15,6 +18,34 @@ RAIN_SO_FAR_KEYS = {"source", "is_live", "issued", "since", "rain_so_far_mm",
                      "hours_counted", "condition"}
 RAIN_LAST_24H_KEYS = {"source", "is_live", "issued", "rain_last_24h_mm",
                        "hours_counted", "condition"}
+DAY_KEYS = {"today", "tomorrow", *weather_data._WEEKDAYS, weather_data._LATER}
+
+
+def _patch_forecast(monkeypatch, mutate):
+    """Serve the fixture forecast with `mutate(forecastDays)` applied to a copy."""
+    orig = google_weather.snapshot
+
+    def _snapshot(kind, city_key, **kw):
+        snap = orig(kind, city_key, **kw)
+        if kind == "forecast_days":
+            payload = copy.deepcopy(snap.payload)
+            mutate(payload["forecastDays"])
+            return google_weather.Snapshot(snap.kind, snap.city, payload,
+                                           snap.is_live, snap.retrieved_at, snap.source)
+        return snap
+
+    monkeypatch.setattr(google_weather, "snapshot", _snapshot)
+
+
+def _break_display_date(days):
+    for entry in days[2:]:
+        entry["displayDate"] = {"year": "2026", "month": None}  # wrong types, no day
+
+
+def _break_display_date_and_start(days):
+    _break_display_date(days)
+    for entry in days[2:]:
+        entry["interval"] = {"startTime": 20260916}  # not a timestamp string either
 
 
 @pytest.mark.parametrize("city", ["chennai", "madurai", "coimbatore"])
@@ -201,3 +232,46 @@ def test_forecast_day_strict_none_beyond_range():
     assert weather_data.forecast_day("chennai", 0) is not None
     # only FORECAST_DAYS days in the fixture; STRICT, no clamping
     assert weather_data.forecast_day("chennai", FORECAST_DAYS) is None
+
+
+# --- day labels: canonical keys, never a bare number (audit 2.1 / 2.2) ---
+
+def test_day_labels_are_canonical_keys_with_weekdays_from_display_date():
+    facts = weather_data.multi_day_facts("chennai", 5)
+    days = google_weather.snapshot("forecast_days", "chennai").payload["forecastDays"]
+    for i, day in enumerate(facts["days"][2:], start=2):
+        d = days[i]["displayDate"]
+        expected = weather_data._WEEKDAYS[datetime(d["year"], d["month"], d["day"]).weekday()]
+        assert day["label"] == expected
+    assert {d["label"] for d in facts["days"]} <= DAY_KEYS
+
+
+def test_malformed_display_date_falls_back_to_start_time_in_city_time(monkeypatch):
+    def _mutate(days):
+        _break_display_date(days)
+        # 18:30Z is already 00:00 IST the next day: Wednesday 16 Sep in Chennai,
+        # still Tuesday in UTC — the weekday must be read in the city's timezone.
+        days[2]["interval"]["startTime"] = "2026-09-15T18:30:00Z"
+
+    _patch_forecast(monkeypatch, _mutate)
+    labels = [d["label"] for d in weather_data.multi_day_facts("chennai", 5)["days"]]
+    assert labels[2] == "wednesday"
+    assert all(label in weather_data._WEEKDAYS for label in labels[2:])
+    assert not any(re.search(r"\d", label) for label in labels)
+
+
+def test_unreadable_date_emits_generic_key_not_a_number(monkeypatch):
+    _patch_forecast(monkeypatch, _break_display_date_and_start)
+    facts = weather_data.multi_day_facts("chennai", 5)
+    labels = [d["label"] for d in facts["days"]]
+    assert labels[:2] == ["today", "tomorrow"]
+    assert labels[2:] == [weather_data._LATER] * 3
+    assert not any(re.search(r"\d", label) for label in labels)  # no "day3" to trip the guardrail
+
+
+@pytest.mark.parametrize("mutate", [_break_display_date, _break_display_date_and_start])
+def test_forecast_day_label_has_no_digit_with_malformed_display_date(monkeypatch, mutate):
+    _patch_forecast(monkeypatch, mutate)
+    for offset in (3, 4):
+        day = weather_data.forecast_day("chennai", offset)["day"]
+        assert day in DAY_KEYS and not re.search(r"\d", day)
