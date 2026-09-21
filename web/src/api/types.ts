@@ -42,10 +42,19 @@ export function isFactsSuccess(r: FactsResponse): r is FactsSuccess {
 
 export type WarningColour = 'green' | 'yellow' | 'orange' | 'red';
 
+/**
+ * Whether the feed had a verdict — `imd_warnings.STATUS_*` on the backend.
+ * `unavailable` (feed switched off, which is every deploy's default, or no
+ * fixture for the city) is not an all-clear and must never render green.
+ */
+export type WarningStatus = 'unavailable' | 'clear' | 'active';
+
 export interface Warning {
   district: string;
   colour: WarningColour;
-  category: string | null;
+  colour_label: string; // glossary colour word in the requested language
+  category: string | null; // the feed's own text, verbatim
+  category_label: string; // glossary label for it (null category → "no warning")
   headline: string;
   advice: string;
   valid_from: string;
@@ -54,10 +63,28 @@ export interface Warning {
   source: string;
 }
 
+/** One row of the colour-code legend, from data/i18n/glossary.json. */
+export interface LegendRow {
+  colour: WarningColour;
+  label: string;
+  meaning: string;
+}
+
 export interface WarningsResponse {
   city: string;
   city_name: string;
-  warning: Warning | null;
+  status?: WarningStatus; // absent from a backend older than the status field
+  warning: Warning | null; // null exactly when status is 'unavailable'
+  legend?: LegendRow[];
+}
+
+/**
+ * A backend that predates `status`, or a payload whose `warning` doesn't
+ * back its status, is treated as unavailable — never as an all-clear.
+ */
+export function warningStatus(r: WarningsResponse): WarningStatus {
+  if ((r.status === 'active' || r.status === 'clear') && r.warning) return r.status;
+  return 'unavailable';
 }
 
 export interface Grounding {

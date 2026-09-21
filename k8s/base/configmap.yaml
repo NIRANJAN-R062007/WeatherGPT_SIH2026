@@ -28,6 +28,8 @@ data:
   WEATHER_MODE: "auto"
   OFFLINE_MODE: "0"
   RAG_ENABLED: "1"
+  # Fixture-only warning feed: /warnings says "unavailable" unless deliberately demoed
+  WARNINGS_ENABLED: "0"
 
   # Supabase project URL (anon key is a secret — see secret.example.yaml)
   SUPABASE_URL: ""

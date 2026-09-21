@@ -351,7 +351,11 @@ def facts(city: str, intent: str = "current_weather", day: str = "today", lang: 
 def warnings_route(city: str, lang: str = "en"):
     """IMD warning colour code for a city (plan.md §14 Task D) — a stand-in
     fixture feed until the real CAP integration (plan.md §3.3 / Phase 4)
-    lands. Unlike /facts, an unknown city is a genuine 404 here: there is no
+    lands. `status` (imd_warnings.STATUS_*) says whether the feed had a
+    verdict at all: with WARNINGS_ENABLED off — the default — it is
+    "unavailable" with `warning: null`, which a UI must show as "not
+    available", never as an all-clear (plan.md §2 principle 3). Unlike
+    /facts, an unknown city is a genuine 404 here: there is no
     partial-answer shape to fall back to for a colour-code banner."""
     _require_lang(lang)
     key = cities.resolve(city)
@@ -360,8 +364,20 @@ def warnings_route(city: str, lang: str = "en"):
     return {
         "city": key,
         "city_name": cities.display_name(key, lang),
-        "warning": warnings_module.public(key, lang),
+        **warnings_module.public(key, lang),
     }
+
+
+@app.get("/glossary")
+def glossary_route(lang: str = "en"):
+    """data/i18n/glossary.json in one language: the warning colour words and
+    meanings and the category labels every surface should render from rather
+    than carry its own copy (plan.md §3.1). Entries keep their native_qa flag
+    so a client can mark unreviewed translations."""
+    import glossary  # local: keeps the shared import block above untouched; hoist when convenient
+
+    _require_lang(lang)
+    return {"lang": lang, "entries": glossary.entries(lang)}
 
 
 @app.get("/ask")

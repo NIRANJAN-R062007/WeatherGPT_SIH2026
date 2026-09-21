@@ -37,22 +37,15 @@ export interface UiStrings {
   uvIndex: string;
   wind: string; // authored — not in _CURRENT_PHRASES.
 
-  // Warnings page (authored, except colour_* and noWarning below).
+  // Warnings page (authored). Colour words, colour meanings and category
+  // labels are NOT here: the API serves them from data/i18n/glossary.json
+  // (`legend`, `warning.colour_label`, `warning.category_label` on
+  // /warnings) so there is one copy of that text, not three.
   alert: string;
+  warningsUnavailable: string;
   noWarningBody: string;
   valid: string;
   unknownCity: string;
-
-  // Sourced verbatim from data/i18n/glossary.json.
-  noWarning: string; // category_no_warning
-  colourMeaningGreen: string; // colour_green
-  colourMeaningYellow: string; // colour_yellow
-  colourMeaningOrange: string; // colour_orange
-  colourMeaningRed: string; // colour_red
-  colourGreen: string; // colour word extracted from colour_green
-  colourYellow: string;
-  colourOrange: string;
-  colourRed: string;
 
   // Generic states (authored).
   loading: string;
@@ -96,22 +89,11 @@ export const STRINGS: Record<Lang, UiStrings> = {
     uvIndex: 'UV index',
     wind: 'Wind',
     alert: 'Alert',
+    warningsUnavailable:
+      "Warnings aren't available right now — the IMD warning feed isn't connected. This is not an all-clear.",
     noWarningBody: 'No IMD warning is currently active for',
     valid: 'Valid',
     unknownCity: "That city isn't tracked yet.",
-    noWarning: 'No warning in force',
-    colourMeaningGreen:
-      'Green means no warning: no significant severe weather is expected, so no specific action is needed beyond normal precautions.',
-    colourMeaningYellow:
-      'Yellow means watch and stay updated: be aware of developing weather conditions and keep checking for the latest forecasts, as the situation could worsen.',
-    colourMeaningOrange:
-      'Orange means be prepared: severe weather is likely, so people should stay alert, prepare for disruption, and follow guidance from local authorities.',
-    colourMeaningRed:
-      'Red means take action: very severe weather is expected, so people should follow official advisories, avoid unnecessary travel, and take protective action immediately.',
-    colourGreen: 'Green',
-    colourYellow: 'Yellow',
-    colourOrange: 'Orange',
-    colourRed: 'Red',
     loading: 'Loading…',
     retry: 'Retry',
     errNetwork: "Couldn't reach the server.",
@@ -150,22 +132,11 @@ export const STRINGS: Record<Lang, UiStrings> = {
     uvIndex: 'UV குறியீடு',
     wind: 'காற்று',
     alert: 'எச்சரிக்கை',
+    warningsUnavailable:
+      'எச்சரிக்கைகள் இப்போது கிடைக்கவில்லை — IMD எச்சரிக்கை சேவை இணைக்கப்படவில்லை. இது ஆபத்து இல்லை என்பதற்கான உறுதி அல்ல.',
     noWarningBody: 'தற்போது எந்த IMD எச்சரிக்கையும் இயங்கவில்லை',
     valid: 'செல்லுபடி',
     unknownCity: 'இந்த நகரம் இன்னும் கண்காணிக்கப்படவில்லை.',
-    noWarning: 'எச்சரிக்கை இல்லை',
-    colourMeaningGreen:
-      'பச்சை என்பது எச்சரிக்கை இல்லை என்பதைக் குறிக்கிறது: குறிப்பிடத்தக்க கடுமையான வானிலை எதிர்பார்க்கப்படவில்லை, எனவே வழக்கமான முன்னெச்சரிக்கைகளைத் தவிர வேறு நடவடிக்கை தேவையில்லை.',
-    colourMeaningYellow:
-      'மஞ்சள் என்பது கவனமாக இருங்கள், புதுப்பிப்புகளைப் பின்பற்றுங்கள் என்பதைக் குறிக்கிறது: வளர்ந்து வரும் வானிலை நிலைமைகளை அறிந்திருங்கள், நிலைமை மோசமடையக்கூடும் என்பதால் சமீபத்திய முன்னறிவிப்புகளைத் தொடர்ந்து சரிபார்க்கவும்.',
-    colourMeaningOrange:
-      'ஆரஞ்சு என்பது தயாராக இருங்கள் என்பதைக் குறிக்கிறது: கடுமையான வானிலை ஏற்படும் வாய்ப்புள்ளது, எனவே மக்கள் விழிப்புடன் இருந்து, இடையூறுகளுக்குத் தயாராகி, உள்ளூர் அதிகாரிகளின் வழிகாட்டுதலைப் பின்பற்ற வேண்டும்.',
-    colourMeaningRed:
-      'சிவப்பு என்பது நடவடிக்கை எடுங்கள் என்பதைக் குறிக்கிறது: மிகக் கடுமையான வானிலை எதிர்பார்க்கப்படுகிறது, எனவே மக்கள் அதிகாரப்பூர்வ ஆலோசனைகளைப் பின்பற்றி, தேவையற்ற பயணத்தைத் தவிர்த்து, உடனடியாக பாதுகாப்பு நடவடிக்கை எடுக்க வேண்டும்.',
-    colourGreen: 'பச்சை',
-    colourYellow: 'மஞ்சள்',
-    colourOrange: 'ஆரஞ்சு',
-    colourRed: 'சிவப்பு',
     loading: 'ஏற்றுகிறது…',
     retry: 'மீண்டும் முயற்சி செய்',
     errNetwork: 'சேவையகத்தை அடைய முடியவில்லை.',
@@ -204,22 +175,11 @@ export const STRINGS: Record<Lang, UiStrings> = {
     uvIndex: 'यूवी इंडेक्स',
     wind: 'हवा',
     alert: 'चेतावनी',
+    warningsUnavailable:
+      'चेतावनियां अभी उपलब्ध नहीं हैं — IMD चेतावनी सेवा जुड़ी नहीं है। इसका मतलब यह नहीं है कि कोई खतरा नहीं है।',
     noWarningBody: 'फिलहाल कोई IMD चेतावनी सक्रिय नहीं है',
     valid: 'मान्य',
     unknownCity: 'यह शहर अभी ट्रैक नहीं किया जाता।',
-    noWarning: 'कोई चेतावनी नहीं',
-    colourMeaningGreen:
-      'हरा रंग दर्शाता है कि कोई चेतावनी नहीं है: किसी गंभीर खराब मौसम की आशंका नहीं है, इसलिए सामान्य सावधानियों के अलावा किसी विशेष कार्रवाई की आवश्यकता नहीं है।',
-    colourMeaningYellow:
-      'पीला रंग दर्शाता है कि सतर्क रहें और अपडेट रहें: बदलते मौसम की स्थिति पर ध्यान दें और नवीनतम पूर्वानुमान लगातार देखते रहें, क्योंकि स्थिति और बिगड़ सकती है।',
-    colourMeaningOrange:
-      'नारंगी रंग दर्शाता है कि तैयार रहें: गंभीर मौसम की संभावना है, इसलिए लोगों को सतर्क रहना चाहिए, व्यवधान के लिए तैयार रहना चाहिए और स्थानीय अधिकारियों के मार्गदर्शन का पालन करना चाहिए।',
-    colourMeaningRed:
-      'लाल रंग दर्शाता है कि कार्रवाई करें: बहुत गंभीर मौसम की आशंका है, इसलिए लोगों को आधिकारिक सलाह का पालन करना चाहिए, अनावश्यक यात्रा से बचना चाहिए और तुरंत सुरक्षात्मक कदम उठाने चाहिए।',
-    colourGreen: 'हरा',
-    colourYellow: 'पीला',
-    colourOrange: 'नारंगी',
-    colourRed: 'लाल',
     loading: 'लोड हो रहा है…',
     retry: 'फिर से कोशिश करें',
     errNetwork: 'सर्वर तक नहीं पहुंच सका।',
@@ -258,22 +218,11 @@ export const STRINGS: Record<Lang, UiStrings> = {
     uvIndex: 'యూవీ సూచిక',
     wind: 'గాలి',
     alert: 'హెచ్చరిక',
+    warningsUnavailable:
+      'హెచ్చరికలు ప్రస్తుతం అందుబాటులో లేవు — IMD హెచ్చరిక సేవ అనుసంధానించబడలేదు. దీని అర్థం ప్రమాదం లేదని కాదు.',
     noWarningBody: 'ప్రస్తుతం ఏ IMD హెచ్చరిక అమలులో లేదు',
     valid: 'చెల్లుబాటు',
     unknownCity: 'ఈ నగరం ఇంకా ట్రాక్ చేయబడలేదు.',
-    noWarning: 'హెచ్చరిక లేదు',
-    colourMeaningGreen:
-      'ఆకుపచ్చ రంగు హెచ్చరిక లేదని సూచిస్తుంది: ముఖ్యమైన తీవ్ర వాతావరణం ఆశించబడదు, కాబట్టి సాధారణ జాగ్రత్తలు తప్ప ప్రత్యేక చర్య అవసరం లేదు.',
-    colourMeaningYellow:
-      'పసుపు రంగు అప్రమత్తంగా ఉండి తాజా సమాచారం తెలుసుకోమని సూచిస్తుంది: అభివృద్ధి చెందుతున్న వాతావరణ పరిస్థితులపై అవగాహన కలిగి ఉండండి మరియు పరిస్థితి మరింత దిగజారవచ్చు కాబట్టి తాజా సూచనలను ఎప్పటికప్పుడు తనిఖీ చేయండి.',
-    colourMeaningOrange:
-      'నారింజ రంగు సిద్ధంగా ఉండమని సూచిస్తుంది: తీవ్రమైన వాతావరణం అవకాశం ఉంది, కాబట్టి ప్రజలు అప్రమత్తంగా ఉండి, అంతరాయాలకు సిద్ధంగా ఉండి, స్థానిక అధికారుల మార్గదర్శకాలను పాటించాలి.',
-    colourMeaningRed:
-      'ఎరుపు రంగు చర్య తీసుకోమని సూచిస్తుంది: అత్యంత తీవ్రమైన వాతావరణం ఆశించబడుతోంది, కాబట్టి ప్రజలు అధికారిక సూచనలను పాటించి, అనవసర ప్రయాణాన్ని నివారించి, వెంటనే రక్షణ చర్యలు తీసుకోవాలి.',
-    colourGreen: 'ఆకుపచ్చ',
-    colourYellow: 'పసుపు',
-    colourOrange: 'నారింజ',
-    colourRed: 'ఎరుపు',
     loading: 'లోడ్ అవుతోంది…',
     retry: 'మళ్ళీ ప్రయత్నించండి',
     errNetwork: 'సర్వర్‌ను చేరుకోలేకపోయాము.',
@@ -312,22 +261,11 @@ export const STRINGS: Record<Lang, UiStrings> = {
     uvIndex: 'यूव्ही निर्देशांक',
     wind: 'वारा',
     alert: 'इशारा',
+    warningsUnavailable:
+      'इशारे सध्या उपलब्ध नाहीत — IMD इशारा सेवा जोडलेली नाही. याचा अर्थ धोका नाही असा नाही.',
     noWarningBody: 'सध्या कोणताही IMD इशारा सक्रिय नाही',
     valid: 'वैध',
     unknownCity: 'हे शहर अद्याप ट्रॅक केलेले नाही.',
-    noWarning: 'कोणताही इशारा नाही',
-    colourMeaningGreen:
-      'हिरवा रंग म्हणजे कोणताही इशारा नाही: कोणत्याही गंभीर हवामानाची शक्यता नाही, त्यामुळे नेहमीच्या खबरदारीशिवाय विशेष कृतीची गरज नाही.',
-    colourMeaningYellow:
-      'पिवळा रंग म्हणजे सतर्क राहा आणि माहिती अद्ययावत ठेवा: विकसित होत असलेल्या हवामान परिस्थितीची जाणीव ठेवा आणि परिस्थिती अधिक बिघडू शकते म्हणून नवीनतम अंदाज सतत तपासत रहा.',
-    colourMeaningOrange:
-      'नारिंगी रंग म्हणजे तयार राहा: गंभीर हवामानाची शक्यता आहे, त्यामुळे लोकांनी सतर्क राहावे, अडथळ्यांसाठी तयार राहावे आणि स्थानिक प्रशासनाच्या सूचनांचे पालन करावे.',
-    colourMeaningRed:
-      'लाल रंग म्हणजे कृती करा: अत्यंत तीव्र हवामानाची शक्यता आहे, त्यामुळे लोकांनी अधिकृत सूचनांचे पालन करावे, अनावश्यक प्रवास टाळावा आणि त्वरित संरक्षणात्मक उपाययोजना कराव्यात.',
-    colourGreen: 'हिरवा',
-    colourYellow: 'पिवळा',
-    colourOrange: 'नारिंगी',
-    colourRed: 'लाल',
     loading: 'लोड होत आहे…',
     retry: 'पुन्हा प्रयत्न करा',
     errNetwork: 'सर्व्हरपर्यंत पोहोचता आले नाही.',
