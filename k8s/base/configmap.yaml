@@ -20,6 +20,11 @@ data:
   # Public-surface limits (services/orchestrator/limits.py)
   MAX_BODY_BYTES: "2097152"
   RATE_LIMIT_PER_MINUTE: "30"
+  # Proxies between the internet and the orchestrator, the gateway counting as
+  # one: ingress-nginx (ingress.yaml) -> gateway -> orchestrator = 2. Both
+  # services read it; the limiter keys on the X-Forwarded-For hop the outermost
+  # trusted proxy appended (see services/orchestrator/limits.py).
+  TRUSTED_PROXY_HOPS: "2"
 
   # CORS for the /ask surface — comma-separated origins; unset means "*"
   ALLOWED_ORIGINS: ""

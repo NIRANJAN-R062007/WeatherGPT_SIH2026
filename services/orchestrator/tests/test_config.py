@@ -53,6 +53,18 @@ def test_offline_mode_forces_fixtures(monkeypatch):
         importlib.reload(config)
 
 
+def test_trusted_proxy_hops_empty_value_means_default(monkeypatch):
+    # A k8s ConfigMap/Secret with an empty value still *sets* the variable.
+    monkeypatch.setenv("TRUSTED_PROXY_HOPS", "")
+    try:
+        assert importlib.reload(config).TRUSTED_PROXY_HOPS == 1
+        monkeypatch.setenv("TRUSTED_PROXY_HOPS", "2")
+        assert importlib.reload(config).TRUSTED_PROXY_HOPS == 2
+    finally:
+        monkeypatch.undo()
+        importlib.reload(config)
+
+
 def test_offline_defaults(monkeypatch):
     # conftest's autouse _llm_defaults fixture forces OLLAMA_MODEL to None for
     # every other test; check its real default via a clean reload instead.
