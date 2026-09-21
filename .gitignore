@@ -3,6 +3,10 @@ CLAUDE.md
 .venv/
 __pycache__/
 *.pyc
+# pytest/ruff write their own nested .gitignore into these, which only holds
+# until someone cleans the directory — list them here too.
+.pytest_cache/
+.ruff_cache/
 .DS_Store
 data/fixtures/*.local.json
 data/fixtures/**/*.local.json
