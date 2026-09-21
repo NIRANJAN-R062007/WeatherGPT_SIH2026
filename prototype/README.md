@@ -142,7 +142,7 @@ error card ← a fetch/network failure; refusal card ← a body with `message`.
 Weather and English narration are live: `weather_data.get_weather()` pulls
 real Google Weather data (cached, with a fixture fallback), and `narrate()`
 runs it through Gemini. For Tamil, `main.py` takes that grounded English
-sentence and translates it with `bhashini.translate_to_tamil()`; the guardrail
+sentence and translates it with `bhashini.translate(text, lang)`; the guardrail
 re-checks the Tamil output (translation can shift a number), and `main.py`
 falls back to the i18n template on any failure at any step — no Gemini key,
 no Bhashini credentials, an ungrounded English draft, or a bad translation.

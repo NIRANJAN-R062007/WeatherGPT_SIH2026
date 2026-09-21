@@ -83,7 +83,12 @@ in the application images (not the manifests). Both are now fixed on `main`:
    Dockerfile never copied it in — invisible under docker-compose, which
    bind-mounts the whole repo. The Dockerfile now `COPY`s
    `prototype/frontend`, and the mount uses `check_dir=False` so an
-   API-only image still boots.
+   API-only image still boots. Since 2026-09-21 the mount is opt-in:
+   `configmap.yaml` sets `FRONTEND_DIR: /app/prototype/frontend`; leave it
+   empty for an API-only orchestrator. The same ConfigMap sets
+   `TRUSTED_PROXY_HOPS: "2"` because ingress-nginx sits in front of the
+   gateway — the rate limiters key on the X-Forwarded-For hop the Ingress
+   recorded, not on anything the client sent.
 
 With the gateway's DB/Redis vars patched live during that run, its pods came
 up and the proxy behaved exactly as designed: `/health` returned
