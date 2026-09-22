@@ -96,3 +96,34 @@ def test_health_is_the_gateways_own_and_reports_orchestrator(upstream, monkeypat
     assert body["orchestrator"] == {"ok": True}
     assert body["postgres"].startswith("error") and body["redis"].startswith("error")
     assert upstream.last.url.path == "/health"
+
+
+def test_missing_postgis_does_not_report_postgres_as_dead(upstream, monkeypatch):
+    """A managed Postgres with no PostGIS extension is a schema gap, not an
+    outage — see the orchestrator's sql/001_extensions.sql. Reporting the
+    whole database as "error" for it pointed the reader at the wrong thing."""
+    class _NoPostgisConn:
+        def execute(self, stmt):
+            if "PostGIS_Version" in str(stmt):
+                raise RuntimeError('function postgis_version() does not exist')
+            return _Scalar()
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+    class _Scalar:
+        def scalar(self):
+            return 1
+
+    class _Engine:
+        def connect(self):
+            return _NoPostgisConn()
+
+    monkeypatch.setattr(main, "engine", _Engine())
+    monkeypatch.setattr(main, "_health_cache", None)  # force a real probe
+    body = client.get("/health").json()
+    assert body["postgres"] == "ok"
+    assert body["postgis"] == "error"

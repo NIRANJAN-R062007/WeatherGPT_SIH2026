@@ -129,10 +129,19 @@ async def _probe() -> dict:
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
             status["postgres"] = "ok"
-            postgis_version = conn.execute(text("SELECT PostGIS_Version()")).scalar()
-            status["postgis"] = f"ok ({postgis_version})"
+            # Separate try: PostGIS missing is a schema problem (the extension
+            # was never created — see orchestrator sql/001_extensions.sql),
+            # not a dead database. Reporting a healthy Postgres as "error"
+            # because of it sent whoever read this endpoint after the wrong
+            # thing entirely.
+            try:
+                postgis_version = conn.execute(text("SELECT PostGIS_Version()")).scalar()
+                status["postgis"] = f"ok ({postgis_version})"
+            except Exception:
+                _LOG.exception("health check: postgis unavailable")
+                status["postgis"] = "error"
     except Exception:
-        _LOG.exception("health check: postgres/postgis failed")
+        _LOG.exception("health check: postgres failed")
         status["postgres"] = "error"
         status["postgis"] = "error"
 

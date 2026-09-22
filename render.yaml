@@ -64,6 +64,10 @@ services:
         value: /app/prototype/frontend
       - key: WEATHER_MODE
         value: auto
+      # weather_facts retention (weather_store.py). The free Postgres plan
+      # below is capped at 1 GB and the table is append-only without this.
+      - key: WEATHER_FACTS_RETENTION_DAYS
+        value: "30"
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_ANON_KEY
@@ -94,6 +98,14 @@ databases:
   # Free plan: expires after 30 days and Render will email a warning before
   # that — fine for a hackathon-stage demo; re-provision or upgrade before
   # the finale if this needs to stay up long-term.
+  #
+  # Unlike docker-compose/k8s (postgis/postgis:16-3.4, extension pre-created),
+  # this is a bare managed Postgres: PostGIS exists only once something runs
+  # CREATE EXTENSION. The orchestrator does that itself on first write
+  # (sql/001_extensions.sql), or run it up front with
+  # `python migrate.py --status` against this DATABASE_URL. If the Render role
+  # turns out to lack the rights, weather_facts still works and only the
+  # cities geography column and /health's postgis line are affected.
   - name: weathergpt-postgres
     plan: free
     region: singapore

@@ -111,6 +111,14 @@ DATABASE_URL: str = (os.getenv("DATABASE_URL")
                       or "postgresql://weathergpt:weathergpt_dev@localhost:5432/weathergpt")
 REDIS_URL: str = os.getenv("REDIS_URL") or "redis://localhost:6379/0"
 
+# How long weather_facts rows are kept (weather_store.prune(), swept hourly on
+# the background writer thread). The table is append-only otherwise, and
+# render.yaml's free Postgres plan caps at 1 GB. 0 or negative = keep forever.
+try:
+    WEATHER_FACTS_RETENTION_DAYS: int = int(os.getenv("WEATHER_FACTS_RETENTION_DAYS") or 30)
+except ValueError:
+    WEATHER_FACTS_RETENTION_DAYS = 30
+
 
 class ConfigError(RuntimeError):
     pass

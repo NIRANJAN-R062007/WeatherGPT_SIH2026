@@ -40,6 +40,10 @@ data:
   # Fixture-only warning feed: /warnings says "unavailable" unless deliberately demoed
   WARNINGS_ENABLED: "0"
 
+  # Durable history retention (services/orchestrator/weather_store.py). The
+  # PVC in postgres.yaml is 1 Gi; weather_facts is append-only without this.
+  WEATHER_FACTS_RETENTION_DAYS: "30"
+
   # Supabase project URL (anon key is a secret — see secret.example.yaml)
   SUPABASE_URL: ""
 
