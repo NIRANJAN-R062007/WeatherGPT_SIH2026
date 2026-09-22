@@ -37,8 +37,10 @@ export function NavBar({ lang, onLangChange, warningColour }: Props) {
 
   return (
     <header
-      className={`sticky top-1 z-40 transition-colors duration-300 ${
-        scrolled ? 'border-b border-line bg-paper/85 backdrop-blur-md' : 'bg-paper'
+      // Always translucent: over flat paper that's indistinguishable from
+      // solid, and over the Ask page's sky it lets the gradient through.
+      className={`sticky top-1 z-40 backdrop-blur-md transition-colors duration-300 ${
+        scrolled ? 'border-b border-line bg-paper/85' : 'bg-paper/60'
       }`}
       style={{ height: '56px' }}
     >

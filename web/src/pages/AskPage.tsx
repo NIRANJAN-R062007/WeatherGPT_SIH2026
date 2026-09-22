@@ -1,16 +1,20 @@
 import { useRef, useState } from 'react';
-import { ApiError, ask } from '../api/client';
+import { ApiError, ask, fetchFacts } from '../api/client';
 import type { AskResponse, Lang } from '../api/types';
-import { isAskSuccess } from '../api/types';
+import { isAskSuccess, isFactsSuccess } from '../api/types';
 import { MetaLine } from '../components/MetaLine';
 import { Notice } from '../components/Notice';
-import { Placeholder } from '../components/Placeholder';
+import { GlyphIcon } from '../components/Placeholder';
 import { Reveal } from '../components/Reveal';
 import { Skeleton } from '../components/Skeleton';
-import { formatTime } from '../i18n/format';
+import { SkyBackdrop } from '../components/SkyBackdrop';
+import { useQuery } from '../hooks/useQuery';
+import { formatNumber, formatTime } from '../i18n/format';
 import { useT } from '../i18n/strings';
 import { useCities } from '../state/CitiesContext';
 import { useSettings } from '../state/SettingsContext';
+import { conditionFamily, glyphFor, skyFor } from '../theme/sky';
+import { useSky } from '../theme/useSky';
 
 type State =
   | { kind: 'idle' }
@@ -20,13 +24,31 @@ type State =
 
 export function AskPage() {
   const { lang, setLang, defaultCity } = useSettings();
-  const { cities } = useCities();
+  const { cities, byKey } = useCities();
   const t = useT(lang);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const [text, setText] = useState('');
   const [city, setCity] = useState<string>(defaultCity);
   const [state, setState] = useState<State>({ kind: 'idle' });
+  // The city the last answer was about — kept across the next request so
+  // the sky doesn't fall back to the default city while it's in flight.
+  const [answerCity, setAnswerCity] = useState<string | undefined>();
+
+  // The page wears the weather of the city it's about: the one picked in the
+  // dropdown, else the one the last answer resolved to, else the default.
+  const skyCity = city || answerCity || defaultCity;
+  const weather = useQuery((signal) => fetchFacts(skyCity, lang, signal), [skyCity, lang]);
+  // useQuery keeps the previous city's data while the next loads, which is
+  // the crossfade we want; only an outright failure drops back to paper.
+  const current =
+    weather.status !== 'error' && weather.data && isFactsSuccess(weather.data)
+      ? weather.data
+      : undefined;
+  const sky = current
+    ? skyFor(current.facts.condition, current.facts.issued, byKey(skyCity)?.timezone ?? 'Asia/Kolkata')
+    : null;
+  useSky(sky);
 
   const submit = async (query: string) => {
     if (!query.trim()) return;
@@ -34,6 +56,7 @@ export function AskPage() {
     try {
       const data = await ask(query, lang, city || undefined);
       setState({ kind: 'ok', data });
+      if (data.city) setAnswerCity(data.city);
     } catch (error) {
       setState({ kind: 'error', error });
     }
@@ -51,7 +74,26 @@ export function AskPage() {
 
   return (
     <div>
+      {sky && <SkyBackdrop />}
+
       <h1 className="text-2xl text-ink md:text-3xl">{t.askTitle}</h1>
+
+      {/* What the sky is showing: current conditions at the sky city. Sits
+          under the title, not top-right, so the sun/moon glow there has
+          nothing to sit behind. */}
+      {current && (
+        <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-ink-dim">
+          <GlyphIcon glyph={glyphFor(conditionFamily(current.facts.condition))} className="-ml-1 h-8 w-8 text-ink" />
+          <span className="text-lg tabular-nums text-ink">
+            {current.facts.temp_c !== undefined ? `${formatNumber(Math.round(current.facts.temp_c), lang)}°C` : '—'}
+          </span>
+          <span className="text-base">{current.condition_label}</span>
+          <span aria-hidden className="text-ink-faint">·</span>
+          <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-ink-faint" lang={lang}>
+            {byKey(skyCity)?.names[lang] ?? current.city_name}
+          </span>
+        </p>
+      )}
 
       <form onSubmit={handleSubmit} className="mt-6 space-y-4">
         <div>
@@ -120,21 +162,18 @@ export function AskPage() {
       </form>
 
       {state.kind === 'idle' && (
-        <Reveal className="mt-10 flex flex-wrap items-start gap-6" delay={0}>
-          <div className="flex flex-1 flex-wrap gap-2">
-            {t.exampleQueries.map((query, i) => (
-              <button
-                key={i}
-                type="button"
-                onClick={() => fillExample(query)}
-                lang={lang}
-                className="rounded-sm border border-line px-3 py-1.5 text-left text-sm text-ink-dim transition-colors hover:bg-paper-dim active:scale-[0.98]"
-              >
-                {query}
-              </button>
-            ))}
-          </div>
-          <Placeholder ratio="4/3" glyph="cloud" label={t.askTitle} className="hidden max-w-xs md:grid" />
+        <Reveal className="mt-10 flex flex-wrap gap-2" delay={0}>
+          {t.exampleQueries.map((query, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => fillExample(query)}
+              lang={lang}
+              className="rounded-sm border border-line px-3 py-1.5 text-left text-sm text-ink-dim transition-colors hover:bg-paper-dim active:scale-[0.98]"
+            >
+              {query}
+            </button>
+          ))}
         </Reveal>
       )}
 

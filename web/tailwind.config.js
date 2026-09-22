@@ -1,3 +1,10 @@
+// The paper/ink/line/monsoon roles are CSS variables (R G B triplets, defined
+// on :root in src/index.css and re-pointed per weather in src/theme/sky.css)
+// so a page can re-theme the whole shell without touching any component.
+// Everything the sky must never recolour — the IMD warning colours and the
+// turmeric "fixture" accent — stays literal.
+const token = (name) => `rgb(var(--c-${name}) / <alpha-value>)`;
+
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
@@ -5,27 +12,29 @@ export default {
     extend: {
       colors: {
         paper: {
-          DEFAULT: '#F3F5F2',
-          dim: '#E8ECE8',
-          hi: '#FFFFFF',
+          DEFAULT: token('paper'),
+          dim: token('paper-dim'),
+          hi: token('paper-hi'),
         },
         ink: {
-          DEFAULT: '#14202B',
-          dim: '#4A5866',
-          faint: '#7C8A97',
+          DEFAULT: token('ink'),
+          dim: token('ink-dim'),
+          faint: token('ink-faint'),
         },
         line: {
-          DEFAULT: '#D3DAD6',
-          dim: '#B9C3BE',
+          DEFAULT: token('line'),
+          dim: token('line-dim'),
         },
         monsoon: {
-          DEFAULT: '#0F5C7A',
-          dim: '#0B4459',
-          tint: '#D6E9F0',
+          DEFAULT: token('monsoon'),
+          dim: token('monsoon-dim'),
+          tint: token('monsoon-tint'),
         },
         turmeric: {
           DEFAULT: '#B5690F',
-          tint: '#F6E7CF',
+          // Pale by default; a dark sky swaps it for a deep amber so the
+          // fixture badge's ink-coloured text stays readable.
+          tint: token('turmeric-tint'),
         },
         'imd-green': {
           DEFAULT: '#1E7F3C',

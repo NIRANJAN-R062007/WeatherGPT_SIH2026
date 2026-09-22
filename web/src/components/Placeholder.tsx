@@ -1,7 +1,8 @@
 import type { ReactElement } from 'react';
+import type { Glyph as ConditionGlyphName } from '../theme/sky';
 
 type Ratio = '3/1' | '4/3' | '1/1';
-type Glyph = 'skyline' | 'cloud' | 'sun' | 'rain' | 'thunder' | 'wind' | 'flag';
+type Glyph = 'skyline' | 'flag' | ConditionGlyphName;
 
 interface Props {
   ratio: Ratio;
@@ -59,6 +60,15 @@ const GLYPHS: Record<Glyph, ReactElement> = {
     </svg>
   ),
 };
+
+/** One of the line glyphs on its own, sized by the caller's className. */
+export function GlyphIcon({ glyph, className = '' }: { glyph: Glyph; className?: string }) {
+  return (
+    <span aria-hidden className={`inline-grid place-items-center ${className}`}>
+      {GLYPHS[glyph]}
+    </span>
+  );
+}
 
 /** Decorative image slot for where a real photo/illustration would go. */
 export function Placeholder({ ratio, glyph, label, className = '' }: Props) {

@@ -87,6 +87,30 @@ Known gap: a warning's `advice` is free text from the feed and arrives in
 English whatever the UI language, so the Warnings page labels it
 `lang="en"` rather than pretending otherwise.
 
+## Weather skies (Ask page)
+
+The Ask page paints the whole shell — background, nav, inputs, notices,
+footer — in the current weather of the city it's about: the one picked in
+its dropdown, else the one the last answer resolved to, else the default
+city. It fetches `/facts` for that city and maps the canonical `condition`
+key (from `data/decoders/weather_conditions.json`) to one of six looks
+(`clear`, `partly`, `cloudy`, `windy`, `rain`, `storm`), each with a day and
+a night palette chosen from the observation time in the city's time zone
+(06:00–18:00 counts as day). A small readout beside the title shows the
+temperature and condition the sky is standing for.
+
+How it works: `tailwind.config.js` defines the `paper`/`ink`/`line`/
+`monsoon` roles as CSS variables (defaults in `src/index.css`);
+`src/theme/useSky.ts` sets `data-sky="<family>-<day|night>"` on `<html>`
+while the page is mounted; `src/theme/sky.css` re-points the variables per
+sky and drives the ambient layers that `SkyBackdrop` renders (sun, moon and
+stars, drifting clouds, rain, a faint storm flash). The IMD warning colours
+and the turmeric "fixture" accent are deliberately not variables. Other
+routes are untouched — the attribute is removed on unmount. To preview a
+sky without matching weather, run
+`document.documentElement.dataset.sky = 'storm-night'` in the console on
+the Ask page. Reduced-motion viewers get a still sky.
+
 ## Warning states
 
 `/warnings` answers with a `status` (see `imd_warnings.STATUS_*`):

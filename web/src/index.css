@@ -6,6 +6,26 @@
   --font-ui: 'IBM Plex Sans', 'Noto Sans Devanagari', 'Noto Sans Tamil', 'Noto Sans Telugu',
     system-ui, sans-serif;
   --leading-ui: 1.5;
+
+  /*
+   * Colour roles, as R G B triplets so Tailwind can add opacity modifiers
+   * (`bg-paper/85`). These are the "paper" defaults every page starts from;
+   * src/theme/sky.css re-points them while the Ask page carries a weather
+   * sky (`html[data-sky]`). Keep the hex in the comments in step — it's what
+   * a designer will search for.
+   */
+  --c-paper: 243 245 242; /* #F3F5F2 */
+  --c-paper-dim: 232 236 232; /* #E8ECE8 */
+  --c-paper-hi: 255 255 255; /* #FFFFFF */
+  --c-ink: 20 32 43; /* #14202B */
+  --c-ink-dim: 74 88 102; /* #4A5866 */
+  --c-ink-faint: 124 138 151; /* #7C8A97 */
+  --c-line: 211 218 214; /* #D3DAD6 */
+  --c-line-dim: 185 195 190; /* #B9C3BE */
+  --c-monsoon: 15 92 122; /* #0F5C7A */
+  --c-monsoon-dim: 11 68 89; /* #0B4459 */
+  --c-monsoon-tint: 214 233 240; /* #D6E9F0 */
+  --c-turmeric-tint: 246 231 207; /* #F6E7CF */
 }
 
 html[lang='ta'] {
