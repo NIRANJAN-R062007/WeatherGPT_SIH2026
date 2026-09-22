@@ -11,6 +11,7 @@ Mark a test `@pytest.mark.live` to opt out (for the deliberate smoke tests).
 import config
 import httpx
 import pytest
+import redis
 
 # Default the whole suite to offline fixtures — deterministic, no network, and it
 # matches the demo-safe path. Tests that exercise live/auto machinery override this
@@ -40,6 +41,52 @@ def _no_network(request, monkeypatch):
         raise httpx.ConnectError(f"network disabled in tests ({request.url})")
 
     monkeypatch.setattr(httpx.HTTPTransport, "handle_request", _blocked)
+    yield
+
+
+@pytest.fixture(autouse=True)
+def _no_local_datastores(request, monkeypatch):
+    """weather_store's Redis and Postgres are external services too, and the
+    kill switch above only covers HTTP.
+
+    Without this the suite's result depends on whether the developer happens
+    to have `docker compose up` running: a reachable localhost Redis hands
+    weather_store.redis_get() a previously cached snapshot, so the live-path
+    tests in test_google_weather.py never reach their stub and fail (six of
+    them), while CI — which has no Redis — stays green. Postgres is the
+    quieter half of the same problem: the tests were writing real rows into
+    whatever database DATABASE_URL happened to point at.
+
+    Scoped to weather_store deliberately. limits.py's Redis is already
+    isolated by test_limits.py's own autouse `fake_redis`, and its one
+    deliberate real-Redis test is `-m live` gated — stubbing the limiter here
+    would disable that test instead of protecting it.
+
+    Tests that exercise either backend (test_weather_store.py) monkeypatch
+    these same two attributes themselves, which takes precedence per-test.
+    """
+    if "live" in request.keywords:
+        yield
+        return
+
+    import weather_store
+
+    class _UnreachableRedis:
+        def get(self, *a, **k):
+            raise redis.ConnectionError("redis disabled in tests")
+
+        def setex(self, *a, **k):
+            raise redis.ConnectionError("redis disabled in tests")
+
+    class _UnreachableEngine:
+        def begin(self, *a, **k):
+            raise RuntimeError("postgres disabled in tests")
+
+        def connect(self, *a, **k):
+            raise RuntimeError("postgres disabled in tests")
+
+    monkeypatch.setattr(weather_store, "_redis", _UnreachableRedis())
+    monkeypatch.setattr(weather_store, "_engine", _UnreachableEngine())
     yield
 
 

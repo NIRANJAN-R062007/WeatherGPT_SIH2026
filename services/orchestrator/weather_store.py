@@ -1,5 +1,6 @@
 """Shared Redis cache + Postgres persistence for Google Weather snapshots
-(plan.md §8 Phase 1: "Store into Postgres/Redis with TTLs").
+(plan.md §8 Phase 1: "Store into Postgres/Redis with TTLs", and the
+"Schema/infra support for the data layer" line under it).
 
 Layered on top of google_weather.py's in-memory `_CACHE`, not instead of it:
 - In-memory dict stays the L1 cache (fastest, zero network, what the demo
@@ -7,12 +8,21 @@ Layered on top of google_weather.py's in-memory `_CACHE`, not instead of it:
 - Redis is the L2 cache: shared across processes/replicas/restarts, keyed
   with the same per-kind TTL via SETEX so expiry needs no extra bookkeeping.
 - Postgres is durable history: every *live* snapshot is appended to
-  `weather_facts` (see sql/weather_facts.sql) for audit/replay. Reads never
-  go through Postgres, and neither do writes on the request path: persist()
-  only queues the row and a single daemon thread does the INSERT. (Audit
-  item 1.5: the synchronous write used to cost a 2 s connect timeout per
-  live fetch whenever Postgres wasn't provisioned — the whole of plan.md
+  `weather_facts` (see sql/002_weather_facts.sql) for audit/replay. Reads
+  never go through Postgres, and neither do writes on the request path:
+  persist() only queues the row and a single daemon thread does the INSERT.
+  (Audit item 1.5: the synchronous write used to cost a 2 s connect timeout
+  per live fetch whenever Postgres wasn't provisioned — the whole of plan.md
   §1's p95 < 2 s budget.)
+
+Schema lives in sql/*.sql and nowhere else. `_apply_migrations()` executes
+those files in filename order, each in its own transaction, recording what
+applied in a `schema_migrations` ledger. This replaced a hand-synced copy of
+the CREATE TABLE that used to sit inline here: two definitions of one table,
+either free to drift. Per-file transactions matter because 001 (CREATE
+EXTENSION postgis) is the one statement a managed Postgres role may lack
+rights for — when it fails we lose PostGIS and the cities geography column,
+logged, while weather_facts (002) still applies.
 
 Both are best-effort and silently degrade to a no-op on any error (dead
 connection, unreachable host, missing table) — a broken cache/DB must never
@@ -36,7 +46,9 @@ import os
 import queue
 import threading
 import time
+from pathlib import Path
 
+import cities
 import config
 import redis
 from sqlalchemy import create_engine, text
@@ -52,6 +64,12 @@ _engine = create_engine(config.DATABASE_URL, pool_pre_ping=True,
 _redis = redis.Redis.from_url(config.REDIS_URL, socket_connect_timeout=1, socket_timeout=1)
 
 _SCHEMA_READY = False
+_MIGRATIONS_DIR = Path(__file__).parent / "sql"
+
+# Retention sweep cadence. Runs on the writer thread after a write, never on
+# the request path — see _maybe_prune().
+_PRUNE_INTERVAL_SECONDS = 3600
+_last_prune = 0.0
 
 # The L1 cache means a live fetch — hence a persist() — happens at most once
 # per (kind, city) per TTL: 4 kinds x 3 demo cities at >= 15 min. So 64 is
@@ -71,28 +89,144 @@ _cooldown_until = 0.0
 _monotonic = time.monotonic  # test seam
 
 
+def migration_files() -> list[Path]:
+    """Our migrations, in apply order: sql/NNN_*.sql, sorted by that prefix.
+
+    Deliberately NOT every *.sql in the directory. sql/supabase_schema.sql
+    also lives there and is a Supabase-dashboard script — it references
+    auth.users and Supabase's RLS helpers, so running it against the
+    orchestrator's own Postgres fails, and failing forever would keep
+    _SCHEMA_READY False and re-run the whole set on every write. The numeric
+    prefix is what marks a file as ours to execute.
+    """
+    return sorted(p for p in _MIGRATIONS_DIR.glob("[0-9][0-9][0-9]_*.sql"))
+
+
 def _ensure_schema() -> None:
+    """Bring the database up to sql/*.sql. Idempotent; safe to call often.
+
+    Kept under the name _write() already calls, so a failure here still trips
+    the writer's cooldown and still leaves _SCHEMA_READY False for the retry.
+
+    Every file is written with IF NOT EXISTS, so the ledger is an optimisation
+    and an ops breadcrumb ("which of these has this database actually seen"),
+    not the thing that makes re-running safe.
+    """
     global _SCHEMA_READY
     if _SCHEMA_READY:
         return
+
     with _engine.begin() as conn:
-        conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS weather_facts (
-                id BIGSERIAL PRIMARY KEY,
-                kind TEXT NOT NULL,
-                city TEXT NOT NULL,
-                payload JSONB NOT NULL,
-                is_live BOOLEAN NOT NULL,
-                source TEXT NOT NULL,
-                retrieved_at TIMESTAMPTZ NOT NULL,
-                created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+        conn.exec_driver_sql("""
+            CREATE TABLE IF NOT EXISTS schema_migrations (
+                filename   TEXT PRIMARY KEY,
+                applied_at TIMESTAMPTZ NOT NULL DEFAULT now()
             )
-        """))
-        conn.execute(text(
-            "CREATE INDEX IF NOT EXISTS weather_facts_kind_city_idx "
-            "ON weather_facts (kind, city, created_at DESC)"
-        ))
-    _SCHEMA_READY = True
+        """)
+        applied = {row[0] for row in conn.exec_driver_sql(
+            "SELECT filename FROM schema_migrations")}
+
+    failed = False
+    for path in migration_files():
+        if path.name in applied:
+            continue
+        try:
+            # Own transaction per file: one file failing (001's CREATE
+            # EXTENSION, on a role without the rights) must not roll back the
+            # files that did apply, and must not stop later ones being tried.
+            with _engine.begin() as conn:
+                conn.exec_driver_sql(path.read_text(encoding="utf-8"))
+                conn.exec_driver_sql(
+                    "INSERT INTO schema_migrations (filename) VALUES (%s) "
+                    "ON CONFLICT DO NOTHING", (path.name,))
+            _LOG.info("applied migration %s", path.name)
+        except Exception:
+            # Left out of the ledger, so the next attempt retries it — the
+            # failure is usually environmental (missing extension rights,
+            # PostGIS absent) and gets fixed outside this process.
+            failed = True
+            _LOG.exception("migration %s failed; continuing", path.name)
+
+    # Only latch when everything applied. A partial schema is worth retrying
+    # on the next write rather than pinning for the life of the process.
+    _SCHEMA_READY = not failed
+
+
+def sync_cities() -> int:
+    """Upsert data/cities.json into the `cities` table. Returns rows written.
+
+    data/cities.json stays the source of truth (cities.py loads it at import
+    and the request path answers from that); this is the queryable mirror the
+    Phase 4 geofence needs. Idempotent, so it is fine to run on every boot or
+    from `python migrate.py --sync-cities`.
+    """
+    _ensure_schema()
+    rows = 0
+    with _engine.begin() as conn:
+        for city in cities.CITIES.values():
+            conn.execute(
+                text("""
+                    INSERT INTO cities
+                        (key, lat, lon, names, region, timezone, aliases, synced_at)
+                    VALUES
+                        (:key, :lat, :lon, :names, :region, :timezone, :aliases, now())
+                    ON CONFLICT (key) DO UPDATE SET
+                        lat = EXCLUDED.lat,
+                        lon = EXCLUDED.lon,
+                        names = EXCLUDED.names,
+                        region = EXCLUDED.region,
+                        timezone = EXCLUDED.timezone,
+                        aliases = EXCLUDED.aliases,
+                        synced_at = now()
+                """),
+                {
+                    "key": city.key,
+                    "lat": city.lat,
+                    "lon": city.lon,
+                    "names": json.dumps(city.names, ensure_ascii=False),
+                    "region": json.dumps(city.region, ensure_ascii=False),
+                    "timezone": city.timezone,
+                    "aliases": list(city.aliases),
+                },
+            )
+            rows += 1
+    return rows
+
+
+def prune() -> int:
+    """Delete weather_facts rows past the retention window. Returns row count.
+
+    0 (or a non-positive WEATHER_FACTS_RETENTION_DAYS) means keep everything.
+    """
+    days = config.WEATHER_FACTS_RETENTION_DAYS
+    if days <= 0:
+        return 0
+    _ensure_schema()
+    with _engine.begin() as conn:
+        result = conn.execute(
+            text("DELETE FROM weather_facts "
+                 "WHERE created_at < now() - make_interval(days => :days)"),
+            {"days": days},
+        )
+    return result.rowcount or 0
+
+
+def _maybe_prune() -> None:
+    """Run the retention sweep at most once an hour, on the writer thread.
+
+    Deliberately after _write() and inside _process()'s except, so a sweep
+    that fails is logged like any other worker error and never costs a row.
+    """
+    global _last_prune
+    now = _monotonic()
+    if now < _cooldown_until:
+        return  # Postgres is parked; don't spend the connect timeout on a sweep
+    if _last_prune and now - _last_prune < _PRUNE_INTERVAL_SECONDS:
+        return
+    _last_prune = now
+    deleted = prune()
+    if deleted:
+        _LOG.info("pruned %d weather_facts rows past retention", deleted)
 
 
 def _redis_key(kind: str, city: str) -> str:
@@ -178,6 +312,7 @@ def _process(item: tuple) -> None:
     kind, city, fields = item
     try:
         _write(kind, city, fields)
+        _maybe_prune()
     except Exception:
         _LOG.exception("weather_facts worker: unexpected error for %s/%s", kind, city)
 
