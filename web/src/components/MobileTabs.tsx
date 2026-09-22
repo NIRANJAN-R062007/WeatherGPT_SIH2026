@@ -54,7 +54,7 @@ export function MobileTabs({ lang, warningColour }: Props) {
   return (
     <nav
       aria-label="Main"
-      className="fixed inset-x-0 bottom-0 z-40 flex border-t border-line bg-paper-hi pb-[env(safe-area-inset-bottom)] md:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 flex border-t border-line bg-paper-hi/85 pb-[env(safe-area-inset-bottom)] backdrop-blur-md md:hidden"
     >
       {tabs.map((tab) => (
         <NavLink

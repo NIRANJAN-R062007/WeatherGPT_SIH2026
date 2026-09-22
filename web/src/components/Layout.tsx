@@ -17,8 +17,11 @@ export function Layout({ children }: { children: ReactNode }) {
   );
   const colour = status === 'ok' ? (data?.warning?.colour ?? null) : null;
 
+  // No background on the wrapper: body already paints paper, and the Ask
+  // page's SkyBackdrop sits behind the content at z-index -10, which any
+  // opaque wrapper would hide.
   return (
-    <div className="min-h-dvh bg-paper">
+    <div className="min-h-dvh">
       <a
         href="#main"
         className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-sm focus:bg-monsoon focus:px-4 focus:py-2 focus:text-paper-hi"

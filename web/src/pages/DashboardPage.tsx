@@ -12,17 +12,7 @@ import { useQuery } from '../hooks/useQuery';
 import { useCities } from '../state/CitiesContext';
 import { useSettings } from '../state/SettingsContext';
 import { ApiError } from '../api/client';
-
-function conditionGlyph(condition?: string): 'sun' | 'cloud' | 'rain' | 'thunder' | 'wind' {
-  if (!condition) return 'cloud';
-  const c = condition.toLowerCase();
-  if (c.includes('thunder')) return 'thunder';
-  if (c.includes('rain')) return 'rain';
-  if (c === 'clear' || c === 'mostly clear' || c.includes('clear')) return 'sun';
-  if (c.includes('wind')) return 'wind';
-  if (c.includes('cloud')) return 'cloud';
-  return 'cloud';
-}
+import { conditionFamily, glyphFor } from '../theme/sky';
 
 function Stat({
   label,
@@ -145,7 +135,7 @@ export function DashboardPage() {
                   {facts.temp_c ?? '—'}
                   <span className="text-3xl align-top">°C</span>
                 </p>
-                <Placeholder ratio="1/1" glyph={conditionGlyph(facts.condition)} label={facts.condition ?? ''} className="h-16 w-16" />
+                <Placeholder ratio="1/1" glyph={glyphFor(conditionFamily(facts.condition))} label={facts.condition ?? ''} className="h-16 w-16" />
               </div>
               <p className="mt-1 break-words text-2xl text-ink-dim">
                 {status === 'ok' && 'condition_label' in data! ? data.condition_label : facts.condition}
