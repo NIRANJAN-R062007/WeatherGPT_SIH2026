@@ -49,7 +49,7 @@ _TAMIL_PULLI = "்"  # "்" — virama; case suffixes (e.g. -இல்) common
 
 
 def _names_for(city: City) -> list[str]:
-    names = [city.key, city.names["en"].lower(), city.names["ta"].lower(),
+    names = [city.key, *(n.lower() for n in city.names.values() if n),
              *(a.lower() for a in city.aliases)]
     names += [n[:-1] for n in names if n.endswith(_TAMIL_PULLI)]
     return names

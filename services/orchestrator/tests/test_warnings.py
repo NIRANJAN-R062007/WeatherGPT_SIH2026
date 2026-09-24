@@ -255,7 +255,7 @@ def test_route_rejects_unsupported_lang(_warnings_enabled):
 
 
 def test_unknown_city_is_404():
-    resp = client.get("/warnings", params={"city": "mumbai"})
+    resp = client.get("/warnings", params={"city": "kolkata"})
     assert resp.status_code == 404
 
 
@@ -380,7 +380,7 @@ def test_ask_warnings_city_param_fills_in(_warnings_enabled):
 
 
 def test_ask_warnings_unknown_city_is_unsupported_city():
-    body = _ask("warning in Mumbai")
+    body = _ask("warning in Kolkata")
     assert body["intent"] == "unsupported_city"
     assert body["message"] == main._msg("unsupported_city", "en")
 

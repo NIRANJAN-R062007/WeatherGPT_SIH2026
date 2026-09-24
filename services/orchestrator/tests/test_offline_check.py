@@ -20,8 +20,14 @@ def test_run_passes_offline_with_no_live_ollama(monkeypatch):
     fixture_lines = [line for line in lines if "STALE" in line or " MISSING" in line]
     assert fixture_lines == []
 
+    # Rain-keyword detection in intent.py's rules pass is still EN/TA-only, so
+    # this Hindi query's *intent* comes back as the current_weather default
+    # rather than will_it_rain — a pre-existing gap, unrelated to city
+    # resolution. But cities.resolve() now matches hi/te/mr names too (it
+    # used to check only en/ta), so the city itself resolves via
+    # rules_fallback and the answer grounds cleanly offline: no WARN/FAIL.
     hindi_line = next(line for line in lines if "चेन्नई" in line)
-    assert "WARN" in hindi_line and "FAIL" not in hindi_line
+    assert "WARN" not in hindi_line and "FAIL" not in hindi_line
 
 
 def test_run_fails_on_missing_fixture(monkeypatch):
