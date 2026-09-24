@@ -120,6 +120,30 @@ except ValueError:
     WEATHER_FACTS_RETENTION_DAYS = 30
 
 
+def _int_env(name: str, default: int) -> int:
+    try:
+        return int(os.getenv(name) or default)
+    except ValueError:
+        return default
+
+
+# Per-product TTL (seconds) for google_weather.py's L1/L2 cache (plan.md §8
+# Phase 1, Deepthi's cache-strategy tuning). Each product refreshes at a
+# different real-world rate, so one blanket TTL either serves stale current
+# conditions or refetches a forecast that hasn't actually changed:
+# - current_conditions: the number that changes fastest (temp/wind/condition
+#   drift within the hour) and is what "weather right now" answers quote —
+#   kept short so a live demo doesn't visibly lag reality.
+# - forecast_hours / history_hours: Google's hourly series is itself only
+#   updated a few times an hour, so refetching every 15 min buys nothing.
+# - forecast_days: a multi-day outlook is stable for hours at a time; this is
+#   the cheapest one to leave stale, and the biggest saver of API quota.
+TTL_CURRENT_CONDITIONS: int = _int_env("TTL_CURRENT_CONDITIONS_SECONDS", 900)
+TTL_FORECAST_HOURS: int = _int_env("TTL_FORECAST_HOURS_SECONDS", 3600)
+TTL_FORECAST_DAYS: int = _int_env("TTL_FORECAST_DAYS_SECONDS", 21600)
+TTL_HISTORY_HOURS: int = _int_env("TTL_HISTORY_HOURS_SECONDS", 3600)
+
+
 class ConfigError(RuntimeError):
     pass
 

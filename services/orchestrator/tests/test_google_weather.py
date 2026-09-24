@@ -96,7 +96,7 @@ def test_ttl_cache_reuses_within_window(live_stub, monkeypatch):
     google_weather.snapshot(CC, "chennai")
     assert live_stub["n"] == 1  # second call served from cache
 
-    clock["t"] += google_weather.TTL_SECONDS[CC] + 1
+    clock["t"] += google_weather.ttl_seconds(CC) + 1
     google_weather.snapshot(CC, "chennai")
     assert live_stub["n"] == 2  # expired -> refetched
 
@@ -155,10 +155,38 @@ def test_decode_helpers():
     assert google_weather.decode_cardinal(None) == ""
 
 
+def test_decode_precip_category():
+    assert google_weather.decode_precip_category(None) is None
+    assert google_weather.decode_precip_category(0) == "no_rain"
+    assert google_weather.decode_precip_category(10) == "light"
+    assert google_weather.decode_precip_category(15.6) == "moderate"
+    assert google_weather.decode_precip_category(64.4) == "moderate"
+    assert google_weather.decode_precip_category(64.5) == "heavy"
+    assert google_weather.decode_precip_category(115.5) == "heavy"
+    assert google_weather.decode_precip_category(204.4) == "very_heavy"
+    assert google_weather.decode_precip_category(300) == "extremely_heavy"
+
+
+def test_decode_uv_band():
+    assert google_weather.decode_uv_band(None) is None
+    assert google_weather.decode_uv_band(0) == "low"
+    assert google_weather.decode_uv_band(2) == "low"
+    assert google_weather.decode_uv_band(3) == "moderate"
+    assert google_weather.decode_uv_band(6) == "high"
+    assert google_weather.decode_uv_band(8) == "very_high"
+    assert google_weather.decode_uv_band(11) == "extreme"
+    assert google_weather.decode_uv_band(15) == "extreme"
+
+
 def test_decode_condition_unknown_enum_logs(caplog):
     with caplog.at_level("INFO", logger="weathergpt.google_weather"):
         assert google_weather.decode_condition("FROG_STORM") == "frog_storm"
     assert any("unmapped" in r.message for r in caplog.records)
+
+
+def test_ttl_seconds_reads_config_live(monkeypatch):
+    monkeypatch.setattr(config, "TTL_CURRENT_CONDITIONS", 5)
+    assert google_weather.ttl_seconds(CC) == 5
 
 
 def test_params_history_hours_has_hours_param():

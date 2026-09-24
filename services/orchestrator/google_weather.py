@@ -2,7 +2,9 @@
 
 Replaces the hardcoded stub in weather_data.py's data path.
 
-- TTL cache (plan.md §5): current conditions 15 min, daily forecast 6 h.
+- TTL cache (plan.md §5/§8 Phase 1): per-product TTL, config-driven (see
+  config.TTL_* / ttl_seconds()) — defaults current conditions 15 min, hourly
+  forecast/history 1 h, daily forecast 6 h.
 - L1 is an in-memory module dict, checked first — zero network, so a single
   --workers=1 uvicorn process (the local/offline demo shape) never needs
   Redis reachable at all. Running with --workers > 1 gives each worker its
@@ -41,10 +43,17 @@ ENDPOINTS = {
     "forecast_days": "forecast/days:lookup",
     "history_hours": "history/hours:lookup",
 }
-TTL_SECONDS = {
-    "current_conditions": 900, "forecast_hours": 3600,
-    "forecast_days": 21600, "history_hours": 3600,
-}
+def ttl_seconds(kind: str) -> int:
+    """Per-product cache TTL, read from config on every call so tests/env
+    overrides of config.TTL_* take effect without a stale cached copy here."""
+    return {
+        "current_conditions": config.TTL_CURRENT_CONDITIONS,
+        "forecast_hours": config.TTL_FORECAST_HOURS,
+        "forecast_days": config.TTL_FORECAST_DAYS,
+        "history_hours": config.TTL_HISTORY_HOURS,
+    }[kind]
+
+
 FORECAST_DAYS = 5
 FORECAST_HOURS = 24
 HISTORY_HOURS = 24
@@ -145,7 +154,7 @@ def snapshot(kind: str, city_key: str, *, force_refresh: bool = False) -> Snapsh
     cache_key = (kind, city_key)
     if not force_refresh:
         cached = _CACHE.get(cache_key)
-        if cached and _monotonic() - cached[0] < TTL_SECONDS[kind]:
+        if cached and _monotonic() - cached[0] < ttl_seconds(kind):
             return cached[1]
 
         # L2: Redis, shared across processes/replicas and survives a restart
@@ -169,7 +178,7 @@ def snapshot(kind: str, city_key: str, *, force_refresh: bool = False) -> Snapsh
     _CACHE[cache_key] = (_monotonic(), snap)
     fields = {"payload": snap.payload, "is_live": snap.is_live,
               "retrieved_at": snap.retrieved_at, "source": snap.source}
-    weather_store.redis_set(kind, city_key, fields, TTL_SECONDS[kind])
+    weather_store.redis_set(kind, city_key, fields, ttl_seconds(kind))
     weather_store.persist(kind, city_key, fields)  # enqueue only; the INSERT is off-thread
     return snap
 
@@ -192,6 +201,14 @@ def load_decoder(name: str) -> dict:
     return table
 
 
+def load_bands(name: str) -> list[dict]:
+    table = _DECODERS.get(name)
+    if table is None:
+        table = json.loads((_DECODER_DIR / f"{name}.json").read_text(encoding="utf-8"))["bands"]
+        _DECODERS[name] = table
+    return table
+
+
 def decode_condition(raw_type: str | None) -> str:
     if not raw_type:
         return "unknown"
@@ -206,3 +223,27 @@ def decode_cardinal(raw: str | None) -> str:
     if not raw:
         return ""
     return load_decoder("wind_cardinals").get(raw, "")
+
+
+def decode_precip_category(mm: float | None) -> str | None:
+    """IMD rainfall-intensity classification for a daily mm total."""
+    if mm is None:
+        return None
+    bands = load_bands("precipitation_categories")
+    if mm <= 0:
+        return bands[0]["key"]  # no_rain
+    for band in bands[1:]:
+        if band["max_mm"] is None or mm <= band["max_mm"]:
+            return band["key"]
+    return bands[-1]["key"]
+
+
+def decode_uv_band(index: float | None) -> str | None:
+    """WHO/IMD UV index band."""
+    if index is None:
+        return None
+    bands = load_bands("uv_bands")
+    for band in bands:
+        if band["max"] is None or index <= band["max"]:
+            return band["key"]
+    return bands[-1]["key"]
