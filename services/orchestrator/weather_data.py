@@ -72,7 +72,9 @@ def _current_facts(key: str) -> dict | None:
     _put(facts, "wind_kmh", _dig(r, "wind.speed.value"))
     _put(facts, "wind_dir",
          google_weather.decode_cardinal(_dig(r, "wind.direction.cardinal")) or None)
-    _put(facts, "uv_index", _dig(r, "uvIndex"))
+    uv_index = _dig(r, "uvIndex")
+    _put(facts, "uv_index", uv_index)
+    _put(facts, "uv_band", google_weather.decode_uv_band(uv_index))
     return facts
 
 
@@ -188,6 +190,7 @@ def _rain_last_24h(key: str) -> dict | None:
         "is_live": snap.is_live,
         "issued": _dig(r, "currentTime"),
         "rain_last_24h_mm": mm,
+        "rain_category": google_weather.decode_precip_category(mm),
         "hours_counted": 24,
         "condition": google_weather.decode_condition(_dig(r, "weatherCondition.type")),
     }
@@ -232,6 +235,7 @@ def rain_so_far(key: str, *, now: datetime | None = None) -> dict | None:
         "issued": now.isoformat(),
         "since": midnight.isoformat(),
         "rain_so_far_mm": round(total, 2),
+        "rain_category": google_weather.decode_precip_category(total),
         "hours_counted": hours_counted,
         "condition": google_weather.decode_condition(_dig(hours[0], "weatherCondition.type")),
     }

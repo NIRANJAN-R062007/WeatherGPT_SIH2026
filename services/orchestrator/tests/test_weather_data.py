@@ -11,12 +11,12 @@ import pytest
 import weather_data
 
 CURRENT_KEYS = {"condition", "temp_c", "feels_like_c", "humidity_pct",
-                "wind_kmh", "wind_dir", "uv_index", "source", "issued", "is_live"}
+                "wind_kmh", "wind_dir", "uv_index", "uv_band", "source", "issued", "is_live"}
 FORECAST_KEYS = {"condition", "rain_probability_pct", "high_c", "low_c",
                  "day", "source", "issued", "is_live"}
-RAIN_SO_FAR_KEYS = {"source", "is_live", "issued", "since", "rain_so_far_mm",
+RAIN_SO_FAR_KEYS = {"source", "is_live", "issued", "since", "rain_so_far_mm", "rain_category",
                      "hours_counted", "condition"}
-RAIN_LAST_24H_KEYS = {"source", "is_live", "issued", "rain_last_24h_mm",
+RAIN_LAST_24H_KEYS = {"source", "is_live", "issued", "rain_last_24h_mm", "rain_category",
                        "hours_counted", "condition"}
 DAY_KEYS = {"today", "tomorrow", *weather_data._WEEKDAYS, weather_data._LATER}
 

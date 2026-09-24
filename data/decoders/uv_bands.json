@@ -1,0 +1,16 @@
+{
+  "_meta": {
+    "purpose": "WHO/IMD UV index -> canonical band key",
+    "canonical_target": "data/imd_reference/imd_reference.json topic=uv_band (uv_low..uv_extreme) — boundaries must match",
+    "owner": "Deepthi (decoder tables, plan.md §8 Phase 1)",
+    "source": "WHO/IMD UV index bands",
+    "unknown_policy": "a value above the last band's max is extreme; a negative value (shouldn't occur) is low"
+  },
+  "bands": [
+    {"key": "low", "min": 0, "max": 2},
+    {"key": "moderate", "min": 3, "max": 5},
+    {"key": "high", "min": 6, "max": 7},
+    {"key": "very_high", "min": 8, "max": 10},
+    {"key": "extreme", "min": 11, "max": null}
+  ]
+}

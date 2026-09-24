@@ -1,0 +1,17 @@
+{
+  "_meta": {
+    "purpose": "IMD rainfall-intensity classification (mm/day) -> canonical category key",
+    "canonical_target": "data/imd_reference/imd_reference.json topic=rainfall_category (rain_light..rain_extremely_heavy) — boundaries must match",
+    "owner": "Deepthi (decoder tables, plan.md §8 Phase 1)",
+    "source": "IMD rainfall intensity classification",
+    "unknown_policy": "a value at or above the last band's min with no max is extremely_heavy; a value below the first band's min (e.g. 0) is no_rain"
+  },
+  "bands": [
+    {"key": "no_rain", "min_mm": 0.0, "max_mm": 0.0},
+    {"key": "light", "min_mm": 0.1, "max_mm": 15.5},
+    {"key": "moderate", "min_mm": 15.6, "max_mm": 64.4},
+    {"key": "heavy", "min_mm": 64.5, "max_mm": 115.5},
+    {"key": "very_heavy", "min_mm": 115.6, "max_mm": 204.4},
+    {"key": "extremely_heavy", "min_mm": 204.5, "max_mm": null}
+  ]
+}
