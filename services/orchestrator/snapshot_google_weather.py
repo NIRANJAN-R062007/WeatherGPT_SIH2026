@@ -101,7 +101,7 @@ def snapshot(city_key: str, cities: dict, *, days: int, units: str,
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--city", default="all",
-                    choices=["all", "chennai", "madurai", "coimbatore"])
+                    choices=["all", *_load_cities()])
     ap.add_argument("--kind", default="all",
                     choices=["all", "current_conditions", "forecast_hours",
                              "forecast_days", "history_hours"])

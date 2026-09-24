@@ -124,7 +124,7 @@ def test_no_args_returns_current():
 
 
 def test_unknown_city():
-    assert weather_data.get_weather("mumbai") is None
+    assert weather_data.get_weather("kolkata") is None
     assert weather_data.get_weather("") is None
     assert weather_data.get_weather(None) is None
 

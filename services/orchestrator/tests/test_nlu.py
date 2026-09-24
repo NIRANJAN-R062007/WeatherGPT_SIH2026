@@ -161,7 +161,7 @@ def test_rules_warnings_hit_never_calls_the_llm(monkeypatch):
 
 
 def test_rules_warning_for_unsupported_city_is_a_refusal():
-    pq = nlu.parse("warning in Mumbai")
+    pq = nlu.parse("warning in Kolkata")
     assert pq.intent == "unsupported_city"
 
 
@@ -184,10 +184,10 @@ def test_llm_warnings_for_unknown_city_becomes_unsupported_city(monkeypatch):
     monkeypatch.setattr(config, "GEMINI_API_KEY", "k")
     monkeypatch.setattr(
         narrate, "generate",
-        lambda *a, **k: '{"intent":"warnings","city":"Mumbai","time_window":"today",'
+        lambda *a, **k: '{"intent":"warnings","city":"Kolkata","time_window":"today",'
                         '"days":null,"parameter":"general","language":"hi","confidence":0.9}',
     )
-    pq = nlu.parse("क्या मुंबई के लिए कोई चेतावनी है?")
+    pq = nlu.parse("क्या कोलकाता के लिए कोई चेतावनी है?")
     assert pq.intent == "unsupported_city" and pq.source == "llm"
 
 
@@ -293,10 +293,10 @@ def test_llm_unknown_city_becomes_unsupported_city(monkeypatch):
     monkeypatch.setattr(config, "GEMINI_API_KEY", "k")
     monkeypatch.setattr(
         narrate, "generate",
-        lambda *a, **k: '{"intent":"current_weather","city":"Mumbai","time_window":"today",'
+        lambda *a, **k: '{"intent":"current_weather","city":"Kolkata","time_window":"today",'
                         '"days":null,"parameter":"general","language":"en","confidence":0.9}',
     )
-    pq = nlu.parse("weather in Mumbai")
+    pq = nlu.parse("weather in Kolkata")
     assert pq.intent == "unsupported_city" and pq.source == "llm"
 
 

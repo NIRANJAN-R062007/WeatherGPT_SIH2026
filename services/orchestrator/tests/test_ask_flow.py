@@ -328,7 +328,7 @@ def test_facts_endpoint_current_and_forecast():
     fc = client.get("/facts", params={"city": "madurai", "intent": "will_it_rain",
                                       "day": "tomorrow"}).json()
     assert "rain_probability_pct" in fc["facts"] and "high_c" in fc["facts"]
-    assert "message" in client.get("/facts", params={"city": "mumbai"}).json()
+    assert "message" in client.get("/facts", params={"city": "kolkata"}).json()
 
 
 def test_asr_endpoint_returns_transcript(monkeypatch):

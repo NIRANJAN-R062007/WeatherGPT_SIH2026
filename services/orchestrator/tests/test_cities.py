@@ -14,7 +14,10 @@ from main import app
 
 client = TestClient(app)
 
-EXPECTED_KEYS = {"chennai", "madurai", "coimbatore"}
+EXPECTED_KEYS = {
+    "chennai", "madurai", "coimbatore",
+    "bengaluru", "hyderabad", "mumbai", "delhi", "thiruvananthapuram",
+}
 DC_HTML = REPO_ROOT / "prototype" / "frontend" / "WeatherGPT.dc.html"
 
 
@@ -32,7 +35,8 @@ def test_registry_loads():
     ("kovai", "coimbatore"),
     ("சென்னை", "chennai"),
     ("what's the weather in Coimbatore", "coimbatore"),
-    ("Mumbai", None),
+    ("Mumbai", "mumbai"),
+    ("Kolkata", None),
     ("", None),
     (None, None),
 ])

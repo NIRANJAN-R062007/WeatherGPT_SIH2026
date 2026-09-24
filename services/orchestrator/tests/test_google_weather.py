@@ -144,7 +144,7 @@ def test_live_mode_reraises(monkeypatch):
 
 def test_unknown_kind_or_city_returns_none():
     assert google_weather.snapshot("hourly", "chennai") is None
-    assert google_weather.snapshot(CC, "mumbai") is None
+    assert google_weather.snapshot(CC, "kolkata") is None
 
 
 def test_decode_helpers():

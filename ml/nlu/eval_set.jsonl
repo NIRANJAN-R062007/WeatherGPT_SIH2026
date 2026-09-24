@@ -21,7 +21,7 @@
 {"id":"en-021","lang":"en","text":"is it cold in Madurai tonight","expected":{"intent":"current_weather","city":"madurai","time_window":"tonight","parameter":"temperature"},"path":"rules","native_qa":true,"notes":""}
 {"id":"en-022","lang":"en","text":"hello there","expected":{"intent":"unrecognized","city":null,"time_window":"today","parameter":"general"},"path":"rules","native_qa":true,"notes":""}
 {"id":"en-023","lang":"en","text":"is a cyclone hitting Chennai tomorrow?","expected":{"intent":"out_of_scope","city":"chennai","time_window":"tomorrow","parameter":"general"},"path":"rules","native_qa":true,"notes":"adversarial: must not become will_it_rain"}
-{"id":"en-024","lang":"en","text":"weather in Mumbai","expected":{"intent":"unsupported_city","city":null,"time_window":"today","parameter":"general"},"path":"rules","native_qa":true,"notes":"unsupported city"}
+{"id":"en-024","lang":"en","text":"weather in Kolkata","expected":{"intent":"unsupported_city","city":null,"time_window":"today","parameter":"general"},"path":"rules","native_qa":true,"notes":"unsupported city"}
 {"id":"en-025","lang":"en","text":"thanks","expected":{"intent":"unrecognized","city":null,"time_window":"today","parameter":"general"},"path":"rules","native_qa":true,"notes":"chit-chat"}
 {"id":"en-026","lang":"en","text":"chance of rain in Chennai this week","expected":{"intent":"will_it_rain","city":"chennai","time_window":"next_n_days","days":7,"parameter":"rain"},"path":"rules","native_qa":true,"notes":"rain word wins over the default forecast label"}
 {"id":"en-027","lang":"en","text":"uv index in Madurai tomorrow","expected":{"intent":"current_weather","city":"madurai","time_window":"tomorrow","parameter":"uv"},"path":"rules","native_qa":true,"notes":""}
