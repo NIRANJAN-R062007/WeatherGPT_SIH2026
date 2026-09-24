@@ -29,6 +29,51 @@
       "region": {"en": "Tamil Nadu", "ta": "தமிழ்நாடு"},
       "timezone": "Asia/Kolkata",
       "aliases": ["kovai", "கோயம்புத்தூர்"]
+    },
+    {
+      "key": "bengaluru",
+      "lat": 12.9716,
+      "lon": 77.5946,
+      "names": {"en": "Bengaluru", "ta": "பெங்களூரு", "hi": "बेंगलुरु", "te": "బెంగళూరు", "mr": "बंगळूर"},
+      "region": {"en": "Karnataka", "ta": "கர்நாடகா"},
+      "timezone": "Asia/Kolkata",
+      "aliases": ["bangalore", "பெங்களூர்"]
+    },
+    {
+      "key": "hyderabad",
+      "lat": 17.3850,
+      "lon": 78.4867,
+      "names": {"en": "Hyderabad", "ta": "ஹைதராபாத்", "hi": "हैदराबाद", "te": "హైదరాబాద్", "mr": "हैदराबाद"},
+      "region": {"en": "Telangana", "ta": "தெலுங்கானா"},
+      "timezone": "Asia/Kolkata",
+      "aliases": []
+    },
+    {
+      "key": "mumbai",
+      "lat": 19.0760,
+      "lon": 72.8777,
+      "names": {"en": "Mumbai", "ta": "மும்பை", "hi": "मुंबई", "te": "ముంబై", "mr": "मुंबई"},
+      "region": {"en": "Maharashtra", "ta": "மகாராஷ்டிரா"},
+      "timezone": "Asia/Kolkata",
+      "aliases": ["bombay"]
+    },
+    {
+      "key": "delhi",
+      "lat": 28.6139,
+      "lon": 77.2090,
+      "names": {"en": "Delhi", "ta": "டெல்லி", "hi": "दिल्ली", "te": "ఢిల్లీ", "mr": "दिल्ली"},
+      "region": {"en": "Delhi", "ta": "டெல்லி"},
+      "timezone": "Asia/Kolkata",
+      "aliases": ["new delhi"]
+    },
+    {
+      "key": "thiruvananthapuram",
+      "lat": 8.5241,
+      "lon": 76.9366,
+      "names": {"en": "Thiruvananthapuram", "ta": "திருவனந்தபுரம்", "hi": "तिरुवनंतपुरम", "te": "తిరువనంతపురం", "mr": "तिरुवनंतपुरम"},
+      "region": {"en": "Kerala", "ta": "கேரளா"},
+      "timezone": "Asia/Kolkata",
+      "aliases": ["trivandrum"]
     }
   ]
 }
