@@ -1,27 +1,22 @@
+import { useState } from 'react';
+
 export default function ChatPage() {
+  const [showEvidence, setShowEvidence] = useState(false);
   return (
     <div className="flex flex-col w-full gap-space-lg">
 
-<div className="w-full bg-surface-container-lowest rounded-xl p-space-md shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-space-sm">
+<div className="w-full bg-surface-container-lowest rounded-xl p-space-md shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-space-sm" title="Session #W-BOM-8831 · Station 43003 · 18.9067° N, 72.8147° E">
 <div className="flex flex-wrap items-center gap-space-sm">
 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-primary-fixed text-on-primary-fixed font-citation-mono text-citation-mono font-medium">
 <span className="w-2 h-2 rounded-full bg-primary animate-ping"></span>
-        SESSION #W-BOM-8831
+        Doppler Radar Active
       </span>
-<span className="font-body-sm text-body-sm text-on-surface-variant">Doppler Radar Active</span>
-<span className="text-outline-variant">•</span>
 <span className="inline-flex items-center gap-1 text-secondary font-label-md text-label-md">
 <span className="material-symbols-outlined text-[16px]">verified</span>
 <span>99.8% Ground Truth Grounding</span>
 </span>
 </div>
-<div className="flex items-center gap-space-sm">
-<div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container font-citation-mono text-citation-mono text-on-surface-variant">
-<span className="material-symbols-outlined text-secondary text-[14px]">cell_tower</span>
-<span>LAT: 18.9067° N, LON: 72.8147° E [COLABA]</span>
-</div>
-<span className="px-2 py-0.5 rounded bg-surface-container-high text-on-surface-variant font-citation-mono text-citation-mono">STATION ID: 43003</span>
-</div>
+<span className="font-citation-mono text-citation-mono text-on-surface-variant">Colaba, Mumbai</span>
 </div>
 
 <div className="grid grid-cols-1 xl:grid-cols-12 gap-space-lg items-start">
@@ -50,25 +45,14 @@ export default function ChatPage() {
 <div className="bg-surface-container-lowest rounded-2xl rounded-bl-none p-space-lg shadow-sm flex flex-col gap-space-md">
 
 <div className="flex flex-wrap items-center justify-between gap-space-sm pb-space-sm bg-surface-bright p-space-sm rounded-xl">
-<div className="flex flex-wrap items-center gap-2">
-<div className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-secondary-container text-on-secondary-container font-label-md text-label-md font-semibold">
+<div className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-secondary-container text-on-secondary-container font-label-md text-label-md font-semibold" title="Verified against MoES & IMD Open Gateway · Live fetch">
 <span className="material-symbols-outlined text-[16px]">verified_user</span>
-<span>WeatherGPT Verified</span>
+<span>Verified &amp; Live</span>
 </div>
-<div className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded bg-surface-container text-on-surface-variant font-citation-mono text-citation-mono">
-<span>MoES &amp; IMD Open Gateway</span>
-</div>
-<div className="flex items-center gap-1 px-2 py-0.5 rounded bg-surface-container-highest text-primary font-citation-mono text-citation-mono font-medium">
-<span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
-<span>LIVE FETCH</span>
-</div>
-</div>
-<div className="flex items-center gap-2">
 <span className="px-2.5 py-0.5 rounded-full bg-tertiary-container text-on-tertiary-container font-label-md text-label-md font-semibold flex items-center gap-1">
 <span className="material-symbols-outlined text-[15px]">warning</span>
                   IMD Code Orange
                 </span>
-</div>
 </div>
 
 <div className="flex flex-col gap-2">
@@ -144,9 +128,9 @@ export default function ChatPage() {
 <span className="material-symbols-outlined text-[18px] text-secondary">ios_share</span>
 <span>Share Advisory</span>
 </button>
-<button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary-fixed hover:bg-surface-container-highest text-on-primary-fixed font-label-md text-label-md transition-colors" id="togglePayloadBtn" type="button">
+<button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary-fixed hover:bg-surface-container-highest text-on-primary-fixed font-label-md text-label-md transition-colors" onClick={() => setShowEvidence((v) => !v)} type="button">
 <span className="material-symbols-outlined text-[18px]">terminal</span>
-<span>View Raw JSON Evidence</span>
+<span>{showEvidence ? 'Hide Raw JSON Evidence' : 'View Raw JSON Evidence'}</span>
 </button>
 </div>
 
@@ -218,6 +202,8 @@ export default function ChatPage() {
 
 <div className="xl:col-span-4 flex flex-col gap-space-md min-w-0">
 
+{showEvidence && (
+<>
 <div className="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm flex flex-col gap-space-sm">
 <div className="flex items-center justify-between">
 <div className="flex items-center gap-2">
@@ -314,6 +300,8 @@ export default function ChatPage() {
 </div>
 </div>
 </div>
+</>
+)}
 
 <div className="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm flex flex-col gap-space-sm overflow-hidden">
 <div className="flex items-center justify-between">

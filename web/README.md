@@ -57,6 +57,37 @@ toggle or the SOS button). Those don't fit a React tree and were dropped;
 the static markup they targeted is preserved, so a future pass replaces
 them with real React state instead of re-adding raw DOM scripts.
 
+## Density pass (first round)
+
+Stitch's export leaned maximalist — every page surfaced verification
+badges, station metadata, and debug-style telemetry (SHA-256 hashes, JSON
+field paths, session IDs) all at once, at equal visual weight to the actual
+answer. First cleanup pass:
+
+- **Chat & Evidence**: the "Telemetry Inspector" / "Verified Observation
+  Pipeline" panel (hashes, JSON paths, station IDs) is now hidden by
+  default and opens via the "View Raw JSON Evidence" button
+  (`showEvidence` state in `ChatPage.tsx`) instead of always rendering in
+  the sidebar.
+- **Alerts & Warnings**: the "Why am I receiving this alert?" accordion
+  now actually toggles (`showGeofence` state in `AlertsPage.tsx`) — it
+  was dead markup before (`id`-based DOM script Stitch generated was
+  dropped when this became React, per the note above).
+- Redundant badges collapsed across Home/Chat/Alerts (e.g. station
+  ID/lat-lon/session ID that repeated info already in the page, or
+  4 stacked verification pills where 1-2 said the same thing); the
+  detail isn't gone, it moved to a `title` tooltip.
+- Home hero's six-stat grid and top status line lost their always-on
+  secondary caption text (dew point, heading, swell band, etc.) the same
+  way — tooltip on hover instead of permanent small print.
+- Home's right rail lost a static "AI synthesizing..." preview card that
+  duplicated the actual Chat page's job, and one of three quick-inquiry
+  buttons.
+
+Not yet touched: rewriting the bold-heavy answer prose in Chat's response
+text, and the Forecast/History pages (same Stitch-generated density likely
+applies — carry the same pattern over on the next pass).
+
 ## Run it
 
 ```bash
