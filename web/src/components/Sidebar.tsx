@@ -25,10 +25,6 @@ export default function Sidebar() {
               <span className="font-body-sm text-body-sm text-on-surface-variant">Your AI weather assistant</span>
             </div>
           </div>
-          <div className="mt-space-xs inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-surface-container text-on-surface-variant font-citation-mono text-citation-mono">
-            <span className="w-1.5 h-1.5 rounded-full bg-secondary" />
-            <span>Google Weather API</span>
-          </div>
         </div>
         <nav className="flex flex-col gap-1 px-space-md mt-space-xs">
           {NAV_ITEMS.map((item) => (

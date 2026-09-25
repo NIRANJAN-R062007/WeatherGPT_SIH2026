@@ -25,13 +25,16 @@ export default function SettingsPage() {
   const { lang, setLang, unit, setUnit } = useUiPrefs();
 
   return (
-    <div className="flex flex-col w-full gap-space-lg max-w-3xl">
+    <div className="flex flex-col w-full gap-space-lg">
       <div>
         <h1 className="font-headline-lg text-headline-lg font-bold text-on-surface">Settings</h1>
         <p className="font-body-md text-body-md text-on-surface-variant mt-1">
           These preferences change how WeatherGPT frames answers — never the underlying data.
         </p>
       </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-space-lg items-start">
+      <div className="lg:col-span-7 flex flex-col gap-space-lg">
 
       <SectionCard title="Account" icon="account_circle">
         <div className="flex items-center justify-between">
@@ -54,7 +57,7 @@ export default function SettingsPage() {
 
       <SectionCard title="Language" icon="translate">
         <p className="font-body-sm text-body-sm text-on-surface-variant -mt-2">
-          Text ships in all five today; voice (Bhashini) is rolling out per plan.md §6 P1.
+          All five languages, fully text-ready today — voice support is on the way!
         </p>
         <div className="flex flex-wrap gap-2">
           {LANG_OPTIONS.map((opt) => (
@@ -97,9 +100,12 @@ export default function SettingsPage() {
         </div>
       </SectionCard>
 
+      </div>
+      <div className="lg:col-span-5 flex flex-col gap-space-lg">
+
       <SectionCard title="Persona" icon="tune">
         <p className="font-body-sm text-body-sm text-on-surface-variant -mt-2">
-          Reframes the same grounded figures for your role (plan.md §6 P1, persona-aware advisories).
+          Same trusted numbers, framed the way that's most useful for your role.
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           {PERSONAS.map((p, i) => (
@@ -129,9 +135,8 @@ export default function SettingsPage() {
         </label>
       </SectionCard>
 
-      <p className="font-citation-mono text-citation-mono text-outline text-center py-2">
-        Powered by Google Weather API
-      </p>
+      </div>
+      </div>
     </div>
   );
 }

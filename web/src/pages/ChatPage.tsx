@@ -26,7 +26,7 @@ export default function ChatPage() {
 
 <div className="bg-surface-container-lowest rounded-2xl rounded-bl-none p-space-lg shadow-sm flex flex-col gap-space-md">
 
-<div className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-secondary-container text-on-secondary-container font-label-md text-label-md font-semibold w-fit" title="Grounded against a live Google Weather API response">
+<div className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-secondary-container text-on-secondary-container font-label-md text-label-md font-semibold w-fit" title="Grounded against a live weather data response">
 <span className="material-symbols-outlined text-[16px]">verified_user</span>
 <span>Verified &amp; Live</span>
 </div>
@@ -43,7 +43,6 @@ export default function ChatPage() {
 <div className="bg-surface-container-low p-space-md rounded-xl flex flex-col gap-space-xs">
 <div className="flex items-center justify-between font-label-md text-label-md text-on-surface-variant">
 <span className="font-medium text-on-surface">Hourly Rain Distribution</span>
-<span className="font-citation-mono text-citation-mono text-primary">Source: Google Weather API</span>
 </div>
 
 <div className="w-full h-20 pt-2">
@@ -97,12 +96,6 @@ export default function ChatPage() {
 <span>{showEvidence ? 'Hide Sources' : 'View Sources'}</span>
 </button>
 </div>
-
-<div className="text-right">
-<span className="font-citation-mono text-citation-mono text-outline">
-                  Source: Google Weather API
-                </span>
-</div>
 </div>
 </div>
 </div>
@@ -152,7 +145,7 @@ export default function ChatPage() {
 </div>
 <div className="flex items-center gap-1 text-[10px] text-secondary">
 <span className="material-symbols-outlined text-[12px]">check_circle</span>
-              Google Weather API — Hourly Forecast
+              Hourly Forecast
             </div>
 </div>
 
@@ -163,23 +156,49 @@ export default function ChatPage() {
 </div>
 <div className="flex items-center gap-1 text-[10px] text-secondary">
 <span className="material-symbols-outlined text-[12px]">check_circle</span>
-              Google Weather API — Hourly Forecast
+              Hourly Forecast
             </div>
 </div>
 </div>
 </div>
 )}
 
-<div className="bg-secondary-container text-on-secondary-container rounded-2xl p-space-md shadow-sm flex flex-col gap-2">
+<div className="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm flex flex-col gap-space-sm">
+<div className="flex items-center justify-between">
 <div className="flex items-center gap-2">
-<span className="material-symbols-outlined text-secondary text-[22px]">shield_lock</span>
-<span className="font-headline-sm text-[15px] font-bold text-on-secondary-container">
-            Grounding Guardrail
-          </span>
+<span className="material-symbols-outlined text-on-surface-variant text-[22px]">history</span>
+<span className="font-headline-sm text-[16px] text-on-surface font-bold uppercase tracking-tight">Chat History</span>
 </div>
-<p className="font-body-sm text-body-sm leading-relaxed text-on-secondary-fixed-variant">
-          The LLM routes and narrates; it never invents a number. Every figure above is checked against the live Google Weather API response before it reaches you.
-        </p>
+<a className="font-citation-mono text-citation-mono text-primary hover:underline" href="#">VIEW ALL</a>
+</div>
+
+<div className="flex flex-col gap-1.5">
+
+<button className="text-left flex flex-col gap-1 p-2.5 rounded-xl bg-primary-container/40 hover:bg-primary-container/60 transition-colors" type="button">
+<div className="flex items-center justify-between gap-2">
+<span className="font-label-md text-label-md font-semibold text-on-surface truncate">Will it rain in Colaba, Mumbai this evening?</span>
+<span className="font-citation-mono text-[10px] text-outline shrink-0">Now</span>
+</div>
+<span className="font-body-sm text-[11px] text-on-surface-variant truncate">82% thunderstorm probability, 17:00–21:00 IST</span>
+</button>
+
+<button className="text-left flex flex-col gap-1 p-2.5 rounded-xl bg-surface-container-low hover:bg-surface-container transition-colors" type="button">
+<div className="flex items-center justify-between gap-2">
+<span className="font-label-md text-label-md font-medium text-on-surface truncate">What's the weather like this weekend?</span>
+<span className="font-citation-mono text-[10px] text-outline shrink-0">Yesterday</span>
+</div>
+<span className="font-body-sm text-[11px] text-on-surface-variant truncate">Pune, Kothrud — 5-day outlook</span>
+</button>
+
+<button className="text-left flex flex-col gap-1 p-2.5 rounded-xl bg-surface-container-low hover:bg-surface-container transition-colors" type="button">
+<div className="flex items-center justify-between gap-2">
+<span className="font-label-md text-label-md font-medium text-on-surface truncate">Is it safe to be outside at noon today?</span>
+<span className="font-citation-mono text-[10px] text-outline shrink-0">2 days ago</span>
+</div>
+<span className="font-body-sm text-[11px] text-on-surface-variant truncate">Chennai, T. Nagar — UV Index</span>
+</button>
+
+</div>
 </div>
 </div>
 </div>
