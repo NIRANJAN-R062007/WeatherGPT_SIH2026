@@ -1,7 +1,27 @@
 import { useState } from 'react';
+import AskAnswer from '../components/AskAnswer';
+import { CITIES } from '../data/cities';
+import { useAsk } from '../lib/useAsk';
+import { useUiPrefs } from '../state/UiPrefsContext';
+
+// Sent as the /ask `city` hint; only consulted when the question names no city.
+const DEFAULT_CITY_HINT = 'chennai';
+
+const SUGGESTIONS = [
+  '🌧️ Will it rain tomorrow in Colaba?',
+  '📅 5-day South Mumbai forecast',
+];
 
 export default function ChatPage() {
   const [showEvidence, setShowEvidence] = useState(false);
+  const { lang } = useUiPrefs();
+  const [query, setQuery] = useState('');
+  const [cityHint, setCityHint] = useState(DEFAULT_CITY_HINT);
+  const { asked, loading, outcome, error, ask } = useAsk();
+
+  // Suggestion chips carry a leading emoji for the UI; /ask gets the words only.
+  const submit = (text: string) => void ask(text.replace(/^\p{Extended_Pictographic}+\s*/u, ''), lang, cityHint);
+
   return (
     <div className="flex flex-col w-full gap-space-lg">
 
@@ -10,6 +30,16 @@ export default function ChatPage() {
 <div className="xl:col-span-8 flex flex-col gap-space-md min-w-0">
 
 <div className="flex flex-col gap-space-lg">
+
+{/* Everything between here and the composer below is the original static
+    design sample — hardcoded Colaba copy, not wired to /ask. The live
+    ask/answer flow is the composer card at the bottom of this column. */}
+<div className="flex items-center gap-2 font-citation-mono text-citation-mono text-outline uppercase tracking-wider">
+<span className="material-symbols-outlined text-[14px]">design_services</span>
+<span>Static design sample — not live data</span>
+<span className="flex-1 h-px bg-outline-variant/50" />
+</div>
+
 
 <div className="flex justify-end pl-12">
 <div className="bg-primary text-on-primary p-space-md rounded-2xl rounded-br-none shadow-md max-w-2xl flex flex-col gap-1.5">
@@ -103,27 +133,82 @@ export default function ChatPage() {
 
 <div className="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm flex flex-col gap-space-sm mt-space-xs">
 
-<div className="flex items-center gap-2 overflow-x-auto pb-1">
-<span className="font-citation-mono text-citation-mono text-outline uppercase tracking-wider shrink-0">Suggested:</span>
-<button className="shrink-0 px-3 py-1 rounded-full bg-surface-container-low hover:bg-surface-container text-on-surface font-label-md text-label-md transition-colors flex items-center gap-1.5" type="button">
-<span>🌧️ Will it rain tomorrow in Colaba?</span>
-</button>
-<button className="shrink-0 px-3 py-1 rounded-full bg-surface-container-low hover:bg-surface-container text-on-surface font-label-md text-label-md transition-colors flex items-center gap-1.5" type="button">
-<span>📅 5-day South Mumbai forecast</span>
-</button>
+<div className="flex items-center gap-2 font-citation-mono text-citation-mono text-primary uppercase tracking-wider">
+<span className="material-symbols-outlined text-[14px]">bolt</span>
+<span>Live — answers come from /ask</span>
+<span className="flex-1 h-px bg-outline-variant/50" />
 </div>
 
+<AskAnswer asked={asked} detail error={error} loading={loading} outcome={outcome} />
+
+<div className="flex items-center gap-2 overflow-x-auto pb-1">
+<span className="font-citation-mono text-citation-mono text-outline uppercase tracking-wider shrink-0">Suggested:</span>
+{SUGGESTIONS.map((s) => (
+<button
+  className="shrink-0 px-3 py-1 rounded-full bg-surface-container-low hover:bg-surface-container text-on-surface font-label-md text-label-md transition-colors flex items-center gap-1.5 disabled:opacity-60"
+  disabled={loading}
+  key={s}
+  onClick={() => {
+    setQuery(s);
+    submit(s);
+  }}
+  type="button"
+>
+<span>{s}</span>
+</button>
+))}
+</div>
+
+<form
+  className="flex flex-col gap-space-xs"
+  onSubmit={(e) => {
+    e.preventDefault();
+    submit(query);
+  }}
+>
 <div className="flex items-center gap-space-sm bg-surface-container-low p-2 rounded-xl">
 <button className="p-2 rounded-lg bg-surface-container-lowest hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors flex items-center justify-center shadow-sm" title="Multilingual Voice Input" type="button">
 <span className="material-symbols-outlined text-[20px]">mic</span>
 </button>
-<input className="flex-1 bg-transparent border-0 outline-none font-body-md text-body-md text-on-surface placeholder:text-outline px-2" placeholder="Ask WeatherGPT in English, हिंदी, मराठी, தமிழ்..." type="text"/>
+<input
+  className="flex-1 bg-transparent border-0 outline-none font-body-md text-body-md text-on-surface placeholder:text-outline px-2"
+  onChange={(e) => setQuery(e.target.value)}
+  placeholder="Ask WeatherGPT in English, हिंदी, मराठी, தமிழ்..."
+  type="text"
+  value={query}
+/>
 <div className="flex items-center gap-1.5 shrink-0">
-<button className="p-2.5 rounded-lg bg-primary hover:bg-primary-container text-on-primary transition-colors flex items-center justify-center shadow-md" type="button">
-<span className="material-symbols-outlined text-[20px]">send</span>
+<button
+  className="p-2.5 rounded-lg bg-primary hover:bg-primary-container text-on-primary transition-colors flex items-center justify-center shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
+  disabled={loading || query.trim() === ''}
+  title="Send"
+  type="submit"
+>
+{loading ? (
+  <span className="block w-[20px] h-[20px] rounded-full border-2 border-on-primary/40 border-t-on-primary animate-spin" />
+) : (
+  <span className="material-symbols-outlined text-[20px]">send</span>
+)}
 </button>
 </div>
 </div>
+
+{/* City hint for /ask — used only when the question itself names no city. */}
+<label className="flex items-center gap-1.5 px-1 font-citation-mono text-citation-mono text-on-surface-variant">
+<span className="material-symbols-outlined text-[14px]">my_location</span>
+<span>IF UNSPECIFIED, ASSUME</span>
+<select
+  className="bg-surface-container-low text-on-surface rounded px-1.5 py-1 font-label-md text-label-md focus:outline-none"
+  onChange={(e) => setCityHint(e.target.value)}
+  value={cityHint}
+>
+{CITIES.map((c) => (
+<option key={c.key} value={c.key}>{c.name}</option>
+))}
+</select>
+<span className="text-outline">· LANG {lang.toUpperCase()}</span>
+</label>
+</form>
 </div>
 </div>
 
