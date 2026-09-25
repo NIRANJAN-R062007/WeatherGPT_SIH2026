@@ -11,10 +11,6 @@ export default function Topbar({ city = 'Mumbai, Maharashtra' }: { city?: string
           <span className="font-medium">{city}</span>
           <span className="material-symbols-outlined text-on-surface-variant text-[16px]">expand_more</span>
         </div>
-        <div className="hidden xl:flex items-center gap-2 px-3 py-1 rounded-full bg-surface-container-low font-citation-mono text-citation-mono text-on-surface-variant">
-          <span className="w-2 h-2 rounded-full bg-secondary" />
-          <span>Live IMD Open Feeds • 08:30 IST</span>
-        </div>
       </div>
       <div className="flex items-center gap-space-md">
         <div className="flex items-center p-1 rounded-full bg-surface-container-low gap-0.5 text-label-md">
@@ -58,17 +54,7 @@ export default function Topbar({ city = 'Mumbai, Maharashtra' }: { city?: string
           className="relative p-2 rounded-full hover:bg-surface-container transition-colors text-on-surface-variant"
         >
           <span className="material-symbols-outlined text-[22px]">notifications</span>
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-error rounded-full" />
         </button>
-        <div className="flex items-center gap-2.5 pl-2 border-l border-surface-container-high">
-          <div className="w-8 h-8 rounded-full bg-primary-container flex items-center justify-center text-on-primary font-label-md text-label-md font-semibold flex-none">
-            RS
-          </div>
-          <div className="hidden sm:flex flex-col text-left">
-            <span className="font-label-md text-label-md text-on-surface font-semibold leading-tight">Rohit Sharma</span>
-            <span className="font-body-sm text-body-sm text-on-surface-variant leading-none">Citizen Account</span>
-          </div>
-        </div>
       </div>
     </header>
   );
