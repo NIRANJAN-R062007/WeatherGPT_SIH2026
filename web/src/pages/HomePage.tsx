@@ -35,7 +35,7 @@ export default function HomePage() {
 </div>
 </div>
 
-<div className="grid grid-cols-3 gap-2 pt-space-md bg-surface-container-low rounded-xl p-3">
+<div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-space-md bg-surface-container-low rounded-xl p-3">
 <div className="flex flex-col">
 <span className="font-citation-mono text-citation-mono text-on-surface-variant">HUMIDITY</span>
 <div className="flex items-center gap-1 text-on-surface font-headline-sm text-headline-sm font-semibold">
@@ -57,6 +57,82 @@ export default function HomePage() {
           35%
         </div>
 </div>
+<div className="flex flex-col">
+<span className="font-citation-mono text-citation-mono text-on-surface-variant">RAIN SO FAR TODAY</span>
+<div className="flex items-center gap-1 text-on-surface font-headline-sm text-headline-sm font-semibold">
+<span className="material-symbols-outlined text-[18px] text-primary">water_drop</span>
+          6.2mm
+        </div>
+</div>
+</div>
+
+<div className="flex flex-col gap-2 pt-space-sm">
+<div className="flex items-center justify-between">
+<span className="font-citation-mono text-citation-mono text-on-surface-variant">5-DAY OUTLOOK</span>
+</div>
+<div className="flex gap-2 overflow-x-auto pb-space-xs scroll-smooth">
+
+<div className="flex-shrink-0 w-20 p-2 rounded-xl bg-primary text-on-primary shadow-sm flex flex-col items-center gap-1">
+<span className="font-citation-mono text-[10px] font-bold uppercase tracking-wide">Today</span>
+<span className="material-symbols-outlined text-[22px] text-secondary-fixed">thunderstorm</span>
+<div className="flex items-baseline gap-1 font-label-md text-label-md font-semibold">
+<span>31°</span>
+<span className="opacity-70 text-[11px]">24°</span>
+</div>
+<span className="flex items-center gap-0.5 font-citation-mono text-[10px]">
+<span className="material-symbols-outlined text-[12px]">umbrella</span>82%
+</span>
+</div>
+
+<div className="flex-shrink-0 w-20 p-2 rounded-xl bg-surface-container-low text-on-surface shadow-sm hover:shadow-md transition-shadow flex flex-col items-center gap-1">
+<span className="font-citation-mono text-[10px] text-on-surface-variant font-medium">Fri</span>
+<span className="material-symbols-outlined text-[22px] text-primary">rainy</span>
+<div className="flex items-baseline gap-1 font-label-md text-label-md font-semibold">
+<span>30°</span>
+<span className="text-on-surface-variant text-[11px]">23°</span>
+</div>
+<span className="flex items-center gap-0.5 font-citation-mono text-[10px] text-on-surface-variant">
+<span className="material-symbols-outlined text-[12px] text-primary">umbrella</span>65%
+</span>
+</div>
+
+<div className="flex-shrink-0 w-20 p-2 rounded-xl bg-surface-container-low text-on-surface shadow-sm hover:shadow-md transition-shadow flex flex-col items-center gap-1">
+<span className="font-citation-mono text-[10px] text-on-surface-variant font-medium">Sat</span>
+<span className="material-symbols-outlined text-[22px] text-tertiary">partly_cloudy_day</span>
+<div className="flex items-baseline gap-1 font-label-md text-label-md font-semibold">
+<span>32°</span>
+<span className="text-on-surface-variant text-[11px]">25°</span>
+</div>
+<span className="flex items-center gap-0.5 font-citation-mono text-[10px] text-on-surface-variant">
+<span className="material-symbols-outlined text-[12px] text-primary">umbrella</span>30%
+</span>
+</div>
+
+<div className="flex-shrink-0 w-20 p-2 rounded-xl bg-surface-container-low text-on-surface shadow-sm hover:shadow-md transition-shadow flex flex-col items-center gap-1">
+<span className="font-citation-mono text-[10px] text-on-surface-variant font-medium">Sun</span>
+<span className="material-symbols-outlined text-[22px] text-tertiary">sunny</span>
+<div className="flex items-baseline gap-1 font-label-md text-label-md font-semibold">
+<span>33°</span>
+<span className="text-on-surface-variant text-[11px]">25°</span>
+</div>
+<span className="flex items-center gap-0.5 font-citation-mono text-[10px] text-on-surface-variant">
+<span className="material-symbols-outlined text-[12px] text-primary">umbrella</span>15%
+</span>
+</div>
+
+<div className="flex-shrink-0 w-20 p-2 rounded-xl bg-surface-container-low text-on-surface shadow-sm hover:shadow-md transition-shadow flex flex-col items-center gap-1">
+<span className="font-citation-mono text-[10px] text-on-surface-variant font-medium">Mon</span>
+<span className="material-symbols-outlined text-[22px] text-primary">rainy_heavy</span>
+<div className="flex items-baseline gap-1 font-label-md text-label-md font-semibold">
+<span>29°</span>
+<span className="text-on-surface-variant text-[11px]">23°</span>
+</div>
+<span className="flex items-center gap-0.5 font-citation-mono text-[10px] text-on-surface-variant">
+<span className="material-symbols-outlined text-[12px] text-primary">umbrella</span>88%
+</span>
+</div>
+
+</div>
 </div>
 </section>
 
@@ -64,7 +140,9 @@ export default function HomePage() {
 
 <div className="lg:col-span-8 flex flex-col gap-space-lg">
 
-<section className="p-3.5 rounded-2xl bg-surface-container-lowest shadow-sm flex flex-col justify-between hover:bg-surface-container-low transition-colors cursor-pointer group max-w-xs">
+<div className="grid grid-cols-1 sm:grid-cols-2 gap-space-md">
+
+<section className="p-3.5 rounded-2xl bg-surface-container-lowest shadow-sm flex flex-col justify-between hover:bg-surface-container-low transition-colors cursor-pointer group">
 <div className="flex items-center justify-between">
 <div className="w-9 h-9 rounded-xl bg-primary-container text-on-primary-container flex items-center justify-center group-hover:scale-105 transition-transform">
 <span className="material-symbols-outlined text-[20px]">mic</span>
@@ -76,6 +154,85 @@ export default function HomePage() {
 <p className="font-body-sm text-[11px] text-on-surface-variant mt-0.5 leading-tight">
             Ask in हिंदी, தமிழ், मराठी, or English
           </p>
+</div>
+</section>
+
+<section className="p-3.5 rounded-2xl bg-surface-container-lowest shadow-sm flex flex-col justify-between hover:bg-surface-container-low transition-colors cursor-pointer group">
+<div className="flex items-center justify-between">
+<div className="w-9 h-9 rounded-xl bg-secondary-container text-on-secondary-container flex items-center justify-center group-hover:scale-105 transition-transform">
+<span className="material-symbols-outlined text-[20px]">translate</span>
+</div>
+<span className="font-citation-mono text-[10px] text-secondary font-bold">5 LANGUAGES</span>
+</div>
+<div className="mt-3">
+<span className="font-label-md text-label-md font-bold text-on-surface block">Multilingual Answers</span>
+<p className="font-body-sm text-[11px] text-on-surface-variant mt-0.5 leading-tight">
+            Narration translated, numbers stay grounded
+          </p>
+</div>
+</section>
+
+</div>
+
+<section className="rounded-2xl bg-surface-container-lowest p-space-lg shadow-sm flex flex-col gap-space-md flex-1">
+<div className="flex items-center justify-between">
+<div className="flex items-center gap-2">
+<span className="material-symbols-outlined text-[20px] text-on-surface-variant">history</span>
+<span className="font-headline-sm text-headline-sm font-bold text-on-surface">Recently Asked</span>
+</div>
+<a className="font-citation-mono text-citation-mono text-primary hover:underline" href="#">VIEW ALL</a>
+</div>
+
+<div className="flex flex-col gap-space-sm">
+
+<button className="text-left flex flex-col gap-1.5 p-space-md rounded-xl bg-surface-container-low hover:bg-surface-container transition-colors" type="button">
+<div className="flex items-center justify-between gap-2">
+<div className="flex flex-wrap items-center gap-1.5">
+<span className="px-2 py-0.5 rounded-full bg-surface-container-high text-primary font-citation-mono text-[10px] font-medium">PRECIPITATION FORECAST</span>
+<span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-label-md text-body-sm">
+<span className="material-symbols-outlined text-[12px]">location_on</span> Mumbai, Colaba
+            </span>
+</div>
+<span className="font-citation-mono text-[10px] text-outline shrink-0">Today, 08:34 IST</span>
+</div>
+<div className="flex items-baseline gap-2">
+<span className="material-symbols-outlined text-primary text-[16px] shrink-0">chat</span>
+<span className="font-body-md text-body-md text-on-surface leading-snug">"Will it rain in Colaba, Mumbai this evening?"</span>
+</div>
+</button>
+
+<button className="text-left flex flex-col gap-1.5 p-space-md rounded-xl bg-surface-container-low hover:bg-surface-container transition-colors" type="button">
+<div className="flex items-center justify-between gap-2">
+<div className="flex flex-wrap items-center gap-1.5">
+<span className="px-2 py-0.5 rounded-full bg-surface-container-high text-primary font-citation-mono text-[10px] font-medium">FORECAST</span>
+<span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-label-md text-body-sm">
+<span className="material-symbols-outlined text-[12px]">location_on</span> Pune, Kothrud
+            </span>
+</div>
+<span className="font-citation-mono text-[10px] text-outline shrink-0">Yesterday, 19:02 IST</span>
+</div>
+<div className="flex items-baseline gap-2">
+<span className="material-symbols-outlined text-primary text-[16px] shrink-0">chat</span>
+<span className="font-body-md text-body-md text-on-surface leading-snug">"What's the weather like this weekend?"</span>
+</div>
+</button>
+
+<button className="text-left flex flex-col gap-1.5 p-space-md rounded-xl bg-surface-container-low hover:bg-surface-container transition-colors" type="button">
+<div className="flex items-center justify-between gap-2">
+<div className="flex flex-wrap items-center gap-1.5">
+<span className="px-2 py-0.5 rounded-full bg-surface-container-high text-primary font-citation-mono text-[10px] font-medium">UV INDEX</span>
+<span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-label-md text-body-sm">
+<span className="material-symbols-outlined text-[12px]">location_on</span> Chennai, T. Nagar
+            </span>
+</div>
+<span className="font-citation-mono text-[10px] text-outline shrink-0">2 days ago, 12:47 IST</span>
+</div>
+<div className="flex items-baseline gap-2">
+<span className="material-symbols-outlined text-primary text-[16px] shrink-0">chat</span>
+<span className="font-body-md text-body-md text-on-surface leading-snug">"Is it safe to be outside at noon today?"</span>
+</div>
+</button>
+
 </div>
 </section>
 </div>
@@ -115,10 +272,6 @@ export default function HomePage() {
 </div>
 </div>
 
-<div className="flex items-start gap-1.5 px-1 font-citation-mono text-[10px] text-on-surface-variant leading-tight">
-<span className="material-symbols-outlined text-[12px] text-secondary shrink-0 mt-0.5">verified</span>
-<span>Grounded with Google Weather API — every number traceable to a live API response.</span>
-</div>
 </form>
 </section>
 </div>

@@ -78,7 +78,7 @@ export default function HistoryPage() {
 <div className="flex flex-wrap items-center gap-2 mt-1">
 <span className="font-citation-mono text-citation-mono text-outline uppercase tracking-wider">Provenance:</span>
 <span className="px-2 py-0.5 rounded bg-surface-container font-citation-mono text-citation-mono text-on-surface">
-            Google Weather API — Hourly Forecast
+            Hourly Forecast
           </span>
 </div>
 </div>
@@ -88,20 +88,6 @@ export default function HistoryPage() {
 <span className="material-symbols-outlined text-[18px]">refresh</span>
 <span>Ask again</span>
 </button>
-</div>
-</div>
-</div>
-
-<div className="flex flex-col md:flex-row items-center justify-between gap-space-md p-space-lg rounded-2xl bg-surface-container-low mb-space-lg">
-<div className="flex items-center gap-space-md">
-<div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
-<span className="material-symbols-outlined text-[28px]">verified_user</span>
-</div>
-<div className="flex flex-col">
-<h3 className="font-headline-sm text-headline-sm text-on-surface">Grounding Guardrail</h3>
-<p className="font-body-sm text-body-sm text-on-surface-variant">
-          Every past answer above is checked against a live Google Weather API response before it reaches you — the LLM routes and narrates, it never invents a number.
-        </p>
 </div>
 </div>
 </div>
