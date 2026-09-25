@@ -1,8 +1,4 @@
-import { LANG_OPTIONS, useUiPrefs } from '../state/UiPrefsContext';
-
 export default function Topbar({ city = 'Mumbai, Maharashtra' }: { city?: string }) {
-  const { lang, setLang, unit, setUnit } = useUiPrefs();
-
   return (
     <header className="fixed top-0 left-64 right-0 h-16 bg-surface-container-lowest/90 backdrop-blur-xl z-40 flex items-center justify-between px-space-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]">
       <div className="flex items-center gap-space-md">
@@ -13,42 +9,6 @@ export default function Topbar({ city = 'Mumbai, Maharashtra' }: { city?: string
         </div>
       </div>
       <div className="flex items-center gap-space-md">
-        <div className="flex items-center p-1 rounded-full bg-surface-container-low gap-0.5 text-label-md">
-          {LANG_OPTIONS.map((opt) => (
-            <button
-              key={opt.code}
-              type="button"
-              onClick={() => setLang(opt.code)}
-              className={`px-2 py-0.5 rounded-full text-xs transition-colors ${
-                lang === opt.code
-                  ? 'bg-primary text-on-primary font-medium shadow-sm'
-                  : 'text-on-surface-variant hover:text-on-surface font-normal'
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-        <div className="flex items-center bg-surface-container-low p-1 rounded-full font-label-md text-label-md text-on-surface-variant">
-          <button
-            type="button"
-            onClick={() => setUnit('C')}
-            className={`px-2 py-0.5 rounded-full text-xs transition-colors ${
-              unit === 'C' ? 'bg-surface-container-lowest text-on-surface shadow-sm font-semibold' : 'text-on-surface-variant hover:text-on-surface'
-            }`}
-          >
-            °C
-          </button>
-          <button
-            type="button"
-            onClick={() => setUnit('F')}
-            className={`px-2 py-0.5 rounded-full text-xs transition-colors ${
-              unit === 'F' ? 'bg-surface-container-lowest text-on-surface shadow-sm font-semibold' : 'text-on-surface-variant hover:text-on-surface'
-            }`}
-          >
-            °F
-          </button>
-        </div>
         <button
           type="button"
           className="relative p-2 rounded-full hover:bg-surface-container transition-colors text-on-surface-variant"
