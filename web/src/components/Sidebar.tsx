@@ -27,7 +27,7 @@ export default function Sidebar() {
           </div>
           <div className="mt-space-xs inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-surface-container text-on-surface-variant font-citation-mono text-citation-mono">
             <span className="w-1.5 h-1.5 rounded-full bg-secondary" />
-            <span>MoES &amp; IMD Verified Feeds</span>
+            <span>Google Weather API</span>
           </div>
         </div>
         <nav className="flex flex-col gap-1 px-space-md mt-space-xs">
@@ -49,19 +49,6 @@ export default function Sidebar() {
             </NavLink>
           ))}
         </nav>
-      </div>
-      <div className="p-space-md m-space-md rounded-xl bg-surface-container-low flex flex-col gap-space-xs">
-        <div className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-secondary-container animate-pulse" />
-          <span className="font-label-md text-label-md text-on-surface font-semibold">Colaba Doppler Active</span>
-        </div>
-        <p className="font-body-sm text-body-sm text-on-surface-variant leading-tight">
-          Live Radar Sync • Open Feeds + Google API
-        </p>
-        <div className="flex items-center justify-between mt-1 pt-1.5 border-t border-surface-container-high">
-          <span className="font-citation-mono text-citation-mono text-outline">TELEMETRY SYNC</span>
-          <span className="font-citation-mono text-citation-mono text-on-surface-variant">v2.4</span>
-        </div>
       </div>
     </aside>
   );
