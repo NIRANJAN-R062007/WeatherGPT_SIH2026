@@ -8,15 +8,6 @@ export default function ForecastPage() {
 <span className="w-2.5 h-2.5 rounded-full bg-secondary-container animate-pulse"></span>
 <span className="font-headline-sm text-headline-sm text-on-surface">Mumbai Metropolitan Region</span>
 </div>
-<div className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-surface-container font-citation-mono text-citation-mono text-on-surface-variant">
-<span className="material-symbols-outlined text-[15px] text-primary">sensors</span>
-<span>Colaba &amp; Veravali DWR Sweeps Active</span>
-</div>
-<div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded bg-surface-container-low font-citation-mono text-citation-mono text-outline">
-<span>GFS 3km High-Res Model</span>
-<span>•</span>
-<span>08:30 IST Cycle</span>
-</div>
 </div>
 
 <div className="inline-flex p-1 rounded-lg bg-surface-container-low gap-1" id="forecast-tabs">
@@ -26,11 +17,7 @@ export default function ForecastPage() {
 </button>
 <button className="px-3.5 py-1.5 rounded-md font-label-md text-label-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-all flex items-center gap-1.5" type="button">
 <span className="material-symbols-outlined text-[16px]">calendar_view_week</span>
-<span>10-Day Synoptic Outlook</span>
-</button>
-<button className="px-3.5 py-1.5 rounded-md font-label-md text-label-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-all flex items-center gap-1.5" type="button">
-<span className="material-symbols-outlined text-[16px]">radar</span>
-<span>Doppler Radar Imagery</span>
+<span>10-Day Outlook</span>
 </button>
 </div>
 </div>
@@ -38,11 +25,8 @@ export default function ForecastPage() {
 <div className="p-space-lg rounded-xl bg-surface-container-lowest shadow-sm flex flex-col gap-space-md">
 <div className="flex flex-col md:flex-row md:items-center justify-between gap-space-sm pb-space-sm border-b border-surface-container">
 <div className="flex flex-col">
-<div className="flex items-center gap-2">
-<span className="font-headline-sm text-headline-sm text-on-surface">Diurnal Thermal &amp; Precipitation Dynamics</span>
-<span className="px-2 py-0.5 rounded bg-tertiary-container/15 text-tertiary font-citation-mono text-citation-mono uppercase">Monsoonal Surge Surge-Run</span>
-</div>
-<p className="font-body-sm text-body-sm text-on-surface-variant">Continuous 24-hr spline interpolation: Diurnal rise vs. squall accumulation</p>
+<span className="font-headline-sm text-headline-sm text-on-surface">Hourly Temperature &amp; Precipitation</span>
+<p className="font-body-sm text-body-sm text-on-surface-variant">Source: Google Weather API — Hourly Forecast</p>
 </div>
 
 <div className="flex flex-wrap items-center gap-space-md">
@@ -52,10 +36,7 @@ export default function ForecastPage() {
 </div>
 <div className="flex items-center gap-2">
 <span className="w-3 h-3 rounded-sm bg-secondary-container"></span>
-<span className="font-citation-mono text-citation-mono text-on-surface-variant">Convective Surge (mm)</span>
-</div>
-<div className="px-3 py-1 rounded-md bg-surface-container font-citation-mono text-citation-mono text-on-surface">
-          Est. Accumulation: <span className="font-bold text-primary">42.4 mm</span>
+<span className="font-citation-mono text-citation-mono text-on-surface-variant">Precipitation (mm)</span>
 </div>
 </div>
 </div>
@@ -139,7 +120,7 @@ export default function ForecastPage() {
 <div className="flex flex-col gap-space-sm">
 <div className="flex items-center justify-between">
 <div className="flex items-center gap-2">
-<span className="font-headline-sm text-headline-sm text-on-surface">Hourly Synoptic Breakdown</span>
+<span className="font-headline-sm text-headline-sm text-on-surface">Hourly Breakdown</span>
 <span className="font-body-sm text-body-sm text-on-surface-variant">(Next 48 Hours)</span>
 </div>
 <div className="flex items-center gap-1 text-on-surface-variant">
@@ -166,7 +147,7 @@ export default function ForecastPage() {
 <span className="font-citation-mono font-semibold">82%</span>
 </div>
 <div className="flex items-center justify-between text-xs">
-<span className="flex items-center gap-1 opacity-80"><span className="material-symbols-outlined text-[14px]">air</span> SW Gusts</span>
+<span className="flex items-center gap-1 opacity-80"><span className="material-symbols-outlined text-[14px]">air</span> Wind</span>
 <span className="font-citation-mono font-semibold">34 km/h</span>
 </div>
 <div className="flex items-center justify-between text-xs">
@@ -179,7 +160,6 @@ export default function ForecastPage() {
 <div className="flex-shrink-0 w-44 p-space-md rounded-xl bg-surface-container-lowest text-on-surface shadow-sm hover:shadow-md transition-shadow flex flex-col gap-2">
 <div className="flex items-center justify-between">
 <span className="font-label-md text-label-md text-on-surface-variant font-medium">09:00 IST</span>
-<span className="font-citation-mono text-citation-mono text-secondary font-semibold">MOD</span>
 </div>
 <div className="flex items-center justify-between my-1">
 <span className="material-symbols-outlined text-[34px] text-primary">rainy</span>
@@ -205,7 +185,6 @@ export default function ForecastPage() {
 <div className="flex-shrink-0 w-44 p-space-md rounded-xl bg-surface-container-lowest text-on-surface shadow-sm hover:shadow-md transition-shadow flex flex-col gap-2">
 <div className="flex items-center justify-between">
 <span className="font-label-md text-label-md text-on-surface-variant font-medium">10:00 IST</span>
-<span className="font-citation-mono text-citation-mono text-outline">BKN</span>
 </div>
 <div className="flex items-center justify-between my-1">
 <span className="material-symbols-outlined text-[34px] text-primary">partly_cloudy_day</span>
@@ -231,7 +210,6 @@ export default function ForecastPage() {
 <div className="flex-shrink-0 w-44 p-space-md rounded-xl bg-surface-container-lowest text-on-surface shadow-sm hover:shadow-md transition-shadow flex flex-col gap-2">
 <div className="flex items-center justify-between">
 <span className="font-label-md text-label-md text-on-surface-variant font-medium">11:00 IST</span>
-<span className="font-citation-mono text-citation-mono text-tertiary font-semibold">WARM</span>
 </div>
 <div className="flex items-center justify-between my-1">
 <span className="material-symbols-outlined text-[34px] text-tertiary">sunny</span>
@@ -257,7 +235,6 @@ export default function ForecastPage() {
 <div className="flex-shrink-0 w-44 p-space-md rounded-xl bg-surface-container-lowest text-on-surface shadow-sm hover:shadow-md transition-shadow flex flex-col gap-2">
 <div className="flex items-center justify-between">
 <span className="font-label-md text-label-md text-on-surface-variant font-medium">12:00 IST</span>
-<span className="font-citation-mono text-citation-mono text-tertiary font-bold">PEAK HEAT</span>
 </div>
 <div className="flex items-center justify-between my-1">
 <span className="material-symbols-outlined text-[34px] text-tertiary">partly_cloudy_day</span>
@@ -283,7 +260,6 @@ export default function ForecastPage() {
 <div className="flex-shrink-0 w-44 p-space-md rounded-xl bg-surface-container-lowest text-on-surface shadow-sm hover:shadow-md transition-shadow flex flex-col gap-2">
 <div className="flex items-center justify-between">
 <span className="font-label-md text-label-md text-on-surface-variant font-medium">13:00 IST</span>
-<span className="font-citation-mono text-citation-mono text-secondary font-semibold">T-STORM CELL</span>
 </div>
 <div className="flex items-center justify-between my-1">
 <span className="material-symbols-outlined text-[34px] text-secondary">thunderstorm</span>
@@ -309,10 +285,9 @@ export default function ForecastPage() {
 <div className="flex-shrink-0 w-44 p-space-md rounded-xl bg-secondary/10 text-on-surface shadow-sm flex flex-col gap-2">
 <div className="flex items-center justify-between">
 <span className="font-label-md text-label-md text-secondary font-bold">14:00 IST</span>
-<span className="font-citation-mono text-citation-mono px-1.5 py-0.5 rounded bg-secondary text-on-secondary font-bold">SQUALL</span>
 </div>
 <div className="flex items-center justify-between my-1">
-<span className="material-symbols-outlined text-[34px] text-secondary">flood</span>
+<span className="material-symbols-outlined text-[34px] text-secondary">rainy_heavy</span>
 <span className="font-headline-lg text-headline-lg font-bold">29.4°</span>
 </div>
 <div className="font-body-sm text-body-sm text-on-surface-variant">Downpour 14mm/h</div>
@@ -335,7 +310,6 @@ export default function ForecastPage() {
 <div className="flex-shrink-0 w-44 p-space-md rounded-xl bg-surface-container-lowest text-on-surface shadow-sm hover:shadow-md transition-shadow flex flex-col gap-2">
 <div className="flex items-center justify-between">
 <span className="font-label-md text-label-md text-on-surface-variant font-medium">15:00 IST</span>
-<span className="font-citation-mono text-citation-mono text-secondary font-semibold">HEAVY</span>
 </div>
 <div className="flex items-center justify-between my-1">
 <span className="material-symbols-outlined text-[34px] text-primary">rainy_heavy</span>
@@ -361,7 +335,6 @@ export default function ForecastPage() {
 <div className="flex-shrink-0 w-44 p-space-md rounded-xl bg-surface-container-lowest text-on-surface shadow-sm hover:shadow-md transition-shadow flex flex-col gap-2">
 <div className="flex items-center justify-between">
 <span className="font-label-md text-label-md text-on-surface-variant font-medium">16:00 IST</span>
-<span className="font-citation-mono text-citation-mono text-error font-semibold">PEAK SURGE</span>
 </div>
 <div className="flex items-center justify-between my-1">
 <span className="material-symbols-outlined text-[34px] text-primary">thunderstorm</span>
@@ -390,10 +363,7 @@ export default function ForecastPage() {
 
 <div className="lg:col-span-7 flex flex-col gap-space-md">
 <div className="flex items-center justify-between">
-<div className="flex items-center gap-2">
-<span className="font-headline-md text-headline-md text-on-surface">10-Day Synoptic Outlook</span>
-<span className="px-2 py-0.5 rounded-full bg-secondary-fixed text-on-secondary-fixed font-citation-mono text-citation-mono">IMD Regional Centre</span>
-</div>
+<span className="font-headline-md text-headline-md text-on-surface">10-Day Outlook</span>
 <span className="font-citation-mono text-citation-mono text-outline">Updated: 08:30 IST</span>
 </div>
 
@@ -405,14 +375,10 @@ export default function ForecastPage() {
 <span className="material-symbols-outlined text-[28px] text-primary">thunderstorm</span>
 <div className="flex flex-col">
 <span className="font-headline-sm text-headline-sm text-on-surface">Today, 18 Oct</span>
-<span className="font-body-sm text-body-sm text-on-surface-variant">Thunderstorm &amp; Strong PM Coastal Gusts</span>
+<span className="font-body-sm text-body-sm text-on-surface-variant">Thunderstorm &amp; Strong Coastal Gusts</span>
 </div>
 </div>
 <div className="flex items-center gap-space-md">
-<span className="px-2.5 py-1 rounded-full bg-tertiary-fixed text-on-tertiary-fixed font-label-md text-label-md font-semibold flex items-center gap-1">
-<span className="w-2 h-2 rounded-full bg-tertiary animate-pulse"></span>
-<span>Orange Alert</span>
-</span>
 <div className="text-right">
 <span className="font-headline-sm text-headline-sm text-on-surface">31°</span>
 <span className="font-body-sm text-body-sm text-outline"> / 26°</span>
@@ -421,40 +387,26 @@ export default function ForecastPage() {
 </div>
 </div>
 
-<div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 pt-space-sm border-t border-surface-container bg-surface-container-low/40 p-2.5 rounded-lg mt-1">
+<div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-space-sm border-t border-surface-container bg-surface-container-low/40 p-2.5 rounded-lg mt-1">
 <div className="flex flex-col">
 <span className="font-citation-mono text-citation-mono text-outline uppercase">UV Index</span>
 <span className="font-headline-sm text-headline-sm text-on-surface">7.2</span>
-<span className="font-citation-mono text-[10px] text-tertiary font-medium">High Alert</span>
-</div>
-<div className="flex flex-col">
-<span className="font-citation-mono text-citation-mono text-outline uppercase">AQI (SAFAR)</span>
-<span className="font-headline-sm text-headline-sm text-secondary">112</span>
-<span className="font-citation-mono text-[10px] text-secondary font-medium">Moderate</span>
+<span className="font-citation-mono text-[10px] text-tertiary font-medium">High</span>
 </div>
 <div className="flex flex-col">
 <span className="font-citation-mono text-citation-mono text-outline uppercase">Humidity</span>
 <span className="font-headline-sm text-headline-sm text-on-surface">78%</span>
-<span className="font-citation-mono text-[10px] text-outline">Dew Pt 24°C</span>
-</div>
-<div className="flex flex-col">
-<span className="font-citation-mono text-citation-mono text-outline uppercase">Barometer</span>
-<span className="font-headline-sm text-headline-sm text-on-surface">1008</span>
-<span className="font-citation-mono text-[10px] text-error font-medium">hPa Falling</span>
 </div>
 <div className="flex flex-col">
 <span className="font-citation-mono text-citation-mono text-outline uppercase">Precip Prob</span>
 <span className="font-headline-sm text-headline-sm text-primary">82%</span>
-<span className="font-citation-mono text-[10px] text-primary font-medium">Est. 42mm</span>
 </div>
 <div className="flex flex-col">
-<span className="font-citation-mono text-citation-mono text-outline uppercase">Solar Cycle</span>
+<span className="font-citation-mono text-citation-mono text-outline uppercase">Sunrise / Sunset</span>
 <div className="flex items-center gap-1 font-citation-mono text-citation-mono text-on-surface mt-1">
 <span className="material-symbols-outlined text-[14px] text-tertiary">wb_sunny</span>
 <span>06:32</span>
-</div>
-<div className="flex items-center gap-1 font-citation-mono text-citation-mono text-outline">
-<span className="material-symbols-outlined text-[14px]">bedtime</span>
+<span className="material-symbols-outlined text-[14px] ml-1">bedtime</span>
 <span>18:14</span>
 </div>
 </div>
@@ -466,11 +418,10 @@ export default function ForecastPage() {
 <span className="material-symbols-outlined text-[28px] text-primary">rainy_heavy</span>
 <div className="flex flex-col">
 <span className="font-headline-sm text-headline-sm text-on-surface">Thu, 19 Oct</span>
-<span className="font-body-sm text-body-sm text-on-surface-variant">Heavy Thunderstorms &amp; Squalls along Konkan tract</span>
+<span className="font-body-sm text-body-sm text-on-surface-variant">Heavy Thunderstorms &amp; Squalls</span>
 </div>
 </div>
 <div className="flex items-center gap-space-md">
-<span className="px-2 py-0.5 rounded-full bg-tertiary-fixed text-on-tertiary-fixed font-citation-mono text-citation-mono font-medium">Orange Alert (85%)</span>
 <div className="text-right">
 <span className="font-headline-sm text-headline-sm text-on-surface">30°</span>
 <span className="font-body-sm text-body-sm text-outline"> / 25°</span>
@@ -481,14 +432,13 @@ export default function ForecastPage() {
 
 <div className="p-space-md rounded-xl bg-surface-container-lowest shadow-sm flex items-center justify-between hover:bg-surface-container-low transition-colors cursor-pointer">
 <div className="flex items-center gap-3">
-<span className="material-symbols-outlined text-[28px] text-secondary">flood</span>
+<span className="material-symbols-outlined text-[28px] text-secondary">rainy_heavy</span>
 <div className="flex flex-col">
 <span className="font-headline-sm text-headline-sm text-on-surface">Fri, 20 Oct</span>
-<span className="font-body-sm text-body-sm text-on-surface-variant">Continuous Monsoon Surge • High Tide Alert 14:22</span>
+<span className="font-body-sm text-body-sm text-on-surface-variant">Continuous Heavy Rain</span>
 </div>
 </div>
 <div className="flex items-center gap-space-md">
-<span className="px-2 py-0.5 rounded-full bg-tertiary-fixed text-on-tertiary-fixed font-citation-mono text-citation-mono font-medium">Orange Alert (98%)</span>
 <div className="text-right">
 <span className="font-headline-sm text-headline-sm text-on-surface">28°</span>
 <span className="font-body-sm text-body-sm text-outline"> / 24°</span>
@@ -502,11 +452,10 @@ export default function ForecastPage() {
 <span className="material-symbols-outlined text-[28px] text-primary">rainy</span>
 <div className="flex flex-col">
 <span className="font-headline-sm text-headline-sm text-on-surface">Sat, 21 Oct</span>
-<span className="font-body-sm text-body-sm text-on-surface-variant">Scattered Intermittent Showers in Salsette region</span>
+<span className="font-body-sm text-body-sm text-on-surface-variant">Scattered Intermittent Showers</span>
 </div>
 </div>
 <div className="flex items-center gap-space-md">
-<span className="px-2 py-0.5 rounded-full bg-secondary-fixed text-on-secondary-fixed font-citation-mono text-citation-mono font-medium">Yellow Alert (65%)</span>
 <div className="text-right">
 <span className="font-headline-sm text-headline-sm text-on-surface">29°</span>
 <span className="font-body-sm text-body-sm text-outline"> / 25°</span>
@@ -520,11 +469,10 @@ export default function ForecastPage() {
 <span className="material-symbols-outlined text-[28px] text-on-surface-variant">partly_cloudy_day</span>
 <div className="flex flex-col">
 <span className="font-headline-sm text-headline-sm text-on-surface">Sun, 22 Oct</span>
-<span className="font-body-sm text-body-sm text-on-surface-variant">Partly Cloudy &amp; Humid • Light coastal breeze</span>
+<span className="font-body-sm text-body-sm text-on-surface-variant">Partly Cloudy &amp; Humid</span>
 </div>
 </div>
 <div className="flex items-center gap-space-md">
-<span className="px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-citation-mono text-citation-mono">No Alert (30%)</span>
 <div className="text-right">
 <span className="font-headline-sm text-headline-sm text-on-surface">31°</span>
 <span className="font-body-sm text-body-sm text-outline"> / 26°</span>
@@ -538,11 +486,10 @@ export default function ForecastPage() {
 <span className="material-symbols-outlined text-[28px] text-tertiary">sunny</span>
 <div className="flex flex-col">
 <span className="font-headline-sm text-headline-sm text-on-surface">Mon, 23 Oct</span>
-<span className="font-body-sm text-body-sm text-on-surface-variant">Clear Sunny Skies • Post-monsoon diurnal settling</span>
+<span className="font-body-sm text-body-sm text-on-surface-variant">Clear Sunny Skies</span>
 </div>
 </div>
 <div className="flex items-center gap-space-md">
-<span className="px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-citation-mono text-citation-mono">Clear (15%)</span>
 <div className="text-right">
 <span className="font-headline-sm text-headline-sm text-on-surface">32°</span>
 <span className="font-body-sm text-body-sm text-outline"> / 27°</span>
@@ -554,124 +501,17 @@ export default function ForecastPage() {
 </div>
 
 <div className="lg:col-span-5 flex flex-col gap-space-md">
-
 <div className="p-space-md rounded-xl bg-surface-container-lowest shadow-sm flex flex-col gap-space-sm">
-<div className="flex items-center justify-between">
-<div className="flex items-center gap-2">
-<span className="material-symbols-outlined text-primary text-[20px]">radar</span>
-<span className="font-headline-sm text-headline-sm text-on-surface">MMR Doppler Radar Sweep</span>
-</div>
-<span className="px-2 py-0.5 rounded bg-primary text-on-primary font-citation-mono text-citation-mono font-medium">LIVE 350km</span>
-</div>
-
-<div className="relative w-full h-72 rounded-lg overflow-hidden bg-surface-container-high group">
-<div className="w-full h-full bg-cover bg-center" data-location="Marine Drive, Mumbai, Maharashtra, India" style={{ backgroundImage: "url('/images/hero-mumbai-marine-drive-2.jpg')" }}></div>
-
-<div className="absolute inset-0 bg-primary/10 mix-blend-multiply pointer-events-none"></div>
-
-<div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-<div className="w-56 h-56 rounded-full border border-secondary-fixed/40"></div>
-<div className="w-36 h-36 rounded-full border border-secondary-fixed/50"></div>
-<div className="w-16 h-16 rounded-full border border-secondary-fixed/60"></div>
-<div className="absolute w-full h-px bg-secondary-fixed/20"></div>
-<div className="absolute h-full w-px bg-secondary-fixed/20"></div>
-
-<div className="w-3 h-3 rounded-full bg-secondary-fixed border-2 border-surface-container-lowest shadow-lg"></div>
-</div>
-
-<div className="absolute top-3 left-3 bg-inverse-surface/90 text-inverse-on-surface backdrop-blur-md px-3 py-1.5 rounded-lg flex flex-col gap-0.5 shadow-md">
-<div className="flex items-center gap-2">
-<span className="w-2 h-2 rounded-full bg-error animate-ping"></span>
-<span className="font-citation-mono text-citation-mono font-bold text-secondary-fixed">Reflectivity: 42 dBZ</span>
-</div>
-<span className="font-citation-mono text-[10px] text-surface-dim">High Density Bands over Arabian Sea</span>
-</div>
-
-<div className="absolute bottom-3 right-3 bg-surface-container-lowest/95 backdrop-blur-md px-2.5 py-1.5 rounded text-on-surface font-citation-mono text-citation-mono shadow-sm flex items-center gap-2">
-<span className="material-symbols-outlined text-[15px] text-primary">my_location</span>
-<span>Colaba DWR (18.89° N, 72.81° E)</span>
-</div>
-</div>
-
-<div className="flex items-center justify-between pt-1">
-<div className="flex items-center gap-1.5">
-<span className="font-citation-mono text-[11px] text-on-surface-variant">Precip dBZ:</span>
-<div className="flex h-2.5 w-28 rounded-sm overflow-hidden bg-surface-container">
-<div className="w-1/4 bg-secondary-fixed-dim"></div>
-<div className="w-1/4 bg-secondary"></div>
-<div className="w-1/4 bg-tertiary-fixed-dim"></div>
-<div className="w-1/4 bg-error"></div>
-</div>
-<span className="font-citation-mono text-[10px] text-outline">55+</span>
-</div>
-<div className="flex items-center gap-2">
-<button className="px-2 py-0.5 rounded bg-surface-container-low text-on-surface font-label-md text-xs hover:bg-surface-container" type="button">Velocity</button>
-<button className="px-2 py-0.5 rounded bg-primary text-on-primary font-label-md text-xs" type="button">Composite</button>
-</div>
-</div>
-</div>
-
-<div className="p-space-md rounded-xl bg-surface-container-lowest shadow-sm flex flex-col gap-space-sm">
-<div className="flex items-center justify-between pb-space-xs border-b border-surface-container">
 <div className="flex items-center gap-2">
 <span className="material-symbols-outlined text-secondary text-[20px]">verified</span>
-<span className="font-headline-sm text-headline-sm text-on-surface">Ground Truth Telemetry</span>
+<span className="font-headline-sm text-headline-sm text-on-surface">Forecast Provenance</span>
 </div>
-<div className="flex items-center gap-1 px-2 py-0.5 rounded bg-secondary-container/40 text-on-secondary-container font-citation-mono text-citation-mono font-bold">
-            CONFIDENCE 94.6%
-          </div>
-</div>
-<p className="font-body-sm text-body-sm text-on-surface-variant">
-          Model synthesized via IMD Open Telemetry, 12 regional automated weather stations (AWS), and real-time INSAT-3DR rapid-scan infrared radiance.
+<p className="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
+          As per Google Weather API forecast issued 08:30 IST. Every figure shown above is read directly from that response — never generated by the LLM.
         </p>
-
-<div className="flex flex-col gap-1.5 p-space-sm rounded-lg bg-surface-container-low font-citation-mono text-citation-mono">
-<div className="flex items-center justify-between text-on-surface-variant">
-<span>[STATION_ID]</span>
-<span className="text-on-surface font-semibold">IMD-BOM-COLABA-43003</span>
-</div>
-<div className="flex items-center justify-between text-on-surface-variant">
-<span>[MODEL_ASSIM]</span>
-<span className="text-on-surface font-semibold">NCMRWF GFS 3km (Ensemble v4)</span>
-</div>
-<div className="flex items-center justify-between text-on-surface-variant">
-<span>[SURFACE_AWS]</span>
-<span className="text-on-surface font-semibold">12 of 12 Stations Online</span>
-</div>
-<div className="flex items-center justify-between text-on-surface-variant">
-<span>[SYNOPTIC_CYCLE]</span>
-<span className="text-on-surface font-semibold">2023-10-18T03:00:00Z (08:30 IST)</span>
-</div>
-</div>
-
-<div className="flex flex-wrap gap-1.5 pt-1">
-<span className="px-2 py-1 rounded bg-surface-container text-on-surface-variant font-citation-mono text-[10px] flex items-center gap-1">
-<span className="w-1.5 h-1.5 rounded-full bg-secondary"></span> Santacruz (AWS-01)
-          </span>
-<span className="px-2 py-1 rounded bg-surface-container text-on-surface-variant font-citation-mono text-[10px] flex items-center gap-1">
-<span className="w-1.5 h-1.5 rounded-full bg-secondary"></span> Worli Sea-Link
-          </span>
-<span className="px-2 py-1 rounded bg-surface-container text-on-surface-variant font-citation-mono text-[10px] flex items-center gap-1">
-<span className="w-1.5 h-1.5 rounded-full bg-secondary"></span> Chembur Observ.
-          </span>
-<span className="px-2 py-1 rounded bg-surface-container text-on-surface-variant font-citation-mono text-[10px] flex items-center gap-1">
-<span className="w-1.5 h-1.5 rounded-full bg-secondary"></span> Thane Belapur
-          </span>
-</div>
-
-<div className="p-space-sm rounded-lg bg-tertiary-container/15 flex items-start gap-space-sm mt-1">
-<span className="material-symbols-outlined text-tertiary text-[20px] mt-0.5">warning</span>
-<div className="flex flex-col">
-<span className="font-label-md text-label-md text-tertiary font-bold leading-tight">Monsoon High Tide Advisory</span>
-<p className="font-body-sm text-body-sm text-on-surface-variant leading-snug">
-              Waves expected up to 4.28m at 14:22 IST. Low-lying seafront areas along Marine Drive &amp; Bandra Bandstand strictly monitored.
-            </p>
 </div>
 </div>
 </div>
 </div>
-</div>
-</div>
-
   );
 }
