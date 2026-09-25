@@ -49,6 +49,22 @@
   }
 }
 
+/* Subtle background drift for the current-weather hero card (HomePage.tsx) —
+   kept slow/low-amplitude so it reads as ambient, not attention-grabbing. */
+@keyframes gradient-drift {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.animate-gradient-drift {
+  animation: gradient-drift 18s ease-in-out infinite;
+}
+
 .material-symbols-outlined {
   font-family: 'Material Symbols Outlined';
   font-weight: normal;

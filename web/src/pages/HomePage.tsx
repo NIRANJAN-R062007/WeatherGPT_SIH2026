@@ -1,12 +1,106 @@
+import { useEffect, useMemo, useState } from 'react';
+
+// Sunrise/sunset are the same mock IST values shown in the sub-panel below;
+// CONDITION mirrors the mock "Partly Cloudy" label. Both are real inputs to
+// the gradient math (real current time, real condition->color mapping) —
+// once this page gets live weather data, swapping these two constants for
+// fetched state is the only change needed to make the gradient fully live.
+const SUNRISE_IST = '06:32';
+const SUNSET_IST = '18:14';
+const CONDITION: keyof typeof CONDITION_META = 'partly_cloudy';
+
+const CONDITION_META = {
+  clear: { label: 'Clear', icon: 'sunny', accent: '#9d6a00' }, // tertiary-container
+  partly_cloudy: { label: 'Partly Cloudy', icon: 'partly_cloudy_day', accent: '#006ef3' }, // primary-container
+  cloudy: { label: 'Cloudy', icon: 'cloud', accent: '#727786' }, // outline
+  rain: { label: 'Rain', icon: 'rainy', accent: '#006a6a' }, // secondary
+  storm: { label: 'Thunderstorms', icon: 'thunderstorm', accent: '#1d3052' }, // inverse-surface
+} as const;
+
+const MOOD_TINT = {
+  dawn: '#ffba46', // tertiary-fixed-dim — soft sunrise gold
+  day: '#f1f3ff', // surface-container-low — bright neutral
+  dusk: '#9d6a00', // tertiary-container — warm sunset amber
+  night: '#1d3052', // inverse-surface — deep night blue
+} as const;
+
+type Mood = keyof typeof MOOD_TINT;
+
+function toMinutes(hhmm: string) {
+  const [h, m] = hhmm.split(':').map(Number);
+  return h * 60 + m;
+}
+
+function minutesToHHMM(mins: number) {
+  const m = ((Math.round(mins) % 1440) + 1440) % 1440;
+  return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+}
+
+function minutesToDuration(mins: number) {
+  const m = Math.max(0, Math.round(mins));
+  return `${Math.floor(m / 60)}h ${m % 60}m`;
+}
+
+function nowMinutesIST(date: Date) {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Kolkata',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(date);
+  const h = Number(parts.find((p) => p.type === 'hour')?.value ?? '0');
+  const m = Number(parts.find((p) => p.type === 'minute')?.value ?? '0');
+  return h * 60 + m;
+}
+
+const TRANSITION_WINDOW_MIN = 40;
+
+function getDayMood(nowMin: number, sunriseMin: number, sunsetMin: number): Mood {
+  if (Math.abs(nowMin - sunriseMin) <= TRANSITION_WINDOW_MIN) return 'dawn';
+  if (Math.abs(nowMin - sunsetMin) <= TRANSITION_WINDOW_MIN) return 'dusk';
+  if (nowMin > sunriseMin && nowMin < sunsetMin) return 'day';
+  return 'night';
+}
+
 export default function HomePage() {
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  const sunriseMin = toMinutes(SUNRISE_IST);
+  const sunsetMin = toMinutes(SUNSET_IST);
+  const solarNoonMin = (sunriseMin + sunsetMin) / 2;
+  const nowMin = nowMinutesIST(now);
+  const totalDaylightMin = sunsetMin - sunriseMin;
+  const elapsedMin = Math.min(Math.max(nowMin - sunriseMin, 0), totalDaylightMin);
+  const remainingMin = totalDaylightMin - elapsedMin;
+  const dayProgressPct = totalDaylightMin > 0 ? (elapsedMin / totalDaylightMin) * 100 : 0;
+
+  const mood = useMemo(
+    () => getDayMood(nowMin, sunriseMin, sunsetMin),
+    [nowMin, sunriseMin, sunsetMin],
+  );
+  const condition = CONDITION_META[CONDITION];
+  const heroGradient = `linear-gradient(135deg, #f1f3ff 0%, ${MOOD_TINT[mood]}33 55%, ${condition.accent}4d 100%)`;
+  const chipGradient = `linear-gradient(135deg, ${condition.accent}4d 0%, ${MOOD_TINT[mood]}1a 60%, transparent 100%)`;
+
   return (
     <div className="flex flex-col w-full gap-space-lg">
 
-<section className="rounded-2xl bg-surface-container-lowest p-space-lg shadow-sm flex flex-col gap-space-lg">
+<section
+  className="rounded-2xl bg-[length:200%_200%] animate-gradient-drift p-space-lg shadow-sm flex flex-col gap-space-lg"
+  style={{ backgroundImage: heroGradient }}
+>
 
 <div className="grid grid-cols-1 lg:grid-cols-12 gap-space-lg items-end">
 
-<div className="lg:col-span-6 flex flex-col sm:flex-row items-start sm:items-center gap-space-lg">
+<div
+  className="lg:col-span-6 flex flex-col sm:flex-row items-start sm:items-center gap-space-lg p-space-md rounded-xl"
+  style={{ backgroundImage: chipGradient }}
+>
 <div className="flex items-baseline gap-2">
 <span className="font-metric-display text-metric-display text-on-surface font-extrabold leading-none tracking-tighter">
             29°
@@ -15,8 +109,8 @@ export default function HomePage() {
 </div>
 <div className="flex flex-col">
 <div className="flex items-center gap-2 text-primary font-headline-sm text-headline-sm font-semibold">
-<span className="material-symbols-outlined text-[26px]">partly_cloudy_day</span>
-            Partly Cloudy
+<span className="material-symbols-outlined text-[26px]">{condition.icon}</span>
+            {condition.label}
           </div>
 <div className="flex items-center gap-3 mt-1 font-body-md text-body-md text-on-surface-variant">
 <span>Feels like <strong className="font-semibold text-on-surface">33°C</strong></span>
@@ -24,43 +118,64 @@ export default function HomePage() {
 </div>
 </div>
 
-<div className="lg:col-span-6 flex flex-col justify-end bg-surface-container-low p-space-md rounded-xl">
-<div className="flex items-center justify-between font-citation-mono text-citation-mono text-on-surface-variant mb-1">
-<span className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px] text-tertiary">wb_sunny</span> Sunrise 06:32 IST</span>
-<span className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px] text-tertiary">bedtime</span> Sunset 18:14 IST</span>
+<div className="lg:col-span-6 flex flex-col justify-end bg-surface-container-low p-space-md rounded-xl gap-2">
+<div className="flex items-start justify-between font-citation-mono text-citation-mono text-on-surface-variant">
+<span className="flex flex-col items-start gap-0.5">
+<span className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px] text-tertiary">wb_sunny</span>Sunrise</span>
+<span className="text-on-surface font-semibold">{SUNRISE_IST}</span>
+</span>
+<span className="flex flex-col items-center gap-0.5">
+<span className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px] text-primary">wb_twilight</span>Solar Noon</span>
+<span className="text-on-surface font-semibold">{minutesToHHMM(solarNoonMin)}</span>
+</span>
+<span className="flex flex-col items-end gap-0.5">
+<span className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px] text-tertiary">bedtime</span>Sunset</span>
+<span className="text-on-surface font-semibold">{SUNSET_IST}</span>
+</span>
 </div>
-<div className="flex items-center justify-end font-citation-mono text-citation-mono text-on-surface-variant mt-1">
+
+<div className="relative h-1.5 rounded-full bg-gradient-to-r from-tertiary-fixed-dim via-primary-container to-tertiary-container">
+<div
+  className="absolute top-1/2 w-3 h-3 rounded-full bg-surface-container-lowest border-2 border-primary shadow-sm"
+  style={{ left: `${Math.min(Math.max(dayProgressPct, 0), 100)}%`, transform: 'translate(-50%, -50%)' }}
+/>
+</div>
+
+<div className="flex items-center justify-between font-citation-mono text-citation-mono text-on-surface-variant">
+<span>Daylight Elapsed <strong className="text-on-surface font-semibold">{minutesToDuration(elapsedMin)}</strong></span>
 <span className="px-2 py-0.5 rounded bg-surface-container text-on-surface font-semibold">UV Index: 4.8 (Moderate)</span>
+<span>Remaining <strong className="text-on-surface font-semibold">{minutesToDuration(remainingMin)}</strong></span>
 </div>
 </div>
 </div>
 
-<div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-space-md bg-surface-container-low rounded-xl p-3">
-<div className="flex flex-col">
-<span className="font-citation-mono text-citation-mono text-on-surface-variant">HUMIDITY</span>
-<div className="flex items-center gap-1 text-on-surface font-headline-sm text-headline-sm font-semibold">
-<span className="material-symbols-outlined text-[18px] text-primary">humidity_high</span>
+<div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-space-md">
+<div className="flex flex-col gap-1 p-2.5 rounded-xl bg-primary-container text-on-primary-container">
+<span className="font-citation-mono text-citation-mono opacity-80">HUMIDITY</span>
+<div className="flex items-center gap-1 font-headline-sm text-headline-sm font-semibold">
+<span className="material-symbols-outlined text-[18px]">humidity_high</span>
           78%
         </div>
 </div>
-<div className="flex flex-col">
-<span className="font-citation-mono text-citation-mono text-on-surface-variant">WIND</span>
-<div className="flex items-center gap-1 text-on-surface font-headline-sm text-headline-sm font-semibold">
-<span className="material-symbols-outlined text-[18px] text-primary">north_east</span>
+<div className="flex flex-col gap-1 p-2.5 rounded-xl bg-secondary-container text-on-secondary-container">
+<span className="font-citation-mono text-citation-mono opacity-80">WIND</span>
+<div className="flex items-center gap-1 font-headline-sm text-headline-sm font-semibold">
+{/* mock wind bearing: 45° (NE) — decorative, matches the icon's default heading */}
+<span className="material-symbols-outlined text-[18px]" style={{ transform: 'rotate(45deg)' }}>north_east</span>
           14 km/h
         </div>
 </div>
-<div className="flex flex-col">
-<span className="font-citation-mono text-citation-mono text-on-surface-variant">PRECIPITATION</span>
-<div className="flex items-center gap-1 text-on-surface font-headline-sm text-headline-sm font-semibold">
-<span className="material-symbols-outlined text-[18px] text-primary">rainy</span>
+<div className="flex flex-col gap-1 p-2.5 rounded-xl bg-primary-container text-on-primary-container">
+<span className="font-citation-mono text-citation-mono opacity-80">PRECIPITATION</span>
+<div className="flex items-center gap-1 font-headline-sm text-headline-sm font-semibold">
+<span className="material-symbols-outlined text-[18px]">rainy</span>
           35%
         </div>
 </div>
-<div className="flex flex-col">
-<span className="font-citation-mono text-citation-mono text-on-surface-variant">RAIN SO FAR TODAY</span>
-<div className="flex items-center gap-1 text-on-surface font-headline-sm text-headline-sm font-semibold">
-<span className="material-symbols-outlined text-[18px] text-primary">water_drop</span>
+<div className="flex flex-col gap-1 p-2.5 rounded-xl bg-primary-container text-on-primary-container">
+<span className="font-citation-mono text-citation-mono opacity-80">RAIN SO FAR TODAY</span>
+<div className="flex items-center gap-1 font-headline-sm text-headline-sm font-semibold">
+<span className="material-symbols-outlined text-[18px]">water_drop</span>
           6.2mm
         </div>
 </div>
@@ -79,6 +194,9 @@ export default function HomePage() {
 <span>31°</span>
 <span className="opacity-70 text-[11px]">24°</span>
 </div>
+<div className="w-full h-1 rounded-full bg-on-primary/25 overflow-hidden">
+<div className="h-full rounded-full bg-on-primary/90 w-[70%] ml-[10%]"></div>
+</div>
 <span className="flex items-center gap-0.5 font-citation-mono text-[10px]">
 <span className="material-symbols-outlined text-[12px]">umbrella</span>82%
 </span>
@@ -90,6 +208,9 @@ export default function HomePage() {
 <div className="flex items-baseline gap-1 font-label-md text-label-md font-semibold">
 <span>30°</span>
 <span className="text-on-surface-variant text-[11px]">23°</span>
+</div>
+<div className="w-full h-1 rounded-full bg-surface-container-high overflow-hidden">
+<div className="h-full rounded-full bg-primary w-[70%] ml-[0%]"></div>
 </div>
 <span className="flex items-center gap-0.5 font-citation-mono text-[10px] text-on-surface-variant">
 <span className="material-symbols-outlined text-[12px] text-primary">umbrella</span>65%
@@ -103,6 +224,9 @@ export default function HomePage() {
 <span>32°</span>
 <span className="text-on-surface-variant text-[11px]">25°</span>
 </div>
+<div className="w-full h-1 rounded-full bg-surface-container-high overflow-hidden">
+<div className="h-full rounded-full bg-primary w-[70%] ml-[20%]"></div>
+</div>
 <span className="flex items-center gap-0.5 font-citation-mono text-[10px] text-on-surface-variant">
 <span className="material-symbols-outlined text-[12px] text-primary">umbrella</span>30%
 </span>
@@ -115,6 +239,9 @@ export default function HomePage() {
 <span>33°</span>
 <span className="text-on-surface-variant text-[11px]">25°</span>
 </div>
+<div className="w-full h-1 rounded-full bg-surface-container-high overflow-hidden">
+<div className="h-full rounded-full bg-primary w-[80%] ml-[20%]"></div>
+</div>
 <span className="flex items-center gap-0.5 font-citation-mono text-[10px] text-on-surface-variant">
 <span className="material-symbols-outlined text-[12px] text-primary">umbrella</span>15%
 </span>
@@ -126,6 +253,9 @@ export default function HomePage() {
 <div className="flex items-baseline gap-1 font-label-md text-label-md font-semibold">
 <span>29°</span>
 <span className="text-on-surface-variant text-[11px]">23°</span>
+</div>
+<div className="w-full h-1 rounded-full bg-surface-container-high overflow-hidden">
+<div className="h-full rounded-full bg-primary w-[60%] ml-[0%]"></div>
 </div>
 <span className="flex items-center gap-0.5 font-citation-mono text-[10px] text-on-surface-variant">
 <span className="material-symbols-outlined text-[12px] text-primary">umbrella</span>88%
