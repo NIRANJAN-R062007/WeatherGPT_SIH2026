@@ -16,12 +16,8 @@
 6. [Feature build — priority tiers](#6-feature-build--priority-tiers)
 7. [Team](#7-team)
 8. [Technical build phases & ownership](#8-technical-build-phases--ownership)
-9. [Timeline](#9-timeline)
-10. [The demo script](#10-the-demo-script-design-backwards-from-this)
-11. [Risks & mitigations](#11-risks--mitigations)
-12. [Repo structure](#12-repo-structure)
-13. [This week — concrete first actions](#13-this-week--concrete-first-actions) *(mostly done — kept as a dated log; see §8 Phase 0/1 for current status)*
-14. [Internal hackathon — prototype plan](#14-internal-hackathon--prototype-plan-tomorrow)
+9. [Risks & mitigations](#9-risks--mitigations)
+10. [Repo structure](#10-repo-structure)
 
 ---
 
@@ -238,7 +234,7 @@ The validator runs on every response before it reaches the user.
 Sequential build order — each phase should be working end-to-end before the next one starts, since later phases depend on earlier ones being real (not stubbed).
 
 ### Phase 0 — Verify the ground truth (1–2 days)
-- ~~Get a Google Cloud project + billing account + API key for Google Weather API; curl every endpoint in §3.1 by hand, save real JSON responses to `data/fixtures/`.~~ ✅ done — `data/fixtures/google_weather/` (see §13) — **Syed**
+- ~~Get a Google Cloud project + billing account + API key for Google Weather API; curl every endpoint in §3.1 by hand, save real JSON responses to `data/fixtures/`.~~ ✅ done — `data/fixtures/google_weather/` — **Syed**
 - ~~Confirm Bhashini covers ASR + TTS + translate for all five languages (en/hi/ta/te/mr) at the quota we need; flag any weak language to route via self-hosted IndicTrans2/IndicConformer instead.~~ ✅ done (Sep 13) — all five work on the free tier so far; no language routed to self-hosted yet — **Niranjan**
 - ~~Spin up Docker Compose (Postgres+PostGIS, Redis, empty FastAPI shell).~~ ✅ done (Sep 4) — **Niranjan**
 - *Why first:* if the Google Weather API key/billing setup is blocked or the response schema differs from expected, you need to know before anyone writes code against it.
@@ -284,7 +280,7 @@ Sequential build order — each phase should be working end-to-end before the ne
   - ✅ 2026-09-21 (audit 1.1–1.4) — the limiter keyed on the *first* X-Forwarded-For hop, which the client controls, so rotating the header escaped the 30/min cap; it now keys on the `TRUSTED_PROXY_HOPS`-th hop from the right (proxies in front of the orchestrator, the gateway counting as one: compose/Render 1, k8s ingress 2, bare 0 = socket peer) and shares its 60 s sliding window through Redis (Lua-scripted ZSET; 30 s cooldown back to the in-process deque when Redis is down) so k8s replicas no longer multiply the budget. Gateway: bodies are refused at `MAX_BODY_BYTES` before being buffered (streamed, chunked included), `/health` is cached 10 s and rate limited (it was an unauthenticated Postgres+Redis+upstream probe per hit). uvicorn runs with `--no-proxy-headers` everywhere — its default rewrote `request.client` from the header whenever the peer was 127.0.0.1 (i.e. behind ngrok), which reproduced the bypass. Behind ngrok the real `.env` needs `TRUSTED_PROXY_HOPS=2`. — **Mahesh**
 
 ### Phase 4 — Voice & last-mile
-- ~~Bhashini ASR/TTS (voice) in the app, all five languages (English, Hindi, Tamil, Telugu, Marathi).~~ ✅ done for the web prototype (Sep 12, `POST /asr` + `POST /tts`, mic + playback in `WeatherGPT.dc.html`; see §14). Flutter app still pending (Chelsea). — **Niranjan**
+- ~~Bhashini ASR/TTS (voice) in the app, all five languages (English, Hindi, Tamil, Telugu, Marathi).~~ ✅ done for the web prototype (Sep 12, `POST /asr` + `POST /tts`, mic + playback in `WeatherGPT.dc.html`). Flutter app still pending (Chelsea). — **Niranjan**
 - IVR channel (phone call → speech → `/ask` → spoken answer). — **Niranjan**
 - Proactive alerts — CAP parsing. — **Syed**
 - Proactive alerts — alert engine (geofence match → push dispatch). — **Niranjan**
@@ -316,57 +312,7 @@ Sequential build order — each phase should be working end-to-end before the ne
 
 ---
 
-## 9. Timeline
-
-> **Indicative SIH 2026 schedule** (confirm exact dates with your SPOC — these move):
-> PS released ~25 Aug 2026 → internal hackathon Sept → **SPOC uploads national idea PPT + video by ~30 Sept 2026** → screening Oct → finalists announced Nov → **Grand Finale Dec 2026 (36-hour software sprint)**.
-
-### Phase 1 — Now → internal hackathon (~2–3 weeks)
-**Goal: win internally with a working thin slice, not slides.**
-
-| Week | Deliverable |
-|---|---|
-| W1 | Get Google Weather API key/billing set up; verify every endpoint by hand (curl each one, save sample JSON). Lock architecture. Repo + Docker Compose skeleton. Decoder tables (canonical keys) + `data/i18n/` skeleton done. Line up a native Telugu and Marathi speaker for QA. |
-| W1 | Thin slice: `GET /ask` → "what's the weather in Chennai" → real Google Weather API data → English answer with provenance. |
-| W2 | Flutter chat UI, all five languages as text. CAP-based warnings with colour codes + translated category text. Basic voice (Tamil) via Bhashini for the demo hook. |
-| W2 | Internal PPT + 3-min video. Demo script rehearsed 5×. |
-| W3 | Internal hackathon. |
-
-### Phase 2 — Internal win → national submission (~30 Sept)
-- Polish the PPT to SIH's official template (SPOC uploads it — get the format from them, don't improvise).
-- Record a demo video showing **live data**, not mockups.
-- Add IVR proof-of-concept + one proactive alert demo.
-- Voice (ASR/TTS) live across all five languages; native-speaker QA pass on all five text outputs before the video is recorded.
-- Write the technical-approach slide around the **grounding guardrail** and **real-time weather data integration**, not around "we use an LLM."
-
-### Phase 3 — Screening result → Finale (Oct–Dec)
-- Harden: p95 latency < 2s, K8s manifests, Grafana dashboard.
-- Load test for a high-traffic weather-event spike; have the graph ready.
-- Build the P2 differentiators (METAR decoder, cyclone map with a supplementary data source, climate trends).
-- **Offline-capable demo**: local Llama + snapshotted Google Weather API data, so a dead venue Wi-Fi can't kill us.
-- Prepare for finale mentors' feedback rounds.
-
----
-
-## 10. The demo script (design backwards from this)
-
-Five minutes.
-
-1. **(0:00) Hook** — Open the app. Speak in Tamil: *"நாளைக்கு மழை வருமா?"* Answer comes back in spoken Tamil with a Google Weather API provenance line on screen. *No typing, no English.*
-2. **(0:45) Grounding** — Tap "sources." Show it pulled the Google Weather API daily forecast issued at a real timestamp. Say the line: **"Our LLM cannot produce a number. It routes; the data answers."** Then switch the same answer to Hindi and Marathi on screen — one tap, no reload — to show language is a config flag, not a hardcode.
-3. **(1:30) Disaster** — Switch to a CAP-based warning scenario. Trigger a geofenced alert to a second phone on stage.
-4. **(2:30) Last mile** — **Call the IVR number from a feature phone.** Speak a district name. Hear the forecast in Tamil.
-5. **(3:15) Depth** — One expert query: decode a live METAR into plain language. Shows we're not a toy.
-6. **(4:00) Scale** — Grafana: p95 latency, requests/sec under load, K8s pod autoscaling. Then the impact slide: farmers, fishermen, aviation, disaster managers, smart cities.
-7. **(4:45) Close** — Deployment path: this runs on Google Weather API today; no bespoke India-side data infrastructure needed to stand it up.
-
-**Demo rules:** live data or clearly-labelled recorded fallback, never hardcoded-and-pretended. Have a recorded video backup for network failure — labelled as a backup when you play it.
-
-**Language on stage:** lead spoken demos in Tamil (home turf — a team member speaks it). Show the other four (English, Hindi, Telugu, Marathi) as on-screen text switches, not live *spoken* demos in a language no one on the team can sanity-check. Pre-generate and verify the TTS for the handful of warning phrases used in the script, in all five.
-
----
-
-## 11. Risks & mitigations
+## 9. Risks & mitigations
 
 | ID | Risk | Mitigation |
 |---|---|---|
@@ -382,7 +328,7 @@ Five minutes.
 
 ---
 
-## 12. Repo structure
+## 10. Repo structure
 
 **As actually built today** (2026-09-21):
 
@@ -430,128 +376,6 @@ weathergpt/
 - `data/climate/` — gridded historical subsets, if a supplementary climate source is added
 - `docs/` — architecture.md, demo-script.md, jury-qa.md
 - top-level `tests/` — currently per-service (`services/orchestrator/tests/`, `services/gateway/tests/`) rather than centralized
-
----
-
-## 13. This week — concrete first actions
-
-**Owner: whole team, by end of week 1.**
-
-- [x] ~~**Get a Google Cloud project + billing account + API key for Google Weather API, curl every endpoint in §3.1, and save the JSON into `data/fixtures/`.**~~ ✅ done — current conditions, daily forecast and hourly history snapshotted for all three demo cities in `data/fixtures/google_weather/` (`snapshot_google_weather.py`); hourly *forecast* (`forecast_hours.*.json`) added Sep 20 (commit 4441c51), so all four §3.1 endpoints are on disk. Snapshots date from Sep 10–20 — refresh before a demo, since `WEATHER_MODE=fixtures` replays them verbatim ("rainfall since midnight" replays a Sep 12 day).
-- [x] ~~Confirm Bhashini API access + quota, and that ASR / TTS / translate all work for the five languages (en/hi/ta/te/mr).~~ ✅ done (Sep 13) — ASR/TTS verified live in `bhashini.py` (commit 643c269), translate generalized to all four target languages (commit b072272).
-- [x] ~~Line up a native Telugu speaker and a native Marathi speaker for translation QA.~~ ✅ done (Sep 13)
-- [x] ~~Stand up the repo, Docker Compose (Postgres+PostGIS, Redis, FastAPI), CI.~~ ✅ done (Sep 4)
-- [ ] Build the decoder tables (weather condition codes, wind directions, precipitation categories, UV bands). — **partial:** condition codes + wind directions done (`data/decoders/`); precipitation categories and UV bands still missing.
-- [x] ~~Ship the thin slice: text query → Google Weather API data → grounded English answer with provenance.~~ ✅ done — `/ask` in `services/orchestrator/` (originally `prototype/ask_service/`, see §14).
-
----
-
-## 14. Internal hackathon — prototype plan (tomorrow)
-
-**Goal:** a working prototype, not the full product. Cut scope hard so something real is running end-to-end by demo time.
-
-**Shape of the prototype:**
-- **Web app only.** No Flutter mobile app, no IVR, no WhatsApp bot — those stay on the §9 timeline, not tomorrow.
-- **Two languages only: English + Tamil.** Drop Hindi, Telugu, Marathi for this prototype — Tamil is the team's home turf (native speaker on the team, matches the demo-script hook in §10), English is the link language. Re-expand to all five once the internal hackathon is done.
-- **Text only.** No voice (ASR/TTS) — that's a P1 item (§6) requiring Bhashini setup time we don't have tonight.
-- **One data source, two intents.** Google Weather API current conditions + daily forecast only. Intents: *"what's the weather in `<city>`"* and *"will it rain in `<city>` `<day>`"*. No warnings, no cyclone map, no climate trends.
-- **Grounding guardrail stays non-negotiable** even in the cut-down build — it's the one thing the demo script and jury story depend on; skipping it defeats the point of the prototype.
-- ~~**Frontend calls `prototype/ask_service` directly** (decided 2026-09-11), not through `services/gateway` — the gateway has no `/ask` route and a DB/Redis-dependent health check that adds demo-day risk. The prototype migrates into `services/orchestrator/` behind the gateway post-hackathon.~~ ✅ migrated (Sep 14, **Mahesh**) — `prototype/ask_service/` → `services/orchestrator/`; `services/gateway` is now a reverse proxy (`:8000` → `:8001`, X-Forwarded-For preserved for the rate limiter) whose DB/Redis checks are lazy and confined to `/health`, so the demo still has no database dependency. The tunnel points at the gateway; `:8001` direct still works. Frontend stays in `prototype/frontend/` (served by the orchestrator only when `FRONTEND_DIR` points at it — API-only by default since 2026-09-21 — and proxied by the gateway).
-- **Demo cities: Chennai, Madurai, Coimbatore.** Real Google Weather API responses for all three are snapshotted into `data/fixtures/google_weather/`.
-
-**Tonight — build tasks:**
-- [x] Google Weather API ingestion module: current conditions + daily forecast for a small hardcoded set of demo cities (start with Chennai). — **Syed + Deepthi** (landed as `google_weather.py` + `weather_data.py`, all three demo cities)
-- [x] Minimal decoder table: weather condition code → canonical English term (just enough for the two demo intents). — **Syed + Deepthi** (`data/decoders/weather_conditions.json`, `wind_cardinals.json`)
-- [x] `/ask` FastAPI endpoint: intent parse (rule-based is fine, skip full LLM NLU if time-boxed) → tool call → typed response. — **Niranjan**
-- [x] Grounding guardrail + numeric validator wired into `/ask`, even in minimal form. — **Mahesh** (`guardrail.py`; extended in Phase 2 with a regenerate step)
-- [x] LLM narration prompt: narrate only from the typed response object, English only for now. — **Mahesh** (`narrate.py`, Gemini → Groq → template)
-- [x] English → Tamil rendering: if Bhashini text-translate is quick to wire up, use it; otherwise fall back to hand-written Tamil phrase templates for the two intents (faster, safer for a stage demo than live translation of untested quality). — **Niranjan**
-- [x] Single-page web UI: text input + GPS/city field + language toggle (EN/TA) hitting `/ask`. — **Mahesh + Chelsea** (`prototype/frontend/WeatherGPT.dc.html`)
-- [x] Provenance footer on every response (source + timestamp). — **Niranjan**
-
-**Tomorrow morning — before the demo:**
-- [ ] End-to-end smoke test: both intents, both languages, on the actual demo Wi-Fi.
-- [ ] Record a short backup video of the working flow in case of live network failure (per the demo rules in §10).
-- [ ] Rehearse a 2-minute cut-down version of the §10 demo script: hook in Tamil → grounding ("tap sources") → switch to English on screen. Skip the disaster/IVR/depth/scale beats — there's no time to build them tonight.
-
-**Explicitly out of scope for tomorrow (do not attempt):** mobile app, IVR, WhatsApp, voice ASR/TTS, warnings/CAP integration, cyclone map, climate trends, K8s/Grafana, Hindi/Telugu/Marathi.
-
-**Risk:** this is a compressed, single-night build — if Google Weather API key/billing (Risk R1) isn't already sorted, that blocks everything else here and should be resolved first, before any other task on this list starts.
-
-**Improvement pass (decided 2026-09-11).** The prototype above is built and
-demoed. This pass improves the *same* prototype (`prototype/ask_service/`,
-`prototype/frontend/`) — not a rewrite, not the full §5–§8 architecture. Six
-people work in parallel on it.
-
-**Starting point, so scope stays honest:** the prototype currently has no
-database, no auth, no Docker, no ASR/TTS, and only EN/TA. `narrate.py` is
-hardcoded to Gemini with no provider seam; `i18n.py` and `guardrail.py`'s
-unit-marker list are `if lang == "ta"` branches, not tables. Most tracks below
-are "add for the first time," not "extend."
-
-**Owners:**
-- [x] **Niranjan — pin a stable public host/URL.** Done — fixed hostname
-  `https://plaza-syrup-appetizer.ngrok-free.dev` via an ngrok reserved
-  domain (`prototype/run_tunnel.sh`), replacing the Cloudflare quick
-  tunnel's random-per-restart hostname. Unblocks Deepthi's OAuth redirect
-  URI registration.
-- [x] **Niranjan — voice.** Done — Bhashini ASR (`POST /asr`) and TTS
-  (`POST /tts`) wired into `ask_service` (`bhashini.py`), plus mic-capture
-  (Web Audio -> hand-encoded 16kHz WAV, no extra library) and TTS playback
-  (Web Audio `decodeAudioData` + `BufferSource`, not `<audio>` — a data-URI
-  `<audio>` was observed to hang forever on `play()`, no events at all, even
-  for well-formed 16-bit PCM) in `WeatherGPT.dc.html`. Bhashini's TTS returns
-  32-bit float WAV, which Chrome's `<audio>` also can't reliably play — the
-  backend re-encodes to 16-bit PCM before sending audio to the frontend
-  (`bhashini._wav_to_pcm16_base64`). Verified end-to-end live (real Bhashini
-  keys) via curl and in-browser for both languages; 312 backend tests pass.
-- [x] **Deepthi — Google OAuth + Supabase.** Done — Supabase Auth with Google
-  provider (`auth.py`, `frontend/auth.js`, `supabase_schema.sql` — now at `services/orchestrator/sql/`, `GET /me`)
-  on the pinned ngrok host.
-- [x] ~~**Abel — link history to the database.**~~ ✅ done (Sep 13, picked
-  up by Niranjan since it was unblocked and Abel hadn't started): `history`
-  table + RLS live in the Supabase project (`user_id default auth.uid()`,
-  keyed off Deepthi's `profiles`), and `GET /history` + best-effort logging
-  from `/ask` in `ask_service` (`history.py`). Chelsea's UI-integration line
-  below still covers wiring the History modal to actually call it.
-- [x] **Mahesh — Llama 3 + Docker.** ✅ done — `narrate.py` now falls back
-  Gemini → Groq → template (`openai/gpt-oss-120b`, since Groq deprecated
-  Llama-3 off free tiers; see §5). Dockerfile added for `ask_service` and
-  wired into `docker-compose.yml` alongside `services/gateway`.
-- [x] **Syed — other languages (Hindi, Telugu, Marathi).** Done —
-  `i18n.py` and `guardrail.py` refactored from hardcoded `if lang=="ta"`
-  branches into per-language lookup tables (commit b072272), with Hindi,
-  Telugu, and Marathi added on top (condition names, sentence templates,
-  guardrail unit markers); `bhashini.py` generalized from
-  `translate_to_tamil()` to `translate(text, target_lang)`. Native-speaker
-  QA done and TODOs updated (commit fce2ad9) — scope: exactly the hi/te/mr
-  strings `i18n.py`, `main.py` `_MESSAGES` and `guardrail.py`'s unit words
-  held at that commit, unchanged since; everything added afterwards (`uv`
-  phrase, `DAY_LABELS`, `glossary.json`, `web/` strings, eval rows, the
-  `guardrail.py` millimetre rows from Sep 14) is unreviewed and marked
-  `TODO: native_qa` / `native_qa: false` at its source (audit item 4.2);
-  399 tests passing, 5 languages supported end to end.
-- [x] **Chelsea — UI/UX.** ✅ done (Sep 14) — integrated everyone else's
-  surface into `WeatherGPT.dc.html`: real Google sign-in via `auth.js` + `/me`
-  (Deepthi), real history via `GET`/`DELETE /history` (Abel), real mic input
-  (`WavRecorder` → `POST /asr`) + audio playback (`POST /tts` →
-  `AudioContext.decodeAudioData`) (Niranjan), 5-language switcher (Syed) —
-  plus the hero card + IMD warning banner wired to `/facts`/`/warnings`.
-  A prior visual redesign in the Claude Design canvas had regressed the page
-  to fully client-side-mocked data; this restored real backend wiring,
-  porting proven logic from the last wired commit (`9b649b7`). Verified: ruff
-  clean, 480 orchestrator + 10 gateway tests pass, 5/6 Playwright e2e
-  assertions pass (the sixth fails only on a pre-existing, unrelated
-  fixture/test drift from `dc5e6ec`, not this work) (commit `0df7799`).
-
-**Sequencing:** Niranjan's host pin unblocks Deepthi's OAuth; Deepthi's schema
-unblocks Abel's history endpoint. Mahesh, Syed, and Niranjan's voice work are
-independent and can start immediately.
-
-**Risk — shared files:** the whole prototype is one FastAPI app (`main.py`)
-and one static page (`WeatherGPT.dc.html` + `support.js`). Six people landing
-changes concurrently in the same few files will conflict — use feature
-branches and agree up front who merges.
 
 ---
 
