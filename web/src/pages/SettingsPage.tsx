@@ -40,7 +40,6 @@ export default function SettingsPage() {
               RS
             </div>
             <div>
-              <div className="font-label-md text-label-md text-on-surface font-semibold">Rohit Sharma</div>
               <div className="font-body-sm text-body-sm text-on-surface-variant">Signed in with Google</div>
             </div>
           </div>
@@ -131,7 +130,7 @@ export default function SettingsPage() {
       </SectionCard>
 
       <p className="font-citation-mono text-citation-mono text-outline text-center py-2">
-        Powered by Google Weather API · MoES &amp; IMD verified feeds
+        Powered by Google Weather API
       </p>
     </div>
   );
