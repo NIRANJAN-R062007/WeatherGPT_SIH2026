@@ -11,12 +11,9 @@ export default function HomePage() {
 <div className="flex flex-wrap items-center justify-between gap-space-md">
 <div className="flex flex-col gap-1">
 <div className="flex items-center gap-2">
-<span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container-lowest/15 backdrop-blur-md font-citation-mono text-citation-mono text-on-primary font-medium tracking-wide">
+<span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container-lowest/15 backdrop-blur-md font-citation-mono text-citation-mono text-on-primary font-medium tracking-wide" title="Station: Colaba IMD AWS [43003] · 18.9067° N, 72.8147° E · MSL: 11m">
 <span className="w-2 h-2 rounded-full bg-secondary-fixed animate-ping"></span>
             MONSOON COASTAL FRONT ACTIVE • Beaufort 5
-          </span>
-<span className="px-2.5 py-0.5 rounded-full bg-primary-container/80 text-on-primary-container font-citation-mono text-citation-mono">
-            AWS-43003
           </span>
 </div>
 <h1 className="font-headline-lg text-headline-lg font-bold tracking-tight text-on-primary mt-1">
@@ -24,7 +21,7 @@ export default function HomePage() {
         </h1>
 <p className="font-citation-mono text-citation-mono text-surface-container-high/85 flex items-center gap-1.5">
 <span className="material-symbols-outlined text-[14px] text-secondary-fixed">my_location</span>
-          Mumbai, Maharashtra • 18.9067° N, 72.8147° E • Station: Colaba IMD AWS [43003] • MSL: 11m • Updated 08:30 IST
+          Mumbai, Maharashtra • Updated 08:30 IST
         </p>
 </div>
 
@@ -87,53 +84,47 @@ export default function HomePage() {
 </div>
 
 <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-2 mt-space-md pt-space-md bg-surface-container-lowest/10 backdrop-blur-md rounded-xl p-3">
-<div className="flex flex-col">
+<div className="flex flex-col" title="Dew Pt: 24.2°C">
 <span className="font-citation-mono text-citation-mono text-surface-container-high">HUMIDITY</span>
 <div className="flex items-center gap-1 text-on-primary font-headline-sm text-headline-sm font-semibold">
 <span className="material-symbols-outlined text-[18px] text-secondary-fixed">humidity_high</span>
           78%
         </div>
-<span className="font-citation-mono text-[10px] text-surface-container-high/70">Dew Pt: 24.2°C</span>
 </div>
-<div className="flex flex-col">
+<div className="flex flex-col" title="Heading: 220° SSW">
 <span className="font-citation-mono text-citation-mono text-surface-container-high">WIND (SURFACE)</span>
 <div className="flex items-center gap-1 text-on-primary font-headline-sm text-headline-sm font-semibold">
 <span className="material-symbols-outlined text-[18px] text-secondary-fixed">north_east</span>
           14 km/h
         </div>
-<span className="font-citation-mono text-[10px] text-surface-container-high/70">Heading: 220° SSW</span>
 </div>
-<div className="flex flex-col">
+<div className="flex flex-col" title="Swell band 12km off">
 <span className="font-citation-mono text-citation-mono text-surface-container-high">PRECIPITATION</span>
 <div className="flex items-center gap-1 text-on-primary font-headline-sm text-headline-sm font-semibold">
 <span className="material-symbols-outlined text-[18px] text-secondary-fixed">rainy</span>
           35%
         </div>
-<span className="font-citation-mono text-[10px] text-surface-container-high/70">Swell band 12km off</span>
 </div>
-<div className="flex flex-col">
+<div className="flex flex-col" title="Pressure Falling -0.8">
 <span className="font-citation-mono text-citation-mono text-surface-container-high">BAROMETER</span>
 <div className="flex items-center gap-1 text-on-primary font-headline-sm text-headline-sm font-semibold">
 <span className="material-symbols-outlined text-[18px] text-tertiary-fixed">trending_down</span>
           1008 hPa
         </div>
-<span className="font-citation-mono text-[10px] text-tertiary-fixed">Pressure Falling -0.8</span>
 </div>
-<div className="flex flex-col">
+<div className="flex flex-col" title="82% Cloud Cover">
 <span className="font-citation-mono text-citation-mono text-surface-container-high">VISIBILITY</span>
 <div className="flex items-center gap-1 text-on-primary font-headline-sm text-headline-sm font-semibold">
 <span className="material-symbols-outlined text-[18px] text-secondary-fixed">visibility</span>
           8.0 km
         </div>
-<span className="font-citation-mono text-[10px] text-surface-container-high/70">82% Cloud Cover</span>
 </div>
-<div className="flex flex-col">
+<div className="flex flex-col" title="High Tide: 13:42 IST">
 <span className="font-citation-mono text-citation-mono text-surface-container-high">TIDE CYCLES</span>
 <div className="flex items-center gap-1 text-on-primary font-headline-sm text-headline-sm font-semibold">
 <span className="material-symbols-outlined text-[18px] text-secondary-fixed">waves</span>
           4.12 m
         </div>
-<span className="font-citation-mono text-[10px] text-secondary-fixed">High Tide: 13:42 IST</span>
 </div>
 </div>
 </section>
@@ -459,16 +450,6 @@ export default function HomePage() {
 <span className="font-citation-mono text-citation-mono text-secondary font-semibold">Active Engine</span>
 </div>
 
-<div className="p-3 rounded-xl bg-surface-container-low text-on-surface text-body-sm font-body-sm flex flex-col gap-1.5">
-<div className="flex items-center gap-1 font-citation-mono text-[11px] text-on-surface-variant">
-<span className="material-symbols-outlined text-[14px] text-primary">psychology</span>
-<span>Synthesizing Colaba IMD &amp; Google Weather Radar:</span>
-</div>
-<p className="text-on-surface">
-            "Next band of moderate squall showers will cross South Mumbai between <strong>11:30 AM and 01:15 PM</strong>. Low water-logging probability along SV Road, but swell waves will coincide with high tide."
-          </p>
-</div>
-
 <div className="flex flex-col gap-1.5">
 <span className="font-citation-mono text-citation-mono text-on-surface-variant">QUICK SITUATIONAL INQUIRIES</span>
 <div className="flex flex-col gap-1.5">
@@ -478,10 +459,6 @@ export default function HomePage() {
 </button>
 <button className="text-left px-3 py-2 rounded-lg bg-surface-container-low hover:bg-surface-container text-on-surface font-label-md text-label-md transition-colors flex items-center justify-between group">
 <span>"High tide timing at Marine Drive promenade"</span>
-<span className="material-symbols-outlined text-outline group-hover:text-primary text-[16px]">north_east</span>
-</button>
-<button className="text-left px-3 py-2 rounded-lg bg-surface-container-low hover:bg-surface-container text-on-surface font-label-md text-label-md transition-colors flex items-center justify-between group">
-<span>"Is it safe to fish offshore near Sassoon Dock?"</span>
 <span className="material-symbols-outlined text-outline group-hover:text-primary text-[16px]">north_east</span>
 </button>
 </div>

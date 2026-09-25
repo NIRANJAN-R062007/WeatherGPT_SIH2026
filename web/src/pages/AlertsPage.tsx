@@ -1,4 +1,7 @@
+import { useState } from 'react';
+
 export default function AlertsPage() {
+  const [showGeofence, setShowGeofence] = useState(false);
   return (
     <div className="flex flex-col w-full gap-space-lg pb-12">
 
@@ -122,11 +125,8 @@ export default function AlertsPage() {
 
 <div className="flex flex-col gap-1">
 <div className="flex flex-wrap items-center gap-2">
-<span className="px-2.5 py-1 rounded bg-tertiary-fixed text-on-tertiary-fixed font-citation-mono text-citation-mono font-bold uppercase">
+<span className="px-2.5 py-1 rounded bg-tertiary-fixed text-on-tertiary-fixed font-citation-mono text-citation-mono font-bold uppercase" title="Doppler Grid: 18.9067° N, 72.8147° E">
                 IMD Code: BOM-MET-2023-A4
-              </span>
-<span className="px-2.5 py-1 rounded bg-surface-container-high text-on-surface font-citation-mono text-citation-mono">
-                Doppler Grid: 18.9067° N, 72.8147° E
               </span>
 </div>
 <h2 className="font-headline-lg text-headline-lg text-on-surface mt-1">
@@ -245,14 +245,14 @@ export default function AlertsPage() {
 </div>
 
 <div className="rounded-xl bg-surface-container p-4 flex flex-col gap-2">
-<button className="flex items-center justify-between w-full text-left font-label-md text-label-md font-semibold text-on-surface" id="toggleGeofenceBtn" type="button">
+<button className="flex items-center justify-between w-full text-left font-label-md text-label-md font-semibold text-on-surface" onClick={() => setShowGeofence((v) => !v)} type="button">
 <div className="flex items-center gap-2">
 <span className="material-symbols-outlined text-primary text-[18px]">verified_user</span>
 <span>Why am I receiving this alert? (Spatial Geofence Explanation)</span>
 </div>
-<span className="material-symbols-outlined text-on-surface-variant text-[20px] transition-transform" id="accordionArrow">expand_more</span>
+<span className={`material-symbols-outlined text-on-surface-variant text-[20px] transition-transform ${showGeofence ? 'rotate-180' : ''}`}>expand_more</span>
 </button>
-<div className="hidden flex-col gap-2 pt-2 text-on-surface-variant font-body-sm text-body-sm border-t border-surface-container-high mt-1" id="geofenceDetails">
+<div className={`${showGeofence ? 'flex' : 'hidden'} flex-col gap-2 pt-2 text-on-surface-variant font-body-sm text-body-sm border-t border-surface-container-high mt-1`}>
 <p>
                 Your connected GPS coordinates <span className="font-citation-mono font-semibold text-on-surface">[18.9067° N, 72.8147° E]</span> match polygon cell <span className="font-citation-mono font-semibold text-on-surface">BOM-MET-2023-A4</span> issued by IMD RMC Colaba. This broadcast is pushed via the National Disaster Management Authority (NDMA) Common Alerting Protocol (CAP-CP).
               </p>
@@ -431,12 +431,8 @@ export default function AlertsPage() {
 <span className="font-label-md text-label-md font-semibold text-on-surface">Institutional Provenance</span>
 </div>
 <p className="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
-          Grounded data source: IMD Regional Meteorological Centre Mumbai, MoES &amp; NDMA GIS Open Bulletin Node. WeatherGPT is configured to prioritize civic life-safety above all automated summaries.
+          Grounded data source: IMD Regional Meteorological Centre Mumbai &amp; NDMA Open Bulletin Node.
         </p>
-<div className="mt-1 pt-2 flex items-center justify-between border-t border-surface-container-high">
-<span className="font-citation-mono text-citation-mono text-outline">CAP-CP SPEC v1.2</span>
-<span className="font-citation-mono text-citation-mono text-primary font-semibold">100% OPEN DATA</span>
-</div>
 </div>
 </div>
 </div>
