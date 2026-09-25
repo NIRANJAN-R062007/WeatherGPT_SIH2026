@@ -1,4 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
+import AskAnswer from '../components/AskAnswer';
+import { CITIES } from '../data/cities';
+import { useAsk } from '../lib/useAsk';
+import { useUiPrefs } from '../state/UiPrefsContext';
 
 // Sunrise/sunset are the same mock IST values shown in the sub-panel below;
 // CONDITION mirrors the mock "Partly Cloudy" label. Both are real inputs to
@@ -55,6 +59,12 @@ function nowMinutesIST(date: Date) {
 
 const TRANSITION_WINDOW_MIN = 40;
 
+// Sent as the /ask `city` hint. It only matters when the question names no
+// city — the NLU's own extraction from the text always wins over it.
+const DEFAULT_CITY_HINT = 'chennai';
+
+const QUICK_QUERY = 'When will heavy rain start today?';
+
 function getDayMood(nowMin: number, sunriseMin: number, sunsetMin: number): Mood {
   if (Math.abs(nowMin - sunriseMin) <= TRANSITION_WINDOW_MIN) return 'dawn';
   if (Math.abs(nowMin - sunsetMin) <= TRANSITION_WINDOW_MIN) return 'dusk';
@@ -64,6 +74,10 @@ function getDayMood(nowMin: number, sunriseMin: number, sunsetMin: number): Mood
 
 export default function HomePage() {
   const [now, setNow] = useState(() => new Date());
+  const { lang } = useUiPrefs();
+  const [query, setQuery] = useState('');
+  const [cityHint, setCityHint] = useState(DEFAULT_CITY_HINT);
+  const { asked, loading, outcome, error, ask } = useAsk();
 
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 60_000);
@@ -382,27 +396,73 @@ export default function HomePage() {
 <div className="flex flex-col gap-1.5">
 <span className="font-citation-mono text-citation-mono text-on-surface-variant">QUICK SITUATIONAL INQUIRIES</span>
 <div className="flex flex-col gap-1.5">
-<button className="text-left px-3 py-2 rounded-lg bg-surface-container-low hover:bg-surface-container text-on-surface font-label-md text-label-md transition-colors flex items-center justify-between group">
-<span>"When will heavy rain start today?"</span>
+<button
+  className="text-left px-3 py-2 rounded-lg bg-surface-container-low hover:bg-surface-container text-on-surface font-label-md text-label-md transition-colors flex items-center justify-between group disabled:opacity-60"
+  disabled={loading}
+  onClick={() => {
+    setQuery(QUICK_QUERY);
+    void ask(QUICK_QUERY, lang, cityHint);
+  }}
+  type="button"
+>
+<span>"{QUICK_QUERY}"</span>
 <span className="material-symbols-outlined text-outline group-hover:text-primary text-[16px]">north_east</span>
 </button>
 </div>
 </div>
 
-<form className="flex flex-col gap-2 mt-1" onSubmit={(e) => e.preventDefault()}>
+<form
+  className="flex flex-col gap-2 mt-1"
+  onSubmit={(e) => {
+    e.preventDefault();
+    void ask(query, lang, cityHint);
+  }}
+>
 <div className="relative flex items-center">
-<input className="w-full pl-3 pr-20 py-3 rounded-xl bg-surface-container text-on-surface placeholder:text-on-surface-variant/70 font-body-md text-body-md focus:outline-none focus:bg-surface-container-low transition-colors shadow-inner" placeholder="Ask WeatherGPT..." type="text"/>
+<input
+  className="w-full pl-3 pr-20 py-3 rounded-xl bg-surface-container text-on-surface placeholder:text-on-surface-variant/70 font-body-md text-body-md focus:outline-none focus:bg-surface-container-low transition-colors shadow-inner"
+  onChange={(e) => setQuery(e.target.value)}
+  placeholder="Ask WeatherGPT..."
+  type="text"
+  value={query}
+/>
 <div className="absolute right-2 flex items-center gap-1">
 <button className="p-1.5 rounded-lg text-on-surface-variant hover:text-primary hover:bg-surface-container-highest transition-colors" title="Voice Search" type="button">
 <span className="material-symbols-outlined text-[20px]">mic</span>
 </button>
-<button className="p-1.5 rounded-lg bg-primary text-on-primary hover:bg-primary-container transition-colors shadow-sm" title="Submit Query" type="submit">
-<span className="material-symbols-outlined text-[18px]">send</span>
+<button
+  className="p-1.5 rounded-lg bg-primary text-on-primary hover:bg-primary-container transition-colors shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
+  disabled={loading || query.trim() === ''}
+  title="Submit Query"
+  type="submit"
+>
+{loading ? (
+  <span className="block w-[18px] h-[18px] rounded-full border-2 border-on-primary/40 border-t-on-primary animate-spin" />
+) : (
+  <span className="material-symbols-outlined text-[18px]">send</span>
+)}
 </button>
 </div>
 </div>
 
+{/* City hint for /ask — used only when the question itself names no city. */}
+<label className="flex items-center gap-1.5 font-citation-mono text-citation-mono text-on-surface-variant">
+<span className="material-symbols-outlined text-[14px]">my_location</span>
+<span>IF UNSPECIFIED, ASSUME</span>
+<select
+  className="flex-1 min-w-0 bg-surface-container-low text-on-surface rounded px-1.5 py-1 font-label-md text-label-md focus:outline-none"
+  onChange={(e) => setCityHint(e.target.value)}
+  value={cityHint}
+>
+{CITIES.map((c) => (
+  <option key={c.key} value={c.key}>{c.name}</option>
+))}
+</select>
+</label>
+
 </form>
+
+<AskAnswer asked={asked} error={error} loading={loading} outcome={outcome} />
 </section>
 </div>
 </div>
