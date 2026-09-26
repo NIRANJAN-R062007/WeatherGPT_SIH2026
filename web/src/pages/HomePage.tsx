@@ -59,10 +59,6 @@ function nowMinutesIST(date: Date) {
 
 const TRANSITION_WINDOW_MIN = 40;
 
-// Sent as the /ask `city` hint. It only matters when the question names no
-// city — the NLU's own extraction from the text always wins over it.
-const DEFAULT_CITY_HINT = 'chennai';
-
 const QUICK_QUERY = 'When will heavy rain start today?';
 
 function getDayMood(nowMin: number, sunriseMin: number, sunsetMin: number): Mood {
@@ -74,9 +70,8 @@ function getDayMood(nowMin: number, sunriseMin: number, sunsetMin: number): Mood
 
 export default function HomePage() {
   const [now, setNow] = useState(() => new Date());
-  const { lang } = useUiPrefs();
+  const { lang, unit, toCelsiusValue, city: cityHint, setCity: setCityHint } = useUiPrefs();
   const [query, setQuery] = useState('');
-  const [cityHint, setCityHint] = useState(DEFAULT_CITY_HINT);
   const { asked, loading, outcome, error, ask } = useAsk();
 
   useEffect(() => {
@@ -117,9 +112,9 @@ export default function HomePage() {
 >
 <div className="flex items-baseline gap-2">
 <span className="font-metric-display text-metric-display text-on-surface font-extrabold leading-none tracking-tighter">
-            29°
+            {toCelsiusValue(29)}°
           </span>
-<span className="font-headline-sm text-headline-sm text-on-surface-variant">C</span>
+<span className="font-headline-sm text-headline-sm text-on-surface-variant">{unit}</span>
 </div>
 <div className="flex flex-col">
 <div className="flex items-center gap-2 text-primary font-headline-sm text-headline-sm font-semibold">
@@ -127,7 +122,7 @@ export default function HomePage() {
             {condition.label}
           </div>
 <div className="flex items-center gap-3 mt-1 font-body-md text-body-md text-on-surface-variant">
-<span>Feels like <strong className="font-semibold text-on-surface">33°C</strong></span>
+<span>Feels like <strong className="font-semibold text-on-surface">{toCelsiusValue(33)}°{unit}</strong></span>
 </div>
 </div>
 </div>
@@ -205,8 +200,8 @@ export default function HomePage() {
 <span className="font-citation-mono text-[10px] font-bold uppercase tracking-wide">Today</span>
 <span className="material-symbols-outlined text-[22px] text-secondary-fixed">thunderstorm</span>
 <div className="flex items-baseline gap-1 font-label-md text-label-md font-semibold">
-<span>31°</span>
-<span className="opacity-70 text-[11px]">24°</span>
+<span>{toCelsiusValue(31)}°</span>
+<span className="opacity-70 text-[11px]">{toCelsiusValue(24)}°</span>
 </div>
 <div className="w-full h-1 rounded-full bg-on-primary/25 overflow-hidden">
 <div className="h-full rounded-full bg-on-primary/90 w-[70%] ml-[10%]"></div>
@@ -220,8 +215,8 @@ export default function HomePage() {
 <span className="font-citation-mono text-[10px] text-on-surface-variant font-medium">Fri</span>
 <span className="material-symbols-outlined text-[22px] text-primary">rainy</span>
 <div className="flex items-baseline gap-1 font-label-md text-label-md font-semibold">
-<span>30°</span>
-<span className="text-on-surface-variant text-[11px]">23°</span>
+<span>{toCelsiusValue(30)}°</span>
+<span className="text-on-surface-variant text-[11px]">{toCelsiusValue(23)}°</span>
 </div>
 <div className="w-full h-1 rounded-full bg-surface-container-high overflow-hidden">
 <div className="h-full rounded-full bg-primary w-[70%] ml-[0%]"></div>
@@ -235,8 +230,8 @@ export default function HomePage() {
 <span className="font-citation-mono text-[10px] text-on-surface-variant font-medium">Sat</span>
 <span className="material-symbols-outlined text-[22px] text-tertiary">partly_cloudy_day</span>
 <div className="flex items-baseline gap-1 font-label-md text-label-md font-semibold">
-<span>32°</span>
-<span className="text-on-surface-variant text-[11px]">25°</span>
+<span>{toCelsiusValue(32)}°</span>
+<span className="text-on-surface-variant text-[11px]">{toCelsiusValue(25)}°</span>
 </div>
 <div className="w-full h-1 rounded-full bg-surface-container-high overflow-hidden">
 <div className="h-full rounded-full bg-primary w-[70%] ml-[20%]"></div>
@@ -250,8 +245,8 @@ export default function HomePage() {
 <span className="font-citation-mono text-[10px] text-on-surface-variant font-medium">Sun</span>
 <span className="material-symbols-outlined text-[22px] text-tertiary">sunny</span>
 <div className="flex items-baseline gap-1 font-label-md text-label-md font-semibold">
-<span>33°</span>
-<span className="text-on-surface-variant text-[11px]">25°</span>
+<span>{toCelsiusValue(33)}°</span>
+<span className="text-on-surface-variant text-[11px]">{toCelsiusValue(25)}°</span>
 </div>
 <div className="w-full h-1 rounded-full bg-surface-container-high overflow-hidden">
 <div className="h-full rounded-full bg-primary w-[80%] ml-[20%]"></div>
@@ -265,8 +260,8 @@ export default function HomePage() {
 <span className="font-citation-mono text-[10px] text-on-surface-variant font-medium">Mon</span>
 <span className="material-symbols-outlined text-[22px] text-primary">rainy_heavy</span>
 <div className="flex items-baseline gap-1 font-label-md text-label-md font-semibold">
-<span>29°</span>
-<span className="text-on-surface-variant text-[11px]">23°</span>
+<span>{toCelsiusValue(29)}°</span>
+<span className="text-on-surface-variant text-[11px]">{toCelsiusValue(23)}°</span>
 </div>
 <div className="w-full h-1 rounded-full bg-surface-container-high overflow-hidden">
 <div className="h-full rounded-full bg-primary w-[60%] ml-[0%]"></div>

@@ -4,16 +4,11 @@ import { CITIES } from '../data/cities';
 import { useAsk } from '../lib/useAsk';
 import { useUiPrefs } from '../state/UiPrefsContext';
 
-// Sent as the /ask `city` hint for the live composer below. It only matters
-// when the question names no city — the NLU's own extraction always wins.
-const DEFAULT_CITY_HINT = 'chennai';
-
 const QUICK_QUERY = '5-day forecast for Chennai';
 
 export default function ForecastPage() {
-  const { lang } = useUiPrefs();
+  const { lang, city: cityHint, setCity: setCityHint } = useUiPrefs();
   const [query, setQuery] = useState('');
-  const [cityHint, setCityHint] = useState(DEFAULT_CITY_HINT);
   const { asked, loading, outcome, error, ask } = useAsk();
 
   return (

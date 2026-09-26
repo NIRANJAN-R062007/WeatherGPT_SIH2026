@@ -1,60 +1,9 @@
 import { useEffect, useState } from 'react';
+import { Legend } from '../components/AskAnswer';
 import { CITIES } from '../data/cities';
 import { useUiPrefs } from '../state/UiPrefsContext';
 import { useWarnings, type WarningsVerdict } from '../lib/warnings';
-import type { LegendRow, WarningColour } from '../lib/api';
-
-// Static class strings: Tailwind's scanner can't see template-built names.
-// Mirrors AskAnswer.tsx's COLOUR_BAR/COLOUR_TEXT maps for the same IMD
-// colour tokens (that file doesn't export them, so kept local here too).
-const COLOUR_BAR: Record<WarningColour, string> = {
-  green: 'bg-imd-green',
-  yellow: 'bg-imd-yellow',
-  orange: 'bg-imd-orange',
-  red: 'bg-imd-red',
-};
-
-const COLOUR_TEXT: Record<WarningColour, string> = {
-  green: 'text-imd-green',
-  yellow: 'text-imd-yellow',
-  orange: 'text-imd-orange',
-  red: 'text-imd-red',
-};
-
-const DEFAULT_CITY = 'chennai';
-
-function istTimestamp(iso: string) {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  return `${new Intl.DateTimeFormat('en-GB', {
-    timeZone: 'Asia/Kolkata',
-    day: '2-digit',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  }).format(d)} IST`;
-}
-
-function LiveLegend({ rows, highlight }: { rows: LegendRow[]; highlight?: WarningColour }) {
-  return (
-    <div className="flex flex-col gap-1">
-      {rows.map((row) => (
-        <div
-          key={row.colour}
-          className={`flex items-start gap-2 px-2 py-1 rounded-lg font-body-sm text-body-sm ${
-            row.colour === highlight ? 'bg-surface-container text-on-surface' : 'text-on-surface-variant'
-          }`}
-        >
-          <span className={`mt-1 w-2.5 h-2.5 rounded-full shrink-0 ${COLOUR_BAR[row.colour]}`} />
-          <span>
-            <strong className="font-semibold">{row.label}</strong> — {row.meaning}
-          </span>
-        </div>
-      ))}
-    </div>
-  );
-}
+import { COLOUR_BAR, COLOUR_TEXT, istTimestamp } from '../lib/warningUi';
 
 function LiveVerdict({ data }: { data: WarningsVerdict }) {
   return (
@@ -77,7 +26,7 @@ function LiveVerdict({ data }: { data: WarningsVerdict }) {
       </div>
       <p className="font-body-lg text-body-lg text-on-surface leading-relaxed">{data.warning.headline}</p>
       <p className="font-body-md text-body-md text-on-surface-variant">{data.warning.advice}</p>
-      <LiveLegend highlight={data.warning.colour} rows={data.legend} />
+      <Legend highlight={data.warning.colour} rows={data.legend} />
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-space-xs border-t border-outline-variant/40 font-citation-mono text-citation-mono text-on-surface-variant">
         <span className="flex items-center gap-1">
           <span className="material-symbols-outlined text-[12px]">campaign</span>
@@ -94,8 +43,7 @@ function LiveVerdict({ data }: { data: WarningsVerdict }) {
 
 export default function AlertsPage() {
   const [showGeofence, setShowGeofence] = useState(false);
-  const { lang } = useUiPrefs();
-  const [city, setCity] = useState(DEFAULT_CITY);
+  const { lang, city, setCity } = useUiPrefs();
   const { loading, data, error, load } = useWarnings();
 
   // Fetch on mount (default city) and whenever the selected city or
@@ -161,7 +109,7 @@ No warning verdict
 <p className="font-body-md text-body-md text-on-surface">
 Weather warnings aren't available right now for {data.city_name} — this can't be read as an all-clear.
 </p>
-<LiveLegend rows={data.legend} />
+<Legend rows={data.legend} />
 </div>
 )}
 

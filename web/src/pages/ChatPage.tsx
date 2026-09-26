@@ -4,9 +4,6 @@ import { CITIES } from '../data/cities';
 import { useAsk } from '../lib/useAsk';
 import { useUiPrefs } from '../state/UiPrefsContext';
 
-// Sent as the /ask `city` hint; only consulted when the question names no city.
-const DEFAULT_CITY_HINT = 'chennai';
-
 const SUGGESTIONS = [
   '🌧️ Will it rain tomorrow in Colaba?',
   '📅 5-day South Mumbai forecast',
@@ -14,9 +11,8 @@ const SUGGESTIONS = [
 
 export default function ChatPage() {
   const [showEvidence, setShowEvidence] = useState(false);
-  const { lang } = useUiPrefs();
+  const { lang, city: cityHint, setCity: setCityHint } = useUiPrefs();
   const [query, setQuery] = useState('');
-  const [cityHint, setCityHint] = useState(DEFAULT_CITY_HINT);
   const { asked, loading, outcome, error, ask } = useAsk();
 
   // Suggestion chips carry a leading emoji for the UI; /ask gets the words only.
