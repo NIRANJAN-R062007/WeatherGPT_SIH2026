@@ -14,6 +14,7 @@ template.
 from dataclasses import asdict
 from datetime import datetime, timezone
 
+import alert_engine
 import bhashini
 import cities
 import config
@@ -327,6 +328,47 @@ def list_cities():
     return {"cities": cities.as_public_list()}
 
 
+class AlertSubscribeRequest(BaseModel):
+    channel: str
+    target: str = Field(min_length=1, max_length=2048)
+    city_key: str | None = None
+    lat: float | None = Field(default=None, ge=-90, le=90)
+    lon: float | None = Field(default=None, ge=-180, le=180)
+    radius_km: float | None = Field(default=None, gt=0)
+    lang: str = "en"
+
+
+@app.post("/alerts/subscribe")
+def alerts_subscribe(req: AlertSubscribeRequest):
+    """Proactive alerts (plan.md §8 Phase 4): registers a geofence -> push
+    subscription for alert_engine.py's poll loop. Exactly one of `city_key`
+    or `lat`/`lon`/`radius_km` — see alert_engine.subscribe()'s docstring."""
+    _require_lang(req.lang)
+    try:
+        sub_id = alert_engine.subscribe(
+            channel=req.channel, target=req.target, city_key=req.city_key,
+            lat=req.lat, lon=req.lon, radius_km=req.radius_km, lang=req.lang,
+        )
+    except alert_engine.SubscriptionError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+    return {"id": sub_id}
+
+
+@app.delete("/alerts/subscribe/{sub_id}")
+def alerts_unsubscribe(sub_id: int):
+    if not alert_engine.unsubscribe(sub_id):
+        raise HTTPException(status_code=404, detail="no such subscription")
+    return {"deleted": True}
+
+
+@app.get("/alerts/subscriptions")
+def alerts_list(target: str):
+    """`target` (the caller's own webhook URL/FCM token) is the capability
+    for listing — same trust model unsubscribe()'s bare id uses, no sign-in
+    plumbing required for a first pass."""
+    return {"subscriptions": alert_engine.list_subscriptions(target)}
+
+
 # ~60 s of 16 kHz 16-bit mono PCM is ~1.9 MB raw, ~2.6 MB base64.
 MAX_AUDIO_B64_CHARS = 2_800_000
 MAX_TTS_CHARS = 500
@@ -558,6 +600,7 @@ def ask(text: str, lang: str = "en", city: str | None = None,
 
 
 ivr.mount(app, ask, _msg)
+alert_engine.ensure_worker()
 
 # Serves the frontend on the same origin/tunnel as the API (plan.md §14 host
 # pin — one stable ngrok URL instead of a second tunnel, which the free tier

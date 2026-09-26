@@ -193,6 +193,36 @@ def sync_cities() -> int:
     return rows
 
 
+def nearest_city(lat: float, lon: float, max_km: float) -> str | None:
+    """The registered city (cities.CITIES key) nearest `(lat, lon)`, if any
+    lies within `max_km` — the ST_DWithin/ST_Distance geofence query
+    003_cities.sql's `geog` column exists to serve (plan.md §8 Phase 4 alert
+    engine: a raw-GPS subscription resolves to a city this way, same
+    resolution used to answer "which city is this alert's district near").
+
+    None on no match within range, or on any DB error (no PostGIS, table not
+    synced yet, connection down) — callers fall back to "can't place this
+    subscription yet" rather than raising, same best-effort rule as the rest
+    of this module.
+    """
+    try:
+        _ensure_schema()
+        with _engine.begin() as conn:
+            row = conn.execute(
+                text("""
+                    SELECT key FROM cities
+                    WHERE ST_DWithin(geog, ST_MakePoint(:lon, :lat)::geography, :max_m)
+                    ORDER BY geog <-> ST_MakePoint(:lon, :lat)::geography
+                    LIMIT 1
+                """),
+                {"lat": lat, "lon": lon, "max_m": max_km * 1000},
+            ).fetchone()
+        return row[0] if row else None
+    except Exception as exc:
+        _LOG.warning("nearest_city(%s, %s, %skm) failed: %s", lat, lon, max_km, exc)
+        return None
+
+
 def prune() -> int:
     """Delete weather_facts rows past the retention window. Returns row count.
 

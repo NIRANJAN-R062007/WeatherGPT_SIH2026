@@ -174,6 +174,22 @@ IVR_WEBHOOK_SECRET: str | None = os.getenv("IVR_WEBHOOK_SECRET")
 IVR_ANSWER_TTL_SECONDS: int = _int_env("IVR_ANSWER_TTL_SECONDS", 300)
 
 
+# Proactive alerts (plan.md §8 Phase 4 — Niranjan): a background poller
+# checks imd_warnings.public() for every city with a subscriber and dispatches
+# a push when the colour changes (new alert, escalation, de-escalation, or
+# clearing). Off by default — pointless to run against WARNINGS_ENABLED=False
+# (the default), since every check would just see "unavailable" forever, and
+# it's one more moving part a repo clone shouldn't get for free.
+ALERT_ENGINE_ENABLED: bool = (os.getenv("ALERT_ENGINE_ENABLED") or "").strip().lower() in (
+    "1", "true", "yes",
+)
+ALERT_POLL_SECONDS: float = _float_env("ALERT_POLL_SECONDS", 60.0)
+# A raw-GPS subscription (no city_key) is matched to the nearest registered
+# city via weather_store.nearest_city(); this bounds how far "nearest" is
+# allowed to be before it's not a meaningful match.
+ALERT_MAX_SUBSCRIPTION_RADIUS_KM: float = _float_env("ALERT_MAX_SUBSCRIPTION_RADIUS_KM", 200.0)
+
+
 class ConfigError(RuntimeError):
     pass
 
