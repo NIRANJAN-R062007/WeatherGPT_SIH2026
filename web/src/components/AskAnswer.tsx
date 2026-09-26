@@ -8,6 +8,7 @@ import type {
   WarningColour,
   WeatherProvenance,
 } from '../lib/api';
+import { COLOUR_BAR, COLOUR_TEXT, istTimestamp } from '../lib/warningUi';
 
 /** Resolved city keys come back lowercase ("chennai"); data/cities.ts already
  *  mirrors data/cities.json, so use its English display name and only fall
@@ -21,38 +22,15 @@ function cityLabel(key: string) {
 /** router.legacy_day values -> a short human label. `next_<n>_days` is built
  *  by the backend, so it is parsed rather than enumerated. */
 function dayLabel(day: string) {
+  // classifyAsk's success/ungrounded/fallback split is structural (the API
+  // has no single discriminant field across all branches), so a backend
+  // response shaped unexpectedly could reach here with `day` missing —
+  // degrade to a label instead of crashing the whole answer panel.
+  if (typeof day !== 'string') return 'Unknown period';
   const span = /^next_(\d+)_days$/.exec(day);
   if (span) return `Next ${span[1]} days`;
   return day.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase());
 }
-
-function istTimestamp(iso: string) {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  return `${new Intl.DateTimeFormat('en-GB', {
-    timeZone: 'Asia/Kolkata',
-    day: '2-digit',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  }).format(d)} IST`;
-}
-
-// Static class strings: Tailwind's scanner can't see template-built names.
-const COLOUR_BAR: Record<WarningColour, string> = {
-  green: 'bg-imd-green',
-  yellow: 'bg-imd-yellow',
-  orange: 'bg-imd-orange',
-  red: 'bg-imd-red',
-};
-
-const COLOUR_TEXT: Record<WarningColour, string> = {
-  green: 'text-imd-green',
-  yellow: 'text-imd-yellow',
-  orange: 'text-imd-orange',
-  red: 'text-imd-red',
-};
 
 function Notice({ text }: { text: string }) {
   return (
@@ -126,7 +104,7 @@ function FigureList({ figures }: { figures: Grounding['figures'] }) {
   );
 }
 
-function Legend({ rows, highlight }: { rows: LegendRow[]; highlight?: WarningColour }) {
+export function Legend({ rows, highlight }: { rows: LegendRow[]; highlight?: WarningColour }) {
   return (
     <div className="flex flex-col gap-1">
       {rows.map((row) => (

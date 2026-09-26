@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { CITIES } from '../data/cities';
+import { useUiPrefs } from '../state/UiPrefsContext';
 
-export default function Topbar({ city = 'Mumbai, Maharashtra' }: { city?: string }) {
-  const [selected, setSelected] = useState(city);
+export default function Topbar() {
+  const { city, setCity } = useUiPrefs();
+  const selected = CITIES.find((c) => c.key === city);
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -26,7 +28,7 @@ export default function Topbar({ city = 'Mumbai, Maharashtra' }: { city?: string
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-container-low text-on-surface font-label-md text-label-md cursor-pointer hover:bg-surface-container transition-colors"
           >
             <span className="material-symbols-outlined text-primary text-[18px]">location_on</span>
-            <span className="font-medium">{selected}</span>
+            <span className="font-medium">{selected ? `${selected.name}, ${selected.region}` : city}</span>
             <span
               className={`material-symbols-outlined text-on-surface-variant text-[16px] transition-transform ${open ? 'rotate-180' : ''}`}
             >
@@ -38,13 +40,13 @@ export default function Topbar({ city = 'Mumbai, Maharashtra' }: { city?: string
             <div className="absolute left-0 top-full mt-1 w-56 rounded-xl bg-surface-container-lowest shadow-lg border border-outline-variant/30 py-1.5 z-50">
               {CITIES.map((c) => {
                 const label = `${c.name}, ${c.region}`;
-                const isActive = label === selected;
+                const isActive = c.key === city;
                 return (
                   <button
                     key={c.key}
                     type="button"
                     onClick={() => {
-                      setSelected(label);
+                      setCity(c.key);
                       setOpen(false);
                     }}
                     className={`w-full flex items-center gap-2 px-3 py-2 text-left font-label-md text-label-md transition-colors ${

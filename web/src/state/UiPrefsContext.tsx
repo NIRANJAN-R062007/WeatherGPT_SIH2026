@@ -17,6 +17,13 @@ interface UiPrefs {
   unit: Unit;
   setUnit: (u: Unit) => void;
   toCelsiusLabel: (celsius: number) => string;
+  // Just the converted number, for callers that render their own °/unit
+  // markup (e.g. a large hero digit next to a separately-styled unit letter).
+  toCelsiusValue: (celsius: number) => number;
+  // City key (data/cities.ts), shared so Topbar's picker and every page's
+  // own /ask /warnings city hint stay in sync instead of drifting apart.
+  city: string;
+  setCity: (c: string) => void;
 }
 
 const UiPrefsCtx = createContext<UiPrefs | null>(null);
@@ -27,18 +34,22 @@ const UiPrefsCtx = createContext<UiPrefs | null>(null);
 export function UiPrefsProvider({ children }: { children: ReactNode }) {
   const [lang, setLang] = useState<LangCode>('en');
   const [unit, setUnit] = useState<Unit>('C');
+  const [city, setCity] = useState('chennai');
 
-  const value = useMemo<UiPrefs>(
-    () => ({
+  const value = useMemo<UiPrefs>(() => {
+    const toCelsiusValue = (celsius: number) =>
+      unit === 'C' ? Math.round(celsius) : Math.round((celsius * 9) / 5 + 32);
+    return {
       lang,
       setLang,
       unit,
       setUnit,
-      toCelsiusLabel: (celsius: number) =>
-        unit === 'C' ? `${Math.round(celsius)}°C` : `${Math.round((celsius * 9) / 5 + 32)}°F`,
-    }),
-    [lang, unit],
-  );
+      toCelsiusLabel: (celsius: number) => `${toCelsiusValue(celsius)}°${unit}`,
+      toCelsiusValue,
+      city,
+      setCity,
+    };
+  }, [lang, unit, city]);
 
   return <UiPrefsCtx.Provider value={value}>{children}</UiPrefsCtx.Provider>;
 }
