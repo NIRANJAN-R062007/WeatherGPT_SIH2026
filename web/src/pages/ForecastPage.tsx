@@ -1,4 +1,21 @@
+import { useState } from 'react';
+import AskAnswer from '../components/AskAnswer';
+import { CITIES } from '../data/cities';
+import { useAsk } from '../lib/useAsk';
+import { useUiPrefs } from '../state/UiPrefsContext';
+
+// Sent as the /ask `city` hint for the live composer below. It only matters
+// when the question names no city — the NLU's own extraction always wins.
+const DEFAULT_CITY_HINT = 'chennai';
+
+const QUICK_QUERY = '5-day forecast for Chennai';
+
 export default function ForecastPage() {
+  const { lang } = useUiPrefs();
+  const [query, setQuery] = useState('');
+  const [cityHint, setCityHint] = useState(DEFAULT_CITY_HINT);
+  const { asked, loading, outcome, error, ask } = useAsk();
+
   return (
     <div className="flex flex-col w-full gap-space-lg">
 
@@ -20,6 +37,16 @@ export default function ForecastPage() {
 <span>10-Day Outlook</span>
 </button>
 </div>
+</div>
+
+{/* Everything between here and the live composer at the bottom of this page
+    is the original static design sample — hardcoded Mumbai/18 Oct copy, not
+    wired to /ask. There is no backend endpoint returning an hourly series or
+    a 10-day structured breakdown, so this mock content is left as-is. */}
+<div className="flex items-center gap-2 font-citation-mono text-citation-mono text-outline uppercase tracking-wider">
+<span className="material-symbols-outlined text-[14px]">design_services</span>
+<span>Static design sample — not live data</span>
+<span className="flex-1 h-px bg-outline-variant/50" />
 </div>
 
 <div className="p-space-lg rounded-xl bg-surface-container-lowest shadow-sm flex flex-col gap-space-md">
@@ -511,6 +538,80 @@ export default function ForecastPage() {
         </p>
 </div>
 </div>
+</div>
+
+<div className="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm flex flex-col gap-space-sm">
+
+<div className="flex items-center gap-2 font-citation-mono text-citation-mono text-primary uppercase tracking-wider">
+<span className="material-symbols-outlined text-[14px]">bolt</span>
+<span>Live — answers come from /ask</span>
+<span className="flex-1 h-px bg-outline-variant/50" />
+</div>
+
+<AskAnswer asked={asked} detail error={error} loading={loading} outcome={outcome} />
+
+<div className="flex items-center gap-2 overflow-x-auto pb-1">
+<span className="font-citation-mono text-citation-mono text-outline uppercase tracking-wider shrink-0">Suggested:</span>
+<button
+  className="shrink-0 px-3 py-1 rounded-full bg-surface-container-low hover:bg-surface-container text-on-surface font-label-md text-label-md transition-colors flex items-center gap-1.5 disabled:opacity-60"
+  disabled={loading}
+  onClick={() => {
+    setQuery(QUICK_QUERY);
+    void ask(QUICK_QUERY, lang, cityHint);
+  }}
+  type="button"
+>
+<span>"{QUICK_QUERY}"</span>
+</button>
+</div>
+
+<form
+  className="flex flex-col gap-space-xs"
+  onSubmit={(e) => {
+    e.preventDefault();
+    void ask(query, lang, cityHint);
+  }}
+>
+<div className="flex items-center gap-space-sm bg-surface-container-low p-2 rounded-xl">
+<input
+  className="flex-1 bg-transparent border-0 outline-none font-body-md text-body-md text-on-surface placeholder:text-outline px-2"
+  onChange={(e) => setQuery(e.target.value)}
+  placeholder="Ask for a forecast, e.g. '5-day forecast for Chennai'"
+  type="text"
+  value={query}
+/>
+<div className="flex items-center gap-1.5 shrink-0">
+<button
+  className="p-2.5 rounded-lg bg-primary hover:bg-primary-container text-on-primary transition-colors flex items-center justify-center shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
+  disabled={loading || query.trim() === ''}
+  title="Send"
+  type="submit"
+>
+{loading ? (
+  <span className="block w-[20px] h-[20px] rounded-full border-2 border-on-primary/40 border-t-on-primary animate-spin" />
+) : (
+  <span className="material-symbols-outlined text-[20px]">send</span>
+)}
+</button>
+</div>
+</div>
+
+{/* City hint for /ask — used only when the question itself names no city. */}
+<label className="flex items-center gap-1.5 px-1 font-citation-mono text-citation-mono text-on-surface-variant">
+<span className="material-symbols-outlined text-[14px]">my_location</span>
+<span>IF UNSPECIFIED, ASSUME</span>
+<select
+  className="bg-surface-container-low text-on-surface rounded px-1.5 py-1 font-label-md text-label-md focus:outline-none"
+  onChange={(e) => setCityHint(e.target.value)}
+  value={cityHint}
+>
+{CITIES.map((c) => (
+<option key={c.key} value={c.key}>{c.name}</option>
+))}
+</select>
+<span className="text-outline">· LANG {lang.toUpperCase()}</span>
+</label>
+</form>
 </div>
 </div>
   );
