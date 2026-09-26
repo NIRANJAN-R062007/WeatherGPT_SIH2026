@@ -1,0 +1,117 @@
+"""Persona-aware advisories — profile-flag plumbing (plan.md §8 Phase 4, P1
+item 9). Niranjan's item is the plumbing: /ask accepts and validates
+`persona`, threads it through to narrate.build_prompt(), and echoes it back
+in the response when non-default. persona.py's actual per-persona wording is
+a first-pass placeholder Mahesh's separate "prompt/template logic" item
+replaces — these tests check the wiring, not the exact hint text.
+"""
+
+import config
+import main
+import narrate
+import persona
+import pytest
+from fastapi.testclient import TestClient
+
+client = TestClient(main.app)
+
+
+@pytest.fixture(autouse=True)
+def _keys(monkeypatch):
+    monkeypatch.setattr(config, "GEMINI_API_KEY", "test-key")
+    monkeypatch.setattr(config, "GOOGLE_WEATHER_API_KEY", "test-key")
+
+
+def _ask(text, **params):
+    return client.get("/ask", params={"text": text, **params}).json()
+
+
+# ---- persona.py ---------------------------------------------------------------
+
+def test_default_is_general():
+    assert persona.DEFAULT == "general"
+    assert persona.DEFAULT in persona.PERSONAS
+
+
+def test_is_valid():
+    assert persona.is_valid("farmer") is True
+    assert persona.is_valid("general") is True
+    assert persona.is_valid("astronaut") is False
+    assert persona.is_valid(None) is False
+
+
+def test_hint_general_is_empty():
+    assert persona.hint("general") == ""
+
+
+def test_hint_known_personas_are_nonempty():
+    for p in persona.PERSONAS - {"general"}:
+        assert persona.hint(p) != ""
+
+
+def test_hint_unknown_persona_is_empty_not_raising():
+    assert persona.hint("not-a-real-persona") == ""
+
+
+# ---- narrate.build_prompt() ----------------------------------------------------
+
+def test_build_prompt_includes_persona_hint():
+    facts = {"temp_c": 30, "day": "today"}
+    prompt = narrate.build_prompt("current_weather", "Chennai", facts, persona="farmer")
+    assert persona.hint("farmer") in prompt
+
+
+def test_build_prompt_omits_persona_block_for_general():
+    facts = {"temp_c": 30, "day": "today"}
+    with_general = narrate.build_prompt("current_weather", "Chennai", facts, persona="general")
+    without = narrate.build_prompt("current_weather", "Chennai", facts, persona=None)
+    assert with_general == without  # "general" carries no hint, same as omitting persona
+
+
+def test_build_prompt_different_personas_change_the_prompt():
+    facts = {"temp_c": 30, "day": "today"}
+    farmer = narrate.build_prompt("current_weather", "Chennai", facts, persona="farmer")
+    fisherman = narrate.build_prompt("current_weather", "Chennai", facts, persona="fisherman")
+    assert farmer != fisherman
+
+
+# ---- /ask endpoint --------------------------------------------------------------
+
+def test_ask_rejects_unknown_persona():
+    resp = client.get("/ask", params={"text": "what's the weather in Chennai", "persona": "wizard"})
+    assert resp.status_code == 422
+
+
+def test_ask_default_persona_omits_field_from_response(monkeypatch):
+    monkeypatch.setattr(main, "narrate", lambda *a, **k: "Chennai: 28°C.")
+    body = _ask("what's the weather in Chennai")
+    assert "persona" not in body
+
+
+def test_ask_non_default_persona_echoed_in_response(monkeypatch):
+    monkeypatch.setattr(main, "narrate", lambda *a, **k: "Chennai: 28°C.")
+    body = _ask("what's the weather in Chennai", persona="farmer")
+    assert body["persona"] == "farmer"
+
+
+def test_ask_threads_persona_into_narrate(monkeypatch):
+    seen = []
+
+    def _narrate(intent, city, facts, lang, **kw):
+        seen.append(kw.get("persona"))
+        return "Chennai: 28°C."
+
+    monkeypatch.setattr(main, "narrate", _narrate)
+    _ask("what's the weather in Chennai", persona="fisherman")
+    assert seen == ["fisherman"]
+
+
+def test_ask_persona_has_no_effect_on_template_fallback(monkeypatch):
+    # narrate() unavailable -> template path. persona must not appear in the
+    # response text (persona.py's docstring: no effect on the fallback).
+    monkeypatch.setattr(main, "narrate", lambda *a, **k: None)
+    general = _ask("what's the weather in Chennai")
+    farmer = _ask("what's the weather in Chennai", persona="farmer")
+    assert general["response"] == farmer["response"]
+    assert general["grounding"]["narration"] == "template"
+    assert farmer["grounding"]["narration"] == "template"

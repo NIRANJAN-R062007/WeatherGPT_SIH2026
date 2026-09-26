@@ -22,6 +22,7 @@ from typing import Callable
 
 import config
 import httpx
+import persona as persona_module
 import retrieval
 
 TIMEOUT = 10.0
@@ -54,6 +55,7 @@ _PROMPT = (
     "field names (temp_c, humidity_pct, ...). No markdown, no preamble."
     "{hint}{feedback}\n"
     "{context_block}"
+    "{persona_block}"
     "Intent: {intent}\nFacts: {facts}"
 )
 
@@ -62,6 +64,10 @@ _CONTEXT_BLOCK = (
     "do NOT quote any number from it, every figure you write must come from "
     "Facts):\n{context}\n"
 )
+
+# persona.py owns the actual per-persona text (plan.md's Niranjan/Mahesh
+# split — this is just where the plumbing plugs the hint into the prompt).
+_PERSONA_BLOCK = "{persona_hint}\n"
 
 _INTENT_HINTS: dict[str, str] = {
     "rainfall_so_far_today": ' Say "since midnight"; you may say "over N hours" '
@@ -94,7 +100,7 @@ def _word_cap(facts: dict) -> int:
 
 
 def build_prompt(intent: str, city: str, facts: dict, *, feedback: str | None = None,
-                  context: str | None = None) -> str:
+                  context: str | None = None, persona: str | None = None) -> str:
     trimmed = {k: v for k, v in facts.items() if k not in _SKIP}
     hint_template = _INTENT_HINTS.get(intent, "")
     hint = ""
@@ -111,9 +117,11 @@ def build_prompt(intent: str, city: str, facts: dict, *, feedback: str | None = 
             "Rewrite using only the facts' numbers."
         )
     context_block = _CONTEXT_BLOCK.format(context=context) if context else ""
+    persona_hint = persona_module.hint(persona) if persona else ""
+    persona_block = _PERSONA_BLOCK.format(persona_hint=persona_hint) if persona_hint else ""
     return _PROMPT.format(
         city=city, intent=intent, word_cap=_word_cap(facts), hint=hint,
-        feedback=feedback_text, context_block=context_block,
+        feedback=feedback_text, context_block=context_block, persona_block=persona_block,
         facts=json.dumps(trimmed, ensure_ascii=False, sort_keys=True),
     )
 
@@ -332,7 +340,7 @@ def _sanitize(text: str | None) -> str | None:
 
 
 def narrate(intent: str, city: str, facts: dict, lang: str = "en", *,
-            feedback: str | None = None) -> str | None:
+            feedback: str | None = None, persona: str | None = None) -> str | None:
     if lang != "en" or not is_configured() or not facts:
         return None
     context = None
@@ -342,6 +350,8 @@ def narrate(intent: str, city: str, facts: dict, lang: str = "en", *,
             context = retrieval.format_context(passages)
         except Exception:  # a retriever bug must never break narration
             context = None
-    prompt = build_prompt(intent, city, facts, feedback=feedback, context=context)
+    prompt = build_prompt(
+        intent, city, facts, feedback=feedback, context=context, persona=persona,
+    )
     text, _ = run_chain(prompt)
     return _sanitize(text)

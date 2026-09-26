@@ -110,7 +110,7 @@ def test_all_combos_ground_with_llm_stub(monkeypatch, key, lang, intent_text):
     # (no bhashini keys configured in this test module)
     monkeypatch.setattr(
         main, "narrate",
-        lambda intent, city, facts, ln: (
+        lambda intent, city, facts, ln, **kw: (
             f"{city}: {facts.get('temp_c', facts.get('rain_probability_pct'))}"
             f"{'°C' if 'temp_c' in facts else '%'}." if ln == "en" else None
         ),

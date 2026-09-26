@@ -28,6 +28,7 @@ import limits
 import metrics
 import narrate as narrate_module
 import nlu
+import persona as persona_module
 import router
 import weather_data
 from auth import get_bearer_token, get_current_user
@@ -223,13 +224,14 @@ def health():
     }
 
 
-def _narrate_grounded(intent: str, name: str, data: dict, prompt_facts: dict):
+def _narrate_grounded(intent: str, name: str, data: dict, prompt_facts: dict,
+                       persona: str | None = None):
     """Try narration, and once more with feedback if the first answer doesn't
     ground. The guardrail always checks against the FULL facts (`data`), never
     the parameter-trimmed `prompt_facts` sent to the prompt. Returns
     (text|None, report|None, attempted, attempts, provider|None).
     """
-    text = narrate(intent, name, prompt_facts, "en")
+    text = narrate(intent, name, prompt_facts, "en", persona=persona)
     if text is None:  # no provider / all failed — nothing to regenerate from
         return None, None, False, 1, None
     provider = narrate_module.last_provider or "llm"
@@ -238,7 +240,8 @@ def _narrate_grounded(intent: str, name: str, data: dict, prompt_facts: dict):
         return text, report, True, 1, provider
 
     unmatched = [f["reading"] for f in report.figures if not f["matched"]]
-    text2 = narrate(intent, name, prompt_facts, "en", feedback=", ".join(unmatched) or None)
+    text2 = narrate(intent, name, prompt_facts, "en",
+                     feedback=", ".join(unmatched) or None, persona=persona)
     if text2 is not None:
         provider = narrate_module.last_provider or "llm"
         report2 = guardrail.check(text2, data)
@@ -248,7 +251,8 @@ def _narrate_grounded(intent: str, name: str, data: dict, prompt_facts: dict):
     return None, None, True, 2, provider
 
 
-def _llm_attempt(intent: str, name: str, data: dict, lang: str, prompt_facts: dict):
+def _llm_attempt(intent: str, name: str, data: dict, lang: str, prompt_facts: dict,
+                  persona: str | None = None):
     """Try LLM narration (EN, with one regenerate-on-ungrounded retry),
     translating via Bhashini if the requested language isn't English (plan.md
     §13: ta/hi/te/mr). Returns (candidate, report, attempted, attempts, provider):
@@ -258,11 +262,16 @@ def _llm_attempt(intent: str, name: str, data: dict, lang: str, prompt_facts: di
       it (or its translation) later failed — used for fallback_used.
     - provider names which chain link produced the (English) text, regardless
       of whether translation later failed.
+
+    `persona` (plan.md §8 Phase 4 P1 item 9) only ever changes narration
+    *framing* — passed straight through to narrate()'s prompt, never touches
+    `data`/the guardrail, and has no effect on the template fallback below
+    (persona.py's docstring: the fallback stays generic by design).
     """
     if lang != "en" and not bhashini.is_configured():
         return None, None, False, 0, None  # English narration would only be thrown away
     english, eng_report, attempted, attempts, provider = \
-        _narrate_grounded(intent, name, data, prompt_facts)
+        _narrate_grounded(intent, name, data, prompt_facts, persona)
     if not english:
         return None, None, attempted, attempts, provider
 
@@ -463,9 +472,14 @@ def glossary_route(lang: str = "en"):
 
 
 @app.get("/ask")
-def ask(text: str, lang: str = "en", city: str | None = None,
+def ask(text: str, lang: str = "en", city: str | None = None, persona: str = persona_module.DEFAULT,
         token: str | None = Depends(get_bearer_token)):
     lang = lang if lang in SUPPORTED_LANGUAGES else "en"
+    if not persona_module.is_valid(persona):
+        raise HTTPException(
+            status_code=422,
+            detail=f"persona must be one of {sorted(persona_module.PERSONAS)}",
+        )
     pq = nlu.parse(text, lang_hint=lang, city_hint=city)
     notice = _msg("language_unsupported", lang) if pq.language is None else None
 
@@ -547,7 +561,7 @@ def ask(text: str, lang: str = "en", city: str | None = None,
     prompt_facts = router.narration_facts(data, pq.parameter)
 
     candidate, report, attempted, attempts, provider = \
-        _llm_attempt(pq.intent, name, data, lang, prompt_facts)
+        _llm_attempt(pq.intent, name, data, lang, prompt_facts, persona)
 
     if candidate:
         narration = "llm+bhashini" if lang != "en" else "llm"
@@ -575,6 +589,8 @@ def ask(text: str, lang: str = "en", city: str | None = None,
         }
         if notice:
             resp["notice"] = notice
+        if persona != persona_module.DEFAULT:
+            resp["persona"] = persona
         return resp
 
     resp = {
@@ -588,6 +604,8 @@ def ask(text: str, lang: str = "en", city: str | None = None,
     }
     if notice:
         resp["notice"] = notice
+    if persona != persona_module.DEFAULT:
+        resp["persona"] = persona
 
     if token is not None:
         try:
