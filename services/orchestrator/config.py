@@ -144,6 +144,31 @@ TTL_FORECAST_DAYS: int = _int_env("TTL_FORECAST_DAYS_SECONDS", 21600)
 TTL_HISTORY_HOURS: int = _int_env("TTL_HISTORY_HOURS_SECONDS", 3600)
 
 
+# IVR channel (plan.md §8 Phase 4): dial a number, speak a question in any of
+# the five languages, hear the grounded answer. Exotel's call-flow builder has
+# no single applet that both accepts a recording and plays back a dynamically
+# generated answer, so the flow is two applets chained in the Exotel dashboard
+# (see services/orchestrator/ivr.py's module docstring for the exact wiring):
+# a Record+Passthru node hits IVR_RECORDING_WEBHOOK to do ASR->ask->TTS and
+# cache the resulting audio by CallSid, then a Greeting node fetches
+# GET /ivr/answer/{CallSid}.wav to play it. IVR_ENABLED gates both routes so a
+# repo clone with no Exotel account configured doesn't expose them.
+IVR_ENABLED: bool = (os.getenv("IVR_ENABLED") or "").strip().lower() in ("1", "true", "yes")
+# Basic-auth credentials Exotel's RecordingUrl requires to fetch the audio
+# (the same Account SID + API token used to make outbound Exotel API calls).
+EXOTEL_SID: str | None = os.getenv("EXOTEL_SID")
+EXOTEL_TOKEN: str | None = os.getenv("EXOTEL_TOKEN")
+# Shared secret Exotel's Passthru/Greeting applet URLs must carry as
+# ?key=... — Exotel has no request-signing like Twilio's X-Twilio-Signature,
+# so this is the only thing stopping a stranger who finds the webhook URL
+# from injecting fake calls or scraping cached answer audio.
+IVR_WEBHOOK_SECRET: str | None = os.getenv("IVR_WEBHOOK_SECRET")
+# How long a synthesized answer stays cached in memory, keyed by CallSid, for
+# the Greeting node's follow-up fetch. Calls are seconds-to-a-minute long
+# end to end; this just needs to outlive Exotel's own inter-applet latency.
+IVR_ANSWER_TTL_SECONDS: int = _int_env("IVR_ANSWER_TTL_SECONDS", 300)
+
+
 class ConfigError(RuntimeError):
     pass
 

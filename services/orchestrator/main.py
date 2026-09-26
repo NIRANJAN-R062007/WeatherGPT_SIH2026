@@ -22,6 +22,7 @@ import guardrail
 import history
 import httpx
 import imd_warnings as warnings_module
+import ivr
 import limits
 import metrics
 import narrate as narrate_module
@@ -555,6 +556,8 @@ def ask(text: str, lang: str = "en", city: str | None = None,
 
     return resp
 
+
+ivr.mount(app, ask, _msg)
 
 # Serves the frontend on the same origin/tunnel as the API (plan.md §14 host
 # pin — one stable ngrok URL instead of a second tunnel, which the free tier
