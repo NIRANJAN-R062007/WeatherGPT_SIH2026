@@ -77,19 +77,25 @@ _MESSAGES = {
         "te": "క్షమించండి, ఆ అభ్యర్థన అర్థం కాలేదు.",
         "mr": "माफ करा, ती विनंती समजली नाही.",
     },
+    # {cities} is filled in by _msg() from the live cities.CITIES registry
+    # (data/cities.json) — was a hardcoded 3-city list (Chennai/Madurai/
+    # Coimbatore) that silently went stale once the registry grew to 8; see
+    # plan.md. The `and`/`or` before the last name is dropped in favour of a
+    # plain comma list so the sentence stays grammatical regardless of how
+    # many cities are registered.
     "unsupported_city": {
-        "en": "Sorry, I can only answer for Chennai, Madurai and Coimbatore right now.",
-        "ta": "மன்னிக்கவும், இப்போது சென்னை, மதுரை, கோயம்புத்தூர் மட்டுமே.",
-        "hi": "माफ़ कीजिए, अभी केवल चेन्नई, मदुरै और कोयंबटूर के लिए बता सकता हूँ।",
-        "te": "క్షమించండి, ప్రస్తుతం చెన్నై, మదురై, కోయంబత్తూరు గురించి మాత్రమే చెప్పగలను.",
-        "mr": "माफ करा, सध्या फक्त चेन्नई, मदुराई आणि कोईम्बतूरबद्दल सांगू शकतो.",
+        "en": "Sorry, I can only answer for {cities} right now.",
+        "ta": "மன்னிக்கவும், இப்போது {cities} மட்டுமே.",  # TODO: native_qa
+        "hi": "माफ़ कीजिए, अभी केवल {cities} के लिए बता सकता हूँ।",  # TODO: native_qa
+        "te": "క్షమించండి, ప్రస్తుతం {cities} గురించి మాత్రమే చెప్పగలను.",  # TODO: native_qa
+        "mr": "माफ करा, सध्या फक्त {cities} बद्दल सांगू शकतो.",  # TODO: native_qa
     },
     "no_city": {
-        "en": "Which city? Try Chennai, Madurai or Coimbatore.",
-        "ta": "எந்த நகரம்? சென்னை, மதுரை அல்லது கோயம்புத்தூர்.",
-        "hi": "कौन सा शहर? चेन्नई, मदुरै या कोयंबटूर आज़माएं।",
-        "te": "ఏ నగరం? చెన్నై, మదురై లేదా కోయంబత్తూరు ప్రయత్నించండి.",
-        "mr": "कोणते शहर? चेन्नई, मदुराई किंवा कोईम्बतूर वापरून पहा.",
+        "en": "Which city? Try {cities}.",
+        "ta": "எந்த நகரம்? {cities}.",  # TODO: native_qa
+        "hi": "कौन सा शहर? {cities} आज़माएं।",  # TODO: native_qa
+        "te": "ఏ నగరం? {cities} ప్రయత్నించండి.",  # TODO: native_qa
+        "mr": "कोणते शहर? {cities} वापरून पहा.",  # TODO: native_qa
     },
     "no_data": {
         "en": "No weather data available for that city yet.",
@@ -152,8 +158,19 @@ _MESSAGES = {
 }
 
 
+def _city_list(lang: str) -> str:
+    """Plain comma-joined display names, in cities.CITIES registration order
+    (== data/cities.json order). Feeds the `{cities}` placeholder in
+    _MESSAGES — the single source of truth for which cities are supported,
+    so this can't go stale the way the old hardcoded 3-city text did."""
+    return ", ".join(
+        city.names.get(lang) or city.names["en"] for city in cities.CITIES.values()
+    )
+
+
 def _msg(key: str, lang: str) -> str:
-    return _MESSAGES[key].get(lang, _MESSAGES[key]["en"])
+    template = _MESSAGES[key].get(lang, _MESSAGES[key]["en"])
+    return template.format(cities=_city_list(lang))
 
 
 def _require_lang(lang: str) -> str:
