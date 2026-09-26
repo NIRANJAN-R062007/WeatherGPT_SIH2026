@@ -4,11 +4,13 @@
 import 'package:flutter/material.dart';
 
 import 'api_client.dart';
+import 'play_button.dart';
 import 'warning_colors.dart';
 
 class AskAnswerCard extends StatelessWidget {
   final AskOutcome outcome;
-  const AskAnswerCard({super.key, required this.outcome});
+  final String lang;
+  const AskAnswerCard({super.key, required this.outcome, required this.lang});
 
   @override
   Widget build(BuildContext context) {
@@ -67,13 +69,25 @@ class AskAnswerCard extends StatelessWidget {
     );
   }
 
+  Widget _responseRow(String response) {
+    if (response.isEmpty) return const SizedBox.shrink();
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(child: Text(response, style: const TextStyle(fontSize: 15))),
+        PlayButton(text: response, lang: lang),
+      ],
+    );
+  }
+
   Widget _successCard(BuildContext context) {
     final data = outcome.data;
+    final response = data['response'] as String? ?? '';
     return _bubble(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(data['response'] as String? ?? '', style: const TextStyle(fontSize: 15)),
+          _responseRow(response),
           _provenanceLine(data['provenance'] as Map<String, dynamic>?),
           _noticeLine(data['notice'] as String?),
         ],
@@ -105,7 +119,7 @@ class AskAnswerCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 6),
-          Text(data['response'] as String? ?? '', style: const TextStyle(fontSize: 15)),
+          _responseRow(data['response'] as String? ?? ''),
           if (warning?['category_label'] != null)
             Padding(
               padding: const EdgeInsets.only(top: 4),

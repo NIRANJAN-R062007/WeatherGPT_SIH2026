@@ -8,12 +8,15 @@ import 'ask_answer.dart';
 import 'cities.dart';
 import 'config.dart';
 import 'location.dart';
+import 'voice_client.dart';
+import 'voice_recorder.dart';
 
 class _Turn {
   final String question;
+  final String lang;
   final AskOutcome? outcome;
   final Object? error;
-  const _Turn({required this.question, this.outcome, this.error});
+  const _Turn({required this.question, required this.lang, this.outcome, this.error});
 }
 
 class ChatPage extends StatefulWidget {
@@ -33,10 +36,17 @@ class _ChatPageState extends State<ChatPage> {
   bool _loading = false;
   bool _locating = false;
 
+  final VoiceRecorder _recorder = VoiceRecorder();
+  // idle -> listening -> transcribing -> idle, mirrors the web prototype's
+  // voice state machine (WeatherGPT.dc.html's toggleMic()).
+  String _voice = 'idle';
+  String? _micNotice;
+
   @override
   void dispose() {
     _controller.dispose();
     _scrollController.dispose();
+    _recorder.dispose();
     super.dispose();
   }
 
@@ -63,24 +73,77 @@ class _ChatPageState extends State<ChatPage> {
     final text = _controller.text.trim();
     if (text.isEmpty || _loading) return;
     _controller.clear();
+    await _ask(text);
+  }
+
+  Future<void> _ask(String text) async {
+    if (_loading) return;
+    final lang = _lang;
     setState(() {
-      _turns.add(_Turn(question: text));
+      _turns.add(_Turn(question: text, lang: lang));
       _loading = true;
     });
     _scrollToEnd();
 
     try {
-      final outcome = await askWeather(text: text, lang: _lang, city: _city?.key);
+      final outcome = await askWeather(text: text, lang: lang, city: _city?.key);
       setState(() {
-        _turns[_turns.length - 1] = _Turn(question: text, outcome: outcome);
+        _turns[_turns.length - 1] = _Turn(question: text, lang: lang, outcome: outcome);
       });
     } catch (e) {
       setState(() {
-        _turns[_turns.length - 1] = _Turn(question: text, error: e);
+        _turns[_turns.length - 1] = _Turn(question: text, lang: lang, error: e);
       });
     } finally {
       setState(() => _loading = false);
       _scrollToEnd();
+    }
+  }
+
+  /// Mirrors WeatherGPT.dc.html's toggleMic(): idle -> record -> stop+POST
+  /// /asr -> feed the recognized text straight into _ask() (not the text
+  /// field) -> back to idle. denied/unsupported mic surfaces as a transient
+  /// notice under the controls bar, same as the web prototype's micNotice.
+  Future<void> _toggleMic() async {
+    if (_voice == 'transcribing') return;
+    if (_voice == 'listening') {
+      setState(() => _voice = 'transcribing');
+      final audioB64 = await _recorder.stop();
+      if (audioB64 == null) {
+        setState(() {
+          _voice = 'idle';
+          _micNotice = "Didn't catch any audio — try again.";
+        });
+        return;
+      }
+      final text = await transcribeAudio(
+        audioBase64: audioB64,
+        lang: _lang,
+        onNotice: (m) => _micNotice = m,
+      );
+      setState(() => _voice = 'idle');
+      if (text != null) {
+        setState(() => _micNotice = null);
+        await _ask(text);
+      } else {
+        setState(() {}); // surface _micNotice set by onNotice above
+      }
+      return;
+    }
+    setState(() => _micNotice = null);
+    try {
+      await _recorder.start();
+      setState(() => _voice = 'listening');
+    } on MicPermissionDenied {
+      setState(() {
+        _voice = 'idle';
+        _micNotice = 'Microphone permission denied — allow it in Settings to ask by voice.';
+      });
+    } catch (_) {
+      setState(() {
+        _voice = 'idle';
+        _micNotice = "Couldn't access the microphone on this device.";
+      });
     }
   }
 
@@ -100,6 +163,14 @@ class _ChatPageState extends State<ChatPage> {
     return Column(
       children: [
         _controlsBar(),
+        if (_micNotice != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+            child: Text(
+              _micNotice!,
+              style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: Colors.black54),
+            ),
+          ),
         const Divider(height: 1),
         Expanded(
           child: _turns.isEmpty
@@ -205,7 +276,7 @@ class _ChatPageState extends State<ChatPage> {
         Align(
           alignment: Alignment.centerLeft,
           child: turn.outcome != null
-              ? AskAnswerCard(outcome: turn.outcome!)
+              ? AskAnswerCard(outcome: turn.outcome!, lang: turn.lang)
               : turn.error != null
                   ? Container(
                       margin: const EdgeInsets.symmetric(vertical: 6),
@@ -245,6 +316,21 @@ class _ChatPageState extends State<ChatPage> {
               textInputAction: TextInputAction.send,
               onSubmitted: (_) => _send(),
             ),
+          ),
+          const SizedBox(width: 8),
+          IconButton.filled(
+            tooltip: _voice == 'listening' ? 'Stop and ask' : 'Ask by voice',
+            style: _voice == 'listening'
+                ? IconButton.styleFrom(backgroundColor: Colors.red)
+                : null,
+            onPressed: (_loading || _voice == 'transcribing') ? null : _toggleMic,
+            icon: _voice == 'transcribing'
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                  )
+                : Icon(_voice == 'listening' ? Icons.stop : Icons.mic),
           ),
           const SizedBox(width: 8),
           IconButton.filled(

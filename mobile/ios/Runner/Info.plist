@@ -28,6 +28,8 @@
 	<true/>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>WeatherGPT uses your location to find the nearest supported city for weather answers.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>WeatherGPT uses your microphone to let you ask weather questions by voice.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
