@@ -1,9 +1,178 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { CITIES } from '../data/cities';
+import { useUiPrefs } from '../state/UiPrefsContext';
+import { useWarnings, type WarningsVerdict } from '../lib/warnings';
+import type { LegendRow, WarningColour } from '../lib/api';
+
+// Static class strings: Tailwind's scanner can't see template-built names.
+// Mirrors AskAnswer.tsx's COLOUR_BAR/COLOUR_TEXT maps for the same IMD
+// colour tokens (that file doesn't export them, so kept local here too).
+const COLOUR_BAR: Record<WarningColour, string> = {
+  green: 'bg-imd-green',
+  yellow: 'bg-imd-yellow',
+  orange: 'bg-imd-orange',
+  red: 'bg-imd-red',
+};
+
+const COLOUR_TEXT: Record<WarningColour, string> = {
+  green: 'text-imd-green',
+  yellow: 'text-imd-yellow',
+  orange: 'text-imd-orange',
+  red: 'text-imd-red',
+};
+
+const DEFAULT_CITY = 'chennai';
+
+function istTimestamp(iso: string) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return `${new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Kolkata',
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(d)} IST`;
+}
+
+function LiveLegend({ rows, highlight }: { rows: LegendRow[]; highlight?: WarningColour }) {
+  return (
+    <div className="flex flex-col gap-1">
+      {rows.map((row) => (
+        <div
+          key={row.colour}
+          className={`flex items-start gap-2 px-2 py-1 rounded-lg font-body-sm text-body-sm ${
+            row.colour === highlight ? 'bg-surface-container text-on-surface' : 'text-on-surface-variant'
+          }`}
+        >
+          <span className={`mt-1 w-2.5 h-2.5 rounded-full shrink-0 ${COLOUR_BAR[row.colour]}`} />
+          <span>
+            <strong className="font-semibold">{row.label}</strong> — {row.meaning}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function LiveVerdict({ data }: { data: WarningsVerdict }) {
+  return (
+    <div className="flex flex-col gap-space-sm p-space-md rounded-xl bg-surface-container-low">
+      <div className={`h-1.5 rounded-full ${COLOUR_BAR[data.warning.colour]}`} />
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className={`flex items-center gap-1 font-label-md text-label-md font-bold ${COLOUR_TEXT[data.warning.colour]}`}>
+          <span className="material-symbols-outlined text-[18px]">
+            {data.status === 'active' ? 'warning' : 'check_circle'}
+          </span>
+          {data.warning.colour_label}
+          {data.status === 'active' ? ' — in force' : ' — nothing in force'}
+        </span>
+        <span className="px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-citation-mono text-[10px] font-medium">
+          <span className="material-symbols-outlined text-[11px] align-middle">location_on</span> {data.city_name}
+        </span>
+        <span className="px-2 py-0.5 rounded-full bg-surface-container-high text-primary font-citation-mono text-[10px] font-medium">
+          {data.warning.category_label}
+        </span>
+      </div>
+      <p className="font-body-lg text-body-lg text-on-surface leading-relaxed">{data.warning.headline}</p>
+      <p className="font-body-md text-body-md text-on-surface-variant">{data.warning.advice}</p>
+      <LiveLegend highlight={data.warning.colour} rows={data.legend} />
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-space-xs border-t border-outline-variant/40 font-citation-mono text-citation-mono text-on-surface-variant">
+        <span className="flex items-center gap-1">
+          <span className="material-symbols-outlined text-[12px]">campaign</span>
+          {data.warning.issued_by}
+        </span>
+        <span>
+          Valid {istTimestamp(data.warning.valid_from)} → {istTimestamp(data.warning.valid_to)}
+        </span>
+        <span className="text-outline">source: {data.warning.source}</span>
+      </div>
+    </div>
+  );
+}
 
 export default function AlertsPage() {
   const [showGeofence, setShowGeofence] = useState(false);
+  const { lang } = useUiPrefs();
+  const [city, setCity] = useState(DEFAULT_CITY);
+  const { loading, data, error, load } = useWarnings();
+
+  // Fetch on mount (default city) and whenever the selected city or
+  // language changes.
+  useEffect(() => {
+    void load(city, lang);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [city, lang]);
+
   return (
     <div className="flex flex-col w-full gap-space-lg pb-12">
+
+<div className="flex flex-col gap-space-sm p-space-md rounded-xl bg-surface-container-lowest shadow-sm">
+<div className="flex items-center gap-2 font-citation-mono text-citation-mono text-primary uppercase tracking-wider">
+<span className="material-symbols-outlined text-[14px]">bolt</span>
+<span>Live — data from /warnings</span>
+<span className="flex-1 h-px bg-outline-variant/50" />
+</div>
+
+<label className="flex items-center gap-1.5 font-citation-mono text-citation-mono text-on-surface-variant">
+<span className="material-symbols-outlined text-[14px]">location_on</span>
+<span>CITY</span>
+<select
+  className="bg-surface-container-low text-on-surface rounded px-1.5 py-1 font-label-md text-label-md focus:outline-none"
+  onChange={(e) => setCity(e.target.value)}
+  value={city}
+>
+{CITIES.map((c) => (
+  <option key={c.key} value={c.key}>{c.name}</option>
+))}
+</select>
+</label>
+
+{loading && (
+<div className="flex items-center gap-2 p-space-md rounded-xl bg-surface-container-low font-body-md text-body-md text-on-surface-variant">
+<span className="w-4 h-4 rounded-full border-2 border-outline-variant border-t-primary animate-spin" />
+Checking current warnings…
+</div>
+)}
+
+{error && (
+<div className="flex flex-col gap-1 p-space-md rounded-xl bg-error-container text-on-error-container">
+<div className="flex items-center gap-1.5 font-label-md text-label-md font-semibold">
+<span className="material-symbols-outlined text-[18px]">wifi_off</span>
+Warnings service unreachable
+</div>
+<p className="font-body-md text-body-md">{error.message}</p>
+</div>
+)}
+
+{!loading && !error && data?.status === 'unavailable' && (
+  /* Deliberately neutral, never green: no verdict is not an all-clear. */
+<div className="flex flex-col gap-space-sm p-space-md rounded-xl bg-surface-container">
+<div className="flex flex-wrap items-center gap-1.5">
+<span className="flex items-center gap-1 font-label-md text-label-md font-bold text-on-surface-variant">
+<span className="material-symbols-outlined text-[18px]">help</span>
+No warning verdict
+</span>
+<span className="px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant font-citation-mono text-[10px] font-medium">
+<span className="material-symbols-outlined text-[11px] align-middle">location_on</span> {data.city_name}
+</span>
+</div>
+<p className="font-body-md text-body-md text-on-surface">
+Weather warnings aren't available right now for {data.city_name} — this can't be read as an all-clear.
+</p>
+<LiveLegend rows={data.legend} />
+</div>
+)}
+
+{!loading && !error && data && data.status !== 'unavailable' && <LiveVerdict data={data} />}
+</div>
+
+<div className="flex items-center gap-2 font-citation-mono text-citation-mono text-outline uppercase tracking-wider">
+<span className="material-symbols-outlined text-[14px]">design_services</span>
+<span>Static design sample — not live data</span>
+<span className="flex-1 h-px bg-outline-variant/50" />
+</div>
 
 <div className="flex flex-col md:flex-row md:items-center justify-between gap-space-sm p-4 rounded-xl bg-surface-container-low shadow-sm">
 <div className="flex items-center gap-3">
