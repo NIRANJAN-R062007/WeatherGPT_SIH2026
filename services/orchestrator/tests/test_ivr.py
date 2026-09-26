@@ -76,8 +76,8 @@ def test_download_recording_none_on_http_error(monkeypatch):
 
 
 def test_download_recording_uses_exotel_basic_auth(monkeypatch):
-    monkeypatch.setattr(config, "EXOTEL_SID", "sid123")
-    monkeypatch.setattr(config, "EXOTEL_TOKEN", "tok456")
+    monkeypatch.setattr(config, "EXOTEL_API_KEY", "key123")
+    monkeypatch.setattr(config, "EXOTEL_API_TOKEN", "tok456")
     seen = {}
 
     def _get(url, auth=None, timeout=None, follow_redirects=None):
@@ -86,7 +86,7 @@ def test_download_recording_uses_exotel_basic_auth(monkeypatch):
 
     monkeypatch.setattr(httpx, "get", _get)
     ivr._download_recording("https://example.test/rec.wav")
-    assert seen["auth"] == ("sid123", "tok456")
+    assert seen["auth"] == ("key123", "tok456")
 
 
 # ---- answer cache -------------------------------------------------------------

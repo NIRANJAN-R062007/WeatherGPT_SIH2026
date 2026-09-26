@@ -106,14 +106,14 @@ def _check_secret(key: str | None) -> None:
 
 
 def _download_recording(url: str) -> bytes | None:
-    """Fetch Exotel's RecordingUrl. Exotel recording URLs need the account's
-    own Basic Auth (EXOTEL_SID/EXOTEL_TOKEN) to fetch, same credentials used
-    to place calls via their REST API. Only a WAV response (RIFF/WAVE header)
-    is usable — see the module docstring's MP3 gap; anything else returns
-    None so the caller falls back to the "no data" answer rather than
-    silently feeding Bhashini bytes it can't parse."""
-    have_creds = config.EXOTEL_SID and config.EXOTEL_TOKEN
-    auth = (config.EXOTEL_SID, config.EXOTEL_TOKEN) if have_creds else None
+    """Fetch Exotel's RecordingUrl. Needs Basic Auth with the account's API
+    Key/API Token (EXOTEL_API_KEY/EXOTEL_API_TOKEN — the Developer Settings
+    -> API Settings credential pair, not the Account SID). Only a WAV
+    response (RIFF/WAVE header) is usable — see the module docstring's MP3
+    gap; anything else returns None so the caller falls back to the "no
+    data" answer rather than silently feeding Bhashini bytes it can't parse."""
+    have_creds = config.EXOTEL_API_KEY and config.EXOTEL_API_TOKEN
+    auth = (config.EXOTEL_API_KEY, config.EXOTEL_API_TOKEN) if have_creds else None
     try:
         resp = httpx.get(url, auth=auth, timeout=15.0, follow_redirects=True)
         resp.raise_for_status()

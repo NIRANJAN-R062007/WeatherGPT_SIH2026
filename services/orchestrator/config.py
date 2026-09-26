@@ -154,10 +154,15 @@ TTL_HISTORY_HOURS: int = _int_env("TTL_HISTORY_HOURS_SECONDS", 3600)
 # GET /ivr/answer/{CallSid}.wav to play it. IVR_ENABLED gates both routes so a
 # repo clone with no Exotel account configured doesn't expose them.
 IVR_ENABLED: bool = (os.getenv("IVR_ENABLED") or "").strip().lower() in ("1", "true", "yes")
-# Basic-auth credentials Exotel's RecordingUrl requires to fetch the audio
-# (the same Account SID + API token used to make outbound Exotel API calls).
-EXOTEL_SID: str | None = os.getenv("EXOTEL_SID")
-EXOTEL_TOKEN: str | None = os.getenv("EXOTEL_TOKEN")
+# Exotel dashboard: Settings -> Developer Settings -> API Settings.
+# EXOTEL_ACCOUNT_SID is the "Account SID" shown there (e.g. "techtonic1") —
+# identifies the account in Exotel's own ExoML/flow URLs, not itself a
+# credential. RecordingUrl's Basic Auth is the separate "API Key" (username) /
+# "API Token" (password) pair from the same page — generated per key, and the
+# only one of the three that's a secret.
+EXOTEL_ACCOUNT_SID: str | None = os.getenv("EXOTEL_ACCOUNT_SID")
+EXOTEL_API_KEY: str | None = os.getenv("EXOTEL_API_KEY")
+EXOTEL_API_TOKEN: str | None = os.getenv("EXOTEL_API_TOKEN")
 # Shared secret Exotel's Passthru/Greeting applet URLs must carry as
 # ?key=... — Exotel has no request-signing like Twilio's X-Twilio-Signature,
 # so this is the only thing stopping a stranger who finds the webhook URL
