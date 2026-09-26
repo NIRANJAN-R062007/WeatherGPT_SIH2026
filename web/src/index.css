@@ -12,6 +12,51 @@
   src: url('/fonts/inter-latin.woff2') format('woff2');
 }
 
+/* Devanagari (hi/mr), Telugu (te) and Tamil (ta) glyphs for the same
+   font-family: 'Inter' name Tailwind's body/label tokens already reference
+   (see tailwind.config.js) — no component or config change needed. The
+   browser picks whichever @font-face's unicode-range covers each character,
+   so a mixed-script string like "Ask in हिंदी, தமிழ், मराठी, or English"
+   renders Latin words in Inter and each Indic word in its own self-hosted
+   Noto Sans face, all in one paint. Plan.md's "Telugu-script + Devanagari
+   font bundles" item — without these, hi/te/mr/ta text in the app (the
+   language pills in Settings, the "Ask in ..." copy on Home/Chat) silently
+   fell back to whatever Indic font the OS happened to have installed,
+   unstyled and unguaranteed. Tamil was in scope for the same reason: it
+   sits in the exact same strings as hi/mr and has the identical gap, even
+   though the plan.md line only named Telugu/Devanagari.
+   Single variable-weight files (400 and 600 both resolve to the same
+   Google Fonts file), matching this project's own weight-range convention
+   above. Fetched once from fonts.gstatic.com and committed here — nothing
+   loads from Google at runtime (plan.md §2.5 offline-degradable). */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400 600;
+  font-display: swap;
+  src: url('/fonts/noto-sans-devanagari.woff2') format('woff2');
+  unicode-range: U+0900-097F, U+1CD0-1CF9, U+200C-200D, U+20A8, U+20B9, U+20F0, U+25CC,
+    U+A830-A839, U+A8E0-A8FF, U+11B00-11B09;
+}
+
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400 600;
+  font-display: swap;
+  src: url('/fonts/noto-sans-telugu.woff2') format('woff2');
+  unicode-range: U+0951-0952, U+0964-0965, U+0C00-0C7F, U+1CDA, U+1CF2, U+200C-200D, U+25CC;
+}
+
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400 600;
+  font-display: swap;
+  src: url('/fonts/noto-sans-tamil.woff2') format('woff2');
+  unicode-range: U+0964-0965, U+0B82-0BFA, U+200C-200D, U+20B9, U+25CC;
+}
+
 @font-face {
   font-family: 'JetBrains Mono';
   font-style: normal;
