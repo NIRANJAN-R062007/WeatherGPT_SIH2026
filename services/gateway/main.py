@@ -58,8 +58,8 @@ HEALTH_CACHE_SECONDS = 10.0
 # would be the leftmost, attacker-controlled hop.
 _TRUSTED_XFF_HOPS = max(int(float(os.getenv("TRUSTED_PROXY_HOPS") or 1)) - 1, 0)
 
-engine = create_engine(DATABASE_URL)
-redis_client = redis.Redis.from_url(REDIS_URL)
+engine = create_engine(DATABASE_URL, connect_args={"connect_timeout": 3})
+redis_client = redis.Redis.from_url(REDIS_URL, socket_connect_timeout=3, socket_timeout=3)
 
 # RFC 7230 §6.1 hop-by-hop headers plus the ones httpx/uvicorn recompute.
 _HOP_BY_HOP = frozenset({
@@ -97,12 +97,28 @@ def _client_key(request: Request) -> str:
 _health_cache: tuple[dict, float] | None = None  # (payload, expires at _monotonic())
 _health_lock = asyncio.Lock()
 _health_hits: dict[str, deque] = defaultdict(deque)
+_health_hits_swept_at = 0.0  # _monotonic() of the last full sweep, see _sweep_health_hits
 _monotonic = time.monotonic  # test seam
+
+
+def _sweep_health_hits(now: float) -> None:
+    """_health_hits gains one entry per distinct caller and nothing ever
+    removed a caller's key once its window emptied out — on a public,
+    unauthenticated endpoint that's unbounded dict growth for the life of the
+    process. Evict fully-expired entries opportunistically (at most once a
+    minute) instead of running a background task just for this."""
+    global _health_hits_swept_at
+    if now - _health_hits_swept_at < 60.0:
+        return
+    _health_hits_swept_at = now
+    for key in [k for k, window in _health_hits.items() if not window or now - window[-1] > 60.0]:
+        del _health_hits[key]
 
 
 def _health_over_limit(key: str) -> bool:
     # Only called on the event loop, so no lock around the window.
     now = _monotonic()
+    _sweep_health_hits(now)
     window = _health_hits[key]
     while window and now - window[0] > 60.0:
         window.popleft()
@@ -116,6 +132,45 @@ def _health_stale() -> bool:
     return _health_cache is None or _monotonic() >= _health_cache[1]
 
 
+def _check_postgres() -> dict:
+    """Sync SQLAlchemy work — run off the event loop via asyncio.to_thread
+    (see _probe), since a stalled DB would otherwise block every concurrent
+    request the gateway is handling for as long as the driver's own connect
+    timeout takes."""
+    result = {"postgres": "unknown", "postgis": "unknown"}
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+            result["postgres"] = "ok"
+            # Separate try: PostGIS missing is a schema problem (the extension
+            # was never created — see orchestrator sql/001_extensions.sql),
+            # not a dead database. Reporting a healthy Postgres as "error"
+            # because of it sent whoever read this endpoint after the wrong
+            # thing entirely.
+            try:
+                postgis_version = conn.execute(text("SELECT PostGIS_Version()")).scalar()
+                result["postgis"] = f"ok ({postgis_version})"
+            except Exception:
+                _LOG.exception("health check: postgis unavailable")
+                result["postgis"] = "error"
+    except Exception:
+        _LOG.exception("health check: postgres failed")
+        result["postgres"] = "error"
+        result["postgis"] = "error"
+    return result
+
+
+def _check_redis() -> str:
+    """Sync redis-py call — see _check_postgres for why this runs off the
+    event loop rather than directly inside the async probe."""
+    try:
+        redis_client.ping()
+        return "ok"
+    except Exception:
+        _LOG.exception("health check: redis failed")
+        return "error"
+
+
 async def _probe() -> dict:
     """Postgres+PostGIS, Redis, and the orchestrator behind us. Each check is
     independent — a dead database must not hide a live orchestrator. /health is
@@ -125,32 +180,8 @@ async def _probe() -> dict:
     status: dict = {"postgres": "unknown", "postgis": "unknown", "redis": "unknown",
                     "orchestrator": "unknown"}
 
-    try:
-        with engine.connect() as conn:
-            conn.execute(text("SELECT 1"))
-            status["postgres"] = "ok"
-            # Separate try: PostGIS missing is a schema problem (the extension
-            # was never created — see orchestrator sql/001_extensions.sql),
-            # not a dead database. Reporting a healthy Postgres as "error"
-            # because of it sent whoever read this endpoint after the wrong
-            # thing entirely.
-            try:
-                postgis_version = conn.execute(text("SELECT PostGIS_Version()")).scalar()
-                status["postgis"] = f"ok ({postgis_version})"
-            except Exception:
-                _LOG.exception("health check: postgis unavailable")
-                status["postgis"] = "error"
-    except Exception:
-        _LOG.exception("health check: postgres failed")
-        status["postgres"] = "error"
-        status["postgis"] = "error"
-
-    try:
-        redis_client.ping()
-        status["redis"] = "ok"
-    except Exception:
-        _LOG.exception("health check: redis failed")
-        status["redis"] = "error"
+    status.update(await asyncio.to_thread(_check_postgres))
+    status["redis"] = await asyncio.to_thread(_check_redis)
 
     try:
         r = await _client.get("/health", timeout=5.0)
