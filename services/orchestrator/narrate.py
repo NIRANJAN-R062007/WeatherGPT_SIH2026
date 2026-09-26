@@ -29,7 +29,15 @@ OLLAMA_TIMEOUT = 30.0
 MAX_CHARS = 240
 _SKIP = ("source", "issued", "is_live", "day", "since", "days_requested",
          "days_counted", "hours_counted")
-_CHAIN_EXC = (httpx.HTTPError, KeyError, IndexError, ValueError)
+# AttributeError/TypeError cover a 200 response shaped unexpectedly (e.g.
+# {"candidates": [null]}, or a non-dict JSON root) — the per-provider .get()
+# chains in generate()/generate_groq()/generate_ollama() raise those, not
+# KeyError, when a value is None/a scalar instead of the dict they assumed.
+# Without them here, one provider's malformed-but-200 reply escapes this
+# per-provider try/except and crashes the whole request instead of falling
+# through to the next provider or the template, breaking the "on total
+# failure narrate() returns None" guarantee this module's docstring makes.
+_CHAIN_EXC = (httpx.HTTPError, KeyError, IndexError, ValueError, AttributeError, TypeError)
 _LOG = logging.getLogger("weathergpt.narrate")
 
 # Set by run_chain() to the name of whichever provider last produced an

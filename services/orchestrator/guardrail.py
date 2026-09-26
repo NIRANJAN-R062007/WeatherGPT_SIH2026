@@ -115,7 +115,12 @@ def _all_unit_markers() -> list[tuple[str, str]]:
 
 _UNIT_MARKERS: list[tuple[str, str]] = _all_unit_markers()
 
-_NUMBER_RE = re.compile(r"-?\d+(?:\.\d+)?")
+# (?<!\d) keeps a hyphenated range like "20-30%" from parsing as figures
+# 20 and -30 — the lookbehind only lets `-` bind as a sign when it isn't
+# itself glued onto a preceding digit, so "-30" only matches as negative
+# when it's a real standalone negative number (e.g. "-5°C"), not the second
+# half of a range the LLM wrote despite being told not to.
+_NUMBER_RE = re.compile(r"(?<!\d)-?\d+(?:\.\d+)?")
 
 
 @dataclass
