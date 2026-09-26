@@ -213,9 +213,9 @@ def parse_rules(text: str, script: str) -> ParsedQuery:
         final_intent = "out_of_scope"
     elif is_warnings and base_intent != "unsupported_city":  # "warning in Mumbai" stays a refusal
         final_intent = "warnings"
-    elif is_rain_so_far:
+    elif is_rain_so_far and base_intent != "unsupported_city":  # "rain so far in Mumbai" too
         final_intent, time_window, parameter = "rainfall_so_far_today", "today", "rain"
-    elif next_n_match or is_day_after:
+    elif (next_n_match or is_day_after) and base_intent != "unsupported_city":  # ditto
         final_intent = "will_it_rain" if has_rain_word else "forecast"
     else:
         # current_weather | will_it_rain | unsupported_city | unrecognized, from intent.py
