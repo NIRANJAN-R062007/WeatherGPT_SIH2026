@@ -1,53 +1,71 @@
+// WeatherGPT mobile — same product, same look as web/: the shell, page set
+// and visual tokens mirror web/src/ (see lib/theme.dart and
+// lib/components/app_shell.dart). Every page reads live orchestrator data:
+// /facts, /ask, /asr, /tts and /warnings.
 import 'package:flutter/material.dart';
 
-import 'chat_page.dart';
-import 'warnings_page.dart';
+import 'components/app_shell.dart';
+import 'pages/alerts_page.dart';
+import 'pages/chat_page.dart';
+import 'pages/forecast_page.dart';
+import 'pages/home_page.dart';
+import 'pages/settings_page.dart';
+import 'state/ui_prefs.dart';
+import 'state/weather_store.dart';
+import 'theme.dart';
 
 void main() {
   runApp(const WeatherGptApp());
 }
 
-class WeatherGptApp extends StatelessWidget {
+class WeatherGptApp extends StatefulWidget {
   const WeatherGptApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'WeatherGPT',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1565C0)),
-        useMaterial3: true,
-      ),
-      home: const HomeShell(),
-    );
+  State<WeatherGptApp> createState() => _WeatherGptAppState();
+}
+
+class _WeatherGptAppState extends State<WeatherGptApp> {
+  final UiPrefs _prefs = UiPrefs();
+  final WeatherStore _weather = WeatherStore();
+
+  @override
+  void initState() {
+    super.initState();
+    // The hero and Forecast share one /facts load, redone on a city or
+    // language change (condition labels come back localized).
+    _weather.load(_prefs.city, _prefs.lang);
+    _prefs.addListener(_syncWeather);
   }
-}
 
-class HomeShell extends StatefulWidget {
-  const HomeShell({super.key});
+  void _syncWeather() => _weather.ensureLoaded(_prefs.city, _prefs.lang);
 
   @override
-  State<HomeShell> createState() => _HomeShellState();
-}
-
-class _HomeShellState extends State<HomeShell> {
-  int _index = 0;
-
-  static const _pages = [ChatPage(), WarningsPage()];
-  static const _titles = ['Ask WeatherGPT', 'Warnings'];
+  void dispose() {
+    _prefs.removeListener(_syncWeather);
+    _prefs.dispose();
+    _weather.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(_titles[_index])),
-      body: IndexedStack(index: _index, children: _pages),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        onDestinationSelected: (i) => setState(() => _index = i),
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.chat_bubble_outline), label: 'Ask'),
-          NavigationDestination(icon: Icon(Icons.warning_amber_outlined), label: 'Warnings'),
-        ],
+    return UiPrefsScope(
+      prefs: _prefs,
+      child: WeatherScope(
+        store: _weather,
+        child: MaterialApp(
+          title: 'WeatherGPT',
+          debugShowCheckedModeBanner: false,
+          theme: buildAppTheme(),
+          home: AppShell(pages: {
+            AppPage.home: (_) => const HomePage(),
+            AppPage.chat: (_) => const ChatPage(),
+            AppPage.forecast: (_) => const ForecastPage(),
+            AppPage.alerts: (_) => const AlertsPage(),
+            AppPage.settings: (_) => const SettingsPage(),
+          }),
+        ),
       ),
     );
   }

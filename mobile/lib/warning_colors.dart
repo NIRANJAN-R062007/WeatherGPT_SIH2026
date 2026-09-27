@@ -4,11 +4,13 @@
 // the feed's own `colour` field.
 import 'package:flutter/material.dart';
 
+// Values are web/tailwind.config.js's imd-green/-yellow/-orange/-red, so a
+// band reads as the same colour on both clients.
 const Map<String, Color> kWarningColors = {
-  'green': Color(0xFF2E7D32),
-  'yellow': Color(0xFFF9A825),
-  'orange': Color(0xFFEF6C00),
-  'red': Color(0xFFC62828),
+  'green': Color(0xFF1E7F3C),
+  'yellow': Color(0xFFC99A00),
+  'orange': Color(0xFFD96A0B),
+  'red': Color(0xFFB3261E),
 };
 
 Color warningColor(String? colour) => kWarningColors[colour] ?? const Color(0xFF757575);

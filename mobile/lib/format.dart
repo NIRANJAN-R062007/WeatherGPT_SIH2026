@@ -1,0 +1,114 @@
+// Display helpers shared by the pages: IST timestamps (web/src/lib/
+// warningUi.ts's istTimestamp), city/day labels (web/src/components/
+// AskAnswer.tsx's cityLabel/dayLabel), and the condition -> icon/accent map
+// web/src/pages/HomePage.tsx calls CONDITION_META. IST is a fixed +05:30 with
+// no DST, so it's computed directly rather than pulling in a tz package.
+import 'package:flutter/material.dart';
+
+import 'cities.dart';
+import 'theme.dart';
+
+const Duration _istOffset = Duration(hours: 5, minutes: 30);
+const _months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+DateTime nowIst() => DateTime.now().toUtc().add(_istOffset);
+
+DateTime? _parseIst(String? iso) {
+  if (iso == null) return null;
+  final d = DateTime.tryParse(iso);
+  return d?.toUtc().add(_istOffset);
+}
+
+String _two(int n) => n.toString().padLeft(2, '0');
+
+/// "27 Sep, 13:49 IST" — the raw string back if it doesn't parse.
+String istTimestamp(String? iso) {
+  final d = _parseIst(iso);
+  if (d == null) return iso ?? '';
+  return '${_two(d.day)} ${_months[d.month - 1]}, ${_two(d.hour)}:${_two(d.minute)} IST';
+}
+
+/// "13:49 IST".
+String istTime(String? iso) {
+  final d = _parseIst(iso);
+  if (d == null) return iso ?? '';
+  return '${_two(d.hour)}:${_two(d.minute)} IST';
+}
+
+/// "27 Sep" for [iso], or for today + [fallbackOffsetDays] when [iso] is
+/// missing.
+String istDayMonth(String? iso, {int fallbackOffsetDays = 0}) {
+  final d = _parseIst(iso) ?? nowIst().add(Duration(days: fallbackOffsetDays));
+  return '${d.day} ${_months[d.month - 1]}';
+}
+
+/// Resolved city keys come back lowercase ("chennai"); use the bundled
+/// display name, falling back to capitalising a key cities.dart lacks.
+String cityLabel(String? key) {
+  if (key == null || key.isEmpty) return '';
+  for (final c in kCities) {
+    if (c.key == key) return c.name;
+  }
+  return key[0].toUpperCase() + key.substring(1);
+}
+
+/// router.legacy_day values -> a short label; `next_<n>_days` is built by
+/// the backend, so it's parsed rather than enumerated.
+String dayLabel(Object? day) {
+  if (day is! String || day.isEmpty) return 'Unknown period';
+  final span = RegExp(r'^next_(\d+)_days$').firstMatch(day);
+  if (span != null) return 'Next ${span.group(1)} days';
+  final spaced = day.replaceAll('_', ' ');
+  return spaced[0].toUpperCase() + spaced.substring(1);
+}
+
+class ConditionStyle {
+  final IconData icon;
+
+  /// HomePage.tsx CONDITION_META accent — tints the hero gradient.
+  final Color accent;
+
+  /// Foreground for the icon on light surfaces.
+  final Color iconColor;
+  const ConditionStyle(this.icon, this.accent, this.iconColor);
+}
+
+/// Canonical keys from data/decoders/weather_conditions.json, grouped into
+/// HomePage.tsx's five CONDITION_META moods (clear / partly cloudy / cloudy /
+/// rain / storm) with the same accent tokens.
+ConditionStyle conditionStyle(String? condition, {bool night = false}) {
+  switch (condition) {
+    case 'clear':
+    case 'mostly_clear':
+      return ConditionStyle(
+        night ? Icons.nightlight_outlined : Icons.wb_sunny_outlined,
+        AppColors.tertiaryContainer,
+        night ? AppColors.primary : AppColors.tertiary,
+      );
+    case 'partly_cloudy':
+      return const ConditionStyle(Icons.wb_cloudy_outlined, AppColors.primaryContainer, AppColors.primary);
+    case 'light_rain':
+    case 'rain_showers':
+      return const ConditionStyle(Icons.grain, AppColors.secondary, AppColors.primary);
+    case 'rain':
+      return const ConditionStyle(Icons.umbrella_outlined, AppColors.secondary, AppColors.primary);
+    case 'heavy_rain':
+      return const ConditionStyle(Icons.water_drop, AppColors.secondary, AppColors.secondary);
+    case 'thunderstorm':
+    case 'thunderstorm_with_rain':
+    case 'scattered_thunderstorms':
+      return const ConditionStyle(Icons.thunderstorm_outlined, AppColors.inverseSurface, AppColors.primary);
+    case 'windy':
+      return const ConditionStyle(Icons.air, AppColors.outline, AppColors.onSurfaceVariant);
+    case 'mostly_cloudy':
+    case 'cloudy':
+    default:
+      return const ConditionStyle(Icons.cloud_outlined, AppColors.outline, AppColors.onSurfaceVariant);
+  }
+}
+
+/// "light rain" -> "Light rain" (condition_label is lowercase in English).
+String sentenceCase(String? s) {
+  if (s == null || s.isEmpty) return '';
+  return s[0].toUpperCase() + s.substring(1);
+}

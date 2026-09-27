@@ -61,10 +61,15 @@ Future<AskOutcome> askWeather({
   String? lang,
   String? city,
   String? token,
+  /// persona.PERSONAS (services/orchestrator/persona.py): changes narration
+  /// framing only, never the facts. Omitted for the backend's own default,
+  /// "general", so default requests stay byte-identical to before.
+  String? persona,
 }) async {
   final params = <String, String>{'text': text};
   if (lang != null) params['lang'] = lang;
   if (city != null) params['city'] = city;
+  if (persona != null && persona != 'general') params['persona'] = persona;
   final uri = Uri.parse('$kApiBaseUrl/ask').replace(queryParameters: params);
 
   final headers = <String, String>{};
