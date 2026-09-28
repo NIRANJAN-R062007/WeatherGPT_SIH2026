@@ -362,7 +362,7 @@ Source: a teammate's "Unfixable Blockers Report" (2026-09-27, not in the repo) �
 
 ## 10. Repo structure
 
-**As actually built today** (2026-09-21):
+**As actually built today** (2026-09-29):
 
 ```
 weathergpt/
@@ -370,14 +370,18 @@ weathergpt/
 ├── amplify.yml                  # Amplify build spec — frontend deploy
 ├── render.yaml                  # Render blueprint — never applied; the live backend is the bare deployment at https://3-108-52-61.sslip.io
 ├── k8s/
-│   ├── base/                    # kustomize: namespace, gateway, orchestrator, hpa, ingress, configmap, secret.example
+│   ├── base/                    # kustomize: namespace, gateway, orchestrator, postgres, redis, hpa, ingress, configmap, secret.example
 │   └── README.md
 ├── services/
 │   ├── gateway/                 # FastAPI reverse proxy — body cap, cached + rate-limited /health, /metrics; appends the peer to X-Forwarded-For
 │   └── orchestrator/             # the real brain: nlu.py, router.py, guardrail.py, narrate.py, retrieval.py (RAG),
 │       │                         #   i18n.py, bhashini.py, google_weather.py, weather_store.py (Redis+Postgres),
-│       │                         #   imd_warnings.py, glossary.py, history.py, limits.py (Redis-shared window, TRUSTED_PROXY_HOPS)
-│       ├── sql/                   # weather_facts.sql (weather_store.py's table, self-applied) + supabase_schema.sql (history/profiles, applied in Supabase)
+│       │                         #   imd_warnings.py, glossary.py, history.py, limits.py (Redis-shared window, TRUSTED_PROXY_HOPS),
+│       │                         #   persona.py (persona-aware narration), alert_engine.py (proactive alerts: geofence match -> webhook/FCM dispatch),
+│       │                         #   ivr.py (Exotel IVR channel: /ivr/menu.wav, /ivr/recording, /ivr/answer/{CallSid}.wav),
+│       │                         #   ivr_simulate.py (local simulated call through the IVR routes, no Exotel account), migrate.py
+│       ├── sql/                   # numbered migrations 001_extensions … 004_alert_subscriptions (self-applied by weather_store.py, or by hand via migrate.py)
+│       │                         #   + supabase_schema.sql (history/profiles, applied in Supabase)
 │       └── tests/                 # unit tests + eval + live-smoke, per module above
 ├── ml/
 │   ├── nlu/                      # eval_set.jsonl (98-row, 5-language intent/entity coverage) + run_eval.py
@@ -386,8 +390,12 @@ weathergpt/
 │   └── frontend/                    # WeatherGPT.dc.html demo UI + Supabase auth.js — the shipped UI, deployed via Amplify;
 │                                    #   the orchestrator serves it at / only when FRONTEND_DIR is set (ask_service/ moved to services/orchestrator on Sep 14)
 ├── web/                             # Vite + React dashboard (Ask/Dashboard/Warnings/Settings, five languages) — built in CI, hosted locally, not deployed by decision (2026-09-21)
-├── mobile/                          # Flutter app (chat UI + warnings), landed 2026-09-27 — lib/api_client.dart, ask_answer.dart, warnings_client.dart,
-│                                    #   warnings_page.dart, cities.dart, location.dart mirror web/src/lib's /ask + /warnings clients; android/ios only, no CI job yet
+├── mobile/                          # Flutter app, landed 2026-09-27, UI rebuilt to mirror web/ — android/ios only, no CI job yet
+│   └── lib/                         # main.dart, theme.dart, config.dart; clients mirroring web/src/lib: api_client.dart (/ask), warnings_client.dart,
+│       │                            #   facts_client.dart, voice_client.dart (/asr, /tts); voice_recorder.dart, play_button.dart, location.dart, cities.dart
+│       ├── pages/                   # home, chat, forecast, alerts, settings
+│       ├── components/              # app_shell.dart, ask_answer.dart, composer.dart, common.dart
+│       └── state/                   # ask_controller.dart, weather_store.dart, ui_prefs.dart
 ├── data/
 │   ├── cities.json
 │   ├── decoders/                    # weather_conditions.json, wind_cardinals.json → canonical keys
@@ -404,8 +412,7 @@ weathergpt/
 
 **Still on the roadmap, not built yet** (target layout from earlier planning — see §8 for owners):
 - `services/ingestion/{cap,nwp,metar}/` — CAP/SACHET parser, GFS GRIB fetch, METAR decoder (Google Weather ingestion currently lives inline as `orchestrator/google_weather.py`, not yet split into per-source modules)
-- `services/alerts/` — geofence match + dispatch (Phase 4, open)
-- `services/channels/{whatsapp,ivr}/` — WhatsApp bot (P2) and IVR channel (Phase 4, open)
+- `services/channels/whatsapp/` — WhatsApp bot (P2, open). The IVR channel and the alert engine were built inline in the orchestrator instead of as separate services (`orchestrator/ivr.py`, `orchestrator/alert_engine.py`, Phase 4 — both backend-done, live channels blocked per Phase 7)
 - `data/climate/` — gridded historical subsets, if a supplementary climate source is added
 - `docs/` — architecture.md, demo-script.md, jury-qa.md
 - top-level `tests/` — currently per-service (`services/orchestrator/tests/`, `services/gateway/tests/`) rather than centralized
