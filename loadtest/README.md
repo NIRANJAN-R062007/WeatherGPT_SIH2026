@@ -48,13 +48,41 @@ i18n template in this mode.
   budgets — k6 on one host presents one source address, so that's a unit
   test (`services/orchestrator/tests/test_limits.py`), along with
   `TRUSTED_PROXY_HOPS=0`/`2` and the Redis-shared window.
+- **`llm.js`**: the LLM-in-the-loop `/ask` path (plan.md §8 Phase 7 B4).
+  Unlike the other two, the orchestrator keeps its Gemini/Groq/Bhashini keys
+  from `.env`, so **every request makes real API calls**. There is no
+  narration cache. `constant-arrival-rate` at `RATE_PER_MIN` (default 10) for
+  `DURATION` (default `6m`), so about 60 requests: a free-tier LLM at 150 rps
+  would only measure 429s and fallbacks. Weather-intent queries only (a
+  warnings answer is the feed headline verbatim, no LLM), across 3 cities,
+  half `en` and half `ta`/`hi`/`te`/`mr` (English narration, then Bhashini
+  translation). Weather stays on fixtures and Ollama on a dead port, so the
+  chain is gemini → groq → template, as deployed. Besides the overall
+  `http_req_duration`, it reads `grounding.provider`/`narration` from each
+  answer and reports latency split three ways (`ask_llm_en_ms`,
+  `ask_llm_indic_ms`, `ask_template_ms`), the LLM-answered share
+  (`ask_llm_answered`) and a count per provider, so a fast p95 that is
+  really the template answering can't pass as an LLM number. Threshold:
+  `p(95)<2000` (the §1 target). It's recorded, not enforced: a crossed
+  threshold still keeps the summary.
 
 ## Running
 
 ```
 bash loadtest/run.sh spike
 bash loadtest/run.sh abuse
+LLM_LOADTEST_CONFIRM=1 bash loadtest/run.sh llm    # real API calls
 ```
+
+`ORCH_PORT`/`GW_PORT` move the two servers off 8001/8000 (e.g. when the
+compose stack is up). `RATE_PER_MIN`/`DURATION` size the llm run. On macOS
+the script uses `lsof` instead of `ss`, falls back to the repo-root `.venv`,
+and points k6 at `host.docker.internal` (Docker Desktop can't reach the
+host's localhost over `--network host`).
+
+For `llm` the /health guard is inverted: it aborts if **no** Gemini/Groq
+provider is configured, since that run would only measure the template
+again, and warns if Bhashini is missing.
 
 Each run: checks ports 8000/8001 are free, starts the orchestrator and
 gateway in the background with `--no-proxy-headers` (logs under
@@ -159,6 +187,41 @@ Before `run.sh` got `--no-proxy-headers` the same script gave the spoofer
 25 × 200 (see the second gotcha above).
 
 Raw k6 summaries: `loadtest/results/spike.json`, `loadtest/results/abuse.json`.
+
+### LLM path (`loadtest/llm.js`), 2026-09-29
+
+This laptop (macOS, Docker Desktop k6), real keys from `.env` (Gemini
+`gemini-flash-latest`, Groq `openai/gpt-oss-120b`, Bhashini), weather on
+fixtures, `RATE_PER_MIN=10`, `DURATION=6m`, on ports 8100/8101 beside the
+running compose stack.
+
+| Metric | Value |
+|---|---|
+| Requests | 60 (0.17 req/s), 0 errors, 60/60 checks |
+| `http_req_duration` p50 / p90 / **p95** / p99 / max | 1.50 s / 5.19 s / **8.30 s** / 9.66 s / 9.95 s |
+| LLM answered (`ask_llm_answered`) | 83.3% (50/60): Groq 45, Gemini 5 |
+| Template fallback | 10/60 |
+| LLM, English (`ask_llm_en_ms`) p50 / p95 | 1.30 s / 6.16 s |
+| LLM + Bhashini (`ask_llm_indic_ms`) p50 / p95 | 1.61 s / 9.20 s |
+| Template fallback (`ask_template_ms`) p50 / p95 | 1.87 s / 6.84 s |
+| Threshold `p(95)<2000` | **crossed** (k6 exit 99) |
+
+From `loadtest/results/orchestrator.log`: Gemini returned `429 Too Many
+Requests` on 45 calls and `503 Service Unavailable` on 5, so at only 10 rpm
+the primary provider was effectively unavailable (quota exhausted) and Groq
+carried the run. The chain reached the (dead) Ollama link 6 times, meaning
+Groq produced no text either on those. The log doesn't say why the other 4
+fell back (guardrail rejection or Bhashini translation failure).
+
+What this says: the median answer (~1.5 s) is under the 2 s target, but the
+tail is 4× over it. The tail comes from provider failures, not load: a
+failing Gemini call costs up to the 10 s `TIMEOUT` in `narrate.py` before
+Groq is tried, and a guardrail rejection repeats the whole chain. A smoke run
+an hour earlier (4 requests) saw a Gemini read timeout plus two 503s and
+6–12 s answers. Not measured: rates above 10 rpm, a paid Gemini tier, or the
+deployed box (the laptop's network is in these numbers).
+
+Raw k6 summary: `loadtest/results/llm.json`.
 
 ## Seeing this in Grafana
 

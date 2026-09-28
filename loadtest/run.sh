@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
-# Run a k6 load test (spike or abuse) against a locally started gateway +
-# orchestrator, with WEATHER_MODE=fixtures and no LLM/Bhashini keys so the
-# run makes zero paid API calls. See loadtest/README.md.
+# Run a k6 load test against a locally started gateway + orchestrator, with
+# WEATHER_MODE=fixtures. spike/abuse run with no LLM/Bhashini keys so they
+# make zero paid API calls; llm keeps the keys from .env on purpose and needs
+# LLM_LOADTEST_CONFIRM=1. See loadtest/README.md.
 #
-# Usage: loadtest/run.sh <spike|abuse>
+# Usage: loadtest/run.sh <spike|abuse|llm>
+#   ORCH_PORT / GW_PORT      override 8001 / 8000
+#   RATE_PER_MIN / DURATION  llm only: request rate and length (default 10, 6m)
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -11,12 +14,25 @@ ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$ROOT"
 
 TEST_NAME="${1:-}"
-if [[ "$TEST_NAME" != "spike" && "$TEST_NAME" != "abuse" ]]; then
-  echo "usage: $0 <spike|abuse>" >&2
+if [[ "$TEST_NAME" != "spike" && "$TEST_NAME" != "abuse" && "$TEST_NAME" != "llm" ]]; then
+  echo "usage: $0 <spike|abuse|llm>" >&2
   exit 1
 fi
 
-VENV="${VENV:-services/orchestrator/.venv/bin}"
+if [[ "$TEST_NAME" == "llm" && "${LLM_LOADTEST_CONFIRM:-}" != "1" ]]; then
+  echo "error: the llm test makes real Gemini/Groq/Bhashini calls (~RATE_PER_MIN × DURATION of them)." >&2
+  echo "       Re-run with LLM_LOADTEST_CONFIRM=1 to accept that." >&2
+  exit 1
+fi
+
+ORCH_PORT="${ORCH_PORT:-8001}"
+GW_PORT="${GW_PORT:-8000}"
+
+# Default to the per-service venv; fall back to the repo-root one.
+if [[ -z "${VENV:-}" ]]; then
+  VENV="services/orchestrator/.venv/bin"
+  [[ -x "$ROOT/$VENV/uvicorn" ]] || VENV=".venv/bin"
+fi
 if [[ ! -x "$ROOT/$VENV/uvicorn" ]]; then
   echo "error: uvicorn not found at $ROOT/$VENV — is the orchestrator venv set up?" >&2
   exit 1
@@ -25,8 +41,16 @@ fi
 RESULTS_DIR="$ROOT/loadtest/results"
 mkdir -p "$RESULTS_DIR"
 
-for port in 8000 8001; do
-  if ss -ltn "( sport = :$port )" | grep -q ":$port"; then
+port_in_use() {
+  if command -v ss >/dev/null 2>&1; then
+    ss -ltn "( sport = :$1 )" | grep -q ":$1"
+  else  # macOS has no ss
+    lsof -nP -iTCP:"$1" -sTCP:LISTEN >/dev/null 2>&1
+  fi
+}
+
+for port in "$GW_PORT" "$ORCH_PORT"; do
+  if port_in_use "$port"; then
     echo "error: port $port is already in use — stop whatever is listening on it first" >&2
     exit 1
   fi
@@ -47,20 +71,28 @@ done
 # Point OLLAMA_BASE at a port nothing listens on so the connection fails
 # instantly (ECONNREFUSED) instead of timing out or, worse, actually running
 # inference, and belt-and-suspenders it with a short OLLAMA_TIMEOUT too.
+#
+# llm keeps GEMINI/GROQ/Bhashini from .env (config.py load_dotenv) and RAG as
+# configured (it's local BM25, no API call), but still pins weather to
+# fixtures (the narration path is what's measured, not Google Weather) and
+# still points Ollama at a dead port, so the chain is gemini -> groq ->
+# template, as on the deployed targets.
 export WEATHER_MODE=fixtures
-export GEMINI_API_KEY=
-export GROQ_API_KEY=
 export OLLAMA_MODEL=
 export OLLAMA_BASE=http://127.0.0.1:1
 export OLLAMA_TIMEOUT=1
-export BHASHINI_ULCA_API_KEY=
-export BHASHINI_INFERENCE_KEY=
-export RAG_ENABLED=0
+if [[ "$TEST_NAME" != "llm" ]]; then
+  export GEMINI_API_KEY=
+  export GROQ_API_KEY=
+  export BHASHINI_ULCA_API_KEY=
+  export BHASHINI_INFERENCE_KEY=
+  export RAG_ENABLED=0
+fi
 
-if [[ "$TEST_NAME" == "spike" ]]; then
-  export RATE_LIMIT_PER_MINUTE=0
-else
+if [[ "$TEST_NAME" == "abuse" ]]; then
   export RATE_LIMIT_PER_MINUTE=30
+else
+  export RATE_LIMIT_PER_MINUTE=0
 fi
 
 ORCH_LOG="$RESULTS_DIR/orchestrator.log"
@@ -80,7 +112,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-echo "starting orchestrator on :8001..."
+echo "starting orchestrator on :$ORCH_PORT..."
 # `exec` so $! is uvicorn itself, not a wrapper subshell — otherwise the EXIT
 # trap kills the wrapper and leaves the server holding the port.
 #
@@ -90,14 +122,14 @@ echo "starting orchestrator on :8001..."
 # abuse.js put in the header instead of the real peer, and the limiter
 # (TRUSTED_PROXY_HOPS=1, the gateway being the one proxy here) would key on
 # the spoof. The containers don't hit this — their peers are never 127.0.0.1.
-(cd "$ROOT/services/orchestrator" && exec "$ROOT/$VENV/uvicorn" main:app --no-proxy-headers --port 8001 >> "$ORCH_LOG" 2>&1) &
+(cd "$ROOT/services/orchestrator" && exec "$ROOT/$VENV/uvicorn" main:app --no-proxy-headers --port "$ORCH_PORT" >> "$ORCH_LOG" 2>&1) &
 ORCH_PID=$!
 
-echo "starting gateway on :8000..."
-export ORCHESTRATOR_URL=http://localhost:8001
+echo "starting gateway on :$GW_PORT..."
+export ORCHESTRATOR_URL=http://localhost:$ORCH_PORT
 export DATABASE_URL=postgresql://weathergpt:weathergpt_dev@localhost:5432/weathergpt
 export REDIS_URL=redis://localhost:6379/0
-(cd "$ROOT/services/gateway" && exec "$ROOT/$VENV/uvicorn" main:app --no-proxy-headers --port 8000 >> "$GW_LOG" 2>&1) &
+(cd "$ROOT/services/gateway" && exec "$ROOT/$VENV/uvicorn" main:app --no-proxy-headers --port "$GW_PORT" >> "$GW_LOG" 2>&1) &
 GW_PID=$!
 
 # Prefer /livez (no I/O, added alongside /metrics by a parallel workstream —
@@ -123,20 +155,29 @@ wait_for_ready() {
   return 1
 }
 
-wait_for_ready "http://localhost:8001" "orchestrator"
-wait_for_ready "http://localhost:8000" "gateway"
+wait_for_ready "http://localhost:$ORCH_PORT" "orchestrator"
+wait_for_ready "http://localhost:$GW_PORT" "gateway"
 
 echo "orchestrator /health:"
-HEALTH_JSON="$(curl -s http://localhost:8001/health)"
+HEALTH_JSON="$(curl -s "http://localhost:$ORCH_PORT/health")"
 echo "$HEALTH_JSON"
 
+if [[ "$TEST_NAME" == "llm" ]]; then
+  # The inverse guard: an llm run with no cloud provider would just measure
+  # the template again and look like a great LLM number.
+  if ! echo "$HEALTH_JSON" | grep -qiE '"providers":\s*\[[^]]*"(gemini|groq)"'; then
+    echo "error: no Gemini/Groq provider configured — the llm test would only measure the template" >&2
+    exit 1
+  fi
+  if ! echo "$HEALTH_JSON" | grep -qi '"bhashini": *"configured"'; then
+    echo "warning: Bhashini not configured — non-English answers will fall back to the template" >&2
+  fi
 # Guard rail: abort rather than run load against a server that might make
 # paid calls.
-if echo "$HEALTH_JSON" | grep -qiE '"providers":\s*\[[^]]*"(gemini|groq)"'; then
+elif echo "$HEALTH_JSON" | grep -qiE '"providers":\s*\[[^]]*"(gemini|groq)"'; then
   echo "error: an LLM provider is configured — aborting to avoid paid calls under load" >&2
   exit 1
-fi
-if echo "$HEALTH_JSON" | grep -qi '"bhashini": *"configured"'; then
+elif echo "$HEALTH_JSON" | grep -qi '"bhashini": *"configured"'; then
   echo "error: bhashini is configured — aborting to avoid paid calls under load" >&2
   exit 1
 fi
@@ -157,19 +198,37 @@ K6_IMAGE="grafana/k6:0.54.0"
 TIMESTAMP="$(date +%Y%m%d-%H%M)"
 OUT_FILE="/lt/results/${TEST_NAME}-${TIMESTAMP}.json"
 
+# Docker Desktop (macOS) can't reach the host's localhost from a container
+# over --network host; host.docker.internal is its route to the host.
+if [[ "$(uname -s)" == "Darwin" ]]; then
+  DOCKER_NET=()
+  K6_BASE="http://host.docker.internal:$GW_PORT"
+else
+  DOCKER_NET=(--network host)
+  K6_BASE="http://localhost:$GW_PORT"
+fi
+
 echo "running k6 $TEST_NAME..."
 # --user matches the host UID/GID so the k6 image (which otherwise runs as
 # its own non-root user) can write into loadtest/results, which is owned by
 # whoever is running this script.
-docker run --rm -i --network host \
+#
+# A crossed threshold exits 99 but still writes the summary; keep it and
+# report the status at the end instead of dropping the results.
+K6_STATUS=0
+docker run --rm -i ${DOCKER_NET[@]+"${DOCKER_NET[@]}"} \
   --user "$(id -u):$(id -g)" \
   -v "$ROOT/loadtest:/lt" \
   "$K6_IMAGE" run \
   --summary-export="$OUT_FILE" \
-  -e BASE_URL=http://localhost:8000 \
-  "/lt/${TEST_NAME}.js"
+  -e BASE_URL="$K6_BASE" \
+  -e RATE_PER_MIN="${RATE_PER_MIN:-10}" \
+  -e DURATION="${DURATION:-6m}" \
+  "/lt/${TEST_NAME}.js" || K6_STATUS=$?
 
 # One canonical, committed file per test — overwritten on re-run rather than
 # piling up (the timestamped file above stays local, gitignored).
 cp "$RESULTS_DIR/${TEST_NAME}-${TIMESTAMP}.json" "$RESULTS_DIR/${TEST_NAME}.json"
 echo "summary written to loadtest/results/${TEST_NAME}.json"
+[[ "$K6_STATUS" == "0" ]] || echo "k6 exited $K6_STATUS (a threshold was crossed or the run failed)" >&2
+exit "$K6_STATUS"
