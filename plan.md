@@ -333,10 +333,9 @@ Source: a teammate's "Unfixable Blockers Report" (2026-09-27, not in the repo) �
 
 **Before Finale (Dec)**
 - [ ] B4 — Choose ONE deployment target (the bare box at `https://3-108-52-61.sslip.io` or Render) and verify it end to end — done when: a fresh deploy is done, `/health` is green, an `/ask` smoke test passes in all five languages, and Redis and Postgres persist across a restart, all logged here with the date. — **Mahesh**
-- [ ] B4 — Load-test the LLM-in-the-loop `/ask` path — done when: the measured p95 is recorded here (p95: pending). — **Abel**
-- [ ] B4 — Adjust the TTL notes only if the LLM-path load results demand it — done when: the TTL notes are updated, or "no change needed" is logged here against Abel's result. — **Deepthi**
+- [ ] B4 — Load-test the LLM-in-the-loop `/ask` path — done when: the measured p95 is recorded here (p95: pending). — **Niranjan** (reassigned from Abel 2026-09-29: performance/DevOps task, and Niranjan owns the Bhashini + narration path under test)
+- [ ] B4 — Adjust the TTL notes only if the LLM-path load results demand it — done when: the TTL notes are updated, or "no change needed" is logged here against Niranjan's result. — **Deepthi**
 - Backup on the B4 items above. — **Niranjan**
-- Backup on the B4 items above. — **Syed**
 - [ ] B3 — Rehearse the demo using the IVR fallback path — done when: one full run-through using the recorded walkthrough is done and dated here. — **Surya Deepthi**
 
 ---
