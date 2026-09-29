@@ -35,6 +35,11 @@ STATUS_UNAVAILABLE = "unavailable"  # feed off, or no usable fixture for the cit
 STATUS_CLEAR = "clear"              # feed checked: green, nothing in force
 STATUS_ACTIVE = "active"            # yellow / orange / red in force
 
+# Phase 7 B2: every warning that comes off a fixture (i.e. every warning
+# today — there is no live CAP/SACHET feed yet) must carry this exact string
+# so a UI can never present it as a real, official warning.
+SIMULATED_LABEL = "Simulated data — pending official feed access"
+
 
 def load(city_key: str) -> dict | None:
     """Read and cache the warning fixture for a city key. Returns None (and
@@ -74,7 +79,9 @@ def public(city_key: str, lang: str) -> dict:
         {"status": STATUS_*, "warning": {...} | None, "legend": [...]}
 
     `warning` is the flattened fixture (colour, headline, advice, validity,
-    provenance) plus glossary-sourced `colour_label` and `category_label`;
+    provenance) plus glossary-sourced `colour_label` and `category_label`
+    and a `disclaimer` (SIMULATED_LABEL, plan.md Phase 7 B2) since every
+    warning today comes from a fixture, not a live feed;
     `category` stays the feed's own text. It is None exactly when status is
     UNAVAILABLE, so a consumer that only knows `warning` (prototype/frontend's
     loadHero) keeps working. Green is CLEAR and the object is still returned:
@@ -112,6 +119,7 @@ def public(city_key: str, lang: str) -> dict:
         "valid_to": response["valid_to"],
         "issued_by": meta["issued_by"],
         "source": "fixture",
+        "disclaimer": SIMULATED_LABEL,
     }
     status = STATUS_CLEAR if colour == "green" else STATUS_ACTIVE
     return {"status": status, "warning": warning, "legend": legend}

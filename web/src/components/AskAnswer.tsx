@@ -240,6 +240,11 @@ export default function AskAnswer({ asked, loading, outcome, error, detail = fal
             {outcome.data.warning.advice}
           </p>
 
+          <div className="flex items-start gap-1.5 px-2.5 py-1.5 rounded-lg bg-tertiary-fixed text-on-tertiary-fixed font-body-sm text-body-sm">
+            <span className="material-symbols-outlined text-[14px] shrink-0 mt-0.5">science</span>
+            <span>{outcome.data.warning.disclaimer}</span>
+          </div>
+
           {detail && <Legend rows={outcome.data.legend} highlight={outcome.data.warning.colour} />}
 
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-space-xs border-t border-outline-variant/40 font-citation-mono text-citation-mono text-on-surface-variant">

@@ -163,6 +163,25 @@ def test_chennai_is_orange_heavy_rainfall(_warnings_enabled):
     assert w["issued_by"] == "IMD (fixture)" and w["source"] == "fixture"
 
 
+def test_active_warning_carries_the_simulated_label(_warnings_enabled):
+    # Phase 7 B2: every fixture-sourced warning must say so, in the payload
+    # itself, so a UI can never present it as a real official warning.
+    body = client.get("/warnings", params={"city": "chennai"}).json()
+    assert body["warning"]["disclaimer"] == warnings_module.SIMULATED_LABEL
+    assert body["warning"]["disclaimer"] == "Simulated data — pending official feed access"
+
+
+def test_clear_warning_also_carries_the_simulated_label(_warnings_enabled):
+    # Green is still a fixture verdict, not a live all-clear.
+    body = client.get("/warnings", params={"city": "coimbatore"}).json()
+    assert body["warning"]["disclaimer"] == warnings_module.SIMULATED_LABEL
+
+
+def test_ask_warnings_active_carries_the_simulated_label(_warnings_enabled):
+    body = _ask("is there any warning for Chennai?")
+    assert body["warning"]["disclaimer"] == warnings_module.SIMULATED_LABEL
+
+
 def test_madurai_is_yellow_thunderstorm(_warnings_enabled):
     body = client.get("/warnings", params={"city": "madurai"}).json()
     assert body["status"] == "active"

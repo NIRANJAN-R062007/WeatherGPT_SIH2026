@@ -111,6 +111,9 @@ export interface WarningDetail {
   issued_by: string;
   /** "fixture" today; a real feed name once one is wired. */
   source: string;
+  /** Phase 7 B2: exact label every fixture-sourced warning must carry so no
+   *  UI can present it as a real, official warning. */
+  disclaimer: string;
 }
 
 /** glossary.legend(lang) — always four rows, in COLOURS order. */
