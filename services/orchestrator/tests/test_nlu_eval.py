@@ -25,7 +25,7 @@ _LLM_ROWS = [r for r in _ROWS if r["path"] == "llm"]
 # which short-circuit on the text alone.
 _RULES_INTENTS = {
     "current_weather", "forecast", "will_it_rain", "rainfall_so_far_today", "warnings",
-    "out_of_scope",
+    "aviation", "out_of_scope",
 }
 
 

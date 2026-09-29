@@ -143,6 +143,12 @@ TTL_FORECAST_HOURS: int = _int_env("TTL_FORECAST_HOURS_SECONDS", 3600)
 TTL_FORECAST_DAYS: int = _int_env("TTL_FORECAST_DAYS_SECONDS", 21600)
 TTL_HISTORY_HOURS: int = _int_env("TTL_HISTORY_HOURS_SECONDS", 3600)
 
+# Airport METAR / TAF from aviationweather.gov (aviation.py). A METAR is issued
+# every 30 minutes, so 10 minutes keeps a fresh report without hammering a free
+# public service; a TAF is reissued every 3-6 hours, so 30 minutes is plenty.
+TTL_METAR: int = _int_env("TTL_METAR_SECONDS", 600)
+TTL_TAF: int = _int_env("TTL_TAF_SECONDS", 1800)
+
 
 # IVR channel (plan.md §8 Phase 4): dial a number, speak a question in any of
 # the five languages, hear the grounded answer. Exotel's call-flow builder has

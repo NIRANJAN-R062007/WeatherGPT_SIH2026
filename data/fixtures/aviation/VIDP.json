@@ -1,0 +1,7 @@
+{
+  "station": "VIDP",
+  "fetched_at": "2026-09-29T21:47:58+00:00",
+  "source": "aviationweather.gov (NOAA), snapshot",
+  "metar": "METAR VIDP 292130Z 27005KT 4500 BR NSC 24/22 Q1011 NOSIG",
+  "taf": "TAF VIDP 292000Z 2921/3006 VRB02KT 4000 HZ BR NSC BECMG 3000/3002 2000 BR BECMG 3004/3006 32010KT 5000 HZ FEW035"
+}

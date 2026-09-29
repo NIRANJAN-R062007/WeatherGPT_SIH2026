@@ -100,6 +100,15 @@ def _clear_weather_cache():
 
 
 @pytest.fixture(autouse=True)
+def _clear_aviation_cache():
+    import aviation
+
+    aviation.cache_clear()
+    yield
+    aviation.cache_clear()
+
+
+@pytest.fixture(autouse=True)
 def _clear_bhashini_cache():
     import bhashini
 

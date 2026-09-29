@@ -50,6 +50,8 @@ data:
   TTL_FORECAST_HOURS_SECONDS: "3600"
   TTL_FORECAST_DAYS_SECONDS: "21600"
   TTL_HISTORY_HOURS_SECONDS: "3600"
+  TTL_METAR_SECONDS: "600"
+  TTL_TAF_SECONDS: "1800"
 
   # Supabase project URL (anon key is a secret — see secret.example.yaml)
   SUPABASE_URL: ""

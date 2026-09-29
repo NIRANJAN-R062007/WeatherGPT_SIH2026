@@ -430,3 +430,81 @@ def test_all_three_providers_raise_falls_back(monkeypatch):
     monkeypatch.setattr(narrate, "generate_ollama", _boom)
     pq = nlu.parse("hello there")
     assert pq.source == "rules_fallback"
+
+
+# --- aviation ---------------------------------------------------------------
+# An airport METAR / TAF question is answered from aviation.py, not the city
+# forecast. The aviation word decides on its own, like a warning word.
+
+@pytest.mark.parametrize("text,city", [
+    ("METAR for Chennai airport", "chennai"),
+    ("taf Mumbai", "mumbai"),
+    ("what's the weather at Delhi airport?", "delhi"),
+    ("aviation weather in Hyderabad", "hyderabad"),
+    ("runway conditions at Bengaluru airport", "bengaluru"),
+    ("சென்னை விமான நிலைய வானிலை", "chennai"),
+])
+def test_rules_airport_query_is_aviation(text, city):
+    pq = nlu.parse(text)
+    assert (pq.intent, resolve_city(pq.city), pq.time_window, pq.source, pq.confidence) == \
+        ("aviation", city, "today", "rules", 0.9)
+
+
+def test_rules_aviation_hit_needs_no_city():
+    pq = nlu.parse("metar please")
+    assert (pq.intent, pq.city, pq.source) == ("aviation", None, "rules")
+
+
+def test_aviation_falls_back_to_the_selected_city():
+    pq = nlu.parse("metar please", city_hint="madurai")
+    assert (pq.intent, pq.city) == ("aviation", "madurai")
+
+
+def test_rules_aviation_hit_never_calls_the_llm(monkeypatch):
+    monkeypatch.setattr(config, "GEMINI_API_KEY", "k")
+    monkeypatch.setattr(config, "GROQ_API_KEY", "k")
+
+    def _boom(*a, **k):
+        raise AssertionError("generate() was called")
+
+    monkeypatch.setattr(narrate, "generate", _boom)
+    monkeypatch.setattr(narrate, "generate_groq", _boom)
+    pq = nlu.parse("METAR for Chennai airport")
+    assert pq.intent == "aviation" and pq.source == "rules"
+
+
+@pytest.mark.parametrize("text,intent", [
+    ("is there any warning for Chennai airport?", "warnings"),  # a warning word wins
+    ("cyclone track near Chennai airport", "out_of_scope"),
+    ("what's the weather in Chennai", "current_weather"),
+    ("will it rain in Madurai tomorrow?", "will_it_rain"),
+])
+def test_aviation_does_not_swallow_other_intents(text, intent):
+    assert nlu.parse(text).intent == intent
+
+
+def test_aviation_word_with_an_unsupported_city_still_needs_a_supported_one():
+    pq = nlu.parse("metar for Kolkata")
+    assert pq.intent == "aviation" and pq.city is None  # /ask then asks which city
+
+
+def test_aviation_is_in_the_llm_schema_and_prompt():
+    assert "aviation" in nlu.INTENTS
+    assert "aviation" in nlu._NLU_SCHEMA["properties"]["intent"]["enum"]
+    assert "aviation" in nlu._NLU_PROMPT
+
+
+def test_llm_aviation_answer_is_accepted():
+    pq = nlu._validate_llm_json(
+        '{"intent":"aviation","city":"chennai","time_window":"today","days":null,'
+        '"parameter":"general","language":"hi","confidence":0.9}'
+    )
+    assert (pq.intent, pq.city, pq.language, pq.source) == ("aviation", "chennai", "hi", "llm")
+
+
+def test_llm_aviation_with_an_unknown_city_is_a_refusal():
+    pq = nlu._validate_llm_json(
+        '{"intent":"aviation","city":"Kolkata","time_window":"today","days":null,'
+        '"parameter":"general","language":"en","confidence":0.9}'
+    )
+    assert pq.intent == "unsupported_city"

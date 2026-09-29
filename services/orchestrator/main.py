@@ -15,6 +15,7 @@ from dataclasses import asdict
 from datetime import datetime, timezone
 
 import alert_engine
+import aviation
 import bhashini
 import cities
 import config
@@ -32,6 +33,7 @@ import nlu
 import occupation as occupation_module
 import persona as persona_module
 import router
+import taf
 import weather_data
 from auth import get_bearer_token, get_current_user
 from config import ALLOWED_ORIGINS
@@ -145,6 +147,23 @@ _MESSAGES = {
         "నిర్ధారించలేను.",
         "mr": "हवामान इशारे सध्या उपलब्ध नाहीत — कोणताही इशारा लागू आहे की नाही "  # TODO: native_qa
         "याची खात्री देऊ शकत नाही.",
+    },
+    # Not fair weather (plan.md §2 principle 3): no METAR or TAF could be fetched.
+    "aviation_unavailable": {
+        "en": "Airport weather reports aren't available right now, so I can't give you a "
+        "METAR or TAF.",
+        "ta": "விமான நிலைய வானிலை அறிக்கைகள் இப்போது கிடைக்கவில்லை.",  # TODO: native_qa
+        "hi": "हवाई अड्डे की मौसम रिपोर्ट अभी उपलब्ध नहीं हैं।",  # TODO: native_qa
+        "te": "విమానాశ్రయ వాతావరణ నివేదికలు ప్రస్తుతం అందుబాటులో లేవు.",  # TODO: native_qa
+        "mr": "विमानतळ हवामान अहवाल सध्या उपलब्ध नाहीत.",  # TODO: native_qa
+    },
+    # METAR / TAF briefings are English-only (the decoders' fixed templates).
+    "aviation_english_only": {
+        "en": "Airport reports are shown in English.",
+        "ta": "விமான நிலைய அறிக்கைகள் ஆங்கிலத்தில் காட்டப்படுகின்றன.",  # TODO: native_qa
+        "hi": "हवाई अड्डे की रिपोर्ट अंग्रेज़ी में दिखाई गई हैं।",  # TODO: native_qa
+        "te": "విమానాశ్రయ నివేదికలు ఆంగ్లంలో చూపబడ్డాయి.",  # TODO: native_qa
+        "mr": "विमानतळ अहवाल इंग्रजीत दाखवले आहेत.",  # TODO: native_qa
     },
     "language_unsupported": {
         "en": "I couldn't recognise that language yet — answering in English.",
@@ -485,6 +504,35 @@ def metar_decode(raw: str):
     return {"decoded": decoded, "briefing": metar.briefing(decoded)}
 
 
+@app.get("/taf/decode")
+def taf_decode(raw: str):
+    """The forecast half of /metar/decode: a raw TAF into typed fields (base
+    conditions, BECMG / TEMPO / FM / PROB change groups, TX / TN) plus an
+    English briefing. Same rules: template-rendered, no LLM, unknown tokens
+    come back in `unparsed`."""
+    try:
+        decoded = taf.decode(raw)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return {"decoded": decoded, "briefing": taf.briefing(decoded)}
+
+
+@app.get("/aviation")
+def aviation_route(city: str | None = None, station: str | None = None):
+    """The current METAR and TAF for a demo city's airport, fetched from
+    aviationweather.gov (fixture snapshots when offline), decoded and worded
+    by metar.py / taf.py. `status` is "unavailable" when neither report could
+    be had — a UI must show that as "not available", never as fair weather
+    (plan.md §2 principle 3). Only the demo airports are served: an unknown
+    city or station is a 404, and the upstream call is always ours."""
+    if not (city or station):
+        raise HTTPException(status_code=422, detail="give a city or a station")
+    icao = aviation.station_for(station or city)
+    if icao is None:
+        raise HTTPException(status_code=404, detail="unknown city or station")
+    return aviation.public(icao)
+
+
 def _persona_fields(persona, occ: "occupation_module.Resolved | None") -> dict:
     """What an answer echoes about who it was framed for: nothing for the
     default with no occupation given (so existing response shapes don't
@@ -574,6 +622,59 @@ def ask(text: str, lang: str = "en", city: str | None = None, persona: str = per
         }
         if notice:
             resp["notice"] = notice
+
+        if token is not None:
+            try:
+                history.record(token, query=text, intent=pq.intent, city=key,
+                                lang=lang, response=candidate)
+            except Exception:
+                pass  # best-effort, as below
+
+        return resp
+
+    if pq.intent == "aviation":
+        # The airport's METAR / TAF, worded by metar.py / taf.py's fixed
+        # templates: no LLM narration and no guardrail pass, for the same
+        # reason as warnings — every figure is a decoded value of the report,
+        # nothing is generated. English only; other languages get a notice.
+        icao = aviation.station_for(key)
+        result = aviation.public(icao)
+        want = aviation.want_from_text(text)
+        candidate = aviation.answer_text(result, want)
+        if candidate is None:  # no report to show: NOT fair weather
+            resp = {"intent": pq.intent, "city": key,
+                    "message": _msg("aviation_unavailable", lang),
+                    "status": "unavailable", "nlu": pq.as_dict()}
+            if notice:
+                resp["notice"] = notice
+            return resp
+
+        parts = [result[k] for k in ("metar", "taf") if result[k] and want in ("both", k)]
+        grounding = {**asdict(guardrail.Report(ok=True, matched=0, total=0)),
+                     "fallback_used": False, "narration": "verbatim", "attempts": 0,
+                     "provider": "feed"}
+        metrics.observe_ask(intent=pq.intent, lang=lang, provider="feed", narration="verbatim",
+                            fallback_used=False, no_llm=True)
+        resp = {
+            "intent": pq.intent,
+            "city": key,
+            "response": candidate,
+            "status": "ok",
+            "aviation": result,
+            "provenance": {
+                "source": aviation.SOURCE,
+                "issued": aviation.issued_iso(parts[0]),
+                "is_live": all(p["is_live"] for p in parts),
+                "retrieved_at": datetime.now(timezone.utc).isoformat(),
+            },
+            "grounding": grounding,
+            "nlu": pq.as_dict(),
+        }
+        if notice:
+            resp["notice"] = notice
+        elif lang != "en":
+            resp["notice"] = _msg("aviation_english_only", lang)
+        resp.update(_persona_fields(persona, occ))
 
         if token is not None:
             try:

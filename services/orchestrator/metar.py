@@ -10,7 +10,8 @@ Tokens this decoder doesn't recognise are returned in `unparsed` and named in
 the briefing rather than guessed at (plan.md §2 principle 4). The trend group
 (BECMG/TEMPO) and remarks (RMK) are passed through raw, not decoded.
 
-TAF (the forecast format) is not handled here.
+TAF (the forecast format) is decoded by taf.py, which reuses this module's
+wind / visibility / weather / cloud parsers and sentence templates.
 """
 
 import re
@@ -67,7 +68,8 @@ _RVR = re.compile(r"^R(\d{2}[LCR]?)/([PM])?(\d{4})(?:V([PM])?(\d{4}))?(FT)?/?([U
 _WEATHER = re.compile(
     r"^(-|\+|VC)?(MI|PR|BC|DR|BL|SH|TS|FZ)?((?:" + "|".join(_PHENOMENA) + r")*)$"
 )
-_CLOUD = re.compile(r"^(FEW|SCT|BKN|OVC)(\d{3})(CB|TCU)?$")
+# Indian reports write "FEW025TCU/CB" when either type may occur.
+_CLOUD = re.compile(r"^(FEW|SCT|BKN|OVC)(\d{3})((?:CB|TCU)(?:/(?:CB|TCU))?)?$")
 _VERTICAL_VIS = re.compile(r"^VV(\d{3})$")
 _TEMP = re.compile(r"^(M)?(\d{2})/(M)?(\d{2})$")
 _QNH = re.compile(r"^Q(\d{4})$")
@@ -123,6 +125,13 @@ def _weather(token: str) -> dict | None:
         "phenomena": phenomena,
         "text": text,
     }
+
+
+def _weather_groups(token: str) -> list[dict]:
+    """One weather group, or several joined by "/" as Indian reports write
+    them ("-DZ/BR" = light drizzle and mist). Empty if any part isn't weather."""
+    found = [_weather(part) for part in token.split("/")]
+    return found if all(found) else []
 
 
 def decode(raw: str) -> dict:
@@ -188,58 +197,13 @@ def decode(raw: str) -> dict:
 
         if m := _TIME.match(tok):
             day, hh, mm = (int(g) for g in m.groups())
-            ist = (hh * 60 + mm + 330) % 1440
-            out["observed"] = {
-                "day": day,
-                "time_utc": f"{hh:02d}:{mm:02d}",
-                "time_ist": f"{ist // 60:02d}:{ist % 60:02d}",
-            }
+            out["observed"] = {"day": day, **_clock(hh, mm)}
         elif tok == "AUTO":
             out["auto"] = True
         elif tok == "COR":
             out["corrected"] = True
         elif tok == "NIL":
             out["nil"] = True
-        elif m := _WIND.match(tok):
-            direction, speed, gust, unit = m.groups()
-            speed = int(speed)
-            gust = int(gust) if gust else None
-            out["wind"] = {
-                "calm": direction == "000" and speed == 0,
-                "variable": direction == "VRB",
-                "direction_deg": None if direction == "VRB" else int(direction),
-                "speed_kt": _knots(speed, unit),
-                "speed_kmh": _kmh(speed, unit),
-                "gust_kt": _knots(gust, unit) if gust else None,
-                "gust_kmh": _kmh(gust, unit) if gust else None,
-                "varying_from_deg": None,
-                "varying_to_deg": None,
-            }
-        elif (m := _WIND_VARYING.match(tok)) and out["wind"]:
-            out["wind"]["varying_from_deg"] = int(m.group(1))
-            out["wind"]["varying_to_deg"] = int(m.group(2))
-        elif tok == "CAVOK":
-            out["visibility"] = {"cavok": True, "metres": 10000, "statute_miles": None,
-                                 "at_least": True, "less_than": False}
-        elif (m := _VIS_METRES.match(tok)) and out["visibility"] is None:
-            metres = int(m.group(1))
-            out["visibility"] = {"cavok": False, "metres": 10000 if metres == 9999 else metres,
-                                 "statute_miles": None, "at_least": metres == 9999,
-                                 "less_than": False}
-        elif (tok.isdigit() and len(tok) == 1 and i < len(tokens)
-              and (m := _VIS_SM_FRACTION.match(tokens[i]))):
-            # "1 1/2SM" arrives as two tokens.
-            i += 1
-            miles = int(tok) + int(m.group(1)) / int(m.group(2))
-            out["visibility"] = {"cavok": False, "metres": round(miles * 1609.344),
-                                 "statute_miles": miles, "at_least": False,
-                                 "less_than": False}
-        elif m := _VIS_SM.match(tok):
-            prefix, whole, num, den = m.groups()
-            miles = int(whole) if whole else int(num) / int(den)
-            out["visibility"] = {"cavok": False, "metres": round(miles * 1609.344),
-                                 "statute_miles": miles, "at_least": prefix == "P",
-                                 "less_than": prefix == "M"}
         elif m := _RVR.match(tok):
             runway, lo_pfx, lo, hi_pfx, hi, feet, tendency = m.groups()
             out["runway_visual_range"].append({
@@ -251,20 +215,6 @@ def decode(raw: str) -> dict:
                 "below": lo_pfx == "M",
                 "tendency": {"U": "rising", "D": "falling", "N": "no change"}.get(tendency),
             })
-        elif tok == "NSW":
-            out["no_significant_weather"] = True
-        elif m := _CLOUD.match(tok):
-            cover, height, kind = m.groups()
-            out["clouds"].append({
-                "code": cover,
-                "cover": _COVER[cover],
-                "base_ft": int(height) * 100,
-                "type": _CLOUD_TYPE.get(kind),
-            })
-        elif m := _VERTICAL_VIS.match(tok):
-            out["vertical_visibility_ft"] = int(m.group(1)) * 100
-        elif tok in _SKY_CLEAR:
-            out["sky_condition"] = tok
         elif m := _TEMP.match(tok):
             t_minus, t, d_minus, d = m.groups()
             out["temperature_c"] = _signed(t_minus, t)
@@ -275,12 +225,98 @@ def decode(raw: str) -> dict:
             inhg = int(m.group(1)) / 100
             out["pressure_inhg"] = inhg
             out["pressure_hpa"] = round(inhg * 33.8639)
-        elif wx := _weather(tok):
-            out["weather"].append(wx)
+        elif (consumed := parse_condition_token(tokens, i - 1, out)) is not None:
+            i = consumed
         else:
             out["unparsed"].append(tok)
 
     return out
+
+
+def _clock(hh: int, mm: int) -> dict:
+    """UTC hour/minute as the {time_utc, time_ist} pair both decoders report."""
+    ist = (hh * 60 + mm + 330) % 1440
+    return {"time_utc": f"{hh:02d}:{mm:02d}", "time_ist": f"{ist // 60:02d}:{ist % 60:02d}"}
+
+
+def new_conditions() -> dict:
+    """The condition fields a METAR and each TAF period share."""
+    return {
+        "wind": None,
+        "visibility": None,
+        "weather": [],
+        "no_significant_weather": False,
+        "clouds": [],
+        "sky_condition": None,
+        "vertical_visibility_ft": None,
+    }
+
+
+def parse_condition_token(tokens: list[str], i: int, out: dict) -> int | None:
+    """Fold tokens[i] into `out` when it is a wind, visibility, weather or
+    cloud group (the groups a METAR and a TAF spell identically). Returns the
+    index of the next unread token, or None if tokens[i] isn't one of them.
+    A statute-mile visibility like "1 1/2SM" spans two tokens, hence the index."""
+    tok = tokens[i]
+    if m := _WIND.match(tok):
+        direction, speed, gust, unit = m.groups()
+        speed = int(speed)
+        gust = int(gust) if gust else None
+        out["wind"] = {
+            "calm": direction == "000" and speed == 0,
+            "variable": direction == "VRB",
+            "direction_deg": None if direction == "VRB" else int(direction),
+            "speed_kt": _knots(speed, unit),
+            "speed_kmh": _kmh(speed, unit),
+            "gust_kt": _knots(gust, unit) if gust else None,
+            "gust_kmh": _kmh(gust, unit) if gust else None,
+            "varying_from_deg": None,
+            "varying_to_deg": None,
+        }
+    elif (m := _WIND_VARYING.match(tok)) and out["wind"]:
+        out["wind"]["varying_from_deg"] = int(m.group(1))
+        out["wind"]["varying_to_deg"] = int(m.group(2))
+    elif tok == "CAVOK":
+        out["visibility"] = {"cavok": True, "metres": 10000, "statute_miles": None,
+                             "at_least": True, "less_than": False}
+    elif (m := _VIS_METRES.match(tok)) and out["visibility"] is None:
+        metres = int(m.group(1))
+        out["visibility"] = {"cavok": False, "metres": 10000 if metres == 9999 else metres,
+                             "statute_miles": None, "at_least": metres == 9999,
+                             "less_than": False}
+    elif (tok.isdigit() and len(tok) == 1 and i + 1 < len(tokens)
+          and (m := _VIS_SM_FRACTION.match(tokens[i + 1]))):
+        # "1 1/2SM" arrives as two tokens.
+        miles = int(tok) + int(m.group(1)) / int(m.group(2))
+        out["visibility"] = {"cavok": False, "metres": round(miles * 1609.344),
+                             "statute_miles": miles, "at_least": False,
+                             "less_than": False}
+        return i + 2
+    elif m := _VIS_SM.match(tok):
+        prefix, whole, num, den = m.groups()
+        miles = int(whole) if whole else int(num) / int(den)
+        out["visibility"] = {"cavok": False, "metres": round(miles * 1609.344),
+                             "statute_miles": miles, "at_least": prefix == "P",
+                             "less_than": prefix == "M"}
+    elif tok == "NSW":
+        out["no_significant_weather"] = True
+    elif m := _CLOUD.match(tok):
+        cover, height, kind = m.groups()
+        out["clouds"].append({
+            "code": cover,
+            "cover": _COVER[cover],
+            "base_ft": int(height) * 100,
+            "type": " / ".join(_CLOUD_TYPE[k] for k in kind.split("/")) if kind else None,
+        })
+    elif m := _VERTICAL_VIS.match(tok):
+        out["vertical_visibility_ft"] = int(m.group(1)) * 100
+    elif tok in _SKY_CLEAR:
+        out["sky_condition"] = tok
+    elif wx := _weather_groups(tok):
+        out["weather"].extend(wx)
+    else:
+        return None
+    return i + 1
 
 
 def _distance(v: dict) -> str:
@@ -294,6 +330,60 @@ def _distance(v: dict) -> str:
     if (miles := v.get("statute_miles")) is not None:
         return f"{miles:g} statute miles ({km})"
     return km
+
+
+def wind_text(w: dict | None) -> str | None:
+    if not w:
+        return None
+    if w["calm"]:
+        return "Wind calm."
+    if w["variable"]:
+        s = f"Wind variable in direction at {w['speed_kmh']} km/h ({w['speed_kt']} kt)"
+    else:
+        s = (f"Wind from the {_compass(w['direction_deg'])} ({w['direction_deg']}°)"
+             f" at {w['speed_kmh']} km/h ({w['speed_kt']} kt)")
+    if w["gust_kmh"]:
+        s += f", gusting to {w['gust_kmh']} km/h ({w['gust_kt']} kt)"
+    if w["varying_from_deg"] is not None:
+        s += f", varying between {w['varying_from_deg']}° and {w['varying_to_deg']}°"
+    return s + "."
+
+
+def visibility_text(v: dict | None) -> str | None:
+    if not v:
+        return None
+    if v["cavok"]:
+        return ("Ceiling and visibility OK: visibility 10 km or more, "
+                "no cloud below 5,000 ft and no significant weather.")
+    if v["at_least"]:
+        return f"Visibility {_distance(v)} or more."
+    if v["less_than"]:
+        return f"Visibility less than {_distance(v)}."
+    return f"Visibility {_distance(v)}."
+
+
+def weather_text(d: dict) -> str | None:
+    if d["weather"]:
+        return "Weather: " + ", ".join(wx["text"] for wx in d["weather"]) + "."
+    if d["no_significant_weather"]:
+        return "No significant weather."
+    return None
+
+
+def sky_text(d: dict) -> str | None:
+    if d["clouds"]:
+        layers = []
+        for c in d["clouds"]:
+            layer = f"{c['cover']} at {c['base_ft']:,} ft"
+            if c["type"]:
+                layer += f" ({c['type']})"
+            layers.append(layer)
+        return "Cloud: " + ", ".join(layers) + "."
+    if d["vertical_visibility_ft"] is not None:
+        return f"Sky obscured, vertical visibility {d['vertical_visibility_ft']:,} ft."
+    if d["sky_condition"]:
+        return _SKY_CLEAR[d["sky_condition"]]
+    return None
 
 
 def briefing(d: dict) -> str:
@@ -313,31 +403,7 @@ def briefing(d: dict) -> str:
     if d["nil"]:
         parts.append("No observation was reported (NIL).")
 
-    if w := d["wind"]:
-        if w["calm"]:
-            parts.append("Wind calm.")
-        else:
-            if w["variable"]:
-                s = f"Wind variable in direction at {w['speed_kmh']} km/h ({w['speed_kt']} kt)"
-            else:
-                s = (f"Wind from the {_compass(w['direction_deg'])} ({w['direction_deg']}°)"
-                     f" at {w['speed_kmh']} km/h ({w['speed_kt']} kt)")
-            if w["gust_kmh"]:
-                s += f", gusting to {w['gust_kmh']} km/h ({w['gust_kt']} kt)"
-            if w["varying_from_deg"] is not None:
-                s += f", varying between {w['varying_from_deg']}° and {w['varying_to_deg']}°"
-            parts.append(s + ".")
-
-    if v := d["visibility"]:
-        if v["cavok"]:
-            parts.append("Ceiling and visibility OK: visibility 10 km or more, "
-                         "no cloud below 5,000 ft and no significant weather.")
-        elif v["at_least"]:
-            parts.append(f"Visibility {_distance(v)} or more.")
-        elif v["less_than"]:
-            parts.append(f"Visibility less than {_distance(v)}.")
-        else:
-            parts.append(f"Visibility {_distance(v)}.")
+    parts += [t for t in (wind_text(d["wind"]), visibility_text(d["visibility"])) if t]
 
     for r in d["runway_visual_range"]:
         unit = r["unit"]
@@ -350,23 +416,7 @@ def briefing(d: dict) -> str:
             s += f", {r['tendency']}"
         parts.append(s + ".")
 
-    if d["weather"]:
-        parts.append("Weather: " + ", ".join(wx["text"] for wx in d["weather"]) + ".")
-    elif d["no_significant_weather"]:
-        parts.append("No significant weather.")
-
-    if d["clouds"]:
-        layers = []
-        for c in d["clouds"]:
-            layer = f"{c['cover']} at {c['base_ft']:,} ft"
-            if c["type"]:
-                layer += f" ({c['type']})"
-            layers.append(layer)
-        parts.append("Cloud: " + ", ".join(layers) + ".")
-    elif d["vertical_visibility_ft"] is not None:
-        parts.append(f"Sky obscured, vertical visibility {d['vertical_visibility_ft']:,} ft.")
-    elif d["sky_condition"]:
-        parts.append(_SKY_CLEAR[d["sky_condition"]])
+    parts += [t for t in (weather_text(d), sky_text(d)) if t]
 
     if d["temperature_c"] is not None:
         parts.append(f"Temperature {d['temperature_c']}°C, dew point {d['dewpoint_c']}°C.")
