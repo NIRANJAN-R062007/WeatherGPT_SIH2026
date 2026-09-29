@@ -25,6 +25,7 @@ import httpx
 import imd_warnings as warnings_module
 import ivr
 import limits
+import metar
 import metrics
 import narrate as narrate_module
 import nlu
@@ -469,6 +470,18 @@ def glossary_route(lang: str = "en"):
     so a client can mark unreviewed translations."""
     _require_lang(lang)
     return {"lang": lang, "entries": glossary.entries(lang)}
+
+
+@app.get("/metar/decode")
+def metar_decode(raw: str):
+    """Decode a raw METAR/SPECI string into typed fields plus an English
+    plain-language briefing (plan.md §6 P2 item 10). Template-rendered, no
+    LLM; tokens the decoder doesn't recognise come back in `unparsed`."""
+    try:
+        decoded = metar.decode(raw)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return {"decoded": decoded, "briefing": metar.briefing(decoded)}
 
 
 @app.get("/ask")

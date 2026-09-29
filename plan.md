@@ -295,7 +295,7 @@ Sequential build order — each phase should be working end-to-end before the ne
 - Cyclone map — data. — **Syed**
 - Cyclone map — rendering (web). — **Mahesh**
 - Cyclone map — rendering (mobile). — **Chelsea**
-- METAR decoder. — **Mahesh**
+- ~~METAR decoder.~~ ✅ done (2026-09-29) — `services/orchestrator/metar.py` + `GET /metar/decode?raw=`: decodes one METAR/SPECI (station, time in UTC and IST, wind incl. gusts/variable/calm/varying and KT/MPS/KMH, metric and statute-mile visibility, CAVOK, runway visual range, present weather, cloud layers incl. CB/TCU, vertical visibility, temperature/dew point, QNH or inHg altimeter) into typed fields, plus a plain-language English briefing rendered from fixed templates — no LLM, so every figure is a decoded value or a unit conversion of one. Tokens it doesn't recognise come back in `unparsed` and are named in the briefing, never guessed (§2 principle 4); the trend group (BECMG/TEMPO) and remarks (RMK) are passed through raw, not decoded. The eight demo cities' airports get display names (VOMM, VOMD, VOCB, VOBL, VOHS, VABB, VIDP, VOTV). 39 new tests (`tests/test_metar.py`); full orchestrator suite green (825 passed, 41 skipped). **Not done:** TAF (the forecast half of §6 P2 item 10); no live METAR source — the caller supplies the raw string; English-only briefing; not wired into `/ask`'s NLU (no `metar` intent), the `aviation` persona, or any `web/`/`mobile/` surface. — **Mahesh**
 - Climate trend data & analysis. — **Syed**
 - Climate trend charts — data structuring / cache support. — **Deepthi**
 - WhatsApp bot. — **Mahesh**
