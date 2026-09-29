@@ -119,8 +119,9 @@ def build_prompt(intent: str, city: str, facts: dict, *, feedback: str | None = 
     context_block = _CONTEXT_BLOCK.format(context=context) if context else ""
     persona_hint = persona_module.hint(persona) if persona else ""
     persona_block = _PERSONA_BLOCK.format(persona_hint=persona_hint) if persona_hint else ""
+    word_cap = _word_cap(facts) + (persona_module.EXTRA_WORDS if persona_hint else 0)
     return _PROMPT.format(
-        city=city, intent=intent, word_cap=_word_cap(facts), hint=hint,
+        city=city, intent=intent, word_cap=word_cap, hint=hint,
         feedback=feedback_text, context_block=context_block, persona_block=persona_block,
         facts=json.dumps(trimmed, ensure_ascii=False, sort_keys=True),
     )
@@ -326,14 +327,14 @@ def run_chain(prompt: str, *, response_schema: dict | None = None,
     return None, None
 
 
-def _sanitize(text: str | None) -> str | None:
+def _sanitize(text: str | None, max_chars: int = MAX_CHARS) -> str | None:
     if not text:
         return None
     text = re.sub(r"```[a-z]*|`", "", text)
     text = " ".join(text.split())
     text = text.split("\n", 1)[0].strip()
-    if len(text) > MAX_CHARS:
-        cut = text[:MAX_CHARS]
+    if len(text) > max_chars:
+        cut = text[:max_chars]
         ends = [m.end() for m in re.finditer(r"\.(?!\d)", cut)]  # skip decimal points
         text = cut[: ends[-1]] if ends else cut
     return text or None
@@ -354,4 +355,5 @@ def narrate(intent: str, city: str, facts: dict, lang: str = "en", *,
         intent, city, facts, feedback=feedback, context=context, persona=persona,
     )
     text, _ = run_chain(prompt)
-    return _sanitize(text)
+    extra = persona_module.EXTRA_CHARS if persona_module.hint(persona) else 0
+    return _sanitize(text, MAX_CHARS + extra)

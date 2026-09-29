@@ -2,54 +2,90 @@
 fisherman / aviation / city-official — same data, different framing, driven
 by a user profile flag."
 
-Split two ways in plan.md, deliberately: **this file plus the plumbing
-through main.py/narrate.py is the profile-flag path — Niranjan's item**.
-The actual persona-specific wording (what a farmer vs. a fisherman advisory
-should say, tuned and QA'd) is Mahesh's separate "Persona prompt/template
-logic" item. `_HINTS` below is a first-pass, functional-but-basic default
-set so the plumbing is real and testable end to end rather than an inert
-no-op — treat it as a starting point Mahesh's narration-layer pass replaces
-or extends, not a finished product.
+The profile-flag plumbing through main.py/narrate.py is Niranjan's item; the
+per-persona wording below is Mahesh's "Persona prompt/template logic" item.
 
-Narration-layer only, per plan.md: a persona changes *framing*, never the
-facts. The hint text below is injected into the English prompt build_prompt()
-sends the LLM (narrate.py's PERSONA_BLOCK), same guardrail as always checks
-every number in the output against the raw facts afterward — a persona
-cannot make the LLM say a number that isn't there, only talk about the
-existing numbers differently. It has no effect on the i18n template fallback
-path (narrate.py's LLM chain is the only place persona framing can apply —
-the fallback template is generic by design).
+Narration-layer only: a persona changes *framing*, never the facts. The hint
+is injected into the English prompt build_prompt() sends the LLM (narrate.py's
+PERSONA_BLOCK), and the guardrail still checks every number in the output
+against the raw facts afterward — so the hints below never ask for a number,
+time or threshold, since any such figure would fail grounding and cost a
+regenerate or the template fallback. Each hint names the fact fields its
+advice may draw on ("if the Facts include ..."), so one hint works across all
+intents: a field that isn't in this answer's facts simply isn't mentioned.
+
+The hints also never let the model hand out a safety verdict ("safe to go
+out", "no risk"): the facts are a city forecast, not a sea-state, aerodrome or
+official warning product, so the most they can support is "watch for" /
+"plan around". Warnings come only from the warnings feed (imd_warnings.py),
+never from narration.
+
+No effect on the i18n template fallback path — the fallback stays generic by
+design, and it is also what serves every non-LLM deploy, so a persona must
+never be required to get a correct answer.
 """
 
 DEFAULT = "general"
 
 PERSONAS = frozenset({DEFAULT, "farmer", "fisherman", "aviation", "city_official"})
 
-# English-only: these feed the pre-translation prompt (narrate.py's pipeline
-# always narrates in English first, then Bhashini translates — see
-# narrate.narrate()'s docstring), so there is exactly one copy, not five.
+# Extra room a persona clause gets on top of narrate.py's word cap and
+# character cap, so the advice isn't the part that gets cut off.
+EXTRA_WORDS = 12
+EXTRA_CHARS = 90
+
+# Shared by every persona; kept in one place so the safety rules can't drift
+# apart between personas.
+_RULES = (
+    " Add this as one short clause after the weather, in the same sentence. "
+    "Do not add any number, time, duration, threshold or place that is not in "
+    "the Facts. Never say conditions are safe, risk-free or unsafe, and never "
+    "say a warning or alert is in force — only say what to watch for or plan "
+    "around."
+)
+
+# English-only: these feed the pre-translation prompt (narrate.py always
+# narrates in English first, then Bhashini translates), so one copy, not five.
 _HINTS: dict[str, str] = {
     "farmer": (
-        "The reader is a farmer. Where relevant, note whether conditions favor "
-        "or disfavor field work like spraying or harvesting — using only the "
-        "given facts, never inventing an agricultural detail not present."
+        "The reader is a farmer planning field work. Frame the facts for farm "
+        "decisions: if the Facts include wind, say whether it is calm enough "
+        "for spraying or breezy enough to cause drift; if they include a rain "
+        "chance, say whether it favours spraying and harvesting or suggests "
+        "holding off, and when several days are given, name the day with the "
+        "lowest rain chance as the better window; if they include rain so far, "
+        "relate it to how wet the fields may be; if they include heat or a high "
+        "UV band, suggest working in the cooler part of the day. Never name a "
+        "crop, pest or soil detail that the Facts don't contain."
     ),
     "fisherman": (
-        "The reader is a fisherman going out to sea. Where relevant, note wind "
-        "and rain conditions as they affect going out — using only the given "
-        "facts, never inventing a marine detail (wave height, sea state) not "
-        "present."
+        "The reader is a fisherman deciding whether to go to sea. Frame the "
+        "facts for that decision: if the Facts include wind, say whether it is "
+        "light or strong enough to watch closely; if they include a rain "
+        "chance or a stormy condition, flag it as something to plan around; "
+        "when several days are given, name the calmest-looking day. The Facts "
+        "are a land forecast with no sea state, so never mention waves, swell, "
+        "tides or currents, and always tell them to check the official IMD "
+        "fishermen warning before going out."
     ),
     "aviation": (
-        "The reader is a pilot or aviation ground staff. Where relevant, note "
-        "wind and visibility-affecting conditions in the given facts; never "
-        "invent an aviation-specific figure (ceiling, visibility distance) "
-        "that isn't present."
+        "The reader is a pilot or aviation ground staff. Lead with what "
+        "matters to flight operations: if the Facts include wind, give its "
+        "speed and direction first; if they include a condition such as fog, "
+        "mist, haze, thunderstorm or heavy rain, flag it as affecting "
+        "operations. The Facts have no visibility distance, cloud base or "
+        "runway data, so never mention any, and say this is a city forecast, "
+        "not an airport observation."
     ),
     "city_official": (
-        "The reader is a city/disaster-management official. Be direct and "
-        "operational; where relevant, note conditions that would affect public "
-        "safety or infrastructure, using only the given facts."
+        "The reader is a city or disaster-management official. Be direct and "
+        "operational: if the Facts include rain so far or a rain category, "
+        "relate it to waterlogging and drainage; if they include a high rain "
+        "chance, suggest keeping drainage and response teams ready; if they "
+        "include heat, feels-like temperature or a high UV band, relate it to "
+        "outdoor workers and heat-exposed public; if they include strong wind, "
+        "relate it to trees, hoardings and loose structures. Stay proportionate "
+        "to the facts — no alarm the figures don't support."
     ),
 }
 
@@ -59,8 +95,9 @@ def is_valid(value: str | None) -> bool:
 
 
 def hint(persona: str) -> str:
-    """The English prompt-hint text for `persona`, or "" for "general"/unknown
-    (unknown shouldn't reach here — main.py validates against PERSONAS first
-    — but this stays a safe no-op rather than raising, same defensiveness as
-    narrate.py's other optional prompt fragments)."""
-    return _HINTS.get(persona, "")
+    """The English prompt-hint text for `persona` (framing plus the shared
+    rules), or "" for "general"/unknown (unknown shouldn't reach here —
+    main.py validates against PERSONAS first — but this stays a safe no-op
+    rather than raising)."""
+    text = _HINTS.get(persona)
+    return text + _RULES if text else ""

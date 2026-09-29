@@ -2,8 +2,8 @@
 item 9). Niranjan's item is the plumbing: /ask accepts and validates
 `persona`, threads it through to narrate.build_prompt(), and echoes it back
 in the response when non-default. persona.py's actual per-persona wording is
-a first-pass placeholder Mahesh's separate "prompt/template logic" item
-replaces — these tests check the wiring, not the exact hint text.
+Mahesh's "prompt/template logic" item; the wiring tests here don't pin the
+exact hint text, the wording tests at the end check its rules.
 """
 
 import config
@@ -115,3 +115,65 @@ def test_ask_persona_has_no_effect_on_template_fallback(monkeypatch):
     assert general["response"] == farmer["response"]
     assert general["grounding"]["narration"] == "template"
     assert farmer["grounding"]["narration"] == "template"
+
+
+# ---- persona wording (Mahesh's prompt/template item) ---------------------------
+
+NAMED = sorted(persona.PERSONAS - {persona.DEFAULT})
+
+
+@pytest.mark.parametrize("p", NAMED)
+def test_every_hint_carries_the_shared_rules(p):
+    h = persona.hint(p)
+    assert "Do not add any number, time, duration, threshold or place" in h
+    assert "Never say conditions are safe" in h
+    assert "never say a warning or alert is in force" in h
+
+
+@pytest.mark.parametrize("p", NAMED)
+def test_hints_contain_no_digits(p):
+    # A figure in the hint could be echoed into the answer, where the
+    # guardrail would reject it as ungrounded.
+    assert not any(ch.isdigit() for ch in persona.hint(p))
+
+
+def test_farmer_hint_frames_field_work():
+    h = persona.hint("farmer")
+    assert "spraying" in h and "harvesting" in h and "lowest rain chance" in h
+    assert "Never name a crop" in h
+
+
+def test_fisherman_hint_rules_out_sea_state_and_points_to_imd():
+    h = persona.hint("fisherman")
+    assert "never mention waves, swell, tides or currents" in h
+    assert "official IMD fishermen warning" in h
+
+
+def test_aviation_hint_rules_out_aerodrome_figures():
+    h = persona.hint("aviation")
+    assert "never mention any" in h and "cloud base" in h
+    assert "city forecast, not an airport observation" in h
+
+
+def test_city_official_hint_is_operational():
+    h = persona.hint("city_official")
+    assert "waterlogging" in h and "outdoor workers" in h
+
+
+def test_personas_get_a_bigger_word_cap():
+    facts = {"temp_c": 30, "day": "today"}
+    base = narrate.build_prompt("current_weather", "Chennai", facts)
+    farmer = narrate.build_prompt("current_weather", "Chennai", facts, persona="farmer")
+    assert "max 25 words" in base
+    assert f"max {25 + persona.EXTRA_WORDS} words" in farmer
+
+
+def test_persona_answer_gets_a_bigger_char_cap(monkeypatch):
+    long = "Chennai: " + "calm and dry weather " * 20 + "today."
+    monkeypatch.setattr(narrate, "run_chain", lambda *a, **k: (long, "gemini"))
+    monkeypatch.setattr(config, "RAG_ENABLED", False)
+    facts = {"temp_c": 30, "day": "today"}
+    plain = narrate.narrate("current_weather", "Chennai", facts)
+    farmer = narrate.narrate("current_weather", "Chennai", facts, persona="farmer")
+    assert len(plain) <= narrate.MAX_CHARS
+    assert narrate.MAX_CHARS < len(farmer) <= narrate.MAX_CHARS + persona.EXTRA_CHARS
