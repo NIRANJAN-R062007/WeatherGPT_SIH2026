@@ -38,7 +38,10 @@ DISCLAIMER = ("For awareness only, not for flight planning. Use the official AAI
               "aviation briefing before flying.")
 
 CITY_STATION = {name.lower(): icao for icao, name in metar.STATIONS.items()}
-_DECODERS = {"metar": (metar.decode, metar.briefing), "taf": (taf.decode, taf.briefing)}
+_DECODERS = {
+    "metar": (metar.decode, metar.briefing, metar.briefing_lines),
+    "taf": (taf.decode, taf.briefing, taf.briefing_lines),
+}
 _REPORT_START = re.compile(r"(?m)^(?=(?:METAR|SPECI|TAF)\s)")
 
 _CACHE: dict[tuple[str, str], tuple[float, "Report"]] = {}
@@ -137,7 +140,7 @@ def _part(kind: str, station: str) -> dict | None:
     rep = report(kind, station)
     if rep is None:
         return None
-    decode, briefing = _DECODERS[kind]
+    decode, briefing, lines = _DECODERS[kind]
     try:
         decoded = decode(rep.raw)
     except ValueError as exc:
@@ -147,6 +150,7 @@ def _part(kind: str, station: str) -> dict | None:
         "raw": rep.raw,
         "decoded": decoded,
         "briefing": briefing(decoded),
+        "lines": lines(decoded),
         "is_live": rep.is_live,
         "retrieved_at": rep.retrieved_at,
         "source": SOURCE,

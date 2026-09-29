@@ -386,3 +386,12 @@ def test_a_history_failure_does_not_break_the_aviation_answer(monkeypatch):
     monkeypatch.setattr(history, "record", _boom)
     r = client.get("/ask", params={"text": "metar Chennai"}, headers={"Authorization": "Bearer t"})
     assert r.status_code == 200 and r.json()["intent"] == "aviation"
+
+
+def test_parts_carry_the_briefing_as_lines():
+    r = aviation.public("VOMM")
+    for kind in ("metar", "taf"):
+        part = r[kind]
+        assert " ".join(part["lines"]) == part["briefing"]
+        assert len(part["lines"]) > 1
+    assert len(r["taf"]["lines"]) >= 1 + len(r["taf"]["decoded"]["changes"])

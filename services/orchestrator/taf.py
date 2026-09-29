@@ -176,6 +176,11 @@ def _lead(change: dict) -> str:
 
 def briefing(d: dict) -> str:
     """Plain-language English briefing built only from decode()'s output."""
+    return " ".join(briefing_lines(d))
+
+
+def briefing_lines(d: dict) -> list[str]:
+    """The briefing one sentence group per line: the header, then each element or period."""
     name = d["station_name"]
     where = f"{name} airport ({d['station']})" if name else f"Station {d['station']}"
     kind = {
@@ -210,4 +215,4 @@ def briefing(d: dict) -> str:
     if d["unparsed"]:
         parts.append(f"Not decoded: {' '.join(d['unparsed'])}.")
 
-    return " ".join(parts)
+    return parts

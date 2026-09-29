@@ -239,3 +239,21 @@ def test_endpoint_rejects_bad_input_with_422():
     assert client.get("/taf/decode", params={"raw": "hello"}).status_code == 422
     assert client.get("/taf/decode", params={"raw": ""}).status_code == 422
     assert client.get("/taf/decode").status_code == 422
+
+
+# --- briefing_lines() ---------------------------------------------------------
+
+
+def test_briefing_lines_join_to_the_briefing():
+    d = taf.decode(CHENNAI)
+    lines = taf.briefing_lines(d)
+    assert " ".join(lines) == taf.briefing(d)
+    assert lines[0].startswith("Chennai airport (VOMM), terminal forecast (TAF)")
+    # one line per change group after the header and the base conditions
+    assert sum(1 for line in lines if line.startswith(("Temporarily", "Gradually changing"))) == 5
+
+
+def test_metar_briefing_lines_join_to_the_briefing():
+    d = metar.decode("VOMM 291130Z 24012KT 6000 SCT020 BKN080 31/25 Q1006 NOSIG")
+    assert " ".join(metar.briefing_lines(d)) == metar.briefing(d)
+    assert metar.briefing_lines(d)[0].startswith("Chennai airport (VOMM), routine report")
