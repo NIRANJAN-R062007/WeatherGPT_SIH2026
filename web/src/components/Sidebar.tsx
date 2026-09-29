@@ -1,51 +1,71 @@
+// Logo block + nav; the active item is a solid primary pill. Below the
+// pages: Profile, and the account's card at the foot (both open the Profile
+// page, which has Sign out) — mobile app_shell.dart's Sidebar.
 import { NavLink } from 'react-router-dom';
+import { displayName } from '../lib/auth';
+import { useAuth } from '../state/AuthContext';
+import { BrandMark, GuestAvatar, ProfileAvatar } from './Brand';
+import { NAV_ITEMS } from './nav';
+import { Icon } from './ui';
 
-const NAV_ITEMS = [
-  { to: '/', label: 'Home', icon: 'grid_view', end: true },
-  { to: '/chat', label: 'Chat & Evidence', icon: 'chat_paste_go' },
-  { to: '/forecast', label: 'Forecast', icon: 'partly_cloudy_day' },
-  { to: '/alerts', label: 'Alerts & Warnings', icon: 'crisis_alert' },
-  { to: '/history', label: 'History', icon: 'manage_search' },
-  { to: '/settings', label: 'Settings', icon: 'tune' },
-];
+const tile = (active: boolean) =>
+  `flex items-center gap-space-sm px-space-md py-2.5 rounded-lg transition-colors font-label-md text-label-md ${
+    active ? 'bg-primary text-on-primary' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface'
+  }`;
 
-export default function Sidebar() {
+export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
+  const { user, isGuest } = useAuth();
   return (
-    <aside className="fixed left-0 top-0 h-full w-64 bg-surface-container-lowest z-50 flex flex-col justify-between shadow-[0_1px_8px_rgba(0,0,0,0.04)]">
-      <div className="flex flex-col">
-        <div className="p-space-lg flex flex-col gap-space-xs">
-          <div className="flex items-center gap-space-sm">
-            <div className="h-8 w-8 rounded-md bg-primary flex items-center justify-center flex-none">
-              <span className="material-symbols-outlined text-on-primary text-[20px]">cloud</span>
-            </div>
-            <div className="flex flex-col">
-              <span className="font-headline-sm text-headline-sm text-on-surface tracking-tight leading-none">
-                WeatherGPT
-              </span>
-              <span className="font-body-sm text-body-sm text-on-surface-variant">Your AI weather assistant</span>
-            </div>
-          </div>
+    <div className="flex h-full flex-col">
+      <div className="p-space-lg flex items-center gap-space-sm">
+        <BrandMark size={32} />
+        <div className="flex flex-col">
+          <span className="font-headline-sm text-headline-sm text-on-surface tracking-tight leading-none">
+            WeatherGPT
+          </span>
+          <span className="font-body-sm text-body-sm text-on-surface-variant mt-0.5">Your AI weather assistant</span>
         </div>
-        <nav className="flex flex-col gap-1 px-space-md mt-space-xs">
-          {NAV_ITEMS.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.end}
-              className={({ isActive }) =>
-                `flex items-center gap-space-sm px-space-md py-2.5 rounded-lg transition-colors font-label-md text-label-md ${
-                  isActive
-                    ? 'bg-primary text-on-primary'
-                    : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface'
-                }`
-              }
-            >
-              <span className="material-symbols-outlined text-[20px]">{item.icon}</span>
-              <span>{item.label}</span>
-            </NavLink>
-          ))}
-        </nav>
       </div>
-    </aside>
+      <nav className="flex flex-col gap-1 px-space-md">
+        {NAV_ITEMS.map((item) => (
+          <NavLink key={item.to} to={item.to} end={item.end} onClick={onNavigate} className={({ isActive }) => tile(isActive)}>
+            {({ isActive }) => (
+              <>
+                <Icon name={item.icon} size={20} fill={isActive} />
+                <span>{item.label}</span>
+              </>
+            )}
+          </NavLink>
+        ))}
+        <NavLink to="/history" onClick={onNavigate} className={({ isActive }) => tile(isActive)}>
+          <Icon name="manage_search" size={20} />
+          <span>History</span>
+        </NavLink>
+        <div className="my-space-sm h-px bg-outline-variant/60" />
+        <NavLink to="/profile" onClick={onNavigate} className={({ isActive }) => tile(isActive)}>
+          <Icon name="account_circle" size={20} />
+          <span>Profile</span>
+        </NavLink>
+      </nav>
+      <div className="flex-1" />
+      {(user || isGuest) && (
+        <NavLink
+          to="/profile"
+          onClick={onNavigate}
+          className="m-space-md flex items-center gap-2.5 p-3 rounded-card bg-tint hover:bg-tint-strong transition-colors"
+        >
+          {user ? <ProfileAvatar user={user} size={40} /> : <GuestAvatar size={40} />}
+          <span className="flex-1 min-w-0">
+            <span className="block truncate font-label-md text-label-md font-bold text-ink">
+              {user ? displayName(user) : 'Guest'}
+            </span>
+            <span className="block truncate font-body-sm text-body-sm text-ink-muted">
+              {user ? user.email : 'Not signed in'}
+            </span>
+          </span>
+          <Icon name="chevron_right" size={20} className="text-ink-muted" />
+        </NavLink>
+      )}
+    </div>
   );
 }

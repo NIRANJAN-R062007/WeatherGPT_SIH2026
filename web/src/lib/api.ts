@@ -265,12 +265,17 @@ export interface AskParams {
   /** Sent as `Authorization: Bearer <token>`; makes the backend record the
    *  call to /history, best-effort. Omitted when absent. */
   token?: string;
+  /** persona.PERSONAS id (services/orchestrator/persona.py): changes the
+   *  narration's framing only, never the facts. "general" is the default
+   *  framing, so it isn't sent. */
+  persona?: string;
 }
 
-export async function askWeather({ text, lang, city, token }: AskParams): Promise<AskResponse> {
+export async function askWeather({ text, lang, city, token, persona }: AskParams): Promise<AskResponse> {
   const params = new URLSearchParams({ text });
   if (lang) params.set('lang', lang);
   if (city) params.set('city', city);
+  if (persona && persona !== 'general') params.set('persona', persona);
 
   const headers: Record<string, string> = {};
   if (token) headers.Authorization = `Bearer ${token}`;

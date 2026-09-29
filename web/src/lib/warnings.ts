@@ -99,15 +99,15 @@ export async function fetchWarnings({ city, lang }: WarningsParams): Promise<War
     } catch {
       throw new WarningsError('malformed', "The warnings service's reply wasn't valid JSON.");
     }
-    if (
-      payload === null ||
-      typeof payload !== 'object' ||
-      !('status' in payload) ||
-      !('legend' in payload)
-    ) {
+    if (payload === null || typeof payload !== 'object' || !('warning' in payload)) {
       throw new WarningsError('malformed', "The warnings service's reply didn't look like a verdict.");
     }
-    return payload as WarningsRouteResponse;
+    // An older orchestrator (still what some deployments run) sends only
+    // `warning`, no `status` / `legend` — derive them the way the mobile app
+    // does: no warning is "unavailable" (never an all-clear), green is clear.
+    const p = payload as Partial<WarningsVerdict> & Pick<WarningsRouteResponse, 'city' | 'city_name'>;
+    const status = p.status ?? (!p.warning ? 'unavailable' : p.warning.colour === 'green' ? 'clear' : 'active');
+    return { ...p, status, legend: p.legend ?? [] } as WarningsRouteResponse;
   } catch (err) {
     if (err instanceof WarningsError) throw err;
     if (err instanceof Error && err.name === 'AbortError') {

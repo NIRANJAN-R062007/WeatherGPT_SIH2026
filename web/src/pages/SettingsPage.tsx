@@ -1,142 +1,157 @@
-import type { ReactNode } from 'react';
-import { LANG_OPTIONS, useUiPrefs } from '../state/UiPrefsContext';
+// Settings — the pics/ mockup (mobile settings_page.dart): the persona
+// profile card with "Change Persona", then one row per preference
+// (Language, Units, Location, Appearance, About), each opening a picker.
+// Language reaches /ask, /facts and /warnings; Persona reaches /ask's
+// `persona` param and themes the app; Appearance switches every persona
+// between its light and dark palette. The account lives on the Profile
+// page. There is no Notifications row: proactive pushes need a push channel
+// (POST /alerts/subscribe takes an FCM token or webhook) the site doesn't
+// have.
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { CityPickerSheet } from '../components/CityPicker';
+import PageFrame from '../components/PageFrame';
+import { ActionRow, AppCard, IconDisc, OptionTile, PageHeader, Sheet } from '../components/ui';
+import { LANG_NAMES, useUiPrefs, type Appearance, type LangCode, type Unit } from '../state/UiPrefsContext';
 
-const PERSONAS = [
-  { id: 'general', label: 'General Citizen', icon: 'person', blurb: 'Plain-language current conditions and forecast.' },
-  { id: 'farmer', label: 'Farmer', icon: 'agriculture', blurb: 'Spraying and harvest-window framing on the same data.' },
-  { id: 'fisherman', label: 'Fisherman', icon: 'sailing', blurb: 'Wind, swell and coastal-safety framing.' },
-  { id: 'aviation', label: 'Aviation', icon: 'flight', blurb: 'METAR-style briefing language.' },
-  { id: 'city-official', label: 'City Official', icon: 'apartment', blurb: 'Ward-level impact and disaster-response framing.' },
-];
+const APPEARANCE_LABELS: Record<Appearance, string> = {
+  light: 'Light Mode',
+  dark: 'Dark Mode',
+  system: 'System default',
+};
 
-function SectionCard({ title, icon, children }: { title: string; icon: string; children: ReactNode }) {
+const UNIT_LABELS: Record<Unit, string> = { C: 'Celsius (°C)', F: 'Fahrenheit (°F)' };
+
+type Picker = 'language' | 'units' | 'location' | 'appearance' | 'about' | null;
+
+function Options<T extends string>({
+  options,
+  selected,
+  onPick,
+}: {
+  options: [T, string][];
+  selected: T;
+  onPick: (v: T) => void;
+}) {
   return (
-    <section className="bg-surface-container-lowest rounded-xl shadow-sm p-space-lg flex flex-col gap-space-md">
-      <div className="flex items-center gap-2">
-        <span className="material-symbols-outlined text-primary text-[20px]">{icon}</span>
-        <h2 className="font-headline-sm text-headline-sm text-on-surface">{title}</h2>
-      </div>
-      {children}
-    </section>
+    <div role="radiogroup" className="flex flex-col gap-space-sm">
+      {options.map(([value, label]) => (
+        <OptionTile key={value} label={label} selected={value === selected} onClick={() => onPick(value)} />
+      ))}
+    </div>
   );
 }
 
 export default function SettingsPage() {
-  const { lang, setLang, unit, setUnit } = useUiPrefs();
+  const prefs = useUiPrefs();
+  const navigate = useNavigate();
+  const [open, setOpen] = useState<Picker>(null);
+  const close = () => setOpen(null);
+  const persona = prefs.personaInfo;
 
   return (
-    <div className="flex flex-col w-full gap-space-lg">
-      <div>
-        <h1 className="font-headline-lg text-headline-lg font-bold text-on-surface">Settings</h1>
-        <p className="font-body-md text-body-md text-on-surface-variant mt-1">
-          These preferences change how WeatherGPT frames answers — never the underlying data.
-        </p>
-      </div>
+    <PageFrame>
+      <PageHeader title="Settings" subtitle="Manage your preferences and experience." />
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-space-lg items-start">
-      <div className="lg:col-span-7 flex flex-col gap-space-lg">
-
-      <SectionCard title="Account" icon="account_circle">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-full bg-primary-container flex items-center justify-center text-on-primary font-label-md font-semibold">
-              RS
-            </div>
-            <div>
-              <div className="font-body-sm text-body-sm text-on-surface-variant">Signed in with Google</div>
+      <div className="mt-space-lg">
+        <AppCard className="!bg-tint !border-tint-strong">
+          <div className="flex items-center gap-space-md">
+            <IconDisc icon={persona.icon} solid size={52} />
+            <div className="min-w-0">
+              <div className="font-headline-sm text-headline-sm font-bold text-ink">{persona.label}</div>
+              <div className="font-body-sm text-body-sm text-ink-muted">{persona.tagline}</div>
             </div>
           </div>
-          <button
-            type="button"
-            className="px-4 py-2 rounded-full border border-outline-variant text-on-surface-variant font-label-md text-label-md hover:bg-surface-container-high transition-colors"
-          >
-            Sign out
-          </button>
-        </div>
-      </SectionCard>
-
-      <SectionCard title="Language" icon="translate">
-        <p className="font-body-sm text-body-sm text-on-surface-variant -mt-2">
-          All five languages, fully text-ready today — voice support is on the way!
-        </p>
-        <div className="flex flex-wrap gap-2">
-          {LANG_OPTIONS.map((opt) => (
+          <div className="mt-3 flex justify-end">
             <button
-              key={opt.code}
               type="button"
-              onClick={() => setLang(opt.code)}
-              className={`px-4 py-2 rounded-full font-label-md text-label-md transition-colors ${
-                lang === opt.code
-                  ? 'bg-primary text-on-primary font-semibold shadow-sm'
-                  : 'bg-surface-container-low text-on-surface-variant hover:text-on-surface'
-              }`}
+              onClick={() => navigate('/persona')}
+              className="px-3.5 py-2 rounded-lg bg-card font-label-md text-label-md font-semibold text-primary hover:bg-surface-container-low"
             >
-              {opt.label}
+              Change Persona
             </button>
-          ))}
-        </div>
-      </SectionCard>
-
-      <SectionCard title="Units" icon="straighten">
-        <div className="flex items-center bg-surface-container-low p-1 rounded-full w-fit font-label-md text-label-md text-on-surface-variant">
-          <button
-            type="button"
-            onClick={() => setUnit('C')}
-            className={`px-4 py-1.5 rounded-full transition-colors ${
-              unit === 'C' ? 'bg-surface-container-lowest text-on-surface shadow-sm font-semibold' : 'hover:text-on-surface'
-            }`}
-          >
-            Celsius (°C)
-          </button>
-          <button
-            type="button"
-            onClick={() => setUnit('F')}
-            className={`px-4 py-1.5 rounded-full transition-colors ${
-              unit === 'F' ? 'bg-surface-container-lowest text-on-surface shadow-sm font-semibold' : 'hover:text-on-surface'
-            }`}
-          >
-            Fahrenheit (°F)
-          </button>
-        </div>
-      </SectionCard>
-
+          </div>
+        </AppCard>
       </div>
-      <div className="lg:col-span-5 flex flex-col gap-space-lg">
 
-      <SectionCard title="Persona" icon="tune">
-        <p className="font-body-sm text-body-sm text-on-surface-variant -mt-2">
-          Same trusted numbers, framed the way that's most useful for your role.
-        </p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          {PERSONAS.map((p, i) => (
-            <label
-              key={p.id}
-              className="flex items-start gap-3 p-3 rounded-lg border border-outline-variant has-[:checked]:border-primary has-[:checked]:bg-surface-container-low cursor-pointer transition-colors"
-            >
-              <input type="radio" name="persona" defaultChecked={i === 0} className="mt-1" />
-              <span className="material-symbols-outlined text-on-surface-variant text-[20px]">{p.icon}</span>
-              <span className="flex flex-col">
-                <span className="font-label-md text-label-md text-on-surface font-semibold">{p.label}</span>
-                <span className="font-body-sm text-body-sm text-on-surface-variant">{p.blurb}</span>
-              </span>
-            </label>
-          ))}
+      <div className="mt-space-lg flex flex-col gap-space-sm">
+        <ActionRow plainIcon icon="language" title="Language" subtitle={LANG_NAMES[prefs.lang]} onClick={() => setOpen('language')} />
+        <ActionRow plainIcon icon="device_thermostat" title="Units" subtitle={UNIT_LABELS[prefs.unit]} onClick={() => setOpen('units')} />
+        <ActionRow
+          plainIcon
+          icon="location_on"
+          title="Location"
+          subtitle={`${prefs.cityInfo.name}, ${prefs.cityInfo.region}`}
+          onClick={() => setOpen('location')}
+        />
+        <ActionRow
+          plainIcon
+          icon={prefs.isDark ? 'dark_mode' : 'light_mode'}
+          title="Appearance"
+          subtitle={APPEARANCE_LABELS[prefs.appearance]}
+          onClick={() => setOpen('appearance')}
+        />
+        <ActionRow plainIcon icon="info" title="About" subtitle="WeatherGPT web" onClick={() => setOpen('about')} />
+      </div>
+
+      <Sheet
+        open={open === 'language'}
+        onClose={close}
+        title="Language"
+        note="Answers, conditions and warning text all follow this language."
+      >
+        <Options<LangCode>
+          options={(Object.keys(LANG_NAMES) as LangCode[]).map((c) => [c, LANG_NAMES[c]])}
+          selected={prefs.lang}
+          onPick={(v) => {
+            prefs.setLang(v);
+            close();
+          }}
+        />
+      </Sheet>
+      <Sheet
+        open={open === 'units'}
+        onClose={close}
+        title="Units"
+        note="Applies to temperatures on Home and Forecast; narrated answers keep the service's units."
+      >
+        <Options<Unit>
+          options={[
+            ['C', UNIT_LABELS.C],
+            ['F', UNIT_LABELS.F],
+          ]}
+          selected={prefs.unit}
+          onPick={(v) => {
+            prefs.setUnit(v);
+            close();
+          }}
+        />
+      </Sheet>
+      <CityPickerSheet open={open === 'location'} onClose={close} />
+      <Sheet
+        open={open === 'appearance'}
+        onClose={close}
+        title="Appearance"
+        note="Every persona has a light and a dark look; the persona's colours carry over."
+      >
+        <Options<Appearance>
+          options={(Object.keys(APPEARANCE_LABELS) as Appearance[]).map((a) => [a, APPEARANCE_LABELS[a]])}
+          selected={prefs.appearance}
+          onPick={(v) => {
+            prefs.setAppearance(v);
+            close();
+          }}
+        />
+      </Sheet>
+      <Sheet open={open === 'about'} onClose={close} title="WeatherGPT">
+        <div className="flex items-start gap-3">
+          <IconDisc icon="cloud" solid />
+          <p className="font-body-md text-body-md text-ink-muted">
+            Grounded weather answers in English, हिन्दी, தமிழ், తెలుగు and मराठी. Every number is checked against the
+            source data before you see it.
+          </p>
         </div>
-      </SectionCard>
-
-      <SectionCard title="Notifications" icon="notifications">
-        <label className="flex items-center justify-between">
-          <span className="font-label-md text-label-md text-on-surface">Proactive alert pushes</span>
-          <input type="checkbox" defaultChecked className="w-5 h-5 accent-primary" />
-        </label>
-        <label className="flex items-center justify-between">
-          <span className="font-label-md text-label-md text-on-surface">Daily forecast digest</span>
-          <input type="checkbox" className="w-5 h-5 accent-primary" />
-        </label>
-      </SectionCard>
-
-      </div>
-      </div>
-    </div>
+      </Sheet>
+    </PageFrame>
   );
 }

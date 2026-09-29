@@ -18,6 +18,15 @@ export const COLOUR_TEXT: Record<WarningColour, string> = {
   red: 'text-imd-red',
 };
 
+/** The same bands as literal colours, for tinting a card by the feed's own
+ *  colour (tailwind.config.js imd-*). */
+export const COLOUR_HEX: Record<WarningColour, string> = {
+  green: '#1e7f3c',
+  yellow: '#c99a00',
+  orange: '#d96a0b',
+  red: '#b3261e',
+};
+
 export function istTimestamp(iso: string) {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;

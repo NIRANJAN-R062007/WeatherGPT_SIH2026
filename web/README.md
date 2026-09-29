@@ -20,6 +20,30 @@ the Home hero or any other number. Wiring that (and real translation) needs
 the pages to read from live data instead of hardcoded strings, which is the
 same follow-up pass as the `/ask` integration above.
 
+## Personas, themes and accounts (2026-09-29)
+
+The site now mirrors the mobile app (`mobile/`), and the look follows
+the pics/ persona mockups:
+
+- **Persona = app-wide theme.** The persona picked on `/persona` sets
+  every colour through CSS custom properties. General Citizen is blue,
+  Farmer green, Fisherman ocean blue, Aviation purple and pink, and City
+  Official teal. The palettes are in `src/theme/personaTheme.ts`, and
+  `tailwind.config.js` maps the colour names onto the variables. Every
+  persona has a light and a dark palette, switched under Settings >
+  Appearance (Light / Dark / System). Persona and appearance are kept in
+  localStorage.
+- **Painted scenery.** City, fields, sea, airport and civic scenes are
+  drawn on `<canvas>` by `src/components/scenery/`, a port of mobile's
+  `scenery.dart` painters.
+- **Accounts.** Email and password sign-in on the team's Supabase
+  project (`src/lib/auth.ts`, overridable with `VITE_SUPABASE_URL` /
+  `VITE_SUPABASE_ANON_KEY`). There is a landing page, sign in / create
+  account (name, email, phone, occupation), a Profile page with Sign out,
+  and "Continue as guest". The session is kept in localStorage.
+- **Live data.** Home and Forecast read `GET /facts` (today, tonight and
+  tomorrow). Chat asks `/ask` with the persona. Alerts reads `/warnings`.
+
 ## Pages
 
 | Route | Screen | Stitch source |

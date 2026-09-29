@@ -82,6 +82,59 @@
 }
 
 @layer base {
+  /* General Citizen's light palette, so the first paint (before React runs
+     applyTheme() from src/theme/personaTheme.ts) is already themed. */
+  :root {
+    --c-primary: 30 99 214;
+    --c-on-primary: 255 255 255;
+    --c-primary-container: 20 80 181;
+    --c-on-primary-container: 255 255 255;
+    --c-primary-fixed: 220 232 255;
+    --c-primary-fixed-dim: 210 227 252;
+    --c-on-primary-fixed: 10 45 110;
+    --c-on-primary-fixed-variant: 20 80 181;
+    --c-inverse-primary: 220 232 255;
+    --c-surface-tint: 30 99 214;
+    --c-surface: 245 249 255;
+    --c-surface-bright: 245 249 255;
+    --c-background: 245 249 255;
+    --c-on-surface: 11 31 63;
+    --c-on-background: 11 31 63;
+    --c-on-surface-variant: 62 76 99;
+    --c-surface-dim: 210 227 252;
+    --c-surface-variant: 210 227 252;
+    --c-surface-container-lowest: 255 255 255;
+    --c-surface-container-low: 240 245 254;
+    --c-surface-container: 230 238 252;
+    --c-surface-container-high: 220 231 250;
+    --c-surface-container-highest: 210 227 252;
+    --c-outline: 111 124 146;
+    --c-outline-variant: 195 206 223;
+    --c-inverse-surface: 29 48 82;
+    --c-inverse-on-surface: 237 240 255;
+    --c-error: 186 26 26;
+    --c-on-error: 255 255 255;
+    --c-error-container: 255 218 214;
+    --c-on-error-container: 147 0 10;
+    --c-accent-2: 79 163 247;
+    --c-accent-2-soft: 227 241 254;
+    --c-accent-end: 24 89 196;
+    --c-sky-top: 198 222 250;
+    --c-sky-bottom: 234 243 254;
+    --c-sheet: 245 249 255;
+    --c-cloud-puff: 255 255 255;
+    --c-card: 255 255 255;
+    --c-card-border: 217 230 247;
+    --c-tint: 231 240 254;
+    --c-tint-strong: 210 227 252;
+    --c-shadow: 30 99 214;
+    --c-ink: 15 37 72;
+    --c-ink-muted: 86 103 131;
+    --c-nav-bar: 255 255 255;
+    --c-nav-idle: 107 122 147;
+    --shadow-a: 0.08;
+  }
+
   html,
   body {
     margin: 0;
@@ -89,8 +142,47 @@
   }
 
   body {
-    @apply bg-background font-body-md text-on-surface antialiased;
+    @apply bg-sky-bottom font-body-md text-on-surface antialiased;
     overscroll-behavior: none;
+  }
+}
+
+/* A persona or appearance switch cross-fades the palette for a moment
+   (applyTheme(t, animate) toggles .theme-anim) instead of snapping. */
+html.theme-anim *,
+html.theme-anim *::before,
+html.theme-anim *::after {
+  transition:
+    background-color 0.35s ease,
+    border-color 0.35s ease,
+    color 0.35s ease,
+    box-shadow 0.35s ease !important;
+}
+
+@layer utilities {
+  /* The persona's accent fill: buttons, the selected switch pill, the
+     question bubble and persona discs (primary -> deeper primary). */
+  .bg-accent-gradient {
+    background-image: linear-gradient(to bottom right, rgb(var(--c-primary)), rgb(var(--c-accent-end)));
+  }
+
+  /* The page background behind the top bar and the content sheet. */
+  .bg-sky-gradient {
+    background-image: linear-gradient(to bottom, rgb(var(--c-sky-top)) 0, rgb(var(--c-sky-bottom)) 300px);
+  }
+
+  /* Weather / hero cards fade from the card colour into the persona tint. */
+  .bg-wash {
+    background-image: linear-gradient(
+      to bottom right,
+      rgb(var(--c-card)) 35%,
+      rgb(var(--c-tint)) 85%,
+      rgb(var(--c-accent-2-soft)) 100%
+    );
+  }
+
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
   }
 }
 
@@ -124,6 +216,15 @@
   -webkit-font-smoothing: antialiased;
   font-variation-settings:
     'FILL' 0,
+    'wght' 400,
+    'GRAD' 0,
+    'opsz' 24;
+}
+
+/* Filled glyph (the mockups' solid icons). */
+.material-symbols-outlined.icon-fill {
+  font-variation-settings:
+    'FILL' 1,
     'wght' 400,
     'GRAD' 0,
     'opsz' 24;
