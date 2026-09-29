@@ -15,6 +15,7 @@ import '../facts_client.dart';
 import '../format.dart';
 import '../state/ui_prefs.dart';
 import '../state/weather_store.dart';
+import '../persona_theme.dart';
 import '../theme.dart';
 
 enum _View { days, details }
@@ -67,7 +68,9 @@ class _ForecastPageState extends State<ForecastPage> {
         const SizedBox(height: AppSpace.sm),
       ];
     }
-    if (weather.today == null) return [const LoadingPanel('Loading the forecast…'), const SizedBox(height: AppSpace.sm)];
+    if (weather.today == null) {
+      return [const LoadingPanel('Loading the forecast…'), const SizedBox(height: AppSpace.sm)];
+    }
 
     final rows = [
       ('Today', weather.today, 0, false),
@@ -81,10 +84,7 @@ class _ForecastPageState extends State<ForecastPage> {
             : _DetailCard(label: label, result: result, dayOffset: offset, night: night),
         const SizedBox(height: 10),
       ],
-      if (_view == _View.details) ...[
-        _ProvenanceCard(weather: weather),
-        const SizedBox(height: 10),
-      ],
+      if (_view == _View.details) ...[_ProvenanceCard(weather: weather), const SizedBox(height: 10)],
     ];
   }
 }
@@ -97,6 +97,7 @@ class _Switch extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
     Widget tab(_View v, String label) {
       final selected = v == value;
       return Expanded(
@@ -104,19 +105,25 @@ class _Switch extends StatelessWidget {
           selected: selected,
           button: true,
           child: Material(
-            color: selected ? AppColors.primary : Colors.transparent,
+            color: Colors.transparent,
             borderRadius: BorderRadius.circular(999),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(999),
-              onTap: () => onChanged(v),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                child: Text(
-                  label,
-                  textAlign: TextAlign.center,
-                  style: AppText.labelMd.copyWith(
-                    color: selected ? AppColors.onPrimary : AppColors.ink,
-                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+            child: Ink(
+              decoration: BoxDecoration(
+                gradient: selected ? t.accentGradient : null,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(999),
+                onTap: () => onChanged(v),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  child: Text(
+                    label,
+                    textAlign: TextAlign.center,
+                    style: AppText.labelMd.copyWith(
+                      color: selected ? t.onPrimary : t.ink,
+                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                    ),
                   ),
                 ),
               ),
@@ -128,7 +135,7 @@ class _Switch extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(color: AppColors.tint, borderRadius: BorderRadius.circular(999)),
+      decoration: BoxDecoration(color: t.tint, borderRadius: BorderRadius.circular(999)),
       child: Row(children: [tab(_View.days, 'Days'), const SizedBox(width: 4), tab(_View.details, 'Details')]),
     );
   }
@@ -144,6 +151,7 @@ class _DayRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
     final prefs = UiPrefs.of(context);
     final r = result;
     final hasData = r?.hasData == true;
@@ -161,32 +169,46 @@ class _DayRow extends StatelessWidget {
 
     return AppCard(
       padding: const EdgeInsets.symmetric(horizontal: AppSpace.md, vertical: 12),
-      child: Row(children: [
-        Expanded(
-          flex: 4,
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(label, style: AppText.labelMd.copyWith(color: AppColors.ink, fontWeight: FontWeight.w700)),
-            Text(
-              istDayMonth(r?.issued, fallbackOffsetDays: dayOffset),
-              style: AppText.bodySm.copyWith(color: AppColors.inkMuted),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 4,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: AppText.labelMd.copyWith(color: t.ink, fontWeight: FontWeight.w700),
+                ),
+                Text(
+                  istDayMonth(r?.issued, fallbackOffsetDays: dayOffset),
+                  style: AppText.bodySm.copyWith(color: t.inkMuted),
+                ),
+              ],
             ),
-          ]),
-        ),
-        WeatherGlyph(r?.condition, night: night, size: 40),
-        const SizedBox(width: AppSpace.md),
-        Expanded(
-          flex: 5,
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(temps, style: AppText.labelMd.copyWith(color: AppColors.ink, fontWeight: FontWeight.w600)),
-            Text(
-              hasData ? sentenceCase(r!.conditionLabel) : (r?.message ?? 'No forecast for this period.'),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: AppText.bodySm.copyWith(color: AppColors.inkMuted),
+          ),
+          WeatherGlyph(r?.condition, night: night, size: 40),
+          const SizedBox(width: AppSpace.md),
+          Expanded(
+            flex: 5,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  temps,
+                  style: AppText.labelMd.copyWith(color: t.ink, fontWeight: FontWeight.w600),
+                ),
+                Text(
+                  hasData ? sentenceCase(r!.conditionLabel) : (r?.message ?? 'No forecast for this period.'),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.bodySm.copyWith(color: t.inkMuted),
+                ),
+              ],
             ),
-          ]),
-        ),
-      ]),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -201,6 +223,7 @@ class _DetailCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
     final prefs = UiPrefs.of(context);
     final r = result;
     final hasData = r?.hasData == true;
@@ -209,36 +232,45 @@ class _DetailCard extends StatelessWidget {
     final rain = r?.number('rain_probability_pct');
 
     return AppCard(
-      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Row(children: [
-          WeatherGlyph(r?.condition, night: night, size: 32),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              '$label, ${istDayMonth(r?.issued, fallbackOffsetDays: dayOffset)}',
-              style: AppText.labelMd.copyWith(color: AppColors.ink, fontWeight: FontWeight.w700),
-            ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              WeatherGlyph(r?.condition, night: night, size: 32),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  '$label, ${istDayMonth(r?.issued, fallbackOffsetDays: dayOffset)}',
+                  style: AppText.labelMd.copyWith(color: t.ink, fontWeight: FontWeight.w700),
+                ),
+              ),
+              if (hasData) LiveBadge(live: r!.isLive),
+            ],
           ),
-          if (hasData) LiveBadge(live: r!.isLive),
-        ]),
-        const SizedBox(height: 12),
-        if (!hasData)
-          Text(r?.message ?? 'No forecast for this period.', style: AppText.bodySm.copyWith(color: AppColors.inkMuted))
-        else
-          Row(children: [
-            Expanded(child: _Figure(Icons.umbrella_outlined, 'Rain chance', rain == null ? '—' : '${rain.round()}%')),
-            Expanded(
-              child: night
-                  ? _Figure(Icons.nights_stay_outlined, 'Overnight low', low == null ? '—' : prefs.tempLabel(low))
-                  : _Figure(Icons.thermostat, 'High', high == null ? '—' : prefs.tempLabel(high)),
+          const SizedBox(height: 12),
+          if (!hasData)
+            Text(r?.message ?? 'No forecast for this period.', style: AppText.bodySm.copyWith(color: t.inkMuted))
+          else
+            Row(
+              children: [
+                Expanded(
+                  child: _Figure(Icons.umbrella_outlined, 'Rain chance', rain == null ? '—' : '${rain.round()}%'),
+                ),
+                Expanded(
+                  child: night
+                      ? _Figure(Icons.nights_stay_outlined, 'Overnight low', low == null ? '—' : prefs.tempLabel(low))
+                      : _Figure(Icons.thermostat, 'High', high == null ? '—' : prefs.tempLabel(high)),
+                ),
+                Expanded(
+                  child: night
+                      ? _Figure(Icons.cloud_outlined, 'Sky', sentenceCase(r!.conditionLabel))
+                      : _Figure(Icons.thermostat_auto_outlined, 'Low', low == null ? '—' : prefs.tempLabel(low)),
+                ),
+              ],
             ),
-            Expanded(
-              child: night
-                  ? _Figure(Icons.cloud_outlined, 'Sky', sentenceCase(r!.conditionLabel))
-                  : _Figure(Icons.thermostat_auto_outlined, 'Low', low == null ? '—' : prefs.tempLabel(low)),
-            ),
-          ]),
-      ]),
+        ],
+      ),
     );
   }
 }
@@ -251,17 +283,27 @@ class _Figure extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Row(children: [
-        Icon(icon, size: 14, color: AppColors.primary),
-        const SizedBox(width: 4),
-        Flexible(
-          child: Text(label, overflow: TextOverflow.ellipsis, style: AppText.bodySm.copyWith(color: AppColors.inkMuted)),
+    final t = PersonaTheme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 14, color: t.primary),
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(
+                label,
+                overflow: TextOverflow.ellipsis,
+                style: AppText.bodySm.copyWith(color: t.inkMuted),
+              ),
+            ),
+          ],
         ),
-      ]),
-      const SizedBox(height: 2),
-      Text(value, style: AppText.headlineSm.copyWith(color: AppColors.ink, fontSize: 16)),
-    ]);
+        const SizedBox(height: 2),
+        Text(value, style: AppText.headlineSm.copyWith(color: t.ink, fontSize: 16)),
+      ],
+    );
   }
 }
 
@@ -271,28 +313,35 @@ class _ProvenanceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
     final source = weather.today?.source;
     return AppCard(
-      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const IconDisc(Icons.verified_outlined, size: 36),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(
-              'Forecast Provenance',
-              style: AppText.labelMd.copyWith(color: AppColors.ink, fontWeight: FontWeight.w700),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const IconDisc(Icons.verified_outlined, size: 36),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Forecast Provenance',
+                  style: AppText.labelMd.copyWith(color: t.ink, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  source == null
+                      ? 'Every figure on this page is read directly from the forecast feed — never generated by the language model.'
+                      : 'As served by $source. Every figure above is read directly from that response — '
+                            'never generated by the language model.',
+                  style: AppText.bodySm.copyWith(color: t.inkMuted),
+                ),
+              ],
             ),
-            const SizedBox(height: 2),
-            Text(
-              source == null
-                  ? 'Every figure on this page is read directly from the forecast feed — never generated by the language model.'
-                  : 'As served by $source. Every figure above is read directly from that response — '
-                      'never generated by the language model.',
-              style: AppText.bodySm.copyWith(color: AppColors.inkMuted),
-            ),
-          ]),
-        ),
-      ]),
+          ),
+        ],
+      ),
     );
   }
 }

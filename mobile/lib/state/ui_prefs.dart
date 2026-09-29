@@ -2,12 +2,13 @@
 // UiPrefsContext.tsx: language, temperature unit and the selected city, all
 // shared so the Topbar's city picker and every page's /ask, /facts and
 // /warnings calls stay in sync. Adds the persona flag, which web/'s Settings
-// page shows but doesn't wire; here it reaches /ask's `persona` param.
+// page shows but doesn't wire; here it reaches /ask's `persona` param and is
+// the app-wide theme selector (main.dart builds the theme from it).
 // In-memory only, like web/.
 import 'package:flutter/material.dart';
 
 import '../cities.dart';
-import '../theme.dart';
+import '../persona_theme.dart';
 
 enum TempUnit { celsius, fahrenheit }
 
@@ -17,9 +18,6 @@ class PersonaFeature {
   final String label;
   const PersonaFeature(this.icon, this.label);
 }
-
-/// Which painted scene sits behind a persona card (persona_page.dart).
-enum PersonaScene { city, fields, sea, sky, river }
 
 class Persona {
   final String id;
@@ -31,9 +29,6 @@ class Persona {
 
   /// What the framing does; persona.py's hint, paraphrased.
   final String blurb;
-  final Color accent;
-  final Color soft;
-  final PersonaScene scene;
 
   /// What persona.py's hint actually frames — nothing it is told never to
   /// mention (soil, crops, sea state, visibility, runway data, safety
@@ -46,11 +41,11 @@ class Persona {
     this.icon, {
     required this.tagline,
     required this.blurb,
-    required this.accent,
-    required this.soft,
-    required this.scene,
     required this.features,
   });
+
+  /// This persona's app-wide palette and scenery (persona_theme.dart).
+  PersonaTheme get theme => personaThemeFor(id);
 }
 
 /// Ids are services/orchestrator/persona.py's PERSONAS; blurbs paraphrase
@@ -62,9 +57,6 @@ const List<Persona> kPersonas = [
     Icons.person,
     tagline: 'Everyday weather, for your life.',
     blurb: 'Plain-language current conditions and forecast.',
-    accent: AppColors.personaGeneral,
-    soft: AppColors.personaGeneralSoft,
-    scene: PersonaScene.city,
     features: [
       PersonaFeature(Icons.wb_sunny_outlined, 'Daily Forecast'),
       PersonaFeature(Icons.umbrella_outlined, 'Rain Chance'),
@@ -78,9 +70,6 @@ const List<Persona> kPersonas = [
     Icons.spa,
     tagline: 'Better decisions for your crops.',
     blurb: 'Whether conditions suit field work like spraying or harvest.',
-    accent: AppColors.personaFarmer,
-    soft: AppColors.personaFarmerSoft,
-    scene: PersonaScene.fields,
     features: [
       PersonaFeature(Icons.water_drop_outlined, 'Rainfall Forecast'),
       PersonaFeature(Icons.eco_outlined, 'Spraying Window'),
@@ -94,9 +83,6 @@ const List<Persona> kPersonas = [
     Icons.sailing,
     tagline: 'Wind and rain framed around going out to sea.',
     blurb: 'Wind and rain framed around going out to sea.',
-    accent: AppColors.personaFisherman,
-    soft: AppColors.personaFishermanSoft,
-    scene: PersonaScene.sea,
     features: [
       PersonaFeature(Icons.air, 'Wind Conditions'),
       PersonaFeature(Icons.grain, 'Rain Chance'),
@@ -110,9 +96,6 @@ const List<Persona> kPersonas = [
     Icons.flight,
     tagline: 'Wind and weather that matter to flight ops.',
     blurb: 'Wind and visibility-relevant briefing language.',
-    accent: AppColors.personaAviation,
-    soft: AppColors.personaAviationSoft,
-    scene: PersonaScene.sky,
     features: [
       PersonaFeature(Icons.air, 'Wind & Direction'),
       PersonaFeature(Icons.foggy, 'Fog & Haze'),
@@ -126,9 +109,6 @@ const List<Persona> kPersonas = [
     Icons.account_balance,
     tagline: 'Safer cities, stronger communities.',
     blurb: 'Direct, operational public-safety framing.',
-    accent: AppColors.personaCity,
-    soft: AppColors.personaCitySoft,
-    scene: PersonaScene.river,
     features: [
       PersonaFeature(Icons.flood_outlined, 'Waterlogging'),
       PersonaFeature(Icons.thermostat, 'Heat Exposure'),

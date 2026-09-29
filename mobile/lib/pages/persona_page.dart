@@ -1,14 +1,15 @@
 // Persona selection — the pics/ persona mockups: one illustrated card per
-// persona (accent-tinted scene, icon disc, name, tagline, four focus chips).
-// Opened from Settings' "Change Persona" and Home's avatar; picking a card
-// sets UiPrefs.persona (sent as /ask's `persona`) and closes the page.
-import 'dart:math' as math;
-
+// persona (its own palette and painted scene, icon disc, name, tagline, four
+// focus chips). Opened from Settings' "Change Persona" and Home's avatar.
+// Picking a card sets UiPrefs.persona, which is both /ask's `persona` param
+// and the app-wide theme: the whole app (this page included) cross-fades to
+// that persona's PersonaTheme, then the page closes.
 import 'package:flutter/material.dart';
 
 import '../components/app_shell.dart';
-import '../components/scenery.dart';
 import '../components/common.dart';
+import '../components/scenery.dart';
+import '../persona_theme.dart';
 import '../state/ui_prefs.dart';
 import '../theme.dart';
 
@@ -21,18 +22,12 @@ class PersonaPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
     final prefs = UiPrefs.of(context);
     return Scaffold(
-      backgroundColor: AppColors.skyBottom,
+      backgroundColor: t.skyBottom,
       body: DecoratedBox(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [AppColors.skyTop, AppColors.skyBottom],
-            stops: [0, 0.35],
-          ),
-        ),
+        decoration: BoxDecoration(gradient: t.skyGradient),
         child: Column(children: [
           SafeArea(
             bottom: false,
@@ -41,31 +36,35 @@ class PersonaPage extends StatelessWidget {
               child: Row(children: [
                 IconButton(
                   tooltip: 'Back',
-                  icon: const Icon(Icons.arrow_back_rounded, color: AppColors.ink),
+                  icon: Icon(Icons.arrow_back_rounded, color: t.ink),
                   onPressed: () => Navigator.of(context).maybePop(),
                 ),
                 const BrandMark(),
                 const SizedBox(width: AppSpace.sm),
-                Text('WeatherGPT', style: AppText.headlineSm.copyWith(color: AppColors.ink, fontWeight: FontWeight.w700)),
+                Text('WeatherGPT', style: AppText.headlineSm.copyWith(color: t.ink, fontWeight: FontWeight.w700)),
               ]),
             ),
           ),
           Expanded(
             child: PageFrame(
-              footer: SceneryFooter.waves,
+              footer: SceneryFooter.soft,
               children: [
                 const PageHeader(
                   title: 'Choose your persona',
-                  subtitle: "Same trusted numbers, framed the way that's most useful for your role.",
+                  subtitle: "Same trusted numbers, framed the way that's most useful for your role. "
+                      'The whole app takes on the persona you pick.',
                 ),
                 const SizedBox(height: AppSpace.lg),
                 for (final p in kPersonas) ...[
                   PersonaCard(
                     persona: p,
                     selected: prefs.persona == p.id,
-                    onTap: () {
+                    onTap: () async {
+                      final navigator = Navigator.of(context);
                       prefs.persona = p.id;
-                      Navigator.of(context).maybePop();
+                      // Let the app-wide re-theme show before closing.
+                      await Future<void>.delayed(const Duration(milliseconds: 320));
+                      navigator.maybePop();
                     },
                   ),
                   const SizedBox(height: AppSpace.md),
@@ -79,6 +78,7 @@ class PersonaPage extends StatelessWidget {
   }
 }
 
+/// One persona, drawn in its own theme whatever the active persona is.
 class PersonaCard extends StatelessWidget {
   final Persona persona;
   final bool selected;
@@ -88,25 +88,38 @@ class PersonaCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = persona;
+    final t = p.theme;
     final radius = BorderRadius.circular(20);
     return Semantics(
       selected: selected,
       inMutuallyExclusiveGroup: true,
       button: true,
-      child: DecoratedBox(
-        decoration: BoxDecoration(borderRadius: radius, boxShadow: AppShadows.card),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        decoration: BoxDecoration(
+          borderRadius: radius,
+          boxShadow: [
+            BoxShadow(
+              color: t.shadow.withValues(alpha: selected ? 0.22 : 0.08),
+              blurRadius: selected ? 18 : 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
         child: Material(
-          color: AppColors.card,
+          color: t.card,
           shape: RoundedRectangleBorder(
             borderRadius: radius,
             side: BorderSide(
-              color: selected ? p.accent : p.accent.withValues(alpha: 0.3),
+              color: selected ? t.primary : t.primary.withValues(alpha: 0.3),
               width: selected ? 2 : 1,
             ),
           ),
           clipBehavior: Clip.antiAlias,
           child: InkWell(
             onTap: onTap,
+            splashColor: t.primary.withValues(alpha: 0.12),
+            highlightColor: t.tint,
             child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
               SizedBox(
                 height: 118,
@@ -117,7 +130,8 @@ class PersonaCard extends StatelessWidget {
                         gradient: LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
-                          colors: [p.soft, AppColors.card],
+                          colors: [t.card, t.skyBottom, t.skyTop],
+                          stops: const [0.2, 0.6, 1],
                         ),
                       ),
                     ),
@@ -126,8 +140,16 @@ class PersonaCard extends StatelessWidget {
                     right: 0,
                     top: 0,
                     bottom: 0,
-                    width: 170,
-                    child: _Scene(persona: p),
+                    width: 190,
+                    child: ShaderMask(
+                      // Fade the scene in from the left so the text side stays clean.
+                      shaderCallback: (rect) => const LinearGradient(
+                        colors: [Color(0x00000000), Color(0xFF000000)],
+                        stops: [0, 0.45],
+                      ).createShader(rect),
+                      blendMode: BlendMode.dstIn,
+                      child: PersonaScenery(SceneSlot.card, theme: t),
+                    ),
                   ),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(AppSpace.md, AppSpace.md, 120, AppSpace.md),
@@ -135,18 +157,18 @@ class PersonaCard extends StatelessWidget {
                       Container(
                         width: 48,
                         height: 48,
-                        decoration: BoxDecoration(color: p.accent, shape: BoxShape.circle),
-                        child: Icon(p.icon, size: 26, color: AppColors.onPrimary),
+                        decoration: BoxDecoration(gradient: t.accentGradient, shape: BoxShape.circle),
+                        child: Icon(p.icon, size: 26, color: t.onPrimary),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                           Text(
                             p.label,
-                            style: AppText.headlineMd.copyWith(color: AppColors.ink, fontWeight: FontWeight.w700),
+                            style: AppText.headlineMd.copyWith(color: t.ink, fontWeight: FontWeight.w700),
                           ),
                           const SizedBox(height: 2),
-                          Text(p.tagline, style: AppText.bodySm.copyWith(color: AppColors.inkMuted)),
+                          Text(p.tagline, style: AppText.bodySm.copyWith(color: t.inkMuted)),
                         ]),
                       ),
                     ]),
@@ -155,11 +177,11 @@ class PersonaCard extends StatelessWidget {
                     top: 10,
                     right: 10,
                     child: Container(
-                      decoration: const BoxDecoration(color: AppColors.card, shape: BoxShape.circle),
+                      decoration: BoxDecoration(color: t.card, shape: BoxShape.circle),
                       child: Icon(
                         selected ? Icons.check_circle : Icons.radio_button_unchecked,
                         size: 22,
-                        color: selected ? p.accent : AppColors.outline,
+                        color: selected ? t.primary : t.outline,
                       ),
                     ),
                   ),
@@ -172,11 +194,11 @@ class PersonaCard extends StatelessWidget {
                     Padding(
                       padding: EdgeInsets.only(top: row == 0 ? 0 : AppSpace.sm),
                       child: Row(children: [
-                        Expanded(child: _FeatureChip(p.features[row], p)),
+                        Expanded(child: _FeatureChip(p.features[row], t)),
                         const SizedBox(width: AppSpace.sm),
                         Expanded(
                           child: row + 1 < p.features.length
-                              ? _FeatureChip(p.features[row + 1], p)
+                              ? _FeatureChip(p.features[row + 1], t)
                               : const SizedBox.shrink(),
                         ),
                       ]),
@@ -193,114 +215,28 @@ class PersonaCard extends StatelessWidget {
 
 class _FeatureChip extends StatelessWidget {
   final PersonaFeature feature;
-  final Persona persona;
-  const _FeatureChip(this.feature, this.persona);
+  final PersonaTheme t;
+  const _FeatureChip(this.feature, this.t);
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: persona.soft,
+        color: t.tint,
         borderRadius: BorderRadius.circular(AppRadius.xl),
       ),
       child: Row(children: [
-        Icon(feature.icon, size: 18, color: persona.accent),
+        Icon(feature.icon, size: 18, color: t.primary),
         const SizedBox(width: 8),
         Expanded(
           child: Text(
             feature.label,
             maxLines: 2,
-            style: AppText.bodySm.copyWith(color: AppColors.ink, height: 1.25),
+            style: AppText.bodySm.copyWith(color: t.ink, height: 1.25),
           ),
         ),
       ]),
     );
   }
-}
-
-/// The painted vignette on the right of a persona card.
-class _Scene extends StatelessWidget {
-  final Persona persona;
-  const _Scene({required this.persona});
-
-  @override
-  Widget build(BuildContext context) {
-    final accent = persona.accent;
-    final Widget ground = switch (persona.scene) {
-      PersonaScene.city => const CustomPaint(painter: SkylinePainter(seed: 5)),
-      PersonaScene.river => const CustomPaint(painter: SkylinePainter(seed: 17)),
-      PersonaScene.fields => const CustomPaint(painter: _FieldsPainter()),
-      PersonaScene.sea => const CustomPaint(painter: WavesPainter()),
-      PersonaScene.sky => const CustomPaint(painter: CloudsPainter()),
-    };
-    return ShaderMask(
-      // Fade the scene in from the left so the text side stays clean.
-      shaderCallback: (rect) => const LinearGradient(
-        colors: [Color(0x00000000), Color(0xFF000000)],
-        stops: [0, 0.45],
-      ).createShader(rect),
-      blendMode: BlendMode.dstIn,
-      child: Stack(children: [
-        Positioned(
-          left: 0,
-          right: 0,
-          bottom: 0,
-          height: persona.scene == PersonaScene.sky ? 118 : 64,
-          child: ground,
-        ),
-        if (persona.scene == PersonaScene.city)
-          const Positioned(right: 56, top: 26, child: Icon(Icons.circle, size: 22, color: AppColors.sunCore)),
-        if (persona.scene == PersonaScene.river)
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            height: 14,
-            child: ColoredBox(color: AppColors.waterDeep.withValues(alpha: 0.9)),
-          ),
-        if (persona.scene == PersonaScene.sea)
-          Positioned(right: 34, bottom: 22, child: Icon(Icons.directions_boat_filled, size: 40, color: accent)),
-        if (persona.scene == PersonaScene.sky)
-          Positioned(
-            right: 18,
-            top: 22,
-            child: Transform.rotate(
-              angle: math.pi / 4,
-              child: Icon(Icons.flight, size: 54, color: accent.withValues(alpha: 0.85)),
-            ),
-          ),
-        if (persona.scene == PersonaScene.fields)
-          Positioned(right: 30, bottom: 22, child: Icon(Icons.agriculture, size: 34, color: accent)),
-      ]),
-    );
-  }
-}
-
-/// Rolling green hills with crop rows.
-class _FieldsPainter extends CustomPainter {
-  const _FieldsPainter();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    Path hill(double y0, double y1, double bulge) => Path()
-      ..moveTo(0, size.height)
-      ..lineTo(0, size.height * y0)
-      ..quadraticBezierTo(size.width * 0.5, size.height * bulge, size.width, size.height * y1)
-      ..lineTo(size.width, size.height)
-      ..close();
-
-    canvas.drawPath(hill(0.35, 0.15, -0.05), Paint()..color = AppColors.foliage.withValues(alpha: 0.55));
-    canvas.drawPath(hill(0.7, 0.45, 0.3), Paint()..color = AppColors.foliage);
-    final rows = Paint()
-      ..color = AppColors.foliageDeep.withValues(alpha: 0.6)
-      ..strokeWidth = 1.5;
-    for (var i = 0; i < 7; i++) {
-      final x = size.width * (0.1 + i * 0.14);
-      canvas.drawLine(Offset(x, size.height), Offset(x + size.width * 0.12, size.height * 0.62), rows);
-    }
-  }
-
-  @override
-  bool shouldRepaint(_FieldsPainter old) => false;
 }

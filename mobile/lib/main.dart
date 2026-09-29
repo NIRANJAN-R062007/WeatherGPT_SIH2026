@@ -1,6 +1,6 @@
-// WeatherGPT mobile — same product, same look as web/: the shell, page set
-// and visual tokens mirror web/src/ (see lib/theme.dart and
-// lib/components/app_shell.dart). Every page reads live orchestrator data:
+// WeatherGPT mobile — same product as web/: the shell and page set mirror
+// web/src/ (lib/components/app_shell.dart); the look follows the selected
+// persona (lib/persona_theme.dart). Every page reads live orchestrator data:
 // /facts, /ask, /asr, /tts and /warnings.
 import 'package:flutter/material.dart';
 
@@ -10,6 +10,7 @@ import 'pages/chat_page.dart';
 import 'pages/forecast_page.dart';
 import 'pages/home_page.dart';
 import 'pages/settings_page.dart';
+import 'persona_theme.dart';
 import 'state/ui_prefs.dart';
 import 'state/weather_store.dart';
 import 'theme.dart';
@@ -54,11 +55,18 @@ class _WeatherGptAppState extends State<WeatherGptApp> {
       prefs: _prefs,
       child: WeatherScope(
         store: _weather,
-        child: MaterialApp(
-          title: 'WeatherGPT',
-          debugShowCheckedModeBanner: false,
-          theme: buildAppTheme(),
-          home: AppShell(pages: {
+        // The selected persona is the app-wide theme: a persona change
+        // rebuilds the theme and MaterialApp cross-fades every page to it.
+        child: ListenableBuilder(
+          listenable: _prefs,
+          builder: (context, home) => MaterialApp(
+            title: 'WeatherGPT',
+            debugShowCheckedModeBanner: false,
+            theme: buildAppTheme(personaThemeFor(_prefs.persona)),
+            themeAnimationDuration: const Duration(milliseconds: 350),
+            home: home,
+          ),
+          child: AppShell(pages: {
             AppPage.home: (_) => const HomePage(),
             AppPage.chat: (_) => const ChatPage(),
             AppPage.forecast: (_) => const ForecastPage(),

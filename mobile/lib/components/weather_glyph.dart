@@ -5,6 +5,7 @@
 // format.dart's conditionStyle.
 import 'package:flutter/material.dart';
 
+import '../persona_theme.dart';
 import '../theme.dart';
 
 enum _Kind { sun, moon, partly, partlyNight, cloud, rain, storm, wind }
@@ -40,32 +41,33 @@ class WeatherGlyph extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
     final s = size;
     Widget icon(IconData i, Color c, double f, {Alignment at = Alignment.center}) =>
         Align(alignment: at, child: Icon(i, size: s * f, color: c));
 
     final List<Widget> layers = switch (_kindOf(condition, night)) {
       _Kind.sun => [icon(Icons.wb_sunny, AppColors.sun, 0.95)],
-      _Kind.moon => [icon(Icons.nightlight_round, AppColors.moonGlyph, 0.8)],
+      _Kind.moon => [icon(Icons.nightlight_round, t.moonGlyph, 0.8)],
       _Kind.partly => [
           icon(Icons.wb_sunny, AppColors.sun, 0.72, at: const Alignment(-0.7, -0.75)),
-          icon(Icons.cloud, AppColors.cloudGlyph, 0.8, at: const Alignment(0.6, 0.7)),
+          icon(Icons.cloud, t.cloudGlyph, 0.8, at: const Alignment(0.6, 0.7)),
         ],
       _Kind.partlyNight => [
-          icon(Icons.nightlight_round, AppColors.moonGlyph, 0.6, at: const Alignment(-0.7, -0.75)),
-          icon(Icons.cloud, AppColors.cloudGlyph, 0.8, at: const Alignment(0.6, 0.7)),
+          icon(Icons.nightlight_round, t.moonGlyph, 0.6, at: const Alignment(-0.7, -0.75)),
+          icon(Icons.cloud, t.cloudGlyph, 0.8, at: const Alignment(0.6, 0.7)),
         ],
-      _Kind.cloud => [icon(Icons.cloud, AppColors.cloudGlyph, 0.92)],
+      _Kind.cloud => [icon(Icons.cloud, t.cloudGlyph, 0.92)],
       _Kind.rain => [
-          icon(Icons.cloud, AppColors.cloudGlyph, 0.8, at: const Alignment(0, -0.6)),
-          icon(Icons.water_drop, AppColors.rainGlyph, 0.3, at: const Alignment(-0.35, 0.95)),
-          icon(Icons.water_drop, AppColors.rainGlyph, 0.3, at: const Alignment(0.35, 0.95)),
+          icon(Icons.cloud, t.cloudGlyph, 0.8, at: const Alignment(0, -0.6)),
+          icon(Icons.water_drop, t.rainGlyph, 0.3, at: const Alignment(-0.35, 0.95)),
+          icon(Icons.water_drop, t.rainGlyph, 0.3, at: const Alignment(0.35, 0.95)),
         ],
       _Kind.storm => [
-          icon(Icons.cloud, AppColors.cloudGlyph, 0.8, at: const Alignment(0, -0.6)),
+          icon(Icons.cloud, t.cloudGlyph, 0.8, at: const Alignment(0, -0.6)),
           icon(Icons.bolt, AppColors.sun, 0.45, at: const Alignment(0, 1)),
         ],
-      _Kind.wind => [icon(Icons.air, AppColors.cloudGlyph, 0.9)],
+      _Kind.wind => [icon(Icons.air, t.cloudGlyph, 0.9)],
     };
     return SizedBox.square(dimension: s, child: Stack(children: layers));
   }

@@ -16,6 +16,7 @@ import '../components/scenery.dart';
 import '../components/surfaces.dart';
 import '../format.dart';
 import '../state/ui_prefs.dart';
+import '../persona_theme.dart';
 import '../theme.dart';
 
 class _Turn {
@@ -29,11 +30,11 @@ class _Turn {
 }
 
 List<(IconData, String)> _suggestions(String city) => [
-      (Icons.umbrella_outlined, 'Will it rain tomorrow in $city?'),
-      (Icons.calendar_month_outlined, '5-day forecast for $city'),
-      (Icons.water_drop_outlined, 'How much rain so far today in $city?'),
-      (Icons.warning_amber_rounded, 'Any weather warnings for $city?'),
-    ];
+  (Icons.umbrella_outlined, 'Will it rain tomorrow in $city?'),
+  (Icons.calendar_month_outlined, '5-day forecast for $city'),
+  (Icons.water_drop_outlined, 'How much rain so far today in $city?'),
+  (Icons.warning_amber_rounded, 'Any weather warnings for $city?'),
+];
 
 class ChatPage extends StatefulWidget {
   const ChatPage({super.key});
@@ -87,12 +88,7 @@ class _ChatPageState extends State<ChatPage> {
     _scrollToEnd();
 
     try {
-      turn.outcome = await askWeather(
-        text: question,
-        lang: prefs.lang,
-        city: prefs.city,
-        persona: prefs.persona,
-      );
+      turn.outcome = await askWeather(text: question, lang: prefs.lang, city: prefs.city, persona: prefs.persona);
     } catch (e) {
       turn.error = e is AskError
           ? e
@@ -116,6 +112,7 @@ class _ChatPageState extends State<ChatPage> {
 
   @override
   Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
     final prefs = UiPrefs.of(context);
     final composer = AskComposer(
       controller: _query,
@@ -131,7 +128,8 @@ class _ChatPageState extends State<ChatPage> {
         children: [
           const PageHeader(
             title: 'Chat & Evidence',
-            subtitle: 'Every number in an answer is checked against the source data before you see it — '
+            subtitle:
+                'Every number in an answer is checked against the source data before you see it — '
                 'and the evidence comes with it.',
           ),
           const SizedBox(height: AppSpace.lg),
@@ -152,7 +150,10 @@ class _ChatPageState extends State<ChatPage> {
       footer: SceneryFooter.none,
       dock: _Dock(child: composer),
       children: [
-        Text('Chat & Evidence', style: AppText.headlineMd.copyWith(color: AppColors.ink, fontWeight: FontWeight.w700)),
+        Text(
+          'Chat & Evidence',
+          style: AppText.headlineMd.copyWith(color: t.ink, fontWeight: FontWeight.w700),
+        ),
         const SizedBox(height: AppSpace.sm),
         const RuleLabel(icon: Icons.bolt, text: 'Live — answers come from /ask'),
         const SizedBox(height: AppSpace.md),
@@ -167,21 +168,23 @@ class _ChatPageState extends State<ChatPage> {
   }
 }
 
-/// ChatPage.tsx's question bubble: primary, square bottom-right corner.
+/// ChatPage.tsx's question bubble: the persona's accent gradient, square
+/// bottom-right corner.
 class _UserBubble extends StatelessWidget {
   final _Turn turn;
   const _UserBubble(this.turn);
 
   @override
   Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
     return Padding(
       padding: const EdgeInsets.only(left: 48),
       child: Align(
         alignment: Alignment.centerRight,
         child: Container(
           padding: const EdgeInsets.all(AppSpace.md),
-          decoration: const BoxDecoration(
-            color: AppColors.primary,
+          decoration: BoxDecoration(
+            gradient: t.accentGradient,
             boxShadow: AppShadows.md,
             borderRadius: BorderRadius.only(
               topLeft: Radius.circular(AppRadius.x2l),
@@ -189,17 +192,20 @@ class _UserBubble extends StatelessWidget {
               bottomLeft: Radius.circular(AppRadius.x2l),
             ),
           ),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-            Text(
-              '${turn.askedAt} · ${turn.lang.toUpperCase()}',
-              style: AppText.citationMono.copyWith(color: AppColors.primaryFixed),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              turn.question,
-              style: AppText.bodyLg.copyWith(color: AppColors.onPrimary, fontWeight: FontWeight.w500),
-            ),
-          ]),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '${turn.askedAt} · ${turn.lang.toUpperCase()}',
+                style: AppText.citationMono.copyWith(color: t.primaryFixed),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                turn.question,
+                style: AppText.bodyLg.copyWith(color: t.onPrimary, fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -213,13 +219,14 @@ class _AnswerBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
     return Container(
       margin: const EdgeInsets.only(right: AppSpace.sm),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.card,
-        border: Border.all(color: AppColors.cardBorder),
-        boxShadow: AppShadows.card,
+        color: t.card,
+        border: Border.all(color: t.cardBorder),
+        boxShadow: t.cardShadow,
         borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(AppRadius.x2l),
           topRight: Radius.circular(AppRadius.x2l),
@@ -244,8 +251,9 @@ class _Dock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
     return DecoratedBox(
-      decoration: const BoxDecoration(color: AppColors.sheet),
+      decoration: BoxDecoration(color: t.sheet),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(AppSpace.gutter, AppSpace.sm, AppSpace.gutter, AppSpace.sm),
         child: child,

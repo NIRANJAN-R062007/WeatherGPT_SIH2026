@@ -13,6 +13,7 @@ import '../components/scenery.dart';
 import '../components/surfaces.dart';
 import '../config.dart';
 import '../state/ui_prefs.dart';
+import '../persona_theme.dart';
 import '../theme.dart';
 import 'persona_page.dart';
 
@@ -21,6 +22,7 @@ class SettingsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
     final prefs = UiPrefs.of(context);
     final city = prefs.cityInfo;
     final rows = <Widget>[
@@ -45,10 +47,7 @@ class SettingsPage extends StatelessWidget {
           context,
           title: 'Units',
           note: "Applies to temperatures on Home and Forecast; narrated answers keep the service's units.",
-          options: const [
-            _Option(TempUnit.celsius, 'Celsius (°C)'),
-            _Option(TempUnit.fahrenheit, 'Fahrenheit (°F)'),
-          ],
+          options: const [_Option(TempUnit.celsius, 'Celsius (°C)'), _Option(TempUnit.fahrenheit, 'Fahrenheit (°F)')],
           selected: prefs.unit,
           onPick: (v) => prefs.unit = v,
         ),
@@ -87,7 +86,7 @@ class SettingsPage extends StatelessWidget {
             Text(
               'Grounded weather answers in English, हिन्दी, தமிழ், తెలుగు and मराठी. Every number '
               'is checked against the source data before you see it.',
-              style: AppText.bodyMd.copyWith(color: AppColors.inkMuted),
+              style: AppText.bodyMd.copyWith(color: t.inkMuted),
             ),
           ],
         ),
@@ -112,43 +111,52 @@ class _ProfileCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
     return AppCard(
-      color: AppColors.tint,
-      borderColor: AppColors.tintStrong,
-      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Row(children: [
-          IconDisc(persona.icon, color: persona.accent, solid: true, size: 52),
-          const SizedBox(width: AppSpace.md),
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(
-                persona.label,
-                style: AppText.headlineSm.copyWith(color: AppColors.ink, fontWeight: FontWeight.w700),
+      color: t.tint,
+      borderColor: t.tintStrong,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              IconDisc(persona.icon, solid: true, size: 52),
+              const SizedBox(width: AppSpace.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      persona.label,
+                      style: AppText.headlineSm.copyWith(color: t.ink, fontWeight: FontWeight.w700),
+                    ),
+                    Text(persona.tagline, style: AppText.bodySm.copyWith(color: t.inkMuted)),
+                  ],
+                ),
               ),
-              Text(persona.tagline, style: AppText.bodySm.copyWith(color: AppColors.inkMuted)),
-            ]),
+            ],
           ),
-        ]),
-        const SizedBox(height: 12),
-        Align(
-          alignment: Alignment.centerRight,
-          child: Material(
-            color: AppColors.card,
-            borderRadius: BorderRadius.circular(AppRadius.lg),
-            child: InkWell(
+          const SizedBox(height: 12),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Material(
+              color: t.card,
               borderRadius: BorderRadius.circular(AppRadius.lg),
-              onTap: () => openPersonaPicker(context),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                child: Text(
-                  'Change Persona',
-                  style: AppText.labelMd.copyWith(color: AppColors.primary, fontWeight: FontWeight.w600),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(AppRadius.lg),
+                onTap: () => openPersonaPicker(context),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  child: Text(
+                    'Change Persona',
+                    style: AppText.labelMd.copyWith(color: t.primary, fontWeight: FontWeight.w600),
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-      ]),
+        ],
+      ),
     );
   }
 }
@@ -172,33 +180,39 @@ Future<void> _pick<T>(
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
-    builder: (sheetContext) => SafeArea(
-      top: false,
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(AppSpace.md, 0, AppSpace.md, AppSpace.md),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          Text(title, style: AppText.headlineSm.copyWith(color: AppColors.ink)),
-          if (note != null) ...[
-            const SizedBox(height: 2),
-            Text(note, style: AppText.bodySm.copyWith(color: AppColors.inkMuted)),
-          ],
-          const SizedBox(height: AppSpace.md),
-          for (final o in options) ...[
-            _OptionTile(
-              label: o.label,
-              detail: o.detail,
-              selected: o.value == selected,
-              enabled: o.enabled,
-              onTap: () {
-                onPick(o.value);
-                Navigator.of(sheetContext).pop();
-              },
-            ),
-            const SizedBox(height: AppSpace.sm),
-          ],
-        ]),
-      ),
-    ),
+    builder: (sheetContext) {
+      final t = PersonaTheme.of(sheetContext);
+      return SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(AppSpace.md, 0, AppSpace.md, AppSpace.md),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(title, style: AppText.headlineSm.copyWith(color: t.ink)),
+              if (note != null) ...[
+                const SizedBox(height: 2),
+                Text(note, style: AppText.bodySm.copyWith(color: t.inkMuted)),
+              ],
+              const SizedBox(height: AppSpace.md),
+              for (final o in options) ...[
+                _OptionTile(
+                  label: o.label,
+                  detail: o.detail,
+                  selected: o.value == selected,
+                  enabled: o.enabled,
+                  onTap: () {
+                    onPick(o.value);
+                    Navigator.of(sheetContext).pop();
+                  },
+                ),
+                const SizedBox(height: AppSpace.sm),
+              ],
+            ],
+          ),
+        ),
+      );
+    },
   );
 }
 
@@ -218,6 +232,7 @@ class _OptionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
     final radius = BorderRadius.circular(AppRadius.xl);
     return Semantics(
       selected: selected,
@@ -227,29 +242,31 @@ class _OptionTile extends StatelessWidget {
       child: Opacity(
         opacity: enabled ? 1 : 0.5,
         child: Material(
-          color: selected ? AppColors.tint : AppColors.card,
+          color: selected ? t.tint : t.card,
           shape: RoundedRectangleBorder(
             borderRadius: radius,
-            side: BorderSide(color: selected ? AppColors.primary : AppColors.cardBorder),
+            side: BorderSide(color: selected ? t.primary : t.cardBorder),
           ),
           child: InkWell(
             borderRadius: radius,
             onTap: enabled ? onTap : null,
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: AppSpace.md, vertical: 12),
-              child: Row(children: [
-                Expanded(
-                  child: Text(
-                    label,
-                    style: AppText.labelMd.copyWith(
-                      color: AppColors.ink,
-                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      label,
+                      style: AppText.labelMd.copyWith(
+                        color: t.ink,
+                        fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                      ),
                     ),
                   ),
-                ),
-                if (detail != null) Text(detail!, style: AppText.bodySm.copyWith(color: AppColors.inkMuted)),
-                if (selected) const Icon(Icons.check_circle, size: 20, color: AppColors.primary),
-              ]),
+                  if (detail != null) Text(detail!, style: AppText.bodySm.copyWith(color: t.inkMuted)),
+                  if (selected) Icon(Icons.check_circle, size: 20, color: t.primary),
+                ],
+              ),
             ),
           ),
         ),

@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import '../api_client.dart';
 import '../format.dart';
 import '../play_button.dart';
+import '../persona_theme.dart';
 import '../theme.dart';
 import '../warning_colors.dart';
 import 'common.dart';
@@ -38,6 +39,7 @@ class AskAnswer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
     if (!loading && outcome == null && error == null) return const SizedBox.shrink();
     final o = outcome;
     return Column(
@@ -45,15 +47,15 @@ class AskAnswer extends StatelessWidget {
       children: _gap([
         if (asked != null)
           Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Padding(
+            Padding(
               padding: EdgeInsets.only(top: 2),
-              child: Icon(Icons.chat_outlined, size: 14, color: AppColors.outline),
+              child: Icon(Icons.chat_outlined, size: 14, color: t.outline),
             ),
             const SizedBox(width: 6),
             Expanded(
               child: Text(
                 '“$asked”',
-                style: AppText.bodySm.copyWith(color: AppColors.onSurfaceVariant, fontStyle: FontStyle.italic),
+                style: AppText.bodySm.copyWith(color: t.onSurfaceVariant, fontStyle: FontStyle.italic),
               ),
             ),
           ]),
@@ -218,13 +220,14 @@ class _Footer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
     return Container(
       padding: const EdgeInsets.only(top: AppSpace.xs),
       decoration: BoxDecoration(
-        border: Border(top: BorderSide(color: AppColors.outlineVariant.withValues(alpha: 0.4))),
+        border: Border(top: BorderSide(color: t.outlineVariant.withValues(alpha: 0.4))),
       ),
       child: DefaultTextStyle.merge(
-        style: AppText.citationMono.copyWith(color: AppColors.onSurfaceVariant),
+        style: AppText.citationMono.copyWith(color: t.onSurfaceVariant),
         child: Wrap(
           spacing: 12,
           runSpacing: 4,
@@ -243,7 +246,7 @@ class _IconText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(icon, size: 12, color: AppColors.onSurfaceVariant),
+        Icon(icon, size: 12, color: PersonaTheme.of(context).onSurfaceVariant),
         const SizedBox(width: 4),
         Flexible(child: Text(text)),
       ]);
@@ -256,6 +259,7 @@ class _WeatherProvenance extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
     final attempts = _int(g['attempts']);
     final issued = p['issued'];
     return _Footer([
@@ -267,7 +271,7 @@ class _WeatherProvenance extends StatelessWidget {
         '${_str(g['narration'])} · ${_str(g['provider'])}'
         '${attempts > 1 ? ' · $attempts attempts' : ''}'
         '${g['fallback_used'] == true ? ' · fell back to template' : ''}',
-        style: const TextStyle(color: AppColors.outline),
+        style: TextStyle(color: t.outline),
       ),
     ]);
   }
@@ -324,6 +328,7 @@ class WarningLegend extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
     final list = rows is List ? (rows as List).whereType<Map<String, dynamic>>().toList() : const [];
     if (list.isEmpty) return const SizedBox.shrink();
     return Column(
@@ -334,7 +339,7 @@ class WarningLegend extends StatelessWidget {
             margin: const EdgeInsets.only(bottom: 4),
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: row['colour'] == highlight ? AppColors.surfaceContainer : null,
+              color: row['colour'] == highlight ? t.surfaceContainer : null,
               borderRadius: BorderRadius.circular(AppRadius.lg),
             ),
             child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -352,7 +357,7 @@ class WarningLegend extends StatelessWidget {
                     TextSpan(text: ' — ${_str(row['meaning'])}'),
                   ]),
                   style: AppText.bodySm.copyWith(
-                    color: row['colour'] == highlight ? AppColors.onSurface : AppColors.onSurfaceVariant,
+                    color: row['colour'] == highlight ? t.onSurface : t.onSurfaceVariant,
                   ),
                 ),
               ),
@@ -383,9 +388,10 @@ class _Success extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
     final g = _map(data['grounding']);
     final response = _str(data['response']);
-    return _Panel(color: AppColors.surfaceContainerLow, children: [
+    return _Panel(color: t.surfaceContainerLow, children: [
       _Header(
         speak: response,
         lang: playbackLang,
@@ -397,7 +403,7 @@ class _Success extends StatelessWidget {
         ],
       ),
       ?_notice(data),
-      Text(response, style: AppText.bodyLg.copyWith(color: AppColors.onSurface)),
+      Text(response, style: AppText.bodyLg.copyWith(color: t.onSurface)),
       if (detail) _FigureList(g['figures']),
       _WeatherProvenance(_map(data['provenance']), g),
     ]);
@@ -412,6 +418,7 @@ class _Warnings extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
     final w = _map(data['warning']);
     final p = _map(data['provenance']);
     final g = _map(data['grounding']);
@@ -419,7 +426,7 @@ class _Warnings extends StatelessWidget {
     final active = (data['status'] ?? (colour == 'green' ? 'clear' : 'active')) == 'active';
     final response = _str(data['response']);
     final advice = _str(w['advice']);
-    return _Panel(color: AppColors.surfaceContainerLow, children: [
+    return _Panel(color: t.surfaceContainerLow, children: [
       WarningBand(colour),
       _Header(
         speak: response,
@@ -436,15 +443,15 @@ class _Warnings extends StatelessWidget {
       ),
       ?_notice(data),
       // The feed's own headline, verbatim — not narrated, not translated.
-      Text(response, style: AppText.bodyLg.copyWith(color: AppColors.onSurface)),
-      if (advice.isNotEmpty) Text(advice, style: AppText.bodyMd.copyWith(color: AppColors.onSurfaceVariant)),
+      Text(response, style: AppText.bodyLg.copyWith(color: t.onSurface)),
+      if (advice.isNotEmpty) Text(advice, style: AppText.bodyMd.copyWith(color: t.onSurfaceVariant)),
       if (detail) WarningLegend(rows: data['legend'], highlight: colour),
       _Footer([
         _IconText(Icons.campaign_outlined, _str(p['issued_by'] ?? w['issued_by'])),
         LiveBadge(live: p['is_live'] == true, liveText: 'LIVE FEED', notLiveText: 'FIXTURE'),
         Text('Valid ${istTimestamp(_str(p['valid_from'] ?? w['valid_from']))} → '
             '${istTimestamp(_str(p['valid_to'] ?? w['valid_to']))}'),
-        Text('verbatim · ${_str(g['provider'])}', style: const TextStyle(color: AppColors.outline)),
+        Text('verbatim · ${_str(g['provider'])}', style: TextStyle(color: t.outline)),
       ]),
     ]);
   }
@@ -457,15 +464,16 @@ class _WarningsUnavailable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
     // Deliberately neutral, never green: no verdict is not an all-clear.
-    return _Panel(color: AppColors.surfaceContainer, children: [
+    return _Panel(color: t.surfaceContainer, children: [
       Wrap(spacing: 6, runSpacing: 6, crossAxisAlignment: WrapCrossAlignment.center, children: [
-        const _StatusTitle(Icons.help_outline, 'No warning verdict', AppColors.onSurfaceVariant),
+        _StatusTitle(Icons.help_outline, 'No warning verdict', t.onSurfaceVariant),
         TagChip(cityLabel(data['city'] as String?), icon: Icons.location_on_outlined),
         TagChip('STATUS: ${_str(data['status'] ?? 'unavailable').toUpperCase()}'),
       ]),
       ?_notice(data),
-      Text(_str(data['message']), style: AppText.bodyMd.copyWith(color: AppColors.onSurface)),
+      Text(_str(data['message']), style: AppText.bodyMd.copyWith(color: t.onSurface)),
       if (detail) WarningLegend(rows: data['legend']),
     ]);
   }
@@ -477,6 +485,7 @@ class _Ungrounded extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
     final g = _map(data['grounding']);
     return _Panel(color: AppColors.errorContainer, children: [
       Wrap(spacing: 6, runSpacing: 6, crossAxisAlignment: WrapCrossAlignment.center, children: [
@@ -489,7 +498,7 @@ class _Ungrounded extends StatelessWidget {
       Container(
         padding: const EdgeInsets.all(AppSpace.sm),
         decoration: BoxDecoration(
-          color: AppColors.surfaceContainerLowest,
+          color: t.surfaceContainerLowest,
           borderRadius: BorderRadius.circular(AppRadius.lg),
         ),
         child: Column(
@@ -507,11 +516,12 @@ class _Fallback extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
     final city = data['city'] as String?;
     final nluCity = _map(data['nlu'])['city'] as String?;
-    return _Panel(color: AppColors.surfaceContainer, children: [
+    return _Panel(color: t.surfaceContainer, children: [
       Wrap(spacing: 6, runSpacing: 6, crossAxisAlignment: WrapCrossAlignment.center, children: [
-        const _StatusTitle(Icons.info_outline, 'No answer', AppColors.onSurfaceVariant),
+        _StatusTitle(Icons.info_outline, 'No answer', t.onSurfaceVariant),
         TagChip(_intentLabel(data['intent']), tone: ChipTone.primary),
         // Only the no_data branch carries a resolved city key; on
         // unsupported_city the rejected name survives only in nlu.city.
@@ -521,7 +531,7 @@ class _Fallback extends StatelessWidget {
           TagChip('asked about “$nluCity”'),
       ]),
       ?_notice(data),
-      Text(_str(data['message']), style: AppText.bodyMd.copyWith(color: AppColors.onSurface)),
+      Text(_str(data['message']), style: AppText.bodyMd.copyWith(color: t.onSurface)),
     ]);
   }
 }

@@ -1,15 +1,20 @@
 // Visual tokens. The Material 3 palette, type scale, spacing and radii started
 // as verbatim copies of web/tailwind.config.js (the Stitch-exported palette
-// web/src/index.css applies); since the 2026-09-29 mobile redesign `primary`
-// is the brighter blue of the design mockups and the "Mockup palette" block
-// below carries the sky/skyline/persona colours the new screens use. The fonts
+// web/src/index.css applies). Since the persona themes, every colour that
+// changes with the selected persona — accents, sky, cards, text, scenery —
+// comes from persona_theme.dart's PersonaTheme; AppColors keeps the
+// persona-independent ones (error, the LIVE/verified green, the sun) and the
+// web palette buildAppTheme falls back on. The fonts
 // in assets/fonts/ are static-weight TTF instances of the self-hosted woff2
 // files in web/public/fonts/ (Flutter can't load woff2, and FontWeight doesn't
 // reliably drive a variable font's wght axis, hence one file per weight).
 //
-// Every colour a page uses lives here, by name — no raw hex in pages — so a
-// dark palette can later be dropped in by giving each token a dark value.
+// Every colour a page uses lives here or in persona_theme.dart, by name — no
+// raw hex in pages — so a dark palette can later be dropped in by giving each
+// token a dark value.
 import 'package:flutter/material.dart';
+
+import 'persona_theme.dart';
 
 /// web/tailwind.config.js `theme.extend.colors`.
 abstract final class AppColors {
@@ -65,57 +70,11 @@ abstract final class AppColors {
   static const outline = Color(0xFF727786);
   static const outlineVariant = Color(0xFFC1C6D7);
 
-  // ── Mockup palette (2026-09-29 redesign). Light values only; dark mode
-  // gives each of these a dark twin, so keep call sites on these names. ──
-
-  /// Page chrome: the sky behind the top bar and the rounded content sheet.
-  static const skyTop = Color(0xFFCBDFFB);
-  static const skyBottom = Color(0xFFE9F1FE);
-  static const sheet = Color(0xFFF6F9FF);
-  static const cloudPuff = Color(0xFFFFFFFF);
-
-  /// Cards: white with a hairline blue border, and the pale-blue tint used
-  /// for icon discs, tab tracks and selected rows.
-  static const card = Color(0xFFFFFFFF);
-  static const cardBorder = Color(0xFFDCE7F8);
-  static const tint = Color(0xFFE8F1FF);
-  static const tintStrong = Color(0xFFD3E4FF);
-
-  /// Text on the mockup surfaces.
-  static const ink = Color(0xFF10264A);
-  static const inkMuted = Color(0xFF5A6A86);
-
-  /// Illustrated skyline, trees and water.
-  static const skylineFar = Color(0xFFC3D8F5);
-  static const skylineNear = Color(0xFF94BBEE);
-  static const skylineWindow = Color(0xFFE6EFFD);
-  static const foliage = Color(0xFF93C48F);
-  static const foliageDeep = Color(0xFF63A56E);
-  static const water = Color(0xFFD2E3FA);
-  static const waterDeep = Color(0xFFB9D2F5);
-
-  /// Weather glyphs.
+  /// The sun in weather glyphs and the brand mark — the same on every
+  /// persona. Every persona-dependent colour (accents, sky, cards, text,
+  /// scenery) lives in persona_theme.dart instead.
   static const sun = Color(0xFFFFB21E);
   static const sunCore = Color(0xFFFFCB4F);
-  static const cloudGlyph = Color(0xFF7EACEB);
-  static const rainGlyph = Color(0xFF3F7FE0);
-  static const moonGlyph = Color(0xFF5D6FC4);
-
-  /// Bottom navigation.
-  static const navBar = Color(0xFFFFFFFF);
-  static const navIdle = Color(0xFF6E7C95);
-
-  /// Persona accents (persona cards, avatar discs): accent + soft wash.
-  static const personaGeneral = Color(0xFF1D6AE5);
-  static const personaGeneralSoft = Color(0xFFE6F0FF);
-  static const personaFarmer = Color(0xFF2F9A4B);
-  static const personaFarmerSoft = Color(0xFFE8F6E9);
-  static const personaFisherman = Color(0xFF1856C2);
-  static const personaFishermanSoft = Color(0xFFE3EEFD);
-  static const personaAviation = Color(0xFF7550D3);
-  static const personaAviationSoft = Color(0xFFF0EAFD);
-  static const personaCity = Color(0xFF0D8484);
-  static const personaCitySoft = Color(0xFFE4F5F4);
 }
 
 /// web/tailwind.config.js `spacing` (space-xs .. space-xl, gutter-mobile).
@@ -146,9 +105,8 @@ abstract final class AppRadius {
 
 /// Tailwind v3's stock shadow-sm / shadow-md, and the custom
 /// `shadow-[0_1px_8px_rgba(0,0,0,0.04)]` the Sidebar and Topbar share, plus
-/// the soft blue card lift of the redesign.
+/// the persona-tinted card lift of the redesign (PersonaTheme.cardShadow).
 abstract final class AppShadows {
-  static const card = [BoxShadow(color: Color(0x141D6AE5), blurRadius: 12, offset: Offset(0, 3))];
   static const sm = [BoxShadow(color: Color(0x0D000000), blurRadius: 2, offset: Offset(0, 1))];
   static const md = [
     BoxShadow(color: Color(0x1A000000), blurRadius: 6, offset: Offset(0, 4), spreadRadius: -1),
@@ -257,16 +215,17 @@ abstract final class AppText {
   );
 }
 
-const ColorScheme kAppColorScheme = ColorScheme(
-  brightness: Brightness.light,
-  primary: AppColors.primary,
-  onPrimary: AppColors.onPrimary,
-  primaryContainer: AppColors.primaryContainer,
-  onPrimaryContainer: AppColors.onPrimaryContainer,
-  primaryFixed: AppColors.primaryFixed,
-  primaryFixedDim: AppColors.primaryFixedDim,
-  onPrimaryFixed: AppColors.onPrimaryFixed,
-  onPrimaryFixedVariant: AppColors.onPrimaryFixedVariant,
+/// Material slots, with the persona-dependent ones taken from [t].
+ColorScheme appColorScheme(PersonaTheme t) => ColorScheme(
+  brightness: t.brightness,
+  primary: t.primary,
+  onPrimary: t.onPrimary,
+  primaryContainer: t.primaryContainer,
+  onPrimaryContainer: t.onPrimary,
+  primaryFixed: t.primaryFixed,
+  primaryFixedDim: t.tintStrong,
+  onPrimaryFixed: t.onPrimaryFixed,
+  onPrimaryFixedVariant: t.primaryContainer,
   secondary: AppColors.secondary,
   onSecondary: AppColors.onSecondary,
   secondaryContainer: AppColors.secondaryContainer,
@@ -287,28 +246,31 @@ const ColorScheme kAppColorScheme = ColorScheme(
   onError: AppColors.onError,
   errorContainer: AppColors.errorContainer,
   onErrorContainer: AppColors.onErrorContainer,
-  surface: AppColors.surface,
-  onSurface: AppColors.onSurface,
-  onSurfaceVariant: AppColors.onSurfaceVariant,
-  surfaceDim: AppColors.surfaceDim,
-  surfaceBright: AppColors.surfaceBright,
-  surfaceContainerLowest: AppColors.surfaceContainerLowest,
-  surfaceContainerLow: AppColors.surfaceContainerLow,
-  surfaceContainer: AppColors.surfaceContainer,
-  surfaceContainerHigh: AppColors.surfaceContainerHigh,
-  surfaceContainerHighest: AppColors.surfaceContainerHighest,
-  outline: AppColors.outline,
-  outlineVariant: AppColors.outlineVariant,
+  surface: t.sheet,
+  onSurface: t.onSurface,
+  onSurfaceVariant: t.onSurfaceVariant,
+  surfaceDim: t.tintStrong,
+  surfaceBright: t.sheet,
+  surfaceContainerLowest: t.surfaceContainerLowest,
+  surfaceContainerLow: t.surfaceContainerLow,
+  surfaceContainer: t.surfaceContainer,
+  surfaceContainerHigh: t.surfaceContainerHigh,
+  surfaceContainerHighest: t.tintStrong,
+  outline: t.outline,
+  outlineVariant: t.outlineVariant,
   inverseSurface: AppColors.inverseSurface,
   onInverseSurface: AppColors.inverseOnSurface,
-  inversePrimary: AppColors.inversePrimary,
-  surfaceTint: AppColors.surfaceTint,
-  shadow: Color(0xFF000000),
-  scrim: Color(0xFF000000),
+  inversePrimary: t.primaryFixed,
+  surfaceTint: t.primary,
+  shadow: const Color(0xFF000000),
+  scrim: const Color(0xFF000000),
 );
 
-/// Light only, like web/ (it defines no dark palette).
-ThemeData buildAppTheme() {
+/// The app theme for one persona palette (light only for now). [t] is also
+/// installed as a ThemeExtension, so `PersonaTheme.of(context)` reads it and
+/// MaterialApp's theme animation cross-fades it on a persona change.
+ThemeData buildAppTheme([PersonaTheme? persona]) {
+  final t = persona ?? personaThemeFor('general');
   // Maps the web tokens onto Material's slots so stock widgets (TextField,
   // SnackBar, buttons) pick up the same type scale. Pages mostly use AppText
   // directly. No ThemeData.fontFamily: it would overwrite the headline and
@@ -329,32 +291,34 @@ ThemeData buildAppTheme() {
     labelLarge: AppText.labelMd,
     labelMedium: AppText.citationMono,
     labelSmall: AppText.chipMono,
-  ).apply(bodyColor: AppColors.onSurface, displayColor: AppColors.onSurface);
+  ).apply(bodyColor: t.onSurface, displayColor: t.onSurface);
 
   return ThemeData(
     useMaterial3: true,
-    colorScheme: kAppColorScheme,
+    colorScheme: appColorScheme(t),
+    extensions: [t],
     textTheme: textTheme,
     primaryTextTheme: textTheme.apply(
-      bodyColor: AppColors.onPrimary,
-      displayColor: AppColors.onPrimary,
+      bodyColor: t.onPrimary,
+      displayColor: t.onPrimary,
     ),
-    scaffoldBackgroundColor: AppColors.surface,
-    canvasColor: AppColors.surface,
-    dividerTheme: const DividerThemeData(color: AppColors.outlineVariant, thickness: 1, space: 1),
-    drawerTheme: const DrawerThemeData(
-      backgroundColor: AppColors.surfaceContainerLowest,
+    scaffoldBackgroundColor: t.sheet,
+    canvasColor: t.sheet,
+    dividerTheme: DividerThemeData(color: t.outlineVariant, thickness: 1, space: 1),
+    dialogTheme: DialogThemeData(backgroundColor: t.card, surfaceTintColor: Colors.transparent),
+    drawerTheme: DrawerThemeData(
+      backgroundColor: t.sheet,
       surfaceTintColor: Colors.transparent,
       width: 256, // Sidebar's w-64
-      shape: RoundedRectangleBorder(),
-      endShape: RoundedRectangleBorder(),
+      shape: const RoundedRectangleBorder(),
+      endShape: const RoundedRectangleBorder(),
     ),
-    bottomSheetTheme: const BottomSheetThemeData(
-      backgroundColor: AppColors.surfaceContainerLowest,
+    bottomSheetTheme: BottomSheetThemeData(
+      backgroundColor: t.sheet,
       surfaceTintColor: Colors.transparent,
       showDragHandle: true,
-      dragHandleColor: AppColors.outlineVariant,
-      shape: RoundedRectangleBorder(
+      dragHandleColor: t.outlineVariant,
+      shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.x2l)),
       ),
     ),
@@ -367,13 +331,18 @@ ThemeData buildAppTheme() {
     inputDecorationTheme: InputDecorationTheme(
       isDense: true,
       border: InputBorder.none,
-      hintStyle: AppText.bodyMd.copyWith(color: AppColors.outline),
+      hintStyle: AppText.bodyMd.copyWith(color: t.outline),
     ),
-    textSelectionTheme: const TextSelectionThemeData(cursorColor: AppColors.primary),
-    progressIndicatorTheme: const ProgressIndicatorThemeData(
-      color: AppColors.primary,
-      circularTrackColor: AppColors.outlineVariant,
+    textSelectionTheme: TextSelectionThemeData(
+      cursorColor: t.primary,
+      selectionColor: t.primary.withValues(alpha: 0.25),
+      selectionHandleColor: t.primary,
     ),
+    progressIndicatorTheme: ProgressIndicatorThemeData(
+      color: t.primary,
+      circularTrackColor: t.outlineVariant,
+    ),
+    textButtonTheme: TextButtonThemeData(style: TextButton.styleFrom(foregroundColor: t.primary)),
     tooltipTheme: TooltipThemeData(
       decoration: BoxDecoration(
         color: AppColors.inverseSurface,

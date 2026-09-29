@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../cities.dart';
 import '../location.dart';
 import '../state/ui_prefs.dart';
+import '../persona_theme.dart';
 import '../theme.dart';
 
 /// `bg-surface-container-lowest rounded-2xl shadow-sm` — the default card.
@@ -13,7 +14,7 @@ class SurfaceCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry padding;
   final double radius;
-  final Color color;
+  final Color? color;
   final VoidCallback? onTap;
 
   const SurfaceCard({
@@ -21,7 +22,7 @@ class SurfaceCard extends StatelessWidget {
     required this.child,
     this.padding = const EdgeInsets.all(AppSpace.md),
     this.radius = AppRadius.x2l,
-    this.color = AppColors.surfaceContainerLowest,
+    this.color,
     this.onTap,
   });
 
@@ -31,7 +32,7 @@ class SurfaceCard extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(borderRadius: shape, boxShadow: AppShadows.sm),
       child: Material(
-        color: color,
+        color: color ?? PersonaTheme.of(context).surfaceContainerLowest,
         borderRadius: shape,
         clipBehavior: Clip.antiAlias,
         child: onTap == null
@@ -59,6 +60,7 @@ class SectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
     return SurfaceCard(
       radius: AppRadius.xl,
       padding: const EdgeInsets.all(AppSpace.lg),
@@ -66,13 +68,13 @@ class SectionCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(children: [
-            Icon(icon, size: 20, color: AppColors.primary),
+            Icon(icon, size: 20, color: t.primary),
             const SizedBox(width: AppSpace.sm),
             Expanded(child: Text(title, style: AppText.headlineSm)),
           ]),
           if (subtitle != null) ...[
             const SizedBox(height: AppSpace.xs),
-            Text(subtitle!, style: AppText.bodySm.copyWith(color: AppColors.onSurfaceVariant)),
+            Text(subtitle!, style: AppText.bodySm.copyWith(color: t.onSurfaceVariant)),
           ],
           const SizedBox(height: AppSpace.md),
           ...children,
@@ -90,12 +92,13 @@ class PageHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: AppText.headlineLg.copyWith(color: AppColors.ink, fontWeight: FontWeight.w700)),
+        Text(title, style: AppText.headlineLg.copyWith(color: t.ink, fontWeight: FontWeight.w700)),
         const SizedBox(height: AppSpace.xs),
-        Text(subtitle, style: AppText.bodyMd.copyWith(color: AppColors.inkMuted)),
+        Text(subtitle, style: AppText.bodyMd.copyWith(color: t.inkMuted)),
       ],
     );
   }
@@ -106,17 +109,19 @@ class PageHeader extends StatelessWidget {
 class RuleLabel extends StatelessWidget {
   final IconData icon;
   final String text;
-  final Color color;
-  const RuleLabel({super.key, required this.icon, required this.text, this.color = AppColors.primary});
+  final Color? color;
+  const RuleLabel({super.key, required this.icon, required this.text, this.color});
 
   @override
   Widget build(BuildContext context) {
+    final color = this.color ?? PersonaTheme.of(context).primary;
+    final t = PersonaTheme.of(context);
     return Row(children: [
       Icon(icon, size: 14, color: color),
       const SizedBox(width: AppSpace.sm),
       Text(text.toUpperCase(), style: AppText.citationMono.copyWith(color: color, letterSpacing: 0.9)),
       const SizedBox(width: AppSpace.sm),
-      Expanded(child: Container(height: 1, color: AppColors.outlineVariant.withValues(alpha: 0.5))),
+      Expanded(child: Container(height: 1, color: t.outlineVariant.withValues(alpha: 0.5))),
     ]);
   }
 }
@@ -124,12 +129,14 @@ class RuleLabel extends StatelessWidget {
 /// Plain mono section label ("5-DAY OUTLOOK", "QUICK SITUATIONAL INQUIRIES").
 class MonoLabel extends StatelessWidget {
   final String text;
-  final Color color;
-  const MonoLabel(this.text, {super.key, this.color = AppColors.onSurfaceVariant});
+  final Color? color;
+  const MonoLabel(this.text, {super.key, this.color});
 
   @override
-  Widget build(BuildContext context) =>
-      Text(text.toUpperCase(), style: AppText.citationMono.copyWith(color: color));
+  Widget build(BuildContext context) => Text(
+        text.toUpperCase(),
+        style: AppText.citationMono.copyWith(color: color ?? PersonaTheme.of(context).onSurfaceVariant),
+      );
 }
 
 enum ChipTone { neutral, primary }
@@ -143,12 +150,13 @@ class TagChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
     final primary = tone == ChipTone.primary;
-    final fg = primary ? AppColors.primary : AppColors.onSurfaceVariant;
+    final fg = primary ? t.primary : t.onSurfaceVariant;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: primary ? AppColors.surfaceContainerHigh : AppColors.surfaceContainer,
+        color: primary ? t.surfaceContainerHigh : t.surfaceContainer,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -170,16 +178,17 @@ class LiveBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: live ? AppColors.secondaryContainer : AppColors.surfaceContainerHigh,
+        color: live ? AppColors.secondaryContainer : t.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
       child: Text(
         live ? liveText : notLiveText,
         style: AppText.citationMono.copyWith(
-          color: live ? AppColors.onSecondaryContainer : AppColors.onSurfaceVariant,
+          color: live ? AppColors.onSecondaryContainer : t.onSurfaceVariant,
           fontWeight: FontWeight.w600,
         ),
       ),
@@ -190,19 +199,22 @@ class LiveBadge extends StatelessWidget {
 /// `w-4 h-4 rounded-full border-2 border-outline-variant border-t-primary animate-spin`.
 class InlineSpinner extends StatelessWidget {
   final double size;
-  final Color color;
+  final Color? color;
   final Color? track;
-  const InlineSpinner({super.key, this.size = 16, this.color = AppColors.primary, this.track});
+  const InlineSpinner({super.key, this.size = 16, this.color, this.track});
 
   @override
-  Widget build(BuildContext context) => SizedBox.square(
-        dimension: size,
-        child: CircularProgressIndicator(
-          strokeWidth: 2,
-          color: color,
-          backgroundColor: track ?? AppColors.outlineVariant,
-        ),
-      );
+  Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
+    return SizedBox.square(
+      dimension: size,
+      child: CircularProgressIndicator(
+        strokeWidth: 2,
+        color: color ?? t.primary,
+        backgroundColor: track ?? t.outlineVariant,
+      ),
+    );
+  }
 }
 
 /// `p-space-md rounded-xl bg-surface-container-low` loading line.
@@ -212,16 +224,17 @@ class LoadingPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
     return Container(
       padding: const EdgeInsets.all(AppSpace.md),
       decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLow,
+        color: t.surfaceContainerLow,
         borderRadius: BorderRadius.circular(AppRadius.xl),
       ),
       child: Row(children: [
         const InlineSpinner(),
         const SizedBox(width: AppSpace.sm),
-        Expanded(child: Text(text, style: AppText.bodyMd.copyWith(color: AppColors.onSurfaceVariant))),
+        Expanded(child: Text(text, style: AppText.bodyMd.copyWith(color: t.onSurfaceVariant))),
       ]),
     );
   }
@@ -277,8 +290,9 @@ class PillButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
     return Material(
-      color: AppColors.primaryFixed,
+      color: t.primaryFixed,
       borderRadius: BorderRadius.circular(AppRadius.lg),
       child: InkWell(
         borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -286,9 +300,9 @@ class PillButton extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           child: Row(mainAxisSize: MainAxisSize.min, children: [
-            Icon(icon, size: 18, color: AppColors.onPrimaryFixed),
+            Icon(icon, size: 18, color: t.onPrimaryFixed),
             const SizedBox(width: 6),
-            Text(label, style: AppText.labelMd.copyWith(color: AppColors.onPrimaryFixed)),
+            Text(label, style: AppText.labelMd.copyWith(color: t.onPrimaryFixed)),
           ]),
         ),
       ),
@@ -311,20 +325,21 @@ class CityHintRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
     final prefs = UiPrefs.of(context);
-    final mono = AppText.citationMono.copyWith(color: AppColors.onSurfaceVariant);
+    final mono = AppText.citationMono.copyWith(color: t.onSurfaceVariant);
     return Wrap(
       crossAxisAlignment: WrapCrossAlignment.center,
       spacing: 6,
       runSpacing: 4,
       children: [
         Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(icon, size: 14, color: AppColors.onSurfaceVariant),
+          Icon(icon, size: 14, color: t.onSurfaceVariant),
           const SizedBox(width: 6),
           Text(prefix.toUpperCase(), style: mono),
         ]),
         Material(
-          color: AppColors.surfaceContainerLow,
+          color: t.surfaceContainerLow,
           borderRadius: BorderRadius.circular(AppRadius.sm),
           child: InkWell(
             borderRadius: BorderRadius.circular(AppRadius.sm),
@@ -333,12 +348,12 @@ class CityHintRow extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
               child: Row(mainAxisSize: MainAxisSize.min, children: [
                 Text(prefs.cityInfo.name, style: AppText.labelMd),
-                const Icon(Icons.expand_more, size: 16, color: AppColors.onSurfaceVariant),
+                Icon(Icons.expand_more, size: 16, color: t.onSurfaceVariant),
               ]),
             ),
           ),
         ),
-        if (showLang) Text('· LANG ${prefs.lang.toUpperCase()}', style: mono.copyWith(color: AppColors.outline)),
+        if (showLang) Text('· LANG ${prefs.lang.toUpperCase()}', style: mono.copyWith(color: t.outline)),
       ],
     );
   }
@@ -443,9 +458,10 @@ class _CityRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fg = active ? AppColors.primary : AppColors.onSurface;
+    final t = PersonaTheme.of(context);
+    final fg = active ? t.primary : t.onSurface;
     return Material(
-      color: active ? AppColors.primaryContainer.withValues(alpha: 0.1) : Colors.transparent,
+      color: active ? t.primaryContainer.withValues(alpha: 0.1) : Colors.transparent,
       borderRadius: BorderRadius.circular(AppRadius.lg),
       child: InkWell(
         borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -453,7 +469,7 @@ class _CityRow extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
           child: Row(children: [
-            Icon(icon, size: 18, color: active ? AppColors.primary : AppColors.onSurfaceVariant),
+            Icon(icon, size: 18, color: active ? t.primary : t.onSurfaceVariant),
             const SizedBox(width: AppSpace.sm),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -465,7 +481,7 @@ class _CityRow extends StatelessWidget {
                   ),
                 ),
                 if (detail != null)
-                  Text(detail!, style: AppText.bodySm.copyWith(color: AppColors.onSurfaceVariant)),
+                  Text(detail!, style: AppText.bodySm.copyWith(color: t.onSurfaceVariant)),
               ]),
             ),
             ?trailing,

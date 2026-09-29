@@ -6,6 +6,7 @@
 //   inset: true  — HomePage's Copilot input (mic + send inside the field)
 import 'package:flutter/material.dart';
 
+import '../persona_theme.dart';
 import '../theme.dart';
 import '../voice_client.dart';
 import '../voice_recorder.dart';
@@ -66,11 +67,7 @@ class _MicButtonState extends State<MicButton> {
         return;
       }
       String? notice;
-      final text = await transcribeAudio(
-        audioBase64: audio,
-        lang: widget.lang,
-        onNotice: (m) => notice = m,
-      );
+      final text = await transcribeAudio(audioBase64: audio, lang: widget.lang, onNotice: (m) => notice = m);
       if (!mounted) return;
       setState(() => _voice = _Voice.idle);
       if (text != null) {
@@ -95,10 +92,11 @@ class _MicButtonState extends State<MicButton> {
 
   @override
   Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
     final listening = _voice == _Voice.listening;
     final busy = _voice == _Voice.transcribing;
     final Color bg = listening ? AppColors.error : Colors.transparent;
-    final Color fg = listening ? AppColors.onError : AppColors.onSurfaceVariant;
+    final Color fg = listening ? AppColors.onError : t.onSurfaceVariant;
     final radius = BorderRadius.circular(AppRadius.lg);
     return Tooltip(
       message: listening ? 'Stop and ask' : 'Ask by voice',
@@ -172,6 +170,7 @@ class _AskComposerState extends State<AskComposer> {
 
   @override
   Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
     final mic = widget.showMic
         ? MicButton(
             lang: widget.lang,
@@ -188,7 +187,7 @@ class _AskComposerState extends State<AskComposer> {
       maxLines: 4,
       textInputAction: TextInputAction.send,
       onSubmitted: (_) => _submit(),
-      style: AppText.bodyMd.copyWith(color: AppColors.onSurface),
+      style: AppText.bodyMd.copyWith(color: t.onSurface),
       decoration: InputDecoration(
         hintText: widget.hint,
         hintMaxLines: 1,
@@ -208,33 +207,34 @@ class _AskComposerState extends State<AskComposer> {
     final row = widget.inset
         ? Container(
             padding: const EdgeInsets.only(left: 4, right: 6, top: 4, bottom: 4),
-            decoration: BoxDecoration(
-              color: AppColors.surfaceContainer,
-              borderRadius: BorderRadius.circular(AppRadius.xl),
+            decoration: BoxDecoration(color: t.surfaceContainer, borderRadius: BorderRadius.circular(AppRadius.xl)),
+            child: Row(
+              children: [
+                Expanded(child: field),
+                ?mic,
+                const SizedBox(width: 4),
+                send,
+              ],
             ),
-            child: Row(children: [
-              Expanded(child: field),
-              ?mic,
-              const SizedBox(width: 4),
-              send,
-            ]),
           )
         : Container(
             // The mockups' ask bar: sparkle, field, mic, blue send square.
             padding: const EdgeInsets.fromLTRB(12, 6, 6, 6),
             decoration: BoxDecoration(
-              color: AppColors.card,
+              color: t.card,
               borderRadius: BorderRadius.circular(AppRadius.card),
-              border: Border.all(color: AppColors.cardBorder),
-              boxShadow: AppShadows.card,
+              border: Border.all(color: t.cardBorder),
+              boxShadow: t.cardShadow,
             ),
-            child: Row(children: [
-              const Icon(Icons.auto_awesome, size: 20, color: AppColors.primary),
-              const SizedBox(width: 4),
-              Expanded(child: field),
-              if (mic != null) ...[mic, const SizedBox(width: 4)],
-              send,
-            ]),
+            child: Row(
+              children: [
+                Icon(Icons.auto_awesome, size: 20, color: t.primary),
+                const SizedBox(width: 4),
+                Expanded(child: field),
+                if (mic != null) ...[mic, const SizedBox(width: 4)],
+                send,
+              ],
+            ),
           );
 
     return Column(
@@ -247,7 +247,7 @@ class _AskComposerState extends State<AskComposer> {
             padding: const EdgeInsets.only(top: 6, left: 4),
             child: Text(
               _micNotice!,
-              style: AppText.bodySm.copyWith(color: AppColors.onSurfaceVariant, fontStyle: FontStyle.italic),
+              style: AppText.bodySm.copyWith(color: t.onSurfaceVariant, fontStyle: FontStyle.italic),
             ),
           ),
       ],
@@ -263,14 +263,20 @@ class _SendButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
     final radius = BorderRadius.circular(compact ? AppRadius.lg : AppRadius.xl);
     final disabled = onPressed == null;
     return Tooltip(
       message: 'Send',
       child: DecoratedBox(
-        decoration: BoxDecoration(borderRadius: radius, boxShadow: compact ? AppShadows.sm : AppShadows.card),
+        // The persona's accent gradient, faded while there's nothing to send.
+        decoration: BoxDecoration(
+          borderRadius: radius,
+          boxShadow: compact ? AppShadows.sm : t.cardShadow,
+          gradient: t.accentGradient,
+        ),
         child: Material(
-          color: disabled && !loading ? AppColors.primary.withValues(alpha: 0.6) : AppColors.primary,
+          color: disabled && !loading ? t.card.withValues(alpha: 0.4) : Colors.transparent,
           borderRadius: radius,
           child: InkWell(
             borderRadius: radius,
@@ -280,10 +286,10 @@ class _SendButton extends StatelessWidget {
               child: loading
                   ? InlineSpinner(
                       size: compact ? 18 : 20,
-                      color: AppColors.onPrimary,
-                      track: AppColors.onPrimary.withValues(alpha: 0.4),
+                      color: t.onPrimary,
+                      track: t.onPrimary.withValues(alpha: 0.4),
                     )
-                  : Icon(Icons.send_rounded, size: compact ? 18 : 20, color: AppColors.onPrimary),
+                  : Icon(Icons.send_rounded, size: compact ? 18 : 20, color: t.onPrimary),
             ),
           ),
         ),
@@ -302,26 +308,29 @@ class QuickQueryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
     return Opacity(
       opacity: enabled ? 1 : 0.6,
       child: Material(
-        color: AppColors.surfaceContainerLow,
+        color: t.surfaceContainerLow,
         borderRadius: BorderRadius.circular(AppRadius.lg),
         child: InkWell(
           borderRadius: BorderRadius.circular(AppRadius.lg),
           onTap: enabled ? onTap : null,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-            child: Row(children: [
-              Expanded(
-                child: Text(
-                  emoji == null ? '“$text”' : '$emoji $text',
-                  style: AppText.labelMd.copyWith(color: AppColors.onSurface),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    emoji == null ? '“$text”' : '$emoji $text',
+                    style: AppText.labelMd.copyWith(color: t.onSurface),
+                  ),
                 ),
-              ),
-              const SizedBox(width: AppSpace.sm),
-              const Icon(Icons.north_east, size: 16, color: AppColors.outline),
-            ]),
+                const SizedBox(width: AppSpace.sm),
+                Icon(Icons.north_east, size: 16, color: t.outline),
+              ],
+            ),
           ),
         ),
       ),
@@ -345,29 +354,32 @@ class SuggestionChips extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
-      child: Row(children: [
-        const MonoLabel('Suggested:', color: AppColors.outline),
-        for (final s in suggestions) ...[
-          const SizedBox(width: AppSpace.sm),
-          Opacity(
-            opacity: enabled ? 1 : 0.6,
-            child: Material(
-              color: AppColors.surfaceContainerLow,
-              borderRadius: BorderRadius.circular(999),
-              child: InkWell(
+      child: Row(
+        children: [
+          MonoLabel('Suggested:', color: t.outline),
+          for (final s in suggestions) ...[
+            const SizedBox(width: AppSpace.sm),
+            Opacity(
+              opacity: enabled ? 1 : 0.6,
+              child: Material(
+                color: t.surfaceContainerLow,
                 borderRadius: BorderRadius.circular(999),
-                onTap: enabled ? () => onPick(s.text) : null,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                  child: Text('${s.emoji} ${s.text}', style: AppText.labelMd.copyWith(color: AppColors.onSurface)),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(999),
+                  onTap: enabled ? () => onPick(s.text) : null,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                    child: Text('${s.emoji} ${s.text}', style: AppText.labelMd.copyWith(color: t.onSurface)),
+                  ),
                 ),
               ),
             ),
-          ),
+          ],
         ],
-      ]),
+      ),
     );
   }
 }

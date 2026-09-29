@@ -4,10 +4,12 @@
 // drawer still carries web/'s Sidebar. Wide screens (tablets, desktop) keep
 // web/'s permanent 256px sidebar instead of the bottom bar. Pages are built
 // on first visit and kept alive after, so a chat transcript or an answer
-// survives switching pages.
+// survives switching pages. All chrome colours come from the active
+// persona's PersonaTheme.
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../persona_theme.dart';
 import '../theme.dart';
 
 enum AppPage { home, chat, forecast, alerts, settings }
@@ -95,6 +97,7 @@ class _AppShellState extends State<AppShell> {
 
   @override
   Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
     final stack = IndexedStack(
       index: _current.index,
       children: [
@@ -113,7 +116,7 @@ class _AppShellState extends State<AppShell> {
       child: AnnotatedRegion<SystemUiOverlayStyle>(
         value: SystemUiOverlayStyle.dark.copyWith(
           statusBarColor: Colors.transparent,
-          systemNavigationBarColor: AppColors.navBar,
+          systemNavigationBarColor: t.navBar,
           systemNavigationBarIconBrightness: Brightness.dark,
         ),
         // Android back returns to Home before it leaves the app.
@@ -134,14 +137,7 @@ class _AppShellState extends State<AppShell> {
             builder: (context, constraints) {
               final wide = constraints.maxWidth >= AppShell.wideBreakpoint;
               final main = DecoratedBox(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [AppColors.skyTop, AppColors.skyBottom],
-                    stops: [0, 0.35],
-                  ),
-                ),
+                decoration: BoxDecoration(gradient: t.skyGradient),
                 child: Column(children: [
                   Topbar(showMenu: !wide),
                   Expanded(child: stack),
@@ -149,7 +145,7 @@ class _AppShellState extends State<AppShell> {
               );
               return Scaffold(
                 key: _scaffold,
-                backgroundColor: AppColors.skyBottom,
+                backgroundColor: t.skyBottom,
                 drawer: wide
                     ? null
                     : Drawer(
@@ -167,8 +163,8 @@ class _AppShellState extends State<AppShell> {
                         children: [
                           Container(
                             width: 256,
-                            decoration: const BoxDecoration(
-                              color: AppColors.surfaceContainerLowest,
+                            decoration: BoxDecoration(
+                              color: t.surfaceContainerLowest,
                               boxShadow: AppShadows.chrome,
                             ),
                             child: Sidebar(current: _current, onSelect: _go),
@@ -186,7 +182,8 @@ class _AppShellState extends State<AppShell> {
   }
 }
 
-/// The five-tab bar: filled icon + bold primary label on the active tab.
+/// The five-tab bar: filled icon on a persona-tinted pill + bold accent
+/// label on the active tab.
 class BottomNav extends StatelessWidget {
   final AppPage current;
   final ValueChanged<AppPage> onSelect;
@@ -194,11 +191,12 @@ class BottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
     return DecoratedBox(
-      decoration: const BoxDecoration(
-        color: AppColors.navBar,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        boxShadow: [BoxShadow(color: Color(0x141D6AE5), blurRadius: 16, offset: Offset(0, -3))],
+      decoration: BoxDecoration(
+        color: t.navBar,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        boxShadow: [BoxShadow(color: t.shadow.withValues(alpha: 0.08), blurRadius: 16, offset: const Offset(0, -3))],
       ),
       child: SafeArea(
         top: false,
@@ -222,7 +220,8 @@ class _BottomTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fg = active ? AppColors.primary : AppColors.navIdle;
+    final t = PersonaTheme.of(context);
+    final fg = active ? t.primary : t.navIdle;
     return Semantics(
       selected: active,
       button: true,
@@ -232,8 +231,16 @@ class _BottomTab extends StatelessWidget {
         onTap: onTap,
         radius: 32,
         child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Icon(active ? item.activeIcon : item.icon, size: 24, color: fg),
-          const SizedBox(height: 3),
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 3),
+            decoration: BoxDecoration(
+              color: active ? t.tint : t.tint.withValues(alpha: 0),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Icon(active ? item.activeIcon : item.icon, size: 24, color: fg),
+          ),
+          const SizedBox(height: 2),
           Text(
             item.shortLabel,
             style: AppText.bodySm.copyWith(
@@ -256,6 +263,7 @@ class BrandMark extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
     return SizedBox.square(
       dimension: size,
       child: Stack(children: [
@@ -265,7 +273,7 @@ class BrandMark extends StatelessWidget {
         ),
         Align(
           alignment: const Alignment(-0.2, 0.5),
-          child: Icon(Icons.cloud, size: size * 0.95, color: AppColors.primary),
+          child: Icon(Icons.cloud, size: size * 0.95, color: t.primary),
         ),
       ]),
     );
@@ -280,6 +288,7 @@ class Sidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
     return SafeArea(
       right: false,
       child: Column(
@@ -299,7 +308,7 @@ class Sidebar extends StatelessWidget {
                       const SizedBox(height: 2),
                       Text(
                         'Your AI weather assistant',
-                        style: AppText.bodySm.copyWith(color: AppColors.onSurfaceVariant),
+                        style: AppText.bodySm.copyWith(color: t.onSurfaceVariant),
                       ),
                     ],
                   ),
@@ -333,16 +342,17 @@ class _NavTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fg = active ? AppColors.onPrimary : AppColors.onSurfaceVariant;
+    final t = PersonaTheme.of(context);
+    final fg = active ? t.onPrimary : t.onSurfaceVariant;
     return Semantics(
       selected: active,
       button: true,
       child: Material(
-        color: active ? AppColors.primary : Colors.transparent,
+        color: active ? t.primary : Colors.transparent,
         borderRadius: BorderRadius.circular(AppRadius.lg),
         child: InkWell(
           borderRadius: BorderRadius.circular(AppRadius.lg),
-          hoverColor: AppColors.surfaceContainerHigh,
+          hoverColor: t.surfaceContainerHigh,
           onTap: onTap,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpace.md, vertical: 10),
@@ -371,6 +381,7 @@ class Topbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
     return SafeArea(
       bottom: false,
       child: SizedBox(
@@ -382,7 +393,7 @@ class Topbar extends StatelessWidget {
               if (showMenu)
                 IconButton(
                   tooltip: 'Menu',
-                  icon: const Icon(Icons.menu_rounded, color: AppColors.ink),
+                  icon: Icon(Icons.menu_rounded, color: t.ink),
                   onPressed: () => Scaffold.of(context).openDrawer(),
                 ),
               const SizedBox(width: 2),
@@ -391,12 +402,12 @@ class Topbar extends StatelessWidget {
               Expanded(
                 child: Text(
                   'WeatherGPT',
-                  style: AppText.headlineSm.copyWith(color: AppColors.ink, fontWeight: FontWeight.w700),
+                  style: AppText.headlineSm.copyWith(color: t.ink, fontWeight: FontWeight.w700),
                 ),
               ),
               IconButton(
                 tooltip: 'Alerts & Warnings',
-                icon: const Icon(Icons.notifications_none_rounded, size: 24, color: AppColors.ink),
+                icon: Icon(Icons.notifications_none_rounded, size: 24, color: t.ink),
                 onPressed: () => ShellNav.read(context).go(AppPage.alerts),
               ),
             ],

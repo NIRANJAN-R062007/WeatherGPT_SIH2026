@@ -17,6 +17,7 @@ import '../facts_client.dart';
 import '../format.dart';
 import '../state/ui_prefs.dart';
 import '../state/weather_store.dart';
+import '../persona_theme.dart';
 import '../theme.dart';
 import 'persona_page.dart';
 
@@ -62,7 +63,7 @@ class _HomePageState extends State<HomePage> {
 
     return PageFrame(
       onRefresh: weather.refresh,
-      footer: SceneryFooter.waves,
+      footer: SceneryFooter.soft,
       children: [
         _Greeting(text: _greeting(_now)),
         const SizedBox(height: AppSpace.md),
@@ -89,6 +90,7 @@ class _Greeting extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
     final persona = UiPrefs.of(context).personaInfo;
     return Row(
       children: [
@@ -97,7 +99,7 @@ class _Greeting extends StatelessWidget {
           child: InkWell(
             customBorder: const CircleBorder(),
             onTap: () => openPersonaPicker(context),
-            child: IconDisc(persona.icon, color: persona.accent, size: 44, solid: true),
+            child: IconDisc(persona.icon, size: 44, solid: true),
           ),
         ),
         const SizedBox(width: 12),
@@ -107,11 +109,11 @@ class _Greeting extends StatelessWidget {
             children: [
               Text(
                 text,
-                style: AppText.headlineSm.copyWith(color: AppColors.ink, fontWeight: FontWeight.w700),
+                style: AppText.headlineSm.copyWith(color: t.ink, fontWeight: FontWeight.w700),
               ),
               Text(
                 "Here's the latest weather for your city.",
-                style: AppText.bodySm.copyWith(color: AppColors.inkMuted),
+                style: AppText.bodySm.copyWith(color: t.inkMuted),
               ),
             ],
           ),
@@ -128,6 +130,7 @@ class _NowCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
     final prefs = UiPrefs.of(context);
     final c = weather.current;
 
@@ -144,12 +147,12 @@ class _NowCard extends StatelessWidget {
     } else if (!c.hasData) {
       body = Text(
         c.message ?? 'No current conditions for this city right now.',
-        style: AppText.bodyMd.copyWith(color: AppColors.inkMuted),
+        style: AppText.bodyMd.copyWith(color: t.inkMuted),
       );
     } else {
       body = _NowBody(c: c, rain: weather.today?.number('rain_probability_pct'));
     }
-    return AppCard(padding: const EdgeInsets.all(AppSpace.md), child: body);
+    return AppCard(wash: true, padding: const EdgeInsets.all(AppSpace.md), child: body);
   }
 }
 
@@ -160,6 +163,7 @@ class _NowBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
     final prefs = UiPrefs.of(context);
     final temp = c.number('temp_c');
     final feels = c.number('feels_like_c');
@@ -186,19 +190,19 @@ class _NowBody extends StatelessWidget {
                     alignment: Alignment.centerLeft,
                     child: Text(
                       temp == null ? '—' : prefs.tempLabel(temp),
-                      style: AppText.headlineXl.copyWith(fontSize: 34, color: AppColors.ink, height: 1.1),
+                      style: AppText.headlineXl.copyWith(fontSize: 34, color: t.ink, height: 1.1),
                     ),
                   ),
                   Text(
                     sentenceCase(c.conditionLabel),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: AppText.bodyMd.copyWith(color: AppColors.inkMuted),
+                    style: AppText.bodyMd.copyWith(color: t.inkMuted),
                   ),
                   if (feels != null)
                     Text(
                       'Feels like ${prefs.tempLabel(feels)}',
-                      style: AppText.bodySm.copyWith(color: AppColors.inkMuted),
+                      style: AppText.bodySm.copyWith(color: t.inkMuted),
                     ),
                 ],
               ),
@@ -207,7 +211,7 @@ class _NowBody extends StatelessWidget {
               width: 1,
               height: 72,
               margin: const EdgeInsets.symmetric(horizontal: 10),
-              color: AppColors.cardBorder,
+              color: t.cardBorder,
             ),
             Expanded(
               flex: 5,
@@ -234,7 +238,7 @@ class _NowBody extends StatelessWidget {
                 child: Text(
                   'Updated ${istTime(c.issued)}',
                   overflow: TextOverflow.ellipsis,
-                  style: AppText.citationMono.copyWith(color: AppColors.inkMuted),
+                  style: AppText.citationMono.copyWith(color: t.inkMuted),
                 ),
               ),
           ],
@@ -252,20 +256,21 @@ class _Stat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
     return Row(
       children: [
-        Icon(icon, size: 15, color: AppColors.inkMuted),
+        Icon(icon, size: 15, color: t.inkMuted),
         const SizedBox(width: 5),
         Expanded(
           child: Text(
             label,
             overflow: TextOverflow.ellipsis,
-            style: AppText.bodySm.copyWith(color: AppColors.inkMuted),
+            style: AppText.bodySm.copyWith(color: t.inkMuted),
           ),
         ),
         Text(
           value,
-          style: AppText.bodySm.copyWith(color: AppColors.ink, fontWeight: FontWeight.w600),
+          style: AppText.bodySm.copyWith(color: t.ink, fontWeight: FontWeight.w600),
         ),
       ],
     );
@@ -279,16 +284,18 @@ class _OutlookStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
     if (weather.error != null) {
       return AppCard(
         child: Text(
           'The outlook will appear once the weather service answers.',
-          style: AppText.bodySm.copyWith(color: AppColors.inkMuted),
+          style: AppText.bodySm.copyWith(color: t.inkMuted),
         ),
       );
     }
     if (weather.today == null) return const LoadingPanel('Loading the outlook…');
     return AppCard(
+      wash: true,
       padding: const EdgeInsets.symmetric(vertical: 14, horizontal: AppSpace.sm),
       child: Row(
         children: [
@@ -315,16 +322,17 @@ class _DayCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
     final prefs = UiPrefs.of(context);
     final r = result;
     final high = r?.number('high_c');
     final low = r?.number('low_c');
-    final muted = AppText.bodySm.copyWith(color: AppColors.inkMuted);
+    final muted = AppText.bodySm.copyWith(color: t.inkMuted);
     return Column(
       children: [
         Text(
           label,
-          style: AppText.labelMd.copyWith(color: AppColors.ink, fontWeight: FontWeight.w600),
+          style: AppText.labelMd.copyWith(color: t.ink, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 8),
         WeatherGlyph(r?.condition, night: night, size: 34),
@@ -339,7 +347,7 @@ class _DayCell extends StatelessWidget {
                 if (!night && high != null)
                   TextSpan(
                     text: '${prefs.temp(high)}°  ',
-                    style: const TextStyle(color: AppColors.ink, fontWeight: FontWeight.w600),
+                    style: TextStyle(color: t.ink, fontWeight: FontWeight.w600),
                   ),
                 if (low != null) TextSpan(text: night ? 'Low ${prefs.temp(low)}°' : '${prefs.temp(low)}°'),
               ],

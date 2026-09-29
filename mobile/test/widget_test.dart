@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:weathergpt/components/app_shell.dart';
 import 'package:weathergpt/main.dart';
+import 'package:weathergpt/persona_theme.dart';
 
 // flutter_test answers every real HTTP request with a 400, so pages that
 // fetch on load land in their error state — which is also what's checked.
@@ -153,8 +154,44 @@ void main() {
     await _settle(tester);
     await tester.tap(find.text('Farmer'));
     await _settle(tester);
+    await _settle(tester); // the picker lingers a beat so the re-theme shows
     expect(find.text('Choose your persona'), findsNothing);
     expect(find.text('Farmer'), findsOneWidget);
     expect(find.text('Better decisions for your crops.'), findsOneWidget);
+  });
+
+  testWidgets('the persona is the app-wide theme and survives page switches', (tester) async {
+    PersonaTheme active() => PersonaTheme.of(tester.element(find.byType(BottomNav)));
+
+    await tester.pumpWidget(const WeatherGptApp());
+    await _settle(tester);
+    expect(active().primary, personaThemes['general']!.primary);
+
+    for (final (label, id) in [
+      ('Farmer', 'farmer'),
+      ('Fisherman', 'fisherman'),
+      ('Aviation', 'aviation'),
+      ('City Official', 'city_official'),
+      ('General Citizen', 'general'),
+    ]) {
+      await _tab(tester, 'More');
+      await tester.tap(find.text('Change Persona'));
+      await _settle(tester);
+      await tester.ensureVisible(find.text(label));
+      await _settle(tester);
+      await tester.tap(find.text(label));
+      await _settle(tester);
+      await _settle(tester);
+
+      final expected = personaThemes[id]!;
+      expect(active().primary, expected.primary, reason: label);
+      expect(active().scene, expected.scene, reason: label);
+      // Material widgets follow it too.
+      expect(Theme.of(tester.element(find.byType(BottomNav))).colorScheme.primary, expected.primary);
+      for (final tab in ['Home', 'Chat', 'Forecast', 'Alerts', 'More']) {
+        await _tab(tester, tab);
+        expect(active().primary, expected.primary, reason: '$label on $tab');
+      }
+    }
   });
 }

@@ -14,6 +14,7 @@ import '../components/scenery.dart';
 import '../components/surfaces.dart';
 import '../format.dart';
 import '../state/ui_prefs.dart';
+import '../persona_theme.dart';
 import '../theme.dart';
 import '../warning_colors.dart';
 import '../warnings_client.dart';
@@ -87,6 +88,7 @@ class _AlertsPageState extends State<AlertsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
     final data = _data;
     final warning = data?['warning'] is Map<String, dynamic> ? data!['warning'] as Map<String, dynamic> : null;
     final city = UiPrefs.of(context).cityInfo.name;
@@ -131,7 +133,7 @@ class _AlertsPageState extends State<AlertsPage> {
                   warning != null
                       ? 'No active alerts for $city.'
                       : 'Alerts for $city will be listed here when the warnings feed has a verdict.',
-                  style: AppText.bodyMd.copyWith(color: AppColors.inkMuted),
+                  style: AppText.bodyMd.copyWith(color: t.inkMuted),
                 ),
               ),
             ]),
@@ -157,28 +159,29 @@ class _NoVerdict extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
     final cityName = data['city_name'] as String? ?? cityLabel(data['city'] as String?);
     return AppCard(
-      color: AppColors.surfaceContainerLow,
-      borderColor: AppColors.outlineVariant,
+      color: t.surfaceContainerLow,
+      borderColor: t.outlineVariant,
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Row(children: [
-          const IconDisc(Icons.help_outline, color: AppColors.onSurfaceVariant, background: AppColors.surfaceContainerHigh),
+          IconDisc(Icons.help_outline, color: t.onSurfaceVariant, background: t.surfaceContainerHigh),
           const SizedBox(width: 12),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(
                 'No warning verdict',
-                style: AppText.labelMd.copyWith(color: AppColors.ink, fontWeight: FontWeight.w700),
+                style: AppText.labelMd.copyWith(color: t.ink, fontWeight: FontWeight.w700),
               ),
-              Text(cityName, style: AppText.bodySm.copyWith(color: AppColors.inkMuted)),
+              Text(cityName, style: AppText.bodySm.copyWith(color: t.inkMuted)),
             ]),
           ),
         ]),
         const SizedBox(height: AppSpace.sm),
         Text(
           "Weather warnings aren't available right now for $cityName — this can't be read as an all-clear.",
-          style: AppText.bodyMd.copyWith(color: AppColors.onSurface),
+          style: AppText.bodyMd.copyWith(color: t.onSurface),
         ),
         const SizedBox(height: AppSpace.sm),
         WarningLegend(rows: data['legend']),
@@ -198,6 +201,7 @@ class _Verdict extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
     final w = data['warning'] as Map<String, dynamic>;
     final colour = w['colour'] as String?;
     final tone = warningColor(colour);
@@ -208,7 +212,7 @@ class _Verdict extends StatelessWidget {
         : 'No warnings in force';
 
     return AppCard(
-      color: Color.alphaBlend(tone.withValues(alpha: 0.08), AppColors.card),
+      color: Color.alphaBlend(tone.withValues(alpha: 0.08), t.card),
       borderColor: tone.withValues(alpha: 0.35),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -227,7 +231,7 @@ class _Verdict extends StatelessWidget {
                   TagChip('${s('colour_label')}${active ? ' — in force' : ' — nothing in force'}'),
               ]),
               const SizedBox(height: AppSpace.sm),
-              Text(s('headline'), style: AppText.bodyMd.copyWith(color: AppColors.ink)),
+              Text(s('headline'), style: AppText.bodyMd.copyWith(color: t.ink)),
             ]),
           ),
         ]),
@@ -237,7 +241,7 @@ class _Verdict extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.only(left: 48),
             child: Material(
-              color: AppColors.card,
+              color: t.card,
               borderRadius: BorderRadius.circular(999),
               child: InkWell(
                 borderRadius: BorderRadius.circular(999),
@@ -247,10 +251,10 @@ class _Verdict extends StatelessWidget {
                   child: Row(mainAxisSize: MainAxisSize.min, children: [
                     Text(
                       expanded ? 'Hide details' : 'View details',
-                      style: AppText.labelMd.copyWith(color: AppColors.primary, fontWeight: FontWeight.w600),
+                      style: AppText.labelMd.copyWith(color: t.primary, fontWeight: FontWeight.w600),
                     ),
                     const SizedBox(width: 4),
-                    Icon(expanded ? Icons.expand_less : Icons.arrow_forward, size: 16, color: AppColors.primary),
+                    Icon(expanded ? Icons.expand_less : Icons.arrow_forward, size: 16, color: t.primary),
                   ]),
                 ),
               ),
@@ -260,7 +264,7 @@ class _Verdict extends StatelessWidget {
         if (expanded) ...[
           if (s('advice').isNotEmpty) ...[
             const SizedBox(height: AppSpace.md),
-            Text(s('advice'), style: AppText.bodyMd.copyWith(color: AppColors.inkMuted)),
+            Text(s('advice'), style: AppText.bodyMd.copyWith(color: t.inkMuted)),
           ],
           const SizedBox(height: AppSpace.md),
           WarningLegend(rows: data['legend'], highlight: colour),
@@ -268,18 +272,18 @@ class _Verdict extends StatelessWidget {
           Container(
             padding: const EdgeInsets.only(top: AppSpace.xs),
             decoration: BoxDecoration(
-              border: Border(top: BorderSide(color: AppColors.outlineVariant.withValues(alpha: 0.4))),
+              border: Border(top: BorderSide(color: t.outlineVariant.withValues(alpha: 0.4))),
             ),
             child: DefaultTextStyle.merge(
-              style: AppText.citationMono.copyWith(color: AppColors.onSurfaceVariant),
+              style: AppText.citationMono.copyWith(color: t.onSurfaceVariant),
               child: Wrap(spacing: 12, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: [
                 Row(mainAxisSize: MainAxisSize.min, children: [
-                  const Icon(Icons.campaign_outlined, size: 12, color: AppColors.onSurfaceVariant),
+                  Icon(Icons.campaign_outlined, size: 12, color: t.onSurfaceVariant),
                   const SizedBox(width: 4),
                   Flexible(child: Text(s('issued_by'))),
                 ]),
                 Text('Valid ${istTimestamp(s('valid_from'))} → ${istTimestamp(s('valid_to'))}'),
-                Text('source: ${s('source')}', style: const TextStyle(color: AppColors.outline)),
+                Text('source: ${s('source')}', style: TextStyle(color: t.outline)),
               ]),
             ),
           ),
@@ -318,10 +322,11 @@ class _SourceNote extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
     return AppCard(
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          const Icon(Icons.verified_outlined, size: 18, color: AppColors.primary),
+          Icon(Icons.verified_outlined, size: 18, color: t.primary),
           const SizedBox(width: AppSpace.sm),
           Text('Source', style: AppText.labelMd.copyWith(fontWeight: FontWeight.w600)),
         ]),
@@ -330,7 +335,7 @@ class _SourceNote extends StatelessWidget {
           'The colour code and headline are the warning feed\'s own, shown verbatim — WeatherGPT '
           'explains a colour, it never re-grades one. The source line on each verdict names the feed '
           'that answered.',
-          style: AppText.bodySm.copyWith(color: AppColors.onSurfaceVariant),
+          style: AppText.bodySm.copyWith(color: t.onSurfaceVariant),
         ),
       ]),
     );
