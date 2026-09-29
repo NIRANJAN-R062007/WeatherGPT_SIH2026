@@ -1,8 +1,15 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 
 import 'package:weathergpt/components/app_shell.dart';
+import 'package:weathergpt/auth_client.dart';
+import 'package:weathergpt/components/forms.dart';
 import 'package:weathergpt/main.dart';
+import 'package:weathergpt/state/auth_store.dart';
 import 'package:weathergpt/persona_theme.dart';
 
 // flutter_test answers every real HTTP request with a 400, so pages that
@@ -26,32 +33,93 @@ Future<void> _tab(WidgetTester tester, String label) async {
   await _settle(tester);
 }
 
+const _user = {
+  'id': 'u1',
+  'email': 'chelsea@example.com',
+  'created_at': '2026-09-29T10:00:00Z',
+  'user_metadata': {'full_name': 'Chelsea Joseph', 'phone': '9876543210', 'occupation': 'Farmer'},
+};
+
+Map<String, dynamic> _sessionJson() => {
+  'access_token': 'access',
+  'refresh_token': 'refresh',
+  'expires_at': DateTime.now().add(const Duration(hours: 1)).millisecondsSinceEpoch ~/ 1000,
+  'user': _user,
+};
+
+final _noNetwork = MockClient((_) async => http.Response('{}', 500));
+
+/// A store already signed in (session in memory, no network).
+Future<AuthStore> _signedIn() async {
+  final store = AuthStore(
+    storage: MemorySessionStorage(_sessionJson()),
+    client: AuthClient(client: _noNetwork),
+  );
+  await store.restore();
+  return store;
+}
+
+/// A signed-out store whose Supabase calls are answered by [handler].
+Future<AuthStore> _signedOut(Future<http.Response> Function(http.Request) handler) async {
+  final store = AuthStore(
+    storage: MemorySessionStorage(),
+    client: AuthClient(client: MockClient(handler)),
+  );
+  await store.restore();
+  return store;
+}
+
+/// A phone-sized screen (Pixel 7), reset after the test.
+void _phone(WidgetTester tester) {
+  tester.view.physicalSize = const Size(1080, 2400);
+  tester.view.devicePixelRatio = 2.625;
+  addTearDown(tester.view.reset);
+}
+
+/// Scrolls [finder] into view, then taps it.
+Future<void> _tapVisible(WidgetTester tester, Finder finder) async {
+  await tester.ensureVisible(finder);
+  await tester.pump();
+  await tester.tap(finder);
+  await _settle(tester);
+}
+
+Future<void> _enter(WidgetTester tester, String label, String text) async {
+  await tester.enterText(find.widgetWithText(TextFormField, label), text);
+}
+
 void main() {
   testWidgets('boots to Home: city pill, quick questions and the now card', (tester) async {
-    await tester.pumpWidget(const WeatherGptApp());
+    await tester.pumpWidget(WeatherGptApp(auth: await _signedIn()));
     await _settle(tester);
 
     expect(find.text('Chennai, Tamil Nadu'), findsOneWidget);
-    expect(find.text('Quick Questions'), findsOneWidget);
+    expect(find.text('Quick Actions'), findsOneWidget);
     // /facts got a 400 -> the hero shows the error panel, not stale numbers.
     expect(find.text('Live conditions unavailable'), findsOneWidget);
   });
 
   testWidgets('drawer mirrors web Sidebar nav, without History', (tester) async {
-    await tester.pumpWidget(const WeatherGptApp());
+    await tester.pumpWidget(WeatherGptApp(auth: await _signedIn()));
     await _settle(tester);
     await tester.tap(find.byTooltip('Menu'));
     await _settle(tester);
 
     final drawer = find.byType(Drawer);
     for (final label in ['Home', 'Chat & Evidence', 'Forecast', 'Alerts & Warnings', 'Settings']) {
-      expect(find.descendant(of: drawer, matching: find.text(label)), findsOneWidget, reason: label);
+      expect(
+        find.descendant(of: drawer, matching: find.text(label)),
+        findsOneWidget,
+        reason: label,
+      );
     }
     expect(find.descendant(of: drawer, matching: find.text('History')), findsNothing);
+    expect(find.descendant(of: drawer, matching: find.text('Profile')), findsOneWidget);
+    expect(find.descendant(of: drawer, matching: find.text('chelsea@example.com')), findsOneWidget);
   });
 
   testWidgets('every page renders', (tester) async {
-    await tester.pumpWidget(const WeatherGptApp());
+    await tester.pumpWidget(WeatherGptApp(auth: await _signedIn()));
     await _settle(tester);
 
     await _openDrawerAndGo(tester, 'Chat & Evidence');
@@ -68,7 +136,7 @@ void main() {
   });
 
   testWidgets('bottom bar switches pages; More is Settings', (tester) async {
-    await tester.pumpWidget(const WeatherGptApp());
+    await tester.pumpWidget(WeatherGptApp(auth: await _signedIn()));
     await _settle(tester);
 
     await _tab(tester, 'Chat');
@@ -78,11 +146,11 @@ void main() {
     await _tab(tester, 'More');
     expect(find.text('Change Persona'), findsOneWidget);
     await _tab(tester, 'Home');
-    expect(find.text('Quick Questions'), findsOneWidget);
+    expect(find.text('Quick Actions'), findsOneWidget);
   });
 
   testWidgets('a Home quick question is asked in Chat', (tester) async {
-    await tester.pumpWidget(const WeatherGptApp());
+    await tester.pumpWidget(WeatherGptApp(auth: await _signedIn()));
     await _settle(tester);
 
     await tester.ensureVisible(find.text('Will it rain today?'));
@@ -95,7 +163,7 @@ void main() {
   });
 
   testWidgets('Android back: closes the drawer first, then returns Home', (tester) async {
-    await tester.pumpWidget(const WeatherGptApp());
+    await tester.pumpWidget(WeatherGptApp(auth: await _signedIn()));
     await _settle(tester);
     await _openDrawerAndGo(tester, 'Alerts & Warnings');
     expect(find.text('Warnings service unreachable'), findsOneWidget);
@@ -112,11 +180,11 @@ void main() {
     await tester.binding.handlePopRoute();
     await _settle(tester);
     expect(find.text('Warnings service unreachable'), findsNothing); // back on Home
-    expect(find.text('Quick Questions'), findsOneWidget);
+    expect(find.text('Quick Actions'), findsOneWidget);
   });
 
   testWidgets('city picker updates the shared city', (tester) async {
-    await tester.pumpWidget(const WeatherGptApp());
+    await tester.pumpWidget(WeatherGptApp(auth: await _signedIn()));
     await _settle(tester);
 
     await tester.tap(find.text('Chennai, Tamil Nadu'));
@@ -130,7 +198,7 @@ void main() {
   });
 
   testWidgets('settings rows switch language, unit and persona', (tester) async {
-    await tester.pumpWidget(const WeatherGptApp());
+    await tester.pumpWidget(WeatherGptApp(auth: await _signedIn()));
     await _settle(tester);
     await _tab(tester, 'More');
 
@@ -157,13 +225,13 @@ void main() {
     await _settle(tester); // the picker lingers a beat so the re-theme shows
     expect(find.text('Choose your persona'), findsNothing);
     expect(find.text('Farmer'), findsOneWidget);
-    expect(find.text('Better decisions for your crops.'), findsOneWidget);
+    expect(find.text('Agriculture, crops & weather planning.'), findsOneWidget);
   });
 
   testWidgets('the persona is the app-wide theme and survives page switches', (tester) async {
     PersonaTheme active() => PersonaTheme.of(tester.element(find.byType(BottomNav)));
 
-    await tester.pumpWidget(const WeatherGptApp());
+    await tester.pumpWidget(WeatherGptApp(auth: await _signedIn()));
     await _settle(tester);
     expect(active().primary, personaThemes['general']!.primary);
 
@@ -193,5 +261,121 @@ void main() {
         expect(active().primary, expected.primary, reason: '$label on $tab');
       }
     }
+  });
+
+  testWidgets('Appearance > Dark switches every persona to its dark palette', (tester) async {
+    PersonaTheme active() => PersonaTheme.of(tester.element(find.byType(BottomNav)));
+
+    _phone(tester);
+    await tester.pumpWidget(WeatherGptApp(auth: await _signedIn()));
+    await _settle(tester);
+    await _tab(tester, 'More');
+    await _tapVisible(tester, find.text('Appearance'));
+    await tester.tap(find.text('Dark Mode'));
+    await _settle(tester);
+    expect(active().isDark, isTrue);
+    expect(active().primary, personaThemesDark['general']!.primary);
+    expect(Theme.of(tester.element(find.byType(BottomNav))).brightness, Brightness.dark);
+
+    await _tapVisible(tester, find.text('Change Persona'));
+    await _tapVisible(tester, find.text('Aviation'));
+    await _settle(tester);
+    for (final tab in ['Home', 'Chat', 'Forecast', 'Alerts', 'More']) {
+      await _tab(tester, tab);
+      expect(active().primary, personaThemesDark['aviation']!.primary, reason: tab);
+      expect(active().isDark, isTrue, reason: tab);
+    }
+  });
+
+  testWidgets('signed out: landing page, then the create-account form validates', (tester) async {
+    _phone(tester);
+    await tester.pumpWidget(WeatherGptApp(auth: await _signedOut((_) async => http.Response('{}', 500))));
+    await _settle(tester);
+    expect(find.text('Weather answers\nyou can trust.'), findsOneWidget);
+    expect(find.text('Quick Actions'), findsNothing);
+
+    await _tapVisible(tester, find.text('Create account'));
+    expect(find.text('Create your account'), findsOneWidget);
+    for (final label in ['Full name', 'Email', 'Phone number', 'Occupation', 'Password', 'Confirm password']) {
+      expect(find.widgetWithText(TextFormField, label), findsOneWidget, reason: label);
+    }
+    await _tapVisible(tester, find.widgetWithText(GradientButton, 'Create account'));
+    expect(find.text('Enter your name.'), findsOneWidget);
+    expect(find.text('Enter your email.'), findsOneWidget);
+    expect(find.text('Enter your phone number.'), findsOneWidget);
+  });
+
+  testWidgets('creating an account ends on the confirm-your-email step', (tester) async {
+    _phone(tester);
+    Map<String, dynamic>? sent;
+    final auth = await _signedOut((req) async {
+      expect(req.url.path, '/auth/v1/signup');
+      sent = jsonDecode(req.body) as Map<String, dynamic>;
+      return http.Response(jsonEncode(_user), 200); // no session: confirmation required
+    });
+    await tester.pumpWidget(WeatherGptApp(auth: auth));
+    await _settle(tester);
+    await _tapVisible(tester, find.text('Create account'));
+
+    await _enter(tester, 'Full name', 'Chelsea Joseph');
+    await _enter(tester, 'Email', 'chelsea@example.com');
+    await _enter(tester, 'Phone number', '98765 43210');
+    await _enter(tester, 'Occupation', 'Farmer');
+    await _enter(tester, 'Password', 'correct-horse');
+    await _enter(tester, 'Confirm password', 'correct-horse');
+    await _tapVisible(tester, find.widgetWithText(GradientButton, 'Create account'));
+
+    expect(sent!['email'], 'chelsea@example.com');
+    expect(sent!['data'], {'full_name': 'Chelsea Joseph', 'phone': '9876543210', 'occupation': 'Farmer'});
+    expect(find.text('Confirm your email'), findsOneWidget);
+    expect(auth.status, AuthStatus.signedOut);
+  });
+
+  testWidgets('a wrong password shows the error; the right one opens the app', (tester) async {
+    _phone(tester);
+    final auth = await _signedOut((req) async {
+      final body = jsonDecode(req.body) as Map<String, dynamic>;
+      if (body['password'] != 'right-password') {
+        return http.Response(
+          jsonEncode({'code': 400, 'error_code': 'invalid_credentials', 'msg': 'Invalid login credentials'}),
+          400,
+        );
+      }
+      return http.Response(jsonEncode(_sessionJson()), 200);
+    });
+    await tester.pumpWidget(WeatherGptApp(auth: auth));
+    await _settle(tester);
+    await _tapVisible(tester, find.text('I already have an account'));
+
+    await _enter(tester, 'Email', 'chelsea@example.com');
+    await _enter(tester, 'Password', 'wrong');
+    await _tapVisible(tester, find.widgetWithText(GradientButton, 'Sign in'));
+    expect(find.text('Wrong email or password.'), findsOneWidget);
+
+    await _enter(tester, 'Password', 'right-password');
+    await _tapVisible(tester, find.widgetWithText(GradientButton, 'Sign in'));
+    expect(auth.status, AuthStatus.signedIn);
+    expect(find.text('Quick Actions'), findsOneWidget);
+  });
+
+  testWidgets('drawer Profile shows the account details and signs out', (tester) async {
+    _phone(tester);
+    final auth = await _signedIn();
+    await tester.pumpWidget(WeatherGptApp(auth: auth));
+    await _settle(tester);
+    await _openDrawerAndGo(tester, 'Profile');
+
+    expect(find.text('Chelsea Joseph'), findsOneWidget);
+    expect(find.text('chelsea@example.com'), findsWidgets);
+    expect(find.text('98765 43210'), findsOneWidget);
+    expect(find.text('Farmer'), findsWidgets);
+    expect(find.text('29 Sep 2026'), findsOneWidget);
+
+    await _tapVisible(tester, find.text('Sign out'));
+    await tester.tap(find.descendant(of: find.byType(AlertDialog), matching: find.text('Sign out')));
+    await _settle(tester);
+    await _settle(tester);
+    expect(auth.status, AuthStatus.signedOut);
+    expect(find.text('Weather answers\nyou can trust.'), findsOneWidget);
   });
 }

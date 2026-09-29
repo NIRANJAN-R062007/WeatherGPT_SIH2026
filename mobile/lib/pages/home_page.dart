@@ -1,5 +1,6 @@
-// Home — the pics/ mockup's Home: a greeting with the persona avatar, the
-// current-conditions card, the outlook strip and Quick Questions. Every
+// Home — the pics/ persona mockups' Home: a persona greeting ("Good
+// morning, Farmer!"), the current-conditions card, four shortcut tiles, the
+// outlook strip, the persona's illustrated panel and its Quick Actions. Every
 // figure is live from GET /facts (WeatherStore). /facts serves today,
 // tonight and tomorrow only, so the strip shows those three rather than the
 // mockup's five days; longer ranges are one tap away as a Quick Question,
@@ -21,10 +22,14 @@ import '../persona_theme.dart';
 import '../theme.dart';
 import 'persona_page.dart';
 
-String _greeting(DateTime ist) {
-  if (ist.hour < 12) return 'Good morning!';
-  if (ist.hour < 17) return 'Good afternoon!';
-  return 'Good evening!';
+/// "Good afternoon, Farmer!" — the persona's role, per the mockups.
+String _greeting(DateTime ist, String role) {
+  final part = ist.hour < 12
+      ? 'morning'
+      : ist.hour < 17
+      ? 'afternoon'
+      : 'evening';
+  return 'Good $part, $role!';
 }
 
 class HomePage extends StatefulWidget {
@@ -54,29 +59,37 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     final weather = WeatherStore.of(context);
     final nav = ShellNav.of(context);
-    final city = UiPrefs.of(context).cityInfo.name;
-    final questions = [
-      (Icons.umbrella_outlined, 'Will it rain today?', 'Will it rain today in $city?'),
-      (Icons.nights_stay_outlined, 'What should I expect this evening?', 'What is the weather tonight in $city?'),
-      (Icons.calendar_month_outlined, '5-day forecast', '5-day forecast for $city'),
-    ];
+    final prefs = UiPrefs.of(context);
+    final city = prefs.cityInfo.name;
+    final persona = prefs.personaInfo;
 
     return PageFrame(
       onRefresh: weather.refresh,
-      footer: SceneryFooter.soft,
+      footer: SceneryFooter.none,
       children: [
-        _Greeting(text: _greeting(_now)),
+        _Greeting(text: _greeting(_now, persona.role), lead: persona.homeLead),
         const SizedBox(height: AppSpace.md),
         _NowCard(weather: weather),
+        const SizedBox(height: 12),
+        _QuickTiles(
+          tiles: [
+            (Icons.today, 'Today', () => nav.go(AppPage.forecast)),
+            (Icons.date_range, '5-Day', () => nav.ask('5-day forecast for $city')),
+            (Icons.warning_rounded, 'Alerts', () => nav.go(AppPage.alerts)),
+            (Icons.chat_rounded, 'Chat', () => nav.go(AppPage.chat)),
+          ],
+        ),
         const SizedBox(height: AppSpace.lg),
         SectionTitle('Forecast', action: 'See all', onAction: () => nav.go(AppPage.forecast)),
         const SizedBox(height: AppSpace.sm),
         _OutlookStrip(weather: weather),
+        const SizedBox(height: AppSpace.md),
+        const _ScenePanel(),
         const SizedBox(height: AppSpace.lg),
-        const SectionTitle('Quick Questions'),
+        const SectionTitle('Quick Actions'),
         const SizedBox(height: AppSpace.sm),
-        for (final (icon, label, question) in questions) ...[
-          ActionRow(icon: icon, title: label, onTap: () => nav.ask(question)),
+        for (final q in persona.quickActions) ...[
+          ActionRow(icon: q.icon, title: q.title(city), onTap: () => nav.ask(q.question(city))),
           const SizedBox(height: AppSpace.sm),
         ],
       ],
@@ -84,9 +97,72 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
+/// The four shortcut tiles under the now card (Today, 5-Day, Alerts, Chat).
+class _QuickTiles extends StatelessWidget {
+  final List<(IconData, String, VoidCallback)> tiles;
+  const _QuickTiles({required this.tiles});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
+    return Row(
+      children: [
+        for (final (i, (icon, label, onTap)) in tiles.indexed) ...[
+          if (i > 0) const SizedBox(width: 10),
+          Expanded(
+            child: AppCard(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              onTap: onTap,
+              child: Column(
+                children: [
+                  Icon(icon, size: 26, color: t.primary),
+                  const SizedBox(height: 6),
+                  Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.labelMd.copyWith(color: t.ink, fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// The persona's illustrated landscape panel (farmland, harbour, airport,
+/// skyline) between the forecast and Quick Actions.
+class _ScenePanel extends StatelessWidget {
+  const _ScenePanel();
+
+  @override
+  Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
+    return ExcludeSemantics(
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [t.skyTop, t.skyBottom],
+            ),
+          ),
+          child: const SizedBox(height: 132, child: PersonaScenery(SceneSlot.panel)),
+        ),
+      ),
+    );
+  }
+}
+
 class _Greeting extends StatelessWidget {
   final String text;
-  const _Greeting({required this.text});
+  final String lead;
+  const _Greeting({required this.text, required this.lead});
 
   @override
   Widget build(BuildContext context) {
@@ -99,7 +175,7 @@ class _Greeting extends StatelessWidget {
           child: InkWell(
             customBorder: const CircleBorder(),
             onTap: () => openPersonaPicker(context),
-            child: IconDisc(persona.icon, size: 44, solid: true),
+            child: IconDisc(persona.icon, size: 52, solid: true),
           ),
         ),
         const SizedBox(width: 12),
@@ -111,10 +187,7 @@ class _Greeting extends StatelessWidget {
                 text,
                 style: AppText.headlineSm.copyWith(color: t.ink, fontWeight: FontWeight.w700),
               ),
-              Text(
-                "Here's the latest weather for your city.",
-                style: AppText.bodySm.copyWith(color: t.inkMuted),
-              ),
+              Text(lead, style: AppText.bodySm.copyWith(color: t.inkMuted)),
             ],
           ),
         ),
@@ -200,19 +273,11 @@ class _NowBody extends StatelessWidget {
                     style: AppText.bodyMd.copyWith(color: t.inkMuted),
                   ),
                   if (feels != null)
-                    Text(
-                      'Feels like ${prefs.tempLabel(feels)}',
-                      style: AppText.bodySm.copyWith(color: t.inkMuted),
-                    ),
+                    Text('Feels like ${prefs.tempLabel(feels)}', style: AppText.bodySm.copyWith(color: t.inkMuted)),
                 ],
               ),
             ),
-            Container(
-              width: 1,
-              height: 72,
-              margin: const EdgeInsets.symmetric(horizontal: 10),
-              color: t.cardBorder,
-            ),
+            Container(width: 1, height: 72, margin: const EdgeInsets.symmetric(horizontal: 10), color: t.cardBorder),
             Expanded(
               flex: 5,
               child: Column(

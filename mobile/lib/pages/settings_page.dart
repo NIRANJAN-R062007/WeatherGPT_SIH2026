@@ -1,11 +1,11 @@
 // Settings — the pics/ mockup: the persona profile card with "Change
 // Persona", then one row per preference (Language, Units, Location,
 // Appearance, About), each opening a picker sheet. Language reaches /ask,
-// /facts, /warnings and voice; Persona reaches /ask's `persona` param.
-// Appearance is light-only until dark mode lands. There is no Account or
-// Notifications row: the app has no sign-in flow, and proactive pushes need
-// a push channel (POST /alerts/subscribe takes an FCM token or webhook) it
-// doesn't have.
+// /facts, /warnings and voice; Persona reaches /ask's `persona` param and
+// themes the app. Appearance switches every persona between its light and
+// dark palette. The account lives in the drawer's Profile page. There is no
+// Notifications row: proactive pushes need a push channel (POST
+// /alerts/subscribe takes an FCM token or webhook) the app doesn't have.
 import 'package:flutter/material.dart';
 
 import '../components/common.dart';
@@ -27,6 +27,7 @@ class SettingsPage extends StatelessWidget {
     final city = prefs.cityInfo;
     final rows = <Widget>[
       ActionRow(
+        plainIcon: true,
         icon: Icons.language,
         title: 'Language',
         subtitle: kLanguageLabels[prefs.lang] ?? prefs.lang,
@@ -40,6 +41,7 @@ class SettingsPage extends StatelessWidget {
         ),
       ),
       ActionRow(
+        plainIcon: true,
         icon: Icons.device_thermostat,
         title: 'Units',
         subtitle: prefs.unit == TempUnit.celsius ? 'Celsius (°C)' : 'Fahrenheit (°F)',
@@ -53,27 +55,28 @@ class SettingsPage extends StatelessWidget {
         ),
       ),
       ActionRow(
+        plainIcon: true,
         icon: Icons.location_on_outlined,
         title: 'Location',
         subtitle: '${city.name}, ${city.region}',
         onTap: () => showCityPicker(context),
       ),
       ActionRow(
-        icon: Icons.light_mode_outlined,
+        plainIcon: true,
+        icon: prefs.appearance == Appearance.dark ? Icons.dark_mode_outlined : Icons.light_mode_outlined,
         title: 'Appearance',
-        subtitle: 'Light Mode',
-        onTap: () => _pick<String>(
+        subtitle: _appearanceLabels[prefs.appearance],
+        onTap: () => _pick<Appearance>(
           context,
           title: 'Appearance',
-          options: const [
-            _Option('light', 'Light Mode'),
-            _Option('dark', 'Dark Mode', enabled: false, detail: 'Coming soon'),
-          ],
-          selected: 'light',
-          onPick: (_) {},
+          note: "Every persona has a light and a dark look; the persona's colours carry over.",
+          options: [for (final a in Appearance.values) _Option(a, _appearanceLabels[a]!)],
+          selected: prefs.appearance,
+          onPick: (v) => prefs.appearance = v,
         ),
       ),
       ActionRow(
+        plainIcon: true,
         icon: Icons.info_outline,
         title: 'About',
         subtitle: 'WeatherGPT v$kAppVersion',
@@ -104,6 +107,12 @@ class SettingsPage extends StatelessWidget {
     );
   }
 }
+
+const _appearanceLabels = {
+  Appearance.light: 'Light Mode',
+  Appearance.dark: 'Dark Mode',
+  Appearance.system: 'System default',
+};
 
 class _ProfileCard extends StatelessWidget {
   final Persona persona;

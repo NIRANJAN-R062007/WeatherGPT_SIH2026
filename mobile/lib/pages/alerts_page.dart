@@ -91,14 +91,15 @@ class _AlertsPageState extends State<AlertsPage> {
     final t = PersonaTheme.of(context);
     final data = _data;
     final warning = data?['warning'] is Map<String, dynamic> ? data!['warning'] as Map<String, dynamic> : null;
-    final city = UiPrefs.of(context).cityInfo.name;
-    final active = warning != null &&
-        (data!['status'] ?? (warning['colour'] == 'green' ? 'clear' : 'active')) == 'active';
+    final prefs = UiPrefs.of(context);
+    final city = prefs.cityInfo.name;
+    final active =
+        warning != null && (data!['status'] ?? (warning['colour'] == 'green' ? 'clear' : 'active')) == 'active';
 
     return PageFrame(
       onRefresh: _reload,
       children: [
-        const PageHeader(title: 'Alerts & Warnings', subtitle: 'Stay informed and stay safe.'),
+        PageHeader(title: 'Alerts & Warnings', subtitle: prefs.personaInfo.alertsLead),
         const SizedBox(height: AppSpace.lg),
         if (_loading)
           const LoadingPanel('Checking current warnings…')
@@ -125,22 +126,24 @@ class _AlertsPageState extends State<AlertsPage> {
           _AlertRow(data, onTap: () => setState(() => _showDetails = true))
         else
           AppCard(
-            child: Row(children: [
-              const IconDisc(Icons.notifications_none_rounded, size: 36),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  warning != null
-                      ? 'No active alerts for $city.'
-                      : 'Alerts for $city will be listed here when the warnings feed has a verdict.',
-                  style: AppText.bodyMd.copyWith(color: t.inkMuted),
+            child: Row(
+              children: [
+                const IconDisc(Icons.notifications_none_rounded, size: 36),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    warning != null
+                        ? 'No active alerts for $city.'
+                        : 'Alerts for $city will be listed here when the warnings feed has a verdict.',
+                    style: AppText.bodyMd.copyWith(color: t.inkMuted),
+                  ),
                 ),
-              ),
-            ]),
+              ],
+            ),
           ),
         const SizedBox(height: AppSpace.lg),
-        const InfoBanner(
-          icon: Icons.shield_outlined,
+        InfoBanner(
+          icon: prefs.personaInfo.icon,
           title: 'Stay prepared.',
           body: 'Check for updates regularly — pull down to refresh.',
         ),
@@ -164,28 +167,36 @@ class _NoVerdict extends StatelessWidget {
     return AppCard(
       color: t.surfaceContainerLow,
       borderColor: t.outlineVariant,
-      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Row(children: [
-          IconDisc(Icons.help_outline, color: t.onSurfaceVariant, background: t.surfaceContainerHigh),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(
-                'No warning verdict',
-                style: AppText.labelMd.copyWith(color: t.ink, fontWeight: FontWeight.w700),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              IconDisc(Icons.help_outline, color: t.onSurfaceVariant, background: t.surfaceContainerHigh),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'No warning verdict',
+                      style: AppText.labelMd.copyWith(color: t.ink, fontWeight: FontWeight.w700),
+                    ),
+                    Text(cityName, style: AppText.bodySm.copyWith(color: t.inkMuted)),
+                  ],
+                ),
               ),
-              Text(cityName, style: AppText.bodySm.copyWith(color: t.inkMuted)),
-            ]),
+            ],
           ),
-        ]),
-        const SizedBox(height: AppSpace.sm),
-        Text(
-          "Weather warnings aren't available right now for $cityName — this can't be read as an all-clear.",
-          style: AppText.bodyMd.copyWith(color: t.onSurface),
-        ),
-        const SizedBox(height: AppSpace.sm),
-        WarningLegend(rows: data['legend']),
-      ]),
+          const SizedBox(height: AppSpace.sm),
+          Text(
+            "Weather warnings aren't available right now for $cityName — this can't be read as an all-clear.",
+            style: AppText.bodyMd.copyWith(color: t.onSurface),
+          ),
+          const SizedBox(height: AppSpace.sm),
+          WarningLegend(rows: data['legend']),
+        ],
+      ),
     );
   }
 }
@@ -214,81 +225,108 @@ class _Verdict extends StatelessWidget {
     return AppCard(
       color: Color.alphaBlend(tone.withValues(alpha: 0.08), t.card),
       borderColor: tone.withValues(alpha: 0.35),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          IconDisc(active ? Icons.priority_high_rounded : Icons.check_rounded, color: tone, solid: true, size: 36),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(title, style: AppText.labelMd.copyWith(color: tone, fontWeight: FontWeight.w700, fontSize: 15)),
-              const SizedBox(height: 4),
-              Wrap(spacing: 6, runSpacing: 4, children: [
-                TagChip(
-                  data['city_name'] as String? ?? cityLabel(data['city'] as String?),
-                  icon: Icons.location_on_outlined,
-                ),
-                if (s('colour_label').isNotEmpty)
-                  TagChip('${s('colour_label')}${active ? ' — in force' : ' — nothing in force'}'),
-              ]),
-              const SizedBox(height: AppSpace.sm),
-              Text(s('headline'), style: AppText.bodyMd.copyWith(color: t.ink)),
-            ]),
-          ),
-        ]),
-        const SizedBox(height: AppSpace.sm),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: Padding(
-            padding: const EdgeInsets.only(left: 48),
-            child: Material(
-              color: t.card,
-              borderRadius: BorderRadius.circular(999),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(999),
-                onTap: onToggle,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              IconDisc(active ? Icons.priority_high_rounded : Icons.check_rounded, color: tone, solid: true, size: 36),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Text(
-                      expanded ? 'Hide details' : 'View details',
-                      style: AppText.labelMd.copyWith(color: t.primary, fontWeight: FontWeight.w600),
+                      title,
+                      style: AppText.labelMd.copyWith(color: tone, fontWeight: FontWeight.w700, fontSize: 15),
                     ),
-                    const SizedBox(width: 4),
-                    Icon(expanded ? Icons.expand_less : Icons.arrow_forward, size: 16, color: t.primary),
-                  ]),
+                    const SizedBox(height: 4),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      children: [
+                        TagChip(
+                          data['city_name'] as String? ?? cityLabel(data['city'] as String?),
+                          icon: Icons.location_on_outlined,
+                        ),
+                        if (s('colour_label').isNotEmpty)
+                          TagChip('${s('colour_label')}${active ? ' — in force' : ' — nothing in force'}'),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpace.sm),
+                    Text(s('headline'), style: AppText.bodyMd.copyWith(color: t.ink)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpace.sm),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Padding(
+              padding: const EdgeInsets.only(left: 48),
+              child: Material(
+                color: t.card,
+                borderRadius: BorderRadius.circular(999),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(999),
+                  onTap: onToggle,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          expanded ? 'Hide details' : 'View details',
+                          style: AppText.labelMd.copyWith(color: t.primary, fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(expanded ? Icons.expand_less : Icons.arrow_forward, size: 16, color: t.primary),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-        if (expanded) ...[
-          if (s('advice').isNotEmpty) ...[
+          if (expanded) ...[
+            if (s('advice').isNotEmpty) ...[
+              const SizedBox(height: AppSpace.md),
+              Text(s('advice'), style: AppText.bodyMd.copyWith(color: t.inkMuted)),
+            ],
             const SizedBox(height: AppSpace.md),
-            Text(s('advice'), style: AppText.bodyMd.copyWith(color: t.inkMuted)),
+            WarningLegend(rows: data['legend'], highlight: colour),
+            const SizedBox(height: AppSpace.sm),
+            Container(
+              padding: const EdgeInsets.only(top: AppSpace.xs),
+              decoration: BoxDecoration(
+                border: Border(top: BorderSide(color: t.outlineVariant.withValues(alpha: 0.4))),
+              ),
+              child: DefaultTextStyle.merge(
+                style: AppText.citationMono.copyWith(color: t.onSurfaceVariant),
+                child: Wrap(
+                  spacing: 12,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.campaign_outlined, size: 12, color: t.onSurfaceVariant),
+                        const SizedBox(width: 4),
+                        Flexible(child: Text(s('issued_by'))),
+                      ],
+                    ),
+                    Text('Valid ${istTimestamp(s('valid_from'))} → ${istTimestamp(s('valid_to'))}'),
+                    Text('source: ${s('source')}', style: TextStyle(color: t.outline)),
+                  ],
+                ),
+              ),
+            ),
           ],
-          const SizedBox(height: AppSpace.md),
-          WarningLegend(rows: data['legend'], highlight: colour),
-          const SizedBox(height: AppSpace.sm),
-          Container(
-            padding: const EdgeInsets.only(top: AppSpace.xs),
-            decoration: BoxDecoration(
-              border: Border(top: BorderSide(color: t.outlineVariant.withValues(alpha: 0.4))),
-            ),
-            child: DefaultTextStyle.merge(
-              style: AppText.citationMono.copyWith(color: t.onSurfaceVariant),
-              child: Wrap(spacing: 12, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: [
-                Row(mainAxisSize: MainAxisSize.min, children: [
-                  Icon(Icons.campaign_outlined, size: 12, color: t.onSurfaceVariant),
-                  const SizedBox(width: 4),
-                  Flexible(child: Text(s('issued_by'))),
-                ]),
-                Text('Valid ${istTimestamp(s('valid_from'))} → ${istTimestamp(s('valid_to'))}'),
-                Text('source: ${s('source')}', style: TextStyle(color: t.outline)),
-              ]),
-            ),
-          ),
         ],
-      ]),
+      ),
     );
   }
 }
@@ -324,20 +362,25 @@ class _SourceNote extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = PersonaTheme.of(context);
     return AppCard(
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Icon(Icons.verified_outlined, size: 18, color: t.primary),
-          const SizedBox(width: AppSpace.sm),
-          Text('Source', style: AppText.labelMd.copyWith(fontWeight: FontWeight.w600)),
-        ]),
-        const SizedBox(height: AppSpace.sm),
-        Text(
-          'The colour code and headline are the warning feed\'s own, shown verbatim — WeatherGPT '
-          'explains a colour, it never re-grades one. The source line on each verdict names the feed '
-          'that answered.',
-          style: AppText.bodySm.copyWith(color: t.onSurfaceVariant),
-        ),
-      ]),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.verified_outlined, size: 18, color: t.primary),
+              const SizedBox(width: AppSpace.sm),
+              Text('Source', style: AppText.labelMd.copyWith(fontWeight: FontWeight.w600)),
+            ],
+          ),
+          const SizedBox(height: AppSpace.sm),
+          Text(
+            'The colour code and headline are the warning feed\'s own, shown verbatim — WeatherGPT '
+            'explains a colour, it never re-grades one. The source line on each verdict names the feed '
+            'that answered.',
+            style: AppText.bodySm.copyWith(color: t.onSurfaceVariant),
+          ),
+        ],
+      ),
     );
   }
 }

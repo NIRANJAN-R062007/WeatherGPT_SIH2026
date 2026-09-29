@@ -71,23 +71,28 @@ class SectionTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = PersonaTheme.of(context);
-    return Row(children: [
-      Expanded(
-        child: Text(text, style: AppText.headlineSm.copyWith(color: t.ink, fontWeight: FontWeight.w700)),
-      ),
-      if (action != null)
-        InkWell(
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-          onTap: onAction,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-            child: Text(
-              action!,
-              style: AppText.labelMd.copyWith(color: t.primary, fontWeight: FontWeight.w600),
-            ),
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            text,
+            style: AppText.headlineSm.copyWith(color: t.ink, fontWeight: FontWeight.w700),
           ),
         ),
-    ]);
+        if (action != null)
+          InkWell(
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+            onTap: onAction,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+              child: Text(
+                action!,
+                style: AppText.labelMd.copyWith(color: t.primary, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ),
+      ],
+    );
   }
 }
 
@@ -100,14 +105,7 @@ class IconDisc extends StatelessWidget {
   final double size;
   final bool solid;
 
-  const IconDisc(
-    this.icon, {
-    super.key,
-    this.color,
-    this.background,
-    this.size = 40,
-    this.solid = false,
-  });
+  const IconDisc(this.icon, {super.key, this.color, this.background, this.size = 40, this.solid = false});
 
   @override
   Widget build(BuildContext context) {
@@ -132,6 +130,9 @@ class ActionRow extends StatelessWidget {
   final IconData? icon;
   final Widget? leading;
   final Color? iconColor;
+
+  /// A bare accent glyph instead of the tinted disc (the Settings rows).
+  final bool plainIcon;
   final String title;
   final String? subtitle;
   final String? detail;
@@ -144,6 +145,7 @@ class ActionRow extends StatelessWidget {
     this.icon,
     this.leading,
     this.iconColor,
+    this.plainIcon = false,
     required this.title,
     this.subtitle,
     this.detail,
@@ -160,34 +162,41 @@ class ActionRow extends StatelessWidget {
       child: AppCard(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         onTap: enabled ? onTap : null,
-        child: Row(children: [
-          leading ??
-              IconDisc(
-                icon ?? Icons.circle,
-                color: iconColor ?? t.primary,
-                background: iconColor?.withValues(alpha: 0.1) ?? t.tint,
-              ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(
-                title,
-                style: AppText.labelMd.copyWith(
-                  color: t.ink,
-                  fontWeight: subtitle == null ? FontWeight.w500 : FontWeight.w600,
+        child: Row(
+          children: [
+            leading ??
+                (plainIcon
+                    ? SizedBox(width: 32, child: Icon(icon ?? Icons.circle, size: 24, color: iconColor ?? t.primary))
+                    : null) ??
+                IconDisc(
+                  icon ?? Icons.circle,
+                  color: iconColor ?? t.primary,
+                  background: iconColor?.withValues(alpha: 0.1) ?? t.tint,
                 ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: AppText.labelMd.copyWith(
+                      color: t.ink,
+                      fontWeight: subtitle == null ? FontWeight.w500 : FontWeight.w600,
+                    ),
+                  ),
+                  if (subtitle != null) ...[
+                    const SizedBox(height: 1),
+                    Text(subtitle!, style: AppText.bodySm.copyWith(color: t.inkMuted)),
+                  ],
+                  if (detail != null) Text(detail!, style: AppText.bodySm.copyWith(color: t.inkMuted)),
+                ],
               ),
-              if (subtitle != null) ...[
-                const SizedBox(height: 1),
-                Text(subtitle!, style: AppText.bodySm.copyWith(color: t.inkMuted)),
-              ],
-              if (detail != null)
-                Text(detail!, style: AppText.bodySm.copyWith(color: t.inkMuted)),
-            ]),
-          ),
-          const SizedBox(width: AppSpace.sm),
-          trailing ?? Icon(Icons.chevron_right, size: 20, color: t.inkMuted),
-        ]),
+            ),
+            const SizedBox(width: AppSpace.sm),
+            trailing ?? Icon(Icons.chevron_right, size: 20, color: t.inkMuted),
+          ],
+        ),
       ),
     );
   }
@@ -213,17 +222,25 @@ class InfoBanner extends StatelessWidget {
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(14),
-          child: Row(children: [
-            IconDisc(icon, solid: true, size: 32),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(title, style: AppText.labelMd.copyWith(color: t.ink, fontWeight: FontWeight.w600)),
-                if (body != null) Text(body!, style: AppText.bodySm.copyWith(color: t.inkMuted)),
-              ]),
-            ),
-            if (onTap != null) Icon(Icons.chevron_right, size: 20, color: t.primary),
-          ]),
+          child: Row(
+            children: [
+              IconDisc(icon, solid: true, size: 32),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: AppText.labelMd.copyWith(color: t.ink, fontWeight: FontWeight.w600),
+                    ),
+                    if (body != null) Text(body!, style: AppText.bodySm.copyWith(color: t.inkMuted)),
+                  ],
+                ),
+              ),
+              if (onTap != null) Icon(Icons.chevron_right, size: 20, color: t.primary),
+            ],
+          ),
         ),
       ),
     );

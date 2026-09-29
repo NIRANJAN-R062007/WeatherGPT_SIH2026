@@ -1,11 +1,14 @@
 // The illustrated page chrome (pics/ mockups), painted per persona — no
 // image assets. Each persona's PersonaTheme names a PersonaScene and the
 // colours it's painted in:
-//   city    → skyline with trees and a sun          (General Citizen)
-//   fields  → hills, crop rows, trees and a tractor (Farmer)
-//   sea     → islands, swells, a boat and gulls     (Fisherman)
+//   city    → dense skyline with trees, a bridge     (General Citizen)
+//   fields  → hills, crop rows, leaves, farmhouse,
+//             tractor                                (Farmer)
+//   sea     → islands, swells, a trawler, gulls and
+//             a lighthouse                           (Fisherman)
 //   airport → terminal, control tower, runway, jet  (Aviation)
-//   civic   → skyline, bridge, river and rain       (City Official)
+//   civic   → skyline with the city hall, river     (City Official)
+// Dark palettes paint the same scenes at night: lit windows, a moon.
 //
 // PageFrame is what every page renders into: the city pill over the
 // persona's scene at the top, then the rounded content sheet, with a
@@ -49,8 +52,16 @@ class SkylinePainter extends CustomPainter {
     if (trees) _hedge(canvas, size, treeBand);
   }
 
-  void _towers(Canvas canvas, Size size, double base, _Rng r, Color color, double minH, double maxH,
-      {required bool windows}) {
+  void _towers(
+    Canvas canvas,
+    Size size,
+    double base,
+    _Rng r,
+    Color color,
+    double minH,
+    double maxH, {
+    required bool windows,
+  }) {
     final paint = Paint()..color = color.withValues(alpha: opacity);
     final lit = Paint()..color = t.skylineWindow.withValues(alpha: 0.75 * opacity);
     final span = base;
@@ -135,12 +146,9 @@ class WavesPainter extends CustomPainter {
     if (islands) {
       final land = Paint()..color = t.foliage.withValues(alpha: 0.7 * opacity);
       final far = Paint()..color = t.skylineFar.withValues(alpha: opacity);
-      canvas.drawOval(
-          Rect.fromLTWH(size.width * 0.02, size.height * 0.18, size.width * 0.34, size.height * 0.4), far);
-      canvas.drawOval(
-          Rect.fromLTWH(size.width * 0.2, size.height * 0.24, size.width * 0.26, size.height * 0.3), land);
-      canvas.drawOval(
-          Rect.fromLTWH(size.width * 0.66, size.height * 0.22, size.width * 0.3, size.height * 0.34), far);
+      canvas.drawOval(Rect.fromLTWH(size.width * 0.02, size.height * 0.18, size.width * 0.34, size.height * 0.4), far);
+      canvas.drawOval(Rect.fromLTWH(size.width * 0.2, size.height * 0.24, size.width * 0.26, size.height * 0.3), land);
+      canvas.drawOval(Rect.fromLTWH(size.width * 0.66, size.height * 0.22, size.width * 0.3, size.height * 0.34), far);
     }
 
     List<Offset> crest(double baseY, double amp, double phase) {
@@ -151,8 +159,8 @@ class WavesPainter extends CustomPainter {
       ];
     }
 
-    Path fill(List<Offset> line) => Path()
-      ..addPolygon([Offset(0, size.height), ...line, Offset(size.width, size.height)], true);
+    Path fill(List<Offset> line) =>
+        Path()..addPolygon([Offset(0, size.height), ...line, Offset(size.width, size.height)], true);
 
     final back = crest(size.height * 0.35, size.height * 0.12, 0.4);
     final front = crest(size.height * 0.62, size.height * 0.10, 2.1);
@@ -203,10 +211,15 @@ class FieldsPainter extends CustomPainter {
         final f = x / w;
         final ridge = h * ((1 - f) * (1 - f) * 0.34 + f * f * 0.18) + 2;
         final rad = h * (0.06 + r.next() * 0.04);
-        canvas.drawRect(Rect.fromLTWH(x - 0.8, ridge - rad * 0.2, 1.6, rad * 1.2),
-            Paint()..color = t.foliageDeep.withValues(alpha: opacity));
-        canvas.drawCircle(Offset(x, ridge - rad), rad,
-            Paint()..color = (i.isEven ? t.foliage : t.foliageDeep).withValues(alpha: opacity));
+        canvas.drawRect(
+          Rect.fromLTWH(x - 0.8, ridge - rad * 0.2, 1.6, rad * 1.2),
+          Paint()..color = t.foliageDeep.withValues(alpha: opacity),
+        );
+        canvas.drawCircle(
+          Offset(x, ridge - rad),
+          rad,
+          Paint()..color = (i.isEven ? t.foliage : t.foliageDeep).withValues(alpha: opacity),
+        );
       }
     }
     final field = hill(0.62, 0.46, 0.38);
@@ -249,13 +262,18 @@ class AirportPainter extends CustomPainter {
     final horizon = h * 0.64;
 
     // Horizon glow and far low-rise city.
-    canvas.drawRect(Rect.fromLTWH(0, horizon - h * 0.2, w, h * 0.2),
-        Paint()
-          ..shader = LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [t.foliage.withValues(alpha: 0), t.foliage.withValues(alpha: 0.6 * opacity)],
-          ).createShader(Rect.fromLTWH(0, horizon - h * 0.2, w, h * 0.2)));
+    canvas.drawRect(
+      Rect.fromLTWH(0, horizon - h * 0.2, w, h * 0.2),
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            t.foliage.withValues(alpha: 0),
+            t.foliage.withValues(alpha: 0.6 * opacity),
+          ],
+        ).createShader(Rect.fromLTWH(0, horizon - h * 0.2, w, h * 0.2)),
+    );
     final r = _Rng(9);
     var x = 0.0;
     while (x < w) {
@@ -301,8 +319,10 @@ class AirportPainter extends CustomPainter {
       ..close();
     canvas.drawPath(cab, p(t.skylineNear));
     canvas.drawRect(Rect.fromLTRB(tx - cabW * 0.4, cabY - h * 0.1, tx + cabW * 0.4, cabY - h * 0.05), lit);
-    canvas.drawRect(Rect.fromLTRB(tx - cabW * 0.45, cabY - h * 0.15, tx + cabW * 0.45, cabY - h * 0.12),
-        p(t.skylineNear));
+    canvas.drawRect(
+      Rect.fromLTRB(tx - cabW * 0.45, cabY - h * 0.15, tx + cabW * 0.45, cabY - h * 0.12),
+      p(t.skylineNear),
+    );
     canvas.drawRect(Rect.fromLTRB(tx - 0.6, cabY - h * 0.26, tx + 0.6, cabY - h * 0.15), p(t.skylineNear));
   }
 
@@ -414,17 +434,256 @@ class BirdsPainter extends CustomPainter {
   bool shouldRepaint(BirdsPainter old) => old.color != color;
 }
 
-/// Where a scene is drawn: the page header band, the sheet's foot (a full
-/// landscape or its quieter [soft] form), or a persona card's vignette.
-enum SceneSlot { header, footer, soft, card }
+/// The city hall of the City Official mockups: steps, a colonnade under a
+/// pediment, and a domed drum with a cupola, in the persona's pale stone.
+class CapitolPainter extends CustomPainter {
+  final PersonaTheme t;
+  const CapitolPainter(this.t);
 
-/// The sun: a warm disc with a soft glow.
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width, h = size.height;
+    final stone = Paint()..color = t.isDark ? t.skylineNear : Color.lerp(t.card, t.skylineFar, 0.25)!;
+    final shade = Paint()..color = t.isDark ? t.skylineFar : t.skylineFar;
+    final dome = Paint()..color = t.isDark ? t.primaryContainer : t.skylineNear;
+    final lit = Paint()..color = t.skylineWindow;
+    // Steps and body.
+    canvas.drawRect(Rect.fromLTWH(0, h * 0.9, w, h * 0.1), shade);
+    canvas.drawRect(Rect.fromLTWH(w * 0.04, h * 0.84, w * 0.92, h * 0.06), stone);
+    final bodyTop = h * 0.52;
+    canvas.drawRect(Rect.fromLTRB(w * 0.08, bodyTop, w * 0.92, h * 0.84), stone);
+    // Colonnade.
+    final col = Paint()..color = shade.color;
+    for (var i = 0; i < 7; i++) {
+      final x = w * (0.14 + i * 0.12);
+      canvas.drawRect(Rect.fromLTWH(x, bodyTop + h * 0.06, w * 0.035, h * 0.24), col);
+    }
+    if (t.isDark) {
+      for (var i = 0; i < 6; i++) {
+        canvas.drawRect(Rect.fromLTWH(w * (0.19 + i * 0.12), bodyTop + h * 0.1, w * 0.04, h * 0.12), lit);
+      }
+    }
+    // Pediment.
+    canvas.drawPath(
+      Path()
+        ..moveTo(w * 0.04, bodyTop)
+        ..lineTo(w * 0.5, bodyTop - h * 0.14)
+        ..lineTo(w * 0.96, bodyTop)
+        ..close(),
+      stone,
+    );
+    // Drum, dome, cupola, spire.
+    canvas.drawRect(Rect.fromLTRB(w * 0.32, h * 0.27, w * 0.68, bodyTop - h * 0.06), stone);
+    canvas.drawArc(Rect.fromLTRB(w * 0.3, h * 0.08, w * 0.7, h * 0.46), 3.14159, 3.14159, true, dome);
+    canvas.drawRect(Rect.fromLTRB(w * 0.46, h * 0.02, w * 0.54, h * 0.1), stone);
+    canvas.drawRect(Rect.fromLTRB(w * 0.495, 0, w * 0.505, h * 0.03), dome);
+  }
+
+  @override
+  bool shouldRepaint(CapitolPainter old) => old.t != t;
+}
+
+/// A striped lighthouse with its lamp room.
+class LighthousePainter extends CustomPainter {
+  final PersonaTheme t;
+  const LighthousePainter(this.t);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width, h = size.height;
+    final body = Paint()..color = t.isDark ? t.skylineNear : t.card;
+    final band = Paint()..color = t.primaryContainer;
+    final top = h * 0.24;
+    final tower = Path()
+      ..moveTo(w * 0.3, top)
+      ..lineTo(w * 0.7, top)
+      ..lineTo(w * 0.82, h)
+      ..lineTo(w * 0.18, h)
+      ..close();
+    canvas.drawPath(tower, body);
+    canvas.save();
+    canvas.clipPath(tower);
+    for (final y in [0.4, 0.62, 0.84]) {
+      canvas.drawRect(Rect.fromLTWH(0, h * y, w, h * 0.09), band);
+    }
+    canvas.restore();
+    // Gallery, lamp room and roof.
+    canvas.drawRect(Rect.fromLTRB(w * 0.2, top - h * 0.03, w * 0.8, top + h * 0.01), band);
+    canvas.drawCircle(
+      Offset(w * 0.5, top - h * 0.1),
+      w * (t.isDark ? 0.5 : 0.22),
+      Paint()..color = AppColors.lampGlow.withValues(alpha: t.isDark ? 0.25 : 0.0),
+    );
+    canvas.drawRect(
+      Rect.fromLTRB(w * 0.34, top - h * 0.14, w * 0.66, top - h * 0.03),
+      Paint()..color = AppColors.lampGlow,
+    );
+    canvas.drawPath(
+      Path()
+        ..moveTo(w * 0.28, top - h * 0.14)
+        ..lineTo(w * 0.5, top - h * 0.24)
+        ..lineTo(w * 0.72, top - h * 0.14)
+        ..close(),
+      band,
+    );
+  }
+
+  @override
+  bool shouldRepaint(LighthousePainter old) => old.t != t;
+}
+
+/// A farmhouse: warm walls, a red roof, a door and a window.
+class FarmhousePainter extends CustomPainter {
+  final PersonaTheme t;
+  const FarmhousePainter(this.t);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width, h = size.height;
+    final wall = Paint()..color = t.isDark ? Color.lerp(AppColors.farmWall, t.sheet, 0.55)! : AppColors.farmWall;
+    final roof = Paint()..color = t.isDark ? Color.lerp(AppColors.farmRoof, t.sheet, 0.4)! : AppColors.farmRoof;
+    final dark = Paint()..color = t.isDark ? AppColors.lampGlow : t.foliageDeep;
+    canvas.drawRect(Rect.fromLTRB(w * 0.12, h * 0.45, w * 0.88, h), wall);
+    canvas.drawPath(
+      Path()
+        ..moveTo(0, h * 0.5)
+        ..lineTo(w * 0.5, h * 0.05)
+        ..lineTo(w, h * 0.5)
+        ..close(),
+      roof,
+    );
+    canvas.drawRect(Rect.fromLTRB(w * 0.42, h * 0.66, w * 0.58, h), dark);
+    canvas.drawRect(Rect.fromLTRB(w * 0.2, h * 0.58, w * 0.34, h * 0.72), dark);
+    canvas.drawRect(Rect.fromLTRB(w * 0.66, h * 0.58, w * 0.8, h * 0.72), dark);
+  }
+
+  @override
+  bool shouldRepaint(FarmhousePainter old) => old.t != t;
+}
+
+/// Broad crop leaves growing in from a lower corner (the Farmer mockups'
+/// leafy frame). [mirror] grows them from the right.
+class LeavesPainter extends CustomPainter {
+  final PersonaTheme t;
+  final bool mirror;
+  const LeavesPainter(this.t, {this.mirror = false});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width, h = size.height;
+    if (mirror) {
+      canvas.translate(w, 0);
+      canvas.scale(-1, 1);
+    }
+    void leaf(Offset base, double angle, double len, Color color) {
+      canvas.save();
+      canvas.translate(base.dx, base.dy);
+      canvas.rotate(angle);
+      final p = Path()
+        ..moveTo(0, 0)
+        ..quadraticBezierTo(len * 0.35, -len * 0.28, len, 0)
+        ..quadraticBezierTo(len * 0.35, len * 0.28, 0, 0)
+        ..close();
+      canvas.drawPath(p, Paint()..color = color);
+      canvas.drawLine(
+        Offset.zero,
+        Offset(len * 0.9, 0),
+        Paint()
+          ..color = t.skylineWindow.withValues(alpha: 0.5)
+          ..strokeWidth = 1,
+      );
+      canvas.restore();
+    }
+
+    final stem = Paint()
+      ..color = t.foliageDeep
+      ..strokeWidth = 2.2
+      ..style = PaintingStyle.stroke;
+    canvas.drawPath(
+      Path()
+        ..moveTo(w * 0.18, h)
+        ..quadraticBezierTo(w * 0.22, h * 0.5, w * 0.34, h * 0.12),
+      stem,
+    );
+    leaf(Offset(w * 0.2, h * 0.78), -2.5, w * 0.62, t.foliageDeep);
+    leaf(Offset(w * 0.22, h * 0.6), -0.55, w * 0.7, t.foliage);
+    leaf(Offset(w * 0.27, h * 0.36), -2.2, w * 0.5, t.foliage);
+    leaf(Offset(w * 0.31, h * 0.2), -0.9, w * 0.5, t.foliageDeep);
+  }
+
+  @override
+  bool shouldRepaint(LeavesPainter old) => old.t != t || old.mirror != mirror;
+}
+
+/// A fishing trawler: hull, wheelhouse with windows, masts and rigging.
+class TrawlerPainter extends CustomPainter {
+  final PersonaTheme t;
+  const TrawlerPainter(this.t);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width, h = size.height;
+    final hullTop = h * 0.62;
+    final hull = Paint()..color = t.primaryContainer;
+    final cabin = Paint()..color = t.isDark ? t.skylineNear : t.card;
+    final line = Paint()
+      ..color = t.isDark ? t.inkMuted : t.primaryContainer
+      ..strokeWidth = 1.4
+      ..style = PaintingStyle.stroke;
+    // Masts and rigging.
+    canvas.drawLine(Offset(w * 0.38, hullTop), Offset(w * 0.38, 0), line..strokeWidth = 1.8);
+    canvas.drawLine(Offset(w * 0.72, hullTop), Offset(w * 0.72, h * 0.22), line);
+    line.strokeWidth = 1;
+    canvas.drawLine(Offset(w * 0.38, h * 0.02), Offset(w * 0.04, hullTop), line);
+    canvas.drawLine(Offset(w * 0.38, h * 0.02), Offset(w * 0.72, h * 0.22), line);
+    canvas.drawLine(Offset(w * 0.72, h * 0.22), Offset(w * 0.98, hullTop - h * 0.04), line);
+    // Wheelhouse.
+    canvas.drawRect(Rect.fromLTRB(w * 0.44, h * 0.38, w * 0.8, hullTop + 1), cabin);
+    canvas.drawRect(Rect.fromLTRB(w * 0.5, h * 0.3, w * 0.74, h * 0.4), cabin);
+    final glass = Paint()..color = t.isDark ? AppColors.lampGlow : t.primary;
+    for (var i = 0; i < 3; i++) {
+      canvas.drawRect(Rect.fromLTWH(w * (0.49 + i * 0.1), h * 0.44, w * 0.06, h * 0.07), glass);
+    }
+    // Hull with a pale waterline stripe.
+    final hullPath = Path()
+      ..moveTo(0, hullTop)
+      ..lineTo(w, hullTop - h * 0.06)
+      ..lineTo(w * 0.86, h)
+      ..lineTo(w * 0.1, h)
+      ..close();
+    canvas.drawPath(hullPath, hull);
+    canvas.drawLine(
+      Offset(w * 0.04, hullTop + h * 0.1),
+      Offset(w * 0.96, hullTop + h * 0.04),
+      Paint()
+        ..color = t.skylineWindow.withValues(alpha: 0.8)
+        ..strokeWidth = 1.6,
+    );
+  }
+
+  @override
+  bool shouldRepaint(TrawlerPainter old) => old.t != t;
+}
+
+/// Where a scene is drawn: the page header band, the sheet's foot (a full
+/// landscape or its quieter [soft] form), Home's illustration panel, or a
+/// persona card's vignette.
+enum SceneSlot { header, footer, soft, panel, card }
+
+/// The sun by day; a crescent moon on dark palettes.
 class _Sun extends StatelessWidget {
+  final PersonaTheme t;
   final double size;
-  const _Sun({this.size = 24});
+  const _Sun(this.t, {this.size = 24});
 
   @override
   Widget build(BuildContext context) {
+    if (t.isDark) {
+      return SizedBox.square(
+        dimension: size,
+        child: Icon(Icons.nightlight_round, size: size, color: t.moonGlyph),
+      );
+    }
     return Container(
       width: size,
       height: size,
@@ -448,29 +707,35 @@ class _Jet extends StatelessWidget {
     return SizedBox(
       width: size * 2.2,
       height: size,
-      child: Stack(clipBehavior: Clip.none, children: [
-        Positioned(
-          left: 0,
-          bottom: size * 0.3,
-          child: Transform.rotate(
-            angle: -0.32,
-            alignment: Alignment.centerRight,
-            child: Container(
-              width: size * 1.35,
-              height: 2.2,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(2),
-                gradient: LinearGradient(colors: [t.accent2.withValues(alpha: 0), t.accent2.withValues(alpha: 0.7)]),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned(
+            left: 0,
+            bottom: size * 0.3,
+            child: Transform.rotate(
+              angle: -0.32,
+              alignment: Alignment.centerRight,
+              child: Container(
+                width: size * 1.35,
+                height: 2.2,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(2),
+                  gradient: LinearGradient(colors: [t.accent2.withValues(alpha: 0), t.accent2.withValues(alpha: 0.7)]),
+                ),
               ),
             ),
           ),
-        ),
-        Positioned(
-          right: 0,
-          top: 0,
-          child: Transform.rotate(angle: math.pi / 2.6, child: Icon(Icons.flight, size: size, color: t.primary)),
-        ),
-      ]),
+          Positioned(
+            right: 0,
+            top: 0,
+            child: Transform.rotate(
+              angle: math.pi / 2.6,
+              child: Icon(Icons.flight, size: size, color: t.primary),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -488,71 +753,163 @@ class PersonaScenery extends StatelessWidget {
     return switch (slot) {
       SceneSlot.header => _header(t),
       SceneSlot.card => _card(t),
+      SceneSlot.panel => _panel(t),
       SceneSlot.footer || SceneSlot.soft => CustomPaint(painter: _footerPainter(t, slot == SceneSlot.soft)),
     };
   }
 
-  static Widget _band(double height, CustomPainter painter) =>
-      Positioned(left: 0, right: 0, bottom: 0, height: height, child: CustomPaint(painter: painter));
+  static Widget _band(double height, CustomPainter painter) => Positioned(
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: height,
+    child: CustomPaint(painter: painter),
+  );
+
+  static Widget _at(
+    CustomPainter painter, {
+    double? left,
+    double? right,
+    double? top,
+    double? bottom,
+    required double width,
+    required double height,
+  }) => Positioned(
+    left: left,
+    right: right,
+    top: top,
+    bottom: bottom,
+    width: width,
+    height: height,
+    child: CustomPaint(painter: painter),
+  );
 
   Widget _header(PersonaTheme t) {
     final clouds = Positioned.fill(child: CustomPaint(painter: CloudsPainter(t.cloudPuff)));
-    return Stack(children: switch (t.scene) {
-      PersonaScene.city => [
+    final gulls = t.ink.withValues(alpha: t.isDark ? 0.5 : 0.4);
+    return Stack(
+      clipBehavior: Clip.hardEdge,
+      children: switch (t.scene) {
+        PersonaScene.city => [
           clouds,
-          const Positioned(right: 26, top: 42, child: _Sun()),
-          _band(70, SkylinePainter(t, seed: 11)),
+          if (t.isDark) Positioned(right: 26, top: 40, child: _Sun(t, size: 22)),
+          _band(86, SkylinePainter(t, seed: 11)),
         ],
-      PersonaScene.fields => [
+        PersonaScene.civic => [
           clouds,
-          const Positioned(right: 30, top: 40, child: _Sun()),
-          _band(66, FieldsPainter(t)),
-          Positioned(right: 64, bottom: 8, child: Icon(Icons.agriculture, size: 22, color: t.primaryContainer)),
+          if (t.isDark) Positioned(left: 26, top: 44, child: _Sun(t, size: 20)),
+          _band(80, SkylinePainter(t, seed: 29)),
+          _at(CapitolPainter(t), right: 14, bottom: 8, width: 96, height: 74),
         ],
-      PersonaScene.sea => [
+        PersonaScene.fields => [
           clouds,
-          Positioned(left: 18, top: 44, width: 52, height: 20, child: CustomPaint(painter: BirdsPainter(t.ink.withValues(alpha: 0.45)))),
+          Positioned(right: 34, top: 40, child: _Sun(t)),
+          _band(70, FieldsPainter(t)),
+          _at(FarmhousePainter(t), left: 120, bottom: 34, width: 26, height: 20),
+          Positioned(right: 58, bottom: 6, child: Icon(Icons.agriculture, size: 30, color: t.primaryContainer)),
+          _at(LeavesPainter(t), left: -6, bottom: -4, width: 70, height: 74),
+          _at(LeavesPainter(t, mirror: true), right: -6, bottom: -4, width: 56, height: 62),
+        ],
+        PersonaScene.sea => [
+          clouds,
+          if (t.isDark) Positioned(left: 30, top: 42, child: _Sun(t, size: 20)),
+          _at(BirdsPainter(gulls), left: 14, top: 46, width: 56, height: 22),
+          _at(BirdsPainter(gulls), right: 20, top: 2, width: 60, height: 24),
           _band(58, WavesPainter(t, islands: true, foam: true)),
-          Positioned(right: 36, bottom: 16, child: Icon(Icons.sailing, size: 30, color: t.primaryContainer)),
+          _at(TrawlerPainter(t), right: 30, bottom: 2, width: 62, height: 60),
         ],
-      PersonaScene.airport => [
+        PersonaScene.airport => [
           clouds,
-          Positioned(right: 16, top: 42, child: _Jet(t, size: 28)),
-          _band(62, AirportPainter(t)),
+          if (t.isDark) Positioned(left: 26, top: 44, child: _Sun(t, size: 20)),
+          Positioned(right: 40, top: 0, child: _Jet(t, size: 36)),
+          _band(70, AirportPainter(t)),
         ],
-      PersonaScene.civic => [
+      },
+    );
+  }
+
+  /// Home's illustration panel between the tiles and Quick Actions.
+  Widget _panel(PersonaTheme t) {
+    final clouds = Positioned.fill(child: CustomPaint(painter: CloudsPainter(t.cloudPuff)));
+    final gulls = t.ink.withValues(alpha: t.isDark ? 0.5 : 0.4);
+    return Stack(
+      clipBehavior: Clip.hardEdge,
+      children: switch (t.scene) {
+        PersonaScene.city => [
           clouds,
-          Positioned(right: 0, top: 30, width: 140, height: 50, child: CustomPaint(painter: RainPainter(t.rainGlyph.withValues(alpha: 0.35)))),
-          _band(74, CivicPainter(t, seed: 11)),
+          Positioned(right: 30, top: 16, child: _Sun(t, size: 22)),
+          _band(118, CivicPainter(t, seed: 5)),
         ],
-    });
+        PersonaScene.civic => [
+          clouds,
+          Positioned(left: 28, top: 14, child: _Sun(t, size: 20)),
+          _band(90, SkylinePainter(t, seed: 41)),
+          _at(CapitolPainter(t), right: 22, bottom: 14, width: 104, height: 80),
+          _band(22, WavesPainter(t)),
+        ],
+        PersonaScene.fields => [
+          clouds,
+          Positioned(right: 70, top: 12, child: _Sun(t)),
+          _band(110, FieldsPainter(t)),
+          _at(FarmhousePainter(t), left: 150, bottom: 58, width: 38, height: 30),
+          _at(FarmhousePainter(t), left: 206, bottom: 62, width: 28, height: 22),
+          _at(LeavesPainter(t), left: -8, bottom: -6, width: 86, height: 104),
+          _at(LeavesPainter(t, mirror: true), right: -8, bottom: -6, width: 80, height: 96),
+        ],
+        PersonaScene.sea => [
+          clouds,
+          Positioned(left: 26, top: 14, child: _Sun(t, size: 20)),
+          _at(BirdsPainter(gulls), left: 150, top: 18, width: 70, height: 26),
+          _band(88, WavesPainter(t, islands: true, foam: true)),
+          _at(LighthousePainter(t), right: 40, bottom: 34, width: 26, height: 78),
+          _at(TrawlerPainter(t), left: 120, bottom: 4, width: 70, height: 66),
+          Positioned(left: 36, bottom: 26, child: Icon(Icons.sailing, size: 22, color: t.primaryContainer)),
+        ],
+        PersonaScene.airport => [
+          clouds,
+          Positioned(right: 76, top: 8, child: _Jet(t, size: 40)),
+          _band(96, AirportPainter(t)),
+        ],
+      },
+    );
   }
 
   Widget _card(PersonaTheme t) {
-    return Stack(children: switch (t.scene) {
-      PersonaScene.city => [
-          const Positioned(right: 56, top: 26, child: _Sun(size: 22)),
-          _band(64, SkylinePainter(t, seed: 5)),
+    final gulls = t.ink.withValues(alpha: 0.45);
+    return Stack(
+      clipBehavior: Clip.hardEdge,
+      children: switch (t.scene) {
+        PersonaScene.city => [
+          Positioned(right: 56, top: 26, child: _Sun(t, size: 22)),
+          _band(70, SkylinePainter(t, seed: 5)),
         ],
-      PersonaScene.fields => [
-          const Positioned(right: 64, top: 22, child: _Sun(size: 20)),
+        PersonaScene.fields => [
+          Positioned(right: 64, top: 22, child: _Sun(t, size: 20)),
           _band(72, FieldsPainter(t)),
           Positioned(right: 26, bottom: 14, child: Icon(Icons.agriculture, size: 30, color: t.primaryContainer)),
+          _at(LeavesPainter(t, mirror: true), right: -6, bottom: -6, width: 44, height: 56),
         ],
-      PersonaScene.sea => [
-          Positioned(left: 30, top: 18, width: 60, height: 22, child: CustomPaint(painter: BirdsPainter(t.ink.withValues(alpha: 0.45)))),
+        PersonaScene.sea => [
+          _at(BirdsPainter(gulls), left: 30, top: 18, width: 60, height: 22),
           _band(60, WavesPainter(t, foam: true)),
-          Positioned(right: 30, bottom: 20, child: Icon(Icons.directions_boat_filled, size: 38, color: t.primaryContainer)),
+          _at(TrawlerPainter(t), right: 26, bottom: 6, width: 54, height: 54),
         ],
-      PersonaScene.airport => [
+        PersonaScene.airport => [
           _band(60, AirportPainter(t)),
           Positioned(right: 46, top: 30, child: _Jet(t, size: 34)),
         ],
-      PersonaScene.civic => [
-          Positioned(right: 0, top: 6, width: 120, height: 40, child: CustomPaint(painter: RainPainter(t.rainGlyph.withValues(alpha: 0.35)))),
+        PersonaScene.civic => [
+          Positioned(
+            right: 0,
+            top: 6,
+            width: 120,
+            height: 40,
+            child: CustomPaint(painter: RainPainter(t.rainGlyph.withValues(alpha: 0.35))),
+          ),
           _band(80, CivicPainter(t, seed: 17)),
         ],
-    });
+      },
+    );
   }
 
   static CustomPainter _footerPainter(PersonaTheme t, bool soft) {
@@ -563,11 +920,11 @@ class PersonaScenery extends StatelessWidget {
       };
     }
     return switch (t.scene) {
-      PersonaScene.city => SkylinePainter(t, seed: 23, opacity: 0.8),
-      PersonaScene.fields => FieldsPainter(t, opacity: 0.85),
-      PersonaScene.sea => WavesPainter(t, opacity: 0.9, islands: true, foam: true),
-      PersonaScene.airport => AirportPainter(t, opacity: 0.8),
-      PersonaScene.civic => CivicPainter(t, seed: 23, opacity: 0.8),
+      PersonaScene.city => SkylinePainter(t, seed: 23, opacity: 0.85),
+      PersonaScene.fields => FieldsPainter(t, opacity: 0.9),
+      PersonaScene.sea => WavesPainter(t, opacity: 0.95, islands: true, foam: true),
+      PersonaScene.airport => AirportPainter(t, opacity: 0.85),
+      PersonaScene.civic => CivicPainter(t, seed: 23, opacity: 0.85),
     };
   }
 }
@@ -577,18 +934,23 @@ class PersonaScenery extends StatelessWidget {
 enum SceneryFooter { none, landscape, soft }
 
 /// The strip under the top bar: the city pill over the persona's scene.
+/// Pages outside the signed-in app (landing, sign-in, profile) leave the
+/// pill out.
 class SceneryHeader extends StatelessWidget {
   static const double height = 112;
-  const SceneryHeader({super.key});
+  final bool showCityPill;
+  const SceneryHeader({super.key, this.showCityPill = true});
 
   @override
   Widget build(BuildContext context) {
-    return const SizedBox(
+    return SizedBox(
       height: height,
-      child: Stack(children: [
-        Positioned.fill(child: PersonaScenery(SceneSlot.header)),
-        Positioned(top: 4, left: 0, right: 0, child: Center(child: CityPill())),
-      ]),
+      child: Stack(
+        children: [
+          const Positioned.fill(child: PersonaScenery(SceneSlot.header)),
+          if (showCityPill) const Positioned(top: 4, left: 0, right: 0, child: Center(child: CityPill())),
+        ],
+      ),
     );
   }
 }
@@ -612,20 +974,23 @@ class CityPill extends StatelessWidget {
           onTap: () => showCityPicker(context),
           child: Padding(
             padding: const EdgeInsets.fromLTRB(14, 9, 12, 9),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Icon(Icons.location_on, size: 18, color: t.primary),
-              const SizedBox(width: 8),
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 220),
-                child: Text(
-                  '${city.name}, ${city.region}',
-                  overflow: TextOverflow.ellipsis,
-                  style: AppText.labelMd.copyWith(color: t.ink, fontWeight: FontWeight.w600),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.location_on, size: 18, color: t.primary),
+                const SizedBox(width: 8),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 220),
+                  child: Text(
+                    '${city.name}, ${city.region}',
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.labelMd.copyWith(color: t.ink, fontWeight: FontWeight.w600),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 10),
-              Icon(Icons.keyboard_arrow_down, size: 18, color: t.inkMuted),
-            ]),
+                const SizedBox(width: 10),
+                Icon(Icons.keyboard_arrow_down, size: 18, color: t.inkMuted),
+              ],
+            ),
           ),
         ),
       ),
@@ -643,6 +1008,7 @@ class PageFrame extends StatelessWidget {
   final SceneryFooter footer;
   final ScrollController? controller;
   final Widget? dock;
+  final bool showCityPill;
 
   const PageFrame({
     super.key,
@@ -651,6 +1017,7 @@ class PageFrame extends StatelessWidget {
     this.footer = SceneryFooter.landscape,
     this.controller,
     this.dock,
+    this.showCityPill = true,
   });
 
   static const double _footerHeight = 72;
@@ -666,7 +1033,7 @@ class PageFrame extends StatelessWidget {
           padding: EdgeInsets.zero,
           physics: const AlwaysScrollableScrollPhysics(),
           children: [
-            const SceneryHeader(),
+            SceneryHeader(showCityPill: showCityPill),
             ConstrainedBox(
               constraints: BoxConstraints(minHeight: minSheet),
               child: DecoratedBox(
@@ -679,27 +1046,29 @@ class PageFrame extends StatelessWidget {
                 ),
                 child: ClipRRect(
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.sheet)),
-                  child: Stack(children: [
-                    Padding(
-                      padding: EdgeInsets.fromLTRB(
-                        AppSpace.gutter + 4,
-                        AppSpace.lg,
-                        AppSpace.gutter + 4,
-                        footer == SceneryFooter.none ? AppSpace.lg : _footerHeight + AppSpace.md,
-                      ),
-                      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: children),
-                    ),
-                    if (footer != SceneryFooter.none)
-                      Positioned(
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        height: _footerHeight,
-                        child: IgnorePointer(
-                          child: PersonaScenery(footer == SceneryFooter.soft ? SceneSlot.soft : SceneSlot.footer),
+                  child: Stack(
+                    children: [
+                      Padding(
+                        padding: EdgeInsets.fromLTRB(
+                          AppSpace.gutter + 4,
+                          AppSpace.lg,
+                          AppSpace.gutter + 4,
+                          footer == SceneryFooter.none ? AppSpace.lg : _footerHeight + AppSpace.md,
                         ),
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: children),
                       ),
-                  ]),
+                      if (footer != SceneryFooter.none)
+                        Positioned(
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          height: _footerHeight,
+                          child: IgnorePointer(
+                            child: PersonaScenery(footer == SceneryFooter.soft ? SceneSlot.soft : SceneSlot.footer),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -709,6 +1078,11 @@ class PageFrame extends StatelessWidget {
     );
     if (onRefresh != null) scroll = RefreshIndicator(onRefresh: onRefresh!, child: scroll);
     if (dock == null) return scroll;
-    return Column(children: [Expanded(child: scroll), dock!]);
+    return Column(
+      children: [
+        Expanded(child: scroll),
+        dock!,
+      ],
+    );
   }
 }

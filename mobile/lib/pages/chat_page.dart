@@ -29,13 +29,6 @@ class _Turn {
   bool get pending => outcome == null && error == null;
 }
 
-List<(IconData, String)> _suggestions(String city) => [
-  (Icons.umbrella_outlined, 'Will it rain tomorrow in $city?'),
-  (Icons.calendar_month_outlined, '5-day forecast for $city'),
-  (Icons.water_drop_outlined, 'How much rain so far today in $city?'),
-  (Icons.warning_amber_rounded, 'Any weather warnings for $city?'),
-];
-
 class ChatPage extends StatefulWidget {
   const ChatPage({super.key});
 
@@ -114,31 +107,28 @@ class _ChatPageState extends State<ChatPage> {
   Widget build(BuildContext context) {
     final t = PersonaTheme.of(context);
     final prefs = UiPrefs.of(context);
+    final persona = prefs.personaInfo;
+    final city = prefs.cityInfo.name;
     final composer = AskComposer(
       controller: _query,
       loading: _loading,
       lang: prefs.lang,
       clearOnSubmit: true,
-      hint: 'Ask WeatherGPT…',
+      hint: persona.askHint,
       onSubmit: _ask,
     );
 
     if (_turns.isEmpty) {
       return PageFrame(
         children: [
-          const PageHeader(
-            title: 'Chat & Evidence',
-            subtitle:
-                'Every number in an answer is checked against the source data before you see it — '
-                'and the evidence comes with it.',
-          ),
+          PageHeader(title: 'Chat & Evidence', subtitle: persona.chatLead),
           const SizedBox(height: AppSpace.lg),
           composer,
           const SizedBox(height: AppSpace.lg),
           const SectionTitle('Suggested Questions'),
           const SizedBox(height: AppSpace.sm),
-          for (final (icon, text) in _suggestions(prefs.cityInfo.name)) ...[
-            ActionRow(icon: icon, title: text, onTap: () => _ask(text)),
+          for (final q in persona.suggestions) ...[
+            ActionRow(icon: q.icon, title: q.title(city), onTap: () => _ask(q.question(city))),
             const SizedBox(height: AppSpace.sm),
           ],
         ],

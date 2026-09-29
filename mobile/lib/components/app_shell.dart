@@ -9,7 +9,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../auth_client.dart';
+import '../pages/profile_page.dart';
 import '../persona_theme.dart';
+import '../state/auth_store.dart';
 import '../theme.dart';
 
 enum AppPage { home, chat, forecast, alerts, settings }
@@ -43,13 +46,7 @@ class ShellNav extends InheritedWidget {
   /// The question [ask] handed over; Chat takes it and clears it.
   final ValueNotifier<String?> pendingAsk;
 
-  const ShellNav({
-    super.key,
-    required this.current,
-    required this.go,
-    required this.pendingAsk,
-    required super.child,
-  });
+  const ShellNav({super.key, required this.current, required this.go, required this.pendingAsk, required super.child});
 
   static ShellNav of(BuildContext context) => context.dependOnInheritedWidgetOfExactType<ShellNav>()!;
 
@@ -114,10 +111,10 @@ class _AppShellState extends State<AppShell> {
       go: _go,
       pendingAsk: _pendingAsk,
       child: AnnotatedRegion<SystemUiOverlayStyle>(
-        value: SystemUiOverlayStyle.dark.copyWith(
+        value: (t.isDark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark).copyWith(
           statusBarColor: Colors.transparent,
           systemNavigationBarColor: t.navBar,
-          systemNavigationBarIconBrightness: Brightness.dark,
+          systemNavigationBarIconBrightness: t.isDark ? Brightness.light : Brightness.dark,
         ),
         // Android back returns to Home before it leaves the app.
         child: PopScope(
@@ -138,10 +135,12 @@ class _AppShellState extends State<AppShell> {
               final wide = constraints.maxWidth >= AppShell.wideBreakpoint;
               final main = DecoratedBox(
                 decoration: BoxDecoration(gradient: t.skyGradient),
-                child: Column(children: [
-                  Topbar(showMenu: !wide),
-                  Expanded(child: stack),
-                ]),
+                child: Column(
+                  children: [
+                    Topbar(showMenu: !wide),
+                    Expanded(child: stack),
+                  ],
+                ),
               );
               return Scaffold(
                 key: _scaffold,
@@ -155,6 +154,10 @@ class _AppShellState extends State<AppShell> {
                             Navigator.of(context).pop();
                             _go(page);
                           },
+                          onProfile: () {
+                            Navigator.of(context).pop();
+                            openProfile(context);
+                          },
                         ),
                       ),
                 bottomNavigationBar: wide ? null : BottomNav(current: _current, onSelect: _go),
@@ -163,11 +166,8 @@ class _AppShellState extends State<AppShell> {
                         children: [
                           Container(
                             width: 256,
-                            decoration: BoxDecoration(
-                              color: t.surfaceContainerLowest,
-                              boxShadow: AppShadows.chrome,
-                            ),
-                            child: Sidebar(current: _current, onSelect: _go),
+                            decoration: BoxDecoration(color: t.surfaceContainerLowest, boxShadow: AppShadows.chrome),
+                            child: Sidebar(current: _current, onSelect: _go, onProfile: () => openProfile(context)),
                           ),
                           Expanded(child: main),
                         ],
@@ -182,8 +182,8 @@ class _AppShellState extends State<AppShell> {
   }
 }
 
-/// The five-tab bar: filled icon on a persona-tinted pill + bold accent
-/// label on the active tab.
+/// The five-tab bar: filled accent icon + bold accent label on the active
+/// tab (the pics/ mockups).
 class BottomNav extends StatelessWidget {
   final AppPage current;
   final ValueChanged<AppPage> onSelect;
@@ -202,10 +202,14 @@ class BottomNav extends StatelessWidget {
         top: false,
         child: SizedBox(
           height: 64,
-          child: Row(children: [
-            for (final item in kNavItems)
-              Expanded(child: _BottomTab(item: item, active: item.page == current, onTap: () => onSelect(item.page))),
-          ]),
+          child: Row(
+            children: [
+              for (final item in kNavItems)
+                Expanded(
+                  child: _BottomTab(item: item, active: item.page == current, onTap: () => onSelect(item.page)),
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -230,33 +234,30 @@ class _BottomTab extends StatelessWidget {
       child: InkResponse(
         onTap: onTap,
         radius: 32,
-        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 3),
-            decoration: BoxDecoration(
-              color: active ? t.tint : t.tint.withValues(alpha: 0),
-              borderRadius: BorderRadius.circular(999),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(active ? item.activeIcon : item.icon, size: 25, color: fg),
+            const SizedBox(height: 3),
+            Text(
+              item.shortLabel,
+              style: AppText.bodySm.copyWith(
+                fontSize: 11,
+                height: 1.2,
+                color: fg,
+                fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+              ),
             ),
-            child: Icon(active ? item.activeIcon : item.icon, size: 24, color: fg),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            item.shortLabel,
-            style: AppText.bodySm.copyWith(
-              fontSize: 11,
-              height: 1.2,
-              color: fg,
-              fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-            ),
-          ),
-        ]),
+          ],
+        ),
       ),
     );
   }
 }
 
-/// The WeatherGPT mark: a blue cloud with the sun peeking over it.
+/// The WeatherGPT mark, in the active persona's badge (pics/ mockups): a
+/// solid accent disc with the persona's icon — or, for Aviation, the accent
+/// cloud carrying a plane.
 class BrandMark extends StatelessWidget {
   final double size;
   const BrandMark({super.key, this.size = 30});
@@ -264,31 +265,46 @@ class BrandMark extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = PersonaTheme.of(context);
-    return SizedBox.square(
-      dimension: size,
-      child: Stack(children: [
-        Align(
-          alignment: const Alignment(0.9, -0.9),
-          child: Icon(Icons.circle, size: size * 0.42, color: AppColors.sun),
+    if (t.scene == PersonaScene.airport) {
+      return SizedBox.square(
+        dimension: size,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Icon(Icons.cloud, size: size * 1.08, color: t.primary),
+            Padding(
+              padding: EdgeInsets.only(top: size * 0.12),
+              child: Transform.rotate(
+                angle: 0.9,
+                child: Icon(Icons.flight, size: size * 0.46, color: t.onPrimary),
+              ),
+            ),
+          ],
         ),
-        Align(
-          alignment: const Alignment(-0.2, 0.5),
-          child: Icon(Icons.cloud, size: size * 0.95, color: t.primary),
-        ),
-      ]),
+      );
+    }
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(gradient: t.accentGradient, shape: BoxShape.circle, boxShadow: t.cardShadow),
+      child: Icon(t.markIcon, size: size * 0.58, color: t.onPrimary),
     );
   }
 }
 
 /// Sidebar.tsx: logo block + nav; the active item is a solid primary pill.
+/// Below the pages: Profile, and the signed-in account's card at the foot
+/// (both open the Profile page, which has Sign out).
 class Sidebar extends StatelessWidget {
   final AppPage current;
   final ValueChanged<AppPage> onSelect;
-  const Sidebar({super.key, required this.current, required this.onSelect});
+  final VoidCallback? onProfile;
+  const Sidebar({super.key, required this.current, required this.onSelect, this.onProfile});
 
   @override
   Widget build(BuildContext context) {
     final t = PersonaTheme.of(context);
+    final user = AuthStore.maybeOf(context)?.user;
     return SafeArea(
       right: false,
       child: Column(
@@ -306,10 +322,7 @@ class Sidebar extends StatelessWidget {
                     children: [
                       Text('WeatherGPT', style: AppText.headlineSm.copyWith(height: 1, letterSpacing: -0.45)),
                       const SizedBox(height: 2),
-                      Text(
-                        'Your AI weather assistant',
-                        style: AppText.bodySm.copyWith(color: t.onSurfaceVariant),
-                      ),
+                      Text('Your AI weather assistant', style: AppText.bodySm.copyWith(color: t.onSurfaceVariant)),
                     ],
                   ),
                 ),
@@ -323,22 +336,88 @@ class Sidebar extends StatelessWidget {
                 for (final item in kNavItems)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 4),
-                    child: _NavTile(item: item, active: item.page == current, onTap: () => onSelect(item.page)),
+                    child: _NavTile(
+                      icon: item.icon,
+                      label: item.label,
+                      active: item.page == current,
+                      onTap: () => onSelect(item.page),
+                    ),
                   ),
+                if (onProfile != null) ...[
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: AppSpace.sm),
+                    child: Divider(color: t.outlineVariant.withValues(alpha: 0.6)),
+                  ),
+                  _NavTile(icon: Icons.account_circle_outlined, label: 'Profile', active: false, onTap: onProfile!),
+                ],
               ],
             ),
           ),
+          const Spacer(),
+          if (user != null && onProfile != null) _AccountCard(user: user, onTap: onProfile!),
         ],
       ),
     );
   }
 }
 
+/// The drawer's foot: avatar, name and email of the signed-in account.
+class _AccountCard extends StatelessWidget {
+  final AuthUser user;
+  final VoidCallback onTap;
+  const _AccountCard({required this.user, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
+    final radius = BorderRadius.circular(AppRadius.card);
+    return Padding(
+      padding: const EdgeInsets.all(AppSpace.md),
+      child: Material(
+        color: t.tint,
+        borderRadius: radius,
+        child: InkWell(
+          borderRadius: radius,
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                ProfileAvatar(user: user, size: 40),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        user.displayName,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppText.labelMd.copyWith(color: t.ink, fontWeight: FontWeight.w700),
+                      ),
+                      Text(
+                        user.email,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppText.bodySm.copyWith(color: t.inkMuted),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right, size: 20, color: t.inkMuted),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _NavTile extends StatelessWidget {
-  final NavItem item;
+  final IconData icon;
+  final String label;
   final bool active;
   final VoidCallback onTap;
-  const _NavTile({required this.item, required this.active, required this.onTap});
+  const _NavTile({required this.icon, required this.label, required this.active, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -358,10 +437,10 @@ class _NavTile extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: AppSpace.md, vertical: 10),
             child: Row(
               children: [
-                Icon(item.icon, size: 20, color: fg),
+                Icon(icon, size: 20, color: fg),
                 const SizedBox(width: AppSpace.sm),
                 Expanded(
-                  child: Text(item.label, style: AppText.labelMd.copyWith(color: fg)),
+                  child: Text(label, style: AppText.labelMd.copyWith(color: fg)),
                 ),
               ],
             ),

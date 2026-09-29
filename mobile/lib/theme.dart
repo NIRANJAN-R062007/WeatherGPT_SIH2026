@@ -75,6 +75,12 @@ abstract final class AppColors {
   /// scenery) lives in persona_theme.dart instead.
   static const sun = Color(0xFFFFB21E);
   static const sunCore = Color(0xFFFFCB4F);
+
+  /// Illustration accents that read the same on every persona: the
+  /// farmhouse's walls and roof, the lighthouse lamp.
+  static const farmWall = Color(0xFFF4E4C4);
+  static const farmRoof = Color(0xFFC65A3C);
+  static const lampGlow = Color(0xFFFFE08A);
 }
 
 /// web/tailwind.config.js `spacing` (space-xs .. space-xl, gutter-mobile).
@@ -242,10 +248,10 @@ ColorScheme appColorScheme(PersonaTheme t) => ColorScheme(
   tertiaryFixedDim: AppColors.tertiaryFixedDim,
   onTertiaryFixed: AppColors.onTertiaryFixed,
   onTertiaryFixedVariant: AppColors.onTertiaryFixedVariant,
-  error: AppColors.error,
-  onError: AppColors.onError,
-  errorContainer: AppColors.errorContainer,
-  onErrorContainer: AppColors.onErrorContainer,
+  error: t.isDark ? const Color(0xFFFFB4AB) : AppColors.error,
+  onError: t.isDark ? const Color(0xFF690005) : AppColors.onError,
+  errorContainer: t.isDark ? const Color(0xFF93000A) : AppColors.errorContainer,
+  onErrorContainer: t.isDark ? const Color(0xFFFFDAD6) : AppColors.onErrorContainer,
   surface: t.sheet,
   onSurface: t.onSurface,
   onSurfaceVariant: t.onSurfaceVariant,
@@ -258,8 +264,8 @@ ColorScheme appColorScheme(PersonaTheme t) => ColorScheme(
   surfaceContainerHighest: t.tintStrong,
   outline: t.outline,
   outlineVariant: t.outlineVariant,
-  inverseSurface: AppColors.inverseSurface,
-  onInverseSurface: AppColors.inverseOnSurface,
+  inverseSurface: t.isDark ? t.ink : AppColors.inverseSurface,
+  onInverseSurface: t.isDark ? t.sheet : AppColors.inverseOnSurface,
   inversePrimary: t.primaryFixed,
   surfaceTint: t.primary,
   shadow: const Color(0xFF000000),
@@ -298,10 +304,7 @@ ThemeData buildAppTheme([PersonaTheme? persona]) {
     colorScheme: appColorScheme(t),
     extensions: [t],
     textTheme: textTheme,
-    primaryTextTheme: textTheme.apply(
-      bodyColor: t.onPrimary,
-      displayColor: t.onPrimary,
-    ),
+    primaryTextTheme: textTheme.apply(bodyColor: t.onPrimary, displayColor: t.onPrimary),
     scaffoldBackgroundColor: t.sheet,
     canvasColor: t.sheet,
     dividerTheme: DividerThemeData(color: t.outlineVariant, thickness: 1, space: 1),
@@ -318,14 +321,12 @@ ThemeData buildAppTheme([PersonaTheme? persona]) {
       surfaceTintColor: Colors.transparent,
       showDragHandle: true,
       dragHandleColor: t.outlineVariant,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.x2l)),
-      ),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.x2l))),
     ),
     snackBarTheme: SnackBarThemeData(
       behavior: SnackBarBehavior.floating,
-      backgroundColor: AppColors.inverseSurface,
-      contentTextStyle: AppText.bodyMd.copyWith(color: AppColors.inverseOnSurface),
+      backgroundColor: t.isDark ? t.ink : AppColors.inverseSurface,
+      contentTextStyle: AppText.bodyMd.copyWith(color: t.isDark ? t.sheet : AppColors.inverseOnSurface),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.xl)),
     ),
     inputDecorationTheme: InputDecorationTheme(
@@ -338,17 +339,14 @@ ThemeData buildAppTheme([PersonaTheme? persona]) {
       selectionColor: t.primary.withValues(alpha: 0.25),
       selectionHandleColor: t.primary,
     ),
-    progressIndicatorTheme: ProgressIndicatorThemeData(
-      color: t.primary,
-      circularTrackColor: t.outlineVariant,
-    ),
+    progressIndicatorTheme: ProgressIndicatorThemeData(color: t.primary, circularTrackColor: t.outlineVariant),
     textButtonTheme: TextButtonThemeData(style: TextButton.styleFrom(foregroundColor: t.primary)),
     tooltipTheme: TooltipThemeData(
       decoration: BoxDecoration(
-        color: AppColors.inverseSurface,
+        color: t.isDark ? t.ink : AppColors.inverseSurface,
         borderRadius: BorderRadius.circular(AppRadius.lg),
       ),
-      textStyle: AppText.bodySm.copyWith(color: AppColors.inverseOnSurface),
+      textStyle: AppText.bodySm.copyWith(color: t.isDark ? t.sheet : AppColors.inverseOnSurface),
     ),
   );
 }

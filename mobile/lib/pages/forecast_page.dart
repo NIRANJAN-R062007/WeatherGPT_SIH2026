@@ -40,14 +40,14 @@ class _ForecastPageState extends State<ForecastPage> {
     return PageFrame(
       onRefresh: weather.refresh,
       children: [
-        const PageHeader(title: 'Forecast', subtitle: 'Plan your day with confidence.'),
+        PageHeader(title: 'Forecast', subtitle: prefs.personaInfo.forecastLead),
         const SizedBox(height: AppSpace.md),
         _Switch(value: _view, onChanged: (v) => setState(() => _view = v)),
         const SizedBox(height: AppSpace.md),
         ..._body(weather),
         const SizedBox(height: AppSpace.sm),
         InfoBanner(
-          icon: Icons.info_outline,
+          icon: prefs.personaInfo.icon,
           title: 'Need more days?',
           body: 'Ask for a 5-day forecast for $city in Chat.',
           onTap: () => nav.ask('5-day forecast for $city'),
