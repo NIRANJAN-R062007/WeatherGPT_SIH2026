@@ -14,6 +14,7 @@ import '../state/auth_store.dart';
 import '../state/ui_prefs.dart';
 import '../theme.dart';
 import 'auth_page.dart';
+import 'edit_profile_page.dart';
 import 'persona_page.dart';
 
 Future<void> openProfile(BuildContext context) {
@@ -105,6 +106,14 @@ class ProfilePage extends StatelessWidget {
             onTap: () => openPersonaPicker(context),
           ),
           const SizedBox(height: AppSpace.xl),
+          GradientButton(
+            label: 'Edit profile',
+            icon: Icons.edit_outlined,
+            onPressed: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute<void>(builder: (_) => EditProfilePage(user: user))),
+          ),
+          const SizedBox(height: 12),
           OutlineActionButton(
             label: 'Sign out',
             icon: Icons.logout_rounded,

@@ -113,6 +113,9 @@ class AuthSession {
     'user': user.toJson(),
   };
 
+  AuthSession withUser(AuthUser user) =>
+      AuthSession(accessToken: accessToken, refreshToken: refreshToken, expiresAt: expiresAt, user: user);
+
   /// Expired, or will be within a minute.
   bool get isStale => DateTime.now().toUtc().isAfter(expiresAt.subtract(const Duration(minutes: 1)));
 }
@@ -139,13 +142,25 @@ class AuthClient {
     'Authorization': 'Bearer ${accessToken ?? anonKey}',
   };
 
-  Future<Map<String, dynamic>> _post(String path, Map<String, dynamic>? body, {String? accessToken}) async {
+  Future<Map<String, dynamic>> _post(String path, Map<String, dynamic>? body, {String? accessToken}) =>
+      _send('POST', path, body, accessToken: accessToken);
+
+  Future<Map<String, dynamic>> _send(
+    String method,
+    String path,
+    Map<String, dynamic>? body, {
+    String? accessToken,
+  }) async {
     final uri = Uri.parse('$baseUrl/auth/v1/$path');
+    final encoded = body == null ? null : jsonEncode(body);
+    final headers = _headers(accessToken);
     http.Response res;
     try {
-      final req = _http == null
-          ? http.post(uri, headers: _headers(accessToken), body: body == null ? null : jsonEncode(body))
-          : _http.post(uri, headers: _headers(accessToken), body: body == null ? null : jsonEncode(body));
+      final c = _http;
+      final Future<http.Response> req = switch (method) {
+        'PUT' => c == null ? http.put(uri, headers: headers, body: encoded) : c.put(uri, headers: headers, body: encoded),
+        _ => c == null ? http.post(uri, headers: headers, body: encoded) : c.post(uri, headers: headers, body: encoded),
+      };
       res = await req.timeout(kAuthTimeout);
     } on TimeoutException {
       throw AuthError('The sign-in service took too long to answer. Check your connection and try again.');
@@ -174,6 +189,8 @@ class AuthClient {
       'over_email_send_rate_limit' ||
       'over_request_rate_limit' => 'Too many attempts. Please wait a minute and try again.',
       'validation_failed' || 'email_address_invalid' => raw ?? 'Please check the details you entered.',
+      'otp_expired' || 'otp_disabled' => 'That code is wrong or has expired. Request a new one.',
+      'same_password' => 'Choose a password different from your current one.',
       _ =>
         status == 429
             ? 'Too many attempts. Please wait a minute and try again.'
@@ -208,6 +225,35 @@ class AuthClient {
   Future<AuthSession> refresh(String refreshToken) async {
     final data = await _post('token?grant_type=refresh_token', {'refresh_token': refreshToken});
     return AuthSession.fromJson(data);
+  }
+
+  /// Saves name, phone and occupation to the account's user_metadata and
+  /// returns the updated user.
+  Future<AuthUser> updateProfile(
+    String accessToken, {
+    required String fullName,
+    required String phone,
+    required String occupation,
+  }) async {
+    final data = await _send('PUT', 'user', {
+      'data': {'full_name': fullName, 'phone': phone, 'occupation': occupation},
+    }, accessToken: accessToken);
+    return AuthUser.fromJson(data);
+  }
+
+  /// Mails a password-reset code. The mail template has to include
+  /// `{{ .Token }}` for the code to appear (Supabase dashboard setting).
+  Future<void> sendPasswordReset(String email) => _post('recover', {'email': email});
+
+  /// Trades the emailed reset code for a session that may set a new password.
+  Future<AuthSession> verifyRecoveryCode({required String email, required String code}) async {
+    final data = await _post('verify', {'type': 'recovery', 'email': email, 'token': code});
+    return AuthSession.fromJson(data);
+  }
+
+  Future<AuthUser> updatePassword(String accessToken, String password) async {
+    final data = await _send('PUT', 'user', {'password': password}, accessToken: accessToken);
+    return AuthUser.fromJson(data);
   }
 
   /// Revokes the session server-side. Best effort — the caller forgets the

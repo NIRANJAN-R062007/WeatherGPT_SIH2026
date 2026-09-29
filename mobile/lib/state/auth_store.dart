@@ -138,6 +138,37 @@ class AuthStore extends ChangeNotifier {
 
   Future<void> resendConfirmation(String email) => client.resendConfirmation(email.trim());
 
+  /// Saves the edited profile to the account and to the saved session.
+  Future<void> updateProfile({required String fullName, required String phone, required String occupation}) async {
+    final session = await _freshSession();
+    final user = await client.updateProfile(
+      session.accessToken,
+      fullName: fullName.trim(),
+      phone: phone.trim(),
+      occupation: occupation.trim(),
+    );
+    await _adopt(session.withUser(user));
+  }
+
+  Future<void> sendPasswordReset(String email) => client.sendPasswordReset(email.trim());
+
+  /// Checks the emailed reset code, sets the new password, and signs in.
+  Future<void> resetPassword({required String email, required String code, required String newPassword}) async {
+    final session = await client.verifyRecoveryCode(email: email.trim(), code: code.trim());
+    final user = await client.updatePassword(session.accessToken, newPassword);
+    await _adopt(session.withUser(user));
+  }
+
+  /// The current session, refreshed first if its access token has expired.
+  Future<AuthSession> _freshSession() async {
+    final session = _session;
+    if (session == null) throw AuthError('You are signed out. Sign in again to continue.');
+    if (!session.isStale) return session;
+    final fresh = await client.refresh(session.refreshToken);
+    await _adopt(fresh);
+    return fresh;
+  }
+
   /// Use the app without an account.
   Future<void> continueAsGuest() async {
     _session = null;

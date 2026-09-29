@@ -405,6 +405,132 @@ void main() {
     expect(find.text('Weather answers\nyou can trust.'), findsOneWidget);
   });
 
+  testWidgets('Edit profile saves name, phone and occupation to the account', (tester) async {
+    _phone(tester);
+    Map<String, dynamic>? sent;
+    String? bearer;
+    final storage = MemorySessionStorage(_sessionJson());
+    final auth = AuthStore(
+      storage: storage,
+      client: AuthClient(
+        client: MockClient((req) async {
+          expect(req.method, 'PUT');
+          expect(req.url.path, '/auth/v1/user');
+          bearer = req.headers['Authorization'];
+          sent = jsonDecode(req.body) as Map<String, dynamic>;
+          return http.Response(
+            jsonEncode({
+              ..._user,
+              'user_metadata': sent!['data'],
+            }),
+            200,
+          );
+        }),
+      ),
+    );
+    await auth.restore();
+    await tester.pumpWidget(WeatherGptApp(auth: auth));
+    await _settle(tester);
+    await _openDrawerAndGo(tester, 'Profile');
+
+    await _tapVisible(tester, find.text('Edit profile'));
+    expect(find.widgetWithText(TextFormField, 'Chelsea Joseph'), findsOneWidget); // prefilled
+    await _enter(tester, 'Full name', 'Chelsea J');
+    await _enter(tester, 'Phone number', '+91 91234 56789');
+    await _enter(tester, 'Occupation', 'Fisherman');
+    await _tapVisible(tester, find.widgetWithText(GradientButton, 'Save changes'));
+
+    expect(bearer, 'Bearer access');
+    expect(sent!['data'], {'full_name': 'Chelsea J', 'phone': '+919123456789', 'occupation': 'Fisherman'});
+    expect(find.text('Edit profile'), findsOneWidget); // back on Profile (the button)
+    expect(find.text('Chelsea J'), findsOneWidget);
+    expect(find.text('+91 91234 56789'), findsOneWidget);
+    expect(auth.user!.occupation, 'Fisherman');
+    expect(((await storage.read())!['user'] as Map)['user_metadata']['occupation'], 'Fisherman');
+  });
+
+  testWidgets('Edit profile validates and shows a server error', (tester) async {
+    _phone(tester);
+    final auth = AuthStore(
+      storage: MemorySessionStorage(_sessionJson()),
+      client: AuthClient(
+        client: MockClient(
+          (_) async => http.Response(jsonEncode({'error_code': 'unexpected_failure', 'msg': 'Database error'}), 500),
+        ),
+      ),
+    );
+    await auth.restore();
+    await tester.pumpWidget(WeatherGptApp(auth: auth));
+    await _settle(tester);
+    await _openDrawerAndGo(tester, 'Profile');
+    await _tapVisible(tester, find.text('Edit profile'));
+
+    await _enter(tester, 'Full name', '  ');
+    await _tapVisible(tester, find.widgetWithText(GradientButton, 'Save changes'));
+    expect(find.text('Enter your name.'), findsOneWidget);
+
+    await _enter(tester, 'Full name', 'Chelsea');
+    await _tapVisible(tester, find.widgetWithText(GradientButton, 'Save changes'));
+    expect(find.text('Database error'), findsOneWidget);
+    expect(auth.user!.fullName, 'Chelsea Joseph'); // unchanged
+  });
+
+  testWidgets('Forgot password: code + new password signs in', (tester) async {
+    _phone(tester);
+    final calls = <String>[];
+    final auth = await _signedOut((req) async {
+      calls.add('${req.method} ${req.url.path}');
+      final body = req.body.isEmpty ? const {} : jsonDecode(req.body) as Map<String, dynamic>;
+      switch (req.url.path) {
+        case '/auth/v1/recover':
+          expect(body, {'email': 'chelsea@example.com'});
+          return http.Response('{}', 200);
+        case '/auth/v1/verify':
+          if (body['token'] != '123456') {
+            return http.Response(
+              jsonEncode({'error_code': 'otp_expired', 'msg': 'Token has expired or is invalid'}),
+              403,
+            );
+          }
+          expect(body['type'], 'recovery');
+          return http.Response(jsonEncode(_sessionJson()), 200);
+        case '/auth/v1/user':
+          expect(body, {'password': 'new-password-1'});
+          expect(req.headers['Authorization'], 'Bearer access');
+          return http.Response(jsonEncode(_user), 200);
+      }
+      return http.Response('{}', 404);
+    });
+    await tester.pumpWidget(WeatherGptApp(auth: auth));
+    await _settle(tester);
+    await _tapVisible(tester, find.text('I already have an account'));
+    await _enter(tester, 'Email', 'chelsea@example.com');
+    await _tapVisible(tester, find.text('Forgot password?'));
+
+    expect(find.text('Reset your password'), findsOneWidget);
+    expect(find.widgetWithText(TextFormField, 'chelsea@example.com'), findsOneWidget); // carried over
+    await _tapVisible(tester, find.widgetWithText(GradientButton, 'Send reset code'));
+    expect(find.text('We sent a reset code to chelsea@example.com.'), findsOneWidget);
+
+    await _enter(tester, 'Reset code', '999999');
+    await _enter(tester, 'New password', 'new-password-1');
+    await _enter(tester, 'Confirm new password', 'new-password-1');
+    await _tapVisible(tester, find.widgetWithText(GradientButton, 'Set new password'));
+    expect(find.text('That code is wrong or has expired. Request a new one.'), findsOneWidget);
+    expect(auth.status, AuthStatus.signedOut);
+
+    await _enter(tester, 'Reset code', '123456');
+    await _tapVisible(tester, find.widgetWithText(GradientButton, 'Set new password'));
+    expect(auth.status, AuthStatus.signedIn);
+    expect(find.text('Quick Actions'), findsOneWidget);
+    expect(calls, [
+      'POST /auth/v1/recover',
+      'POST /auth/v1/verify',
+      'POST /auth/v1/verify',
+      'PUT /auth/v1/user',
+    ]);
+  });
+
   testWidgets('guest mode is remembered across launches', (tester) async {
     final auth = AuthStore(storage: MemorySessionStorage({'guest': true}), client: AuthClient(client: _noNetwork));
     await auth.restore();

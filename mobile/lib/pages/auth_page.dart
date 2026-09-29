@@ -15,6 +15,7 @@ import '../components/surfaces.dart';
 import '../persona_theme.dart';
 import '../state/auth_store.dart';
 import '../theme.dart';
+import 'reset_password_page.dart';
 
 enum AuthMode { signIn, signUp }
 
@@ -41,6 +42,20 @@ String? validatePhone(String? v) {
   if (digits.length < 10 || digits.length > 15) {
     return 'Enter a 10-digit mobile number (with country code if outside India).';
   }
+  return null;
+}
+
+String? validateOccupation(String? v) {
+  final s = (v ?? '').trim();
+  if (s.isEmpty) return 'Enter your occupation.';
+  if (s.length > 60) return 'Keep it under 60 characters.';
+  return null;
+}
+
+String? validateNewPassword(String? v) {
+  final s = v ?? '';
+  if (s.isEmpty) return 'Enter a password.';
+  if (s.length < 8) return 'Use at least 8 characters.';
   return null;
 }
 
@@ -225,12 +240,7 @@ class _AuthPageState extends State<AuthPage> {
                   icon: Icons.work_outline,
                   capitalization: TextCapitalization.sentences,
                   enabled: !_busy,
-                  validator: (v) {
-                    final s = (v ?? '').trim();
-                    if (s.isEmpty) return 'Enter your occupation.';
-                    if (s.length > 60) return 'Keep it under 60 characters.';
-                    return null;
-                  },
+                  validator: validateOccupation,
                 ),
                 gap(8),
                 Wrap(
@@ -264,6 +274,23 @@ class _AuthPageState extends State<AuthPage> {
                   return null;
                 },
               ),
+              if (!signUp)
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: _busy
+                        ? null
+                        : () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => ResetPasswordPage(initialEmail: _email.text.trim()),
+                            ),
+                          ),
+                    child: Text(
+                      'Forgot password?',
+                      style: AppText.labelMd.copyWith(color: t.primary, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ),
               if (signUp) ...[
                 gap(),
                 AppTextField(
@@ -283,7 +310,7 @@ class _AuthPageState extends State<AuthPage> {
       ),
       if (_error != null) ...[
         const SizedBox(height: AppSpace.md),
-        _Message(text: _error!, error: true),
+        FormMessage(text: _error!, error: true),
         if (_offerResend) ...[
           const SizedBox(height: AppSpace.sm),
           OutlineActionButton(
@@ -293,7 +320,7 @@ class _AuthPageState extends State<AuthPage> {
           ),
         ],
       ],
-      if (_notice != null) ...[const SizedBox(height: AppSpace.md), _Message(text: _notice!)],
+      if (_notice != null) ...[const SizedBox(height: AppSpace.md), FormMessage(text: _notice!)],
       const SizedBox(height: AppSpace.lg),
       GradientButton(label: signUp ? 'Create account' : 'Sign in', loading: _busy, onPressed: _submit),
       const SizedBox(height: AppSpace.md),
@@ -350,8 +377,8 @@ class _AuthPageState extends State<AuthPage> {
         textAlign: TextAlign.center,
         style: AppText.bodyMd.copyWith(color: t.inkMuted),
       ),
-      if (_error != null) ...[const SizedBox(height: AppSpace.md), _Message(text: _error!, error: true)],
-      if (_notice != null) ...[const SizedBox(height: AppSpace.md), _Message(text: _notice!)],
+      if (_error != null) ...[const SizedBox(height: AppSpace.md), FormMessage(text: _error!, error: true)],
+      if (_notice != null) ...[const SizedBox(height: AppSpace.md), FormMessage(text: _notice!)],
       const SizedBox(height: AppSpace.xl),
       GradientButton(
         label: "I've confirmed — sign in",
@@ -400,10 +427,10 @@ class _SuggestionChip extends StatelessWidget {
 }
 
 /// An inline error (red) or notice (persona tint) under the form.
-class _Message extends StatelessWidget {
+class FormMessage extends StatelessWidget {
   final String text;
   final bool error;
-  const _Message({required this.text, this.error = false});
+  const FormMessage({super.key, required this.text, this.error = false});
 
   @override
   Widget build(BuildContext context) {
