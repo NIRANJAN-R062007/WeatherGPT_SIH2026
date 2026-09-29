@@ -29,6 +29,7 @@ import metar
 import metrics
 import narrate as narrate_module
 import nlu
+import occupation as occupation_module
 import persona as persona_module
 import router
 import weather_data
@@ -77,7 +78,7 @@ _MESSAGES = {
     "unrecognized": {
         "en": "Sorry, I couldn't understand that request.",
         "ta": "மன்னிக்கவும், அந்தக் கோரிக்கை புரியவில்லை.",
-        "hi": "माफ़ कीजिए, मुझे वह अनुरोध समझ नहीं आया।",
+        "hi": "माफ़ कीजिए, मुझे वह अनुरोध समझ नहीं आया।",
         "te": "క్షమించండి, ఆ అభ్యర్థన అర్థం కాలేదు.",
         "mr": "माफ करा, ती विनंती समजली नाही.",
     },
@@ -90,7 +91,7 @@ _MESSAGES = {
     "unsupported_city": {
         "en": "Sorry, I can only answer for {cities} right now.",
         "ta": "மன்னிக்கவும், இப்போது {cities} மட்டுமே.",  # TODO: native_qa
-        "hi": "माफ़ कीजिए, अभी केवल {cities} के लिए बता सकता हूँ।",  # TODO: native_qa
+        "hi": "माफ़ कीजिए, अभी केवल {cities} के लिए बता सकता हूँ।",  # TODO: native_qa
         "te": "క్షమించండి, ప్రస్తుతం {cities} గురించి మాత్రమే చెప్పగలను.",  # TODO: native_qa
         "mr": "माफ करा, सध्या फक्त {cities} बद्दल सांगू शकतो.",  # TODO: native_qa
     },
@@ -111,7 +112,7 @@ _MESSAGES = {
     "ungrounded": {
         "en": "Sorry, I couldn't produce a grounded answer for that.",
         "ta": "மன்னிக்கவும், உறுதிப்படுத்தப்பட்ட பதில் தர முடியவில்லை.",
-        "hi": "माफ़ कीजिए, इसके लिए पुष्टि किया गया उत्तर नहीं दे सका।",
+        "hi": "माफ़ कीजिए, इसके लिए पुष्टि किया गया उत्तर नहीं दे सका।",
         "te": "క్షమించండి, దీనికి నిర్ధారించిన సమాధానం ఇవ్వలేకపోయాను.",
         "mr": "माफ करा, यासाठी खात्रीशीर उत्तर देऊ शकलो नाही.",
     },
@@ -122,7 +123,7 @@ _MESSAGES = {
         "ta": "மன்னிக்கவும், தற்போதைய வானிலை, முன்னறிவிப்பு, மழை வாய்ப்பு, இதுவரை பெய்த "  # TODO: native_qa
         "மழை, வானிலை எச்சரிக்கைகள் ஆகியவற்றுக்கு மட்டுமே பதிலளிக்க முடியும் — புயல் பாதை, "
         "கடல் அறிவிப்புகள் போன்றவற்றுக்கு அல்ல.",
-        "hi": "माफ़ कीजिए, मैं केवल वर्तमान मौसम, पूर्वानुमान, बारिश की संभावना, "  # TODO: native_qa
+        "hi": "माफ़ कीजिए, मैं केवल वर्तमान मौसम, पूर्वानुमान, बारिश की संभावना, "  # TODO: native_qa
         "अब तक हुई बारिश और मौसम चेतावनियों के बारे में बता सकता हूँ — चक्रवात के मार्ग, "
         "समुद्री बुलेटिन या अन्य गैर-मौसम प्रश्नों के बारे में नहीं।",
         "te": "క్షమించండి, నేను ప్రస్తుత వాతావరణం, సూచన, వర్షం అవకాశం, ఇప్పటివరకు కురిసిన "  # TODO: native_qa
@@ -148,14 +149,14 @@ _MESSAGES = {
     "language_unsupported": {
         "en": "I couldn't recognise that language yet — answering in English.",
         "ta": "அந்த மொழியை இன்னும் அடையாளம் காண முடியவில்லை — ஆங்கிலத்தில் பதிலளிக்கிறேன்.",
-        "hi": "मैं वह भाषा अभी पहचान नहीं पाया — अंग्रेज़ी में उत्तर दे रहा हूँ।",
+        "hi": "मैं वह भाषा अभी पहचान नहीं पाया — अंग्रेज़ी में उत्तर दे रहा हूँ।",
         "te": "ఆ భాషను ఇంకా గుర్తించలేకపోయాను — ఆంగ్లంలో సమాధానం ఇస్తున్నాను.",
         "mr": "ती भाषा अजून ओळखता आली नाही — इंग्रजीत उत्तर देत आहे.",
     },
     "voice_unavailable": {
         "en": "Voice isn't available right now — try typing your question.",
         "ta": "குரல் இப்போது கிடைக்கவில்லை — தட்டச்சு செய்யவும்.",
-        "hi": "आवाज़ अभी उपलब्ध नहीं है — कृपया टाइप करके पूछें।",
+        "hi": "आवाज़ अभी उपलब्ध नहीं है — कृपया टाइप करके पूछें।",
         "te": "వాయిస్ ప్రస్తుతం అందుబాటులో లేదు — దయచేసి టైప్ చేయండి.",
         "mr": "आवाज सध्या उपलब्ध नाही — कृपया टाइप करून विचारा.",
     },
@@ -484,15 +485,36 @@ def metar_decode(raw: str):
     return {"decoded": decoded, "briefing": metar.briefing(decoded)}
 
 
+def _persona_fields(persona, occ: "occupation_module.Resolved | None") -> dict:
+    """What an answer echoes about who it was framed for: nothing for the
+    default with no occupation given (so existing response shapes don't
+    change), else `persona` — "custom" marks unvetted wording — plus the
+    occupation as cleaned."""
+    if occ is not None:
+        return {"persona": occ.key, "occupation": occ.occupation}
+    if persona != persona_module.DEFAULT:
+        return {"persona": persona}
+    return {}
+
+
 @app.get("/ask")
 def ask(text: str, lang: str = "en", city: str | None = None, persona: str = persona_module.DEFAULT,
-        token: str | None = Depends(get_bearer_token)):
+        occupation: str | None = None, token: str | None = Depends(get_bearer_token)):
     lang = lang if lang in SUPPORTED_LANGUAGES else "en"
     if not persona_module.is_valid(persona):
         raise HTTPException(
             status_code=422,
             detail=f"persona must be one of {sorted(persona_module.PERSONAS)}",
         )
+    occ = None
+    if occupation is not None:
+        if persona != persona_module.DEFAULT:
+            raise HTTPException(status_code=422, detail="give persona or occupation, not both")
+        try:
+            occ = occupation_module.resolve(occupation)
+        except occupation_module.Rejected as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        persona = occ.persona
     pq = nlu.parse(text, lang_hint=lang, city_hint=city)
     notice = _msg("language_unsupported", lang) if pq.language is None else None
 
@@ -602,8 +624,7 @@ def ask(text: str, lang: str = "en", city: str | None = None, persona: str = per
         }
         if notice:
             resp["notice"] = notice
-        if persona != persona_module.DEFAULT:
-            resp["persona"] = persona
+        resp.update(_persona_fields(persona, occ))
         return resp
 
     resp = {
@@ -617,8 +638,7 @@ def ask(text: str, lang: str = "en", city: str | None = None, persona: str = per
     }
     if notice:
         resp["notice"] = notice
-    if persona != persona_module.DEFAULT:
-        resp["persona"] = persona
+    resp.update(_persona_fields(persona, occ))
 
     if token is not None:
         try:
