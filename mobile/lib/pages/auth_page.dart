@@ -319,6 +319,8 @@ class _AuthPageState extends State<AuthPage> {
           ],
         ),
       ),
+      const SizedBox(height: AppSpace.xs),
+      GuestButton(enabled: !_busy),
     ];
   }
 

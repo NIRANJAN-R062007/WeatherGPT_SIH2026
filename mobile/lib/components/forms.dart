@@ -1,9 +1,11 @@
 // Form pieces for the landing, sign-in and profile pages, in the active
 // persona's colours: the sky-backed sub-page scaffold, the rounded text
-// field, and the two button styles (accent gradient, outlined).
+// field, the two button styles (accent gradient, outlined) and the
+// "Continue as guest" link.
 import 'package:flutter/material.dart';
 
 import '../persona_theme.dart';
+import '../state/auth_store.dart';
 import '../theme.dart';
 import 'app_shell.dart';
 import 'common.dart';
@@ -235,6 +237,34 @@ class OutlineActionButton extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// "Continue as guest": the whole app without an account. Returns to the
+/// root route, which main.dart turns into the app.
+class GuestButton extends StatelessWidget {
+  final bool enabled;
+  const GuestButton({super.key, this.enabled = true});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
+    return Center(
+      child: TextButton.icon(
+        onPressed: enabled
+            ? () {
+                final auth = AuthStore.read(context);
+                Navigator.of(context).popUntil((r) => r.isFirst);
+                auth.continueAsGuest();
+              }
+            : null,
+        icon: Icon(Icons.person_outline, size: 18, color: t.inkMuted),
+        label: Text(
+          'Continue as guest',
+          style: AppText.labelMd.copyWith(color: t.inkMuted, fontWeight: FontWeight.w600, fontSize: 14),
         ),
       ),
     );

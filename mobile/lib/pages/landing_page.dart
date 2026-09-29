@@ -1,6 +1,6 @@
 // Landing — what a signed-out user sees first: the WeatherGPT mark over the
-// persona's painted scene, what the app does, and the two ways in (create
-// an account / sign in). main.dart shows it whenever AuthStore is signed
+// persona's painted scene, what the app does, and the ways in (create an
+// account / sign in / continue as a guest). main.dart shows it whenever AuthStore is signed
 // out, so signing out lands back here.
 import 'package:flutter/material.dart';
 
@@ -105,6 +105,8 @@ class LandingPage extends StatelessWidget {
                                   label: 'I already have an account',
                                   onPressed: () => open(AuthMode.signIn),
                                 ),
+                                const SizedBox(height: AppSpace.sm),
+                                const GuestButton(),
                               ],
                             ),
                           ),

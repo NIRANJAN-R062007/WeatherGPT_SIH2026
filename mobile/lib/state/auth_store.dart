@@ -1,6 +1,10 @@
 // The signed-in account, app-wide. main.dart shows the landing page while
-// [AuthStatus.signedOut] and the app shell once signed in; the drawer's
-// Profile page reads the user and signs out through here.
+// [AuthStatus.signedOut] and the app shell once signed in or browsing as a
+// guest; the drawer's Profile page reads the user and signs out through here.
+//
+// Guest mode is local only (the Supabase project has anonymous sign-ins off):
+// the full app, no account, no profile. The choice is remembered like a
+// session, and signing in from guest mode replaces it.
 //
 // The session is kept in a small JSON file in the app's private support
 // directory, so a user stays signed in across restarts; on launch an expired
@@ -14,7 +18,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../auth_client.dart';
 
-enum AuthStatus { restoring, signedOut, signedIn }
+enum AuthStatus { restoring, signedOut, guest, signedIn }
 
 /// Where the session is kept between launches.
 abstract class SessionStorage {
@@ -70,12 +74,21 @@ class AuthStore extends ChangeNotifier {
   AuthStatus get status => _status;
   AuthSession? get session => _session;
   AuthUser? get user => _session?.user;
+  bool get isGuest => _status == AuthStatus.guest;
+
+  /// What the storage file holds while browsing as a guest.
+  static const _guestMarker = {'guest': true};
 
   /// Loads a saved session, refreshing it if it has expired.
   Future<void> restore() async {
     AuthSession? saved;
     try {
       final json = await storage.read();
+      if (json != null && json['guest'] == true) {
+        _status = AuthStatus.guest;
+        notifyListeners();
+        return;
+      }
       if (json != null) saved = AuthSession.fromJson(json);
     } catch (_) {
       saved = null; // unreadable or no storage — start signed out
@@ -125,6 +138,19 @@ class AuthStore extends ChangeNotifier {
 
   Future<void> resendConfirmation(String email) => client.resendConfirmation(email.trim());
 
+  /// Use the app without an account.
+  Future<void> continueAsGuest() async {
+    _session = null;
+    _status = AuthStatus.guest;
+    notifyListeners();
+    try {
+      await storage.write(_guestMarker);
+    } catch (_) {
+      // Not remembered — the landing page shows again next launch.
+    }
+  }
+
+  /// Signs out, or leaves guest mode; either way back to the landing page.
   Future<void> signOut() async {
     final session = _session;
     _session = null;

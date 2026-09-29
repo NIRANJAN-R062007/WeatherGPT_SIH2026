@@ -378,4 +378,39 @@ void main() {
     expect(auth.status, AuthStatus.signedOut);
     expect(find.text('Weather answers\nyou can trust.'), findsOneWidget);
   });
+
+  testWidgets('Continue as guest opens the app; Profile offers sign-in; exit returns to landing', (tester) async {
+    _phone(tester);
+    final storage = MemorySessionStorage();
+    final auth = AuthStore(storage: storage, client: AuthClient(client: _noNetwork));
+    await auth.restore();
+    await tester.pumpWidget(WeatherGptApp(auth: auth));
+    await _settle(tester);
+
+    await _tapVisible(tester, find.text('Continue as guest'));
+    expect(auth.status, AuthStatus.guest);
+    expect(await storage.read(), {'guest': true});
+    expect(find.text('Quick Actions'), findsOneWidget);
+
+    await _openDrawerAndGo(tester, 'Profile');
+    expect(find.text('Guest'), findsOneWidget);
+    expect(find.text("You're using WeatherGPT without an account."), findsOneWidget);
+    expect(find.widgetWithText(GradientButton, 'Create account'), findsOneWidget);
+    expect(find.text('Sign in'), findsOneWidget);
+
+    await _tapVisible(tester, find.text('Exit guest mode'));
+    await _settle(tester);
+    expect(auth.status, AuthStatus.signedOut);
+    expect(await storage.read(), isNull);
+    expect(find.text('Weather answers\nyou can trust.'), findsOneWidget);
+  });
+
+  testWidgets('guest mode is remembered across launches', (tester) async {
+    final auth = AuthStore(storage: MemorySessionStorage({'guest': true}), client: AuthClient(client: _noNetwork));
+    await auth.restore();
+    expect(auth.status, AuthStatus.guest);
+    await tester.pumpWidget(WeatherGptApp(auth: auth));
+    await _settle(tester);
+    expect(find.text('Quick Actions'), findsOneWidget);
+  });
 }

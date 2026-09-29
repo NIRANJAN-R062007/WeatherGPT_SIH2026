@@ -1,7 +1,8 @@
 // Profile — opened from the drawer's "Profile" item: the signed-in account's
 // details (name, email, phone, occupation from the Supabase account's
 // user_metadata), the active persona, and Sign out. Signing out clears the
-// saved session and returns to the landing page.
+// saved session and returns to the landing page. A guest sees an invitation
+// to sign in or create an account instead, and "Exit guest mode".
 import 'package:flutter/material.dart';
 
 import '../auth_client.dart';
@@ -12,6 +13,7 @@ import '../persona_theme.dart';
 import '../state/auth_store.dart';
 import '../state/ui_prefs.dart';
 import '../theme.dart';
+import 'auth_page.dart';
 import 'persona_page.dart';
 
 Future<void> openProfile(BuildContext context) {
@@ -68,8 +70,10 @@ class ProfilePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = PersonaTheme.of(context);
-    final user = AuthStore.of(context).user;
+    final auth = AuthStore.of(context);
+    final user = auth.user;
     final persona = UiPrefs.of(context).personaInfo;
+    if (auth.isGuest) return const _GuestProfile();
     // Signed out underneath us (the page is closing).
     if (user == null) return const SubPageScaffold(body: SizedBox.shrink());
     String orNone(String v) => v.isEmpty ? 'Not added' : v;
@@ -109,6 +113,114 @@ class ProfilePage extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// A guest's Profile: what an account adds, and the ways to get one.
+class _GuestProfile extends StatelessWidget {
+  const _GuestProfile();
+
+  @override
+  Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
+    final persona = UiPrefs.of(context).personaInfo;
+    void open(AuthMode mode) =>
+        Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => AuthPage(initialMode: mode)));
+    return SubPageScaffold(
+      body: PageFrame(
+        showCityPill: false,
+        children: [
+          Text(
+            'Profile',
+            style: AppText.headlineLg.copyWith(color: t.ink, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: AppSpace.md),
+          AppCard(
+            wash: true,
+            padding: const EdgeInsets.all(AppSpace.lg),
+            child: Row(
+              children: [
+                const GuestAvatar(size: 68),
+                const SizedBox(width: AppSpace.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Guest',
+                        style: AppText.headlineMd.copyWith(color: t.ink, fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        "You're using WeatherGPT without an account.",
+                        style: AppText.bodySm.copyWith(color: t.inkMuted),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpace.lg),
+          const SectionTitle('With an account'),
+          const SizedBox(height: AppSpace.sm),
+          for (final (icon, text) in const [
+            (Icons.badge_outlined, 'Your name, phone and occupation on your profile'),
+            (Icons.devices_outlined, 'The same profile on any phone you sign in on'),
+          ])
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpace.sm),
+              child: ActionRow(icon: icon, title: text, trailing: const SizedBox.shrink()),
+            ),
+          const SizedBox(height: AppSpace.md),
+          const SectionTitle('Persona'),
+          const SizedBox(height: AppSpace.sm),
+          ActionRow(
+            leading: IconDisc(persona.icon, solid: true),
+            title: persona.label,
+            subtitle: persona.tagline,
+            onTap: () => openPersonaPicker(context),
+          ),
+          const SizedBox(height: AppSpace.xl),
+          GradientButton(label: 'Create account', onPressed: () => open(AuthMode.signUp)),
+          const SizedBox(height: 12),
+          OutlineActionButton(label: 'Sign in', onPressed: () => open(AuthMode.signIn)),
+          const SizedBox(height: 12),
+          OutlineActionButton(
+            label: 'Exit guest mode',
+            icon: Icons.logout_rounded,
+            destructive: true,
+            onPressed: () {
+              final auth = AuthStore.read(context);
+              Navigator.of(context).popUntil((r) => r.isFirst);
+              auth.signOut();
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The guest's avatar: the accent disc with a person outline.
+class GuestAvatar extends StatelessWidget {
+  final double size;
+  const GuestAvatar({super.key, this.size = 44});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        gradient: t.accentGradient,
+        shape: BoxShape.circle,
+        border: Border.all(color: t.card, width: size > 50 ? 3 : 2),
+        boxShadow: t.cardShadow,
+      ),
+      child: Icon(Icons.person_outline, size: size * 0.55, color: t.onPrimary),
     );
   }
 }

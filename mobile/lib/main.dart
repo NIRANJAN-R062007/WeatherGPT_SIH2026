@@ -98,8 +98,9 @@ class _WeatherGptAppState extends State<WeatherGptApp> {
   }
 }
 
-/// Signed out → the landing page (sign in / create account); signed in →
-/// the app. Signing out from Profile lands back on the landing page.
+/// Signed out → the landing page (sign in / create account / guest); signed
+/// in or guest → the app. Signing out (or leaving guest mode) from Profile
+/// lands back on the landing page.
 class _AuthGate extends StatelessWidget {
   const _AuthGate();
 
@@ -108,7 +109,7 @@ class _AuthGate extends StatelessWidget {
     return switch (AuthStore.of(context).status) {
       AuthStatus.restoring => const _Splash(),
       AuthStatus.signedOut => const LandingPage(),
-      AuthStatus.signedIn => AppShell(
+      AuthStatus.signedIn || AuthStatus.guest => AppShell(
         pages: {
           AppPage.home: (_) => const HomePage(),
           AppPage.chat: (_) => const ChatPage(),

@@ -304,7 +304,8 @@ class Sidebar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = PersonaTheme.of(context);
-    final user = AuthStore.maybeOf(context)?.user;
+    final auth = AuthStore.maybeOf(context);
+    final user = auth?.user;
     return SafeArea(
       right: false,
       child: Column(
@@ -354,16 +355,17 @@ class Sidebar extends StatelessWidget {
             ),
           ),
           const Spacer(),
-          if (user != null && onProfile != null) _AccountCard(user: user, onTap: onProfile!),
+          if (onProfile != null && (user != null || auth?.isGuest == true)) _AccountCard(user: user, onTap: onProfile!),
         ],
       ),
     );
   }
 }
 
-/// The drawer's foot: avatar, name and email of the signed-in account.
+/// The drawer's foot: avatar, name and email of the signed-in account, or
+/// "Guest" with a nudge to sign in.
 class _AccountCard extends StatelessWidget {
-  final AuthUser user;
+  final AuthUser? user;
   final VoidCallback onTap;
   const _AccountCard({required this.user, required this.onTap});
 
@@ -383,19 +385,19 @@ class _AccountCard extends StatelessWidget {
             padding: const EdgeInsets.all(12),
             child: Row(
               children: [
-                ProfileAvatar(user: user, size: 40),
+                if (user case final user?) ProfileAvatar(user: user, size: 40) else const GuestAvatar(size: 40),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        user.displayName,
+                        user?.displayName ?? 'Guest',
                         overflow: TextOverflow.ellipsis,
                         style: AppText.labelMd.copyWith(color: t.ink, fontWeight: FontWeight.w700),
                       ),
                       Text(
-                        user.email,
+                        user?.email ?? 'Not signed in',
                         overflow: TextOverflow.ellipsis,
                         style: AppText.bodySm.copyWith(color: t.inkMuted),
                       ),
