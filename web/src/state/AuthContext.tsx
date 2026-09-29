@@ -77,6 +77,9 @@ interface AuthCtx {
   /** Saves the edited profile to the account and to the saved session. */
   updateProfile: (details: { fullName: string; phone: string; occupation: string }) => Promise<void>;
   sendPasswordReset: (email: string) => Promise<void>;
+  /** A working access token for the backend (refreshed first if it has
+   *  expired), or null for a guest / signed-out visitor or a failed refresh. */
+  getAccessToken: () => Promise<string | null>;
   /** Checks the emailed reset code, sets the new password, and signs in. */
   resetPassword: (details: { email: string; code: string; newPassword: string }) => Promise<void>;
   /** Use the app without an account. */
@@ -164,6 +167,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         adopt({ ...current, user });
       },
       sendPasswordReset: (email) => sendPasswordReset(email.trim()),
+      getAccessToken: async () => {
+        if (!session) return null;
+        if (!isStale(session)) return session.accessToken;
+        try {
+          const fresh = await refreshSession(session.refreshToken);
+          adopt(fresh);
+          return fresh.accessToken;
+        } catch {
+          return null;
+        }
+      },
       resetPassword: async (d) => {
         const recovered = await verifyRecoveryCode(d.email.trim(), d.code.trim());
         const user = await updatePassword(recovered.accessToken, d.newPassword);

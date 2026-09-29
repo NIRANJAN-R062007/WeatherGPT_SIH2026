@@ -5,6 +5,7 @@
 import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AskError, askWeather, classifyAsk, type AskOutcome } from '../lib/api';
+import { useAuth } from './AuthContext';
 import { useUiPrefs } from './UiPrefsContext';
 
 export interface ChatTurn {
@@ -38,6 +39,7 @@ function istTimeNow() {
 
 export function ChatProvider({ children }: { children: ReactNode }) {
   const { lang, city, persona } = useUiPrefs();
+  const { getAccessToken } = useAuth();
   const navigate = useNavigate();
   const [turns, setTurns] = useState<ChatTurn[]>([]);
   const [loading, setLoading] = useState(false);
@@ -58,7 +60,10 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       let outcome: AskOutcome | null = null;
       let error: AskError | null = null;
       try {
-        outcome = classifyAsk(await askWeather({ text: question, lang, city, persona }));
+        // A signed-in user's token makes the backend record the question to
+        // their history (best-effort); a guest has none and isn't recorded.
+        const token = (await getAccessToken()) ?? undefined;
+        outcome = classifyAsk(await askWeather({ text: question, lang, city, persona, token }));
       } catch (err) {
         error = err instanceof AskError ? err : new AskError('network', 'Something went wrong talking to the weather service.');
       }
@@ -66,7 +71,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       busy.current = false;
       setLoading(false);
     },
-    [lang, city, persona],
+    [lang, city, persona, getAccessToken],
   );
 
   const askInChat = useCallback(
