@@ -222,10 +222,10 @@ const List<Persona> kPersonas = [
         'Will it rain this evening in {city}?',
         label: 'Any rain for evening departures?',
       ),
-      PersonaQuestion(Icons.calendar_month_outlined, '5-day forecast for {city}', label: '5-day forecast'),
+      PersonaQuestion(Icons.flight, 'METAR and TAF for {city} airport', label: 'Airport METAR and TAF'),
     ],
     suggestions: [
-      PersonaQuestion(Icons.flight, 'Will it rain tomorrow in {city}?'),
+      PersonaQuestion(Icons.flight, 'METAR for {city} airport'),
       PersonaQuestion(Icons.flight, 'What are the winds like now in {city}?'),
       PersonaQuestion(Icons.flight, 'Any weather warnings for {city}?'),
       PersonaQuestion(Icons.flight, '5-day forecast for {city}'),

@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../auth_client.dart';
+import '../pages/aviation_page.dart';
 import '../pages/profile_page.dart';
 import '../persona_theme.dart';
 import '../state/auth_store.dart';
@@ -158,6 +159,10 @@ class _AppShellState extends State<AppShell> {
                             Navigator.of(context).pop();
                             openProfile(context);
                           },
+                          onAviation: () {
+                            Navigator.of(context).pop();
+                            openAviation(context);
+                          },
                         ),
                       ),
                 bottomNavigationBar: wide ? null : BottomNav(current: _current, onSelect: _go),
@@ -167,7 +172,12 @@ class _AppShellState extends State<AppShell> {
                           Container(
                             width: 256,
                             decoration: BoxDecoration(color: t.surfaceContainerLowest, boxShadow: AppShadows.chrome),
-                            child: Sidebar(current: _current, onSelect: _go, onProfile: () => openProfile(context)),
+                            child: Sidebar(
+                              current: _current,
+                              onSelect: _go,
+                              onProfile: () => openProfile(context),
+                              onAviation: () => openAviation(context),
+                            ),
                           ),
                           Expanded(child: main),
                         ],
@@ -299,7 +309,11 @@ class Sidebar extends StatelessWidget {
   final AppPage current;
   final ValueChanged<AppPage> onSelect;
   final VoidCallback? onProfile;
-  const Sidebar({super.key, required this.current, required this.onSelect, this.onProfile});
+
+  /// Opens the Airport weather page (METAR / TAF), which isn't one of the
+  /// five tabs — like Profile, a page pushed on top.
+  final VoidCallback? onAviation;
+  const Sidebar({super.key, required this.current, required this.onSelect, this.onProfile, this.onAviation});
 
   @override
   Widget build(BuildContext context) {
@@ -330,31 +344,44 @@ class Sidebar extends StatelessWidget {
               ],
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpace.md),
-            child: Column(
-              children: [
-                for (final item in kNavItems)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
-                    child: _NavTile(
-                      icon: item.icon,
-                      label: item.label,
-                      active: item.page == current,
-                      onTap: () => onSelect(item.page),
+          // Scrolls when the screen is too short for every tile (a phone held
+          // sideways); the account card below stays pinned to the foot.
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpace.md),
+              child: Column(
+                children: [
+                  for (final item in kNavItems)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: _NavTile(
+                        icon: item.icon,
+                        label: item.label,
+                        active: item.page == current,
+                        onTap: () => onSelect(item.page),
+                      ),
                     ),
-                  ),
-                if (onProfile != null) ...[
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: AppSpace.sm),
-                    child: Divider(color: t.outlineVariant.withValues(alpha: 0.6)),
-                  ),
-                  _NavTile(icon: Icons.account_circle_outlined, label: 'Profile', active: false, onTap: onProfile!),
+                  if (onAviation != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: _NavTile(
+                        icon: Icons.flight_outlined,
+                        label: 'Airport weather',
+                        active: false,
+                        onTap: onAviation!,
+                      ),
+                    ),
+                  if (onProfile != null) ...[
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: AppSpace.sm),
+                      child: Divider(color: t.outlineVariant.withValues(alpha: 0.6)),
+                    ),
+                    _NavTile(icon: Icons.account_circle_outlined, label: 'Profile', active: false, onTap: onProfile!),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
-          const Spacer(),
           if (onProfile != null && (user != null || auth?.isGuest == true)) _AccountCard(user: user, onTap: onProfile!),
         ],
       ),
