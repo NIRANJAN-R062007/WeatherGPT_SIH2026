@@ -5,58 +5,26 @@
 // your inbox" step with a resend button; signing in to an unconfirmed
 // account offers the same resend. Success signs in and opens the app.
 import { useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { GradientButton, GuestButton, OutlineButton, SubPage, TextField } from '../components/forms';
+import { Link, useNavigate } from 'react-router-dom';
+import {
+  FormMessage as Message,
+  GradientButton,
+  GuestButton,
+  OutlineButton,
+  SubPage,
+  TextField,
+} from '../components/forms';
 import PageFrame from '../components/PageFrame';
 import { Icon, IconDisc, PageHeader } from '../components/ui';
 import { AuthError } from '../lib/auth';
+import { normalizePhone, validateEmail, validateOccupation, validatePhone } from '../lib/validate';
 import { useAuth } from '../state/AuthContext';
 
 export type AuthMode = 'signIn' | 'signUp';
 
-const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const OCCUPATIONS = ['Farmer', 'Fisherman', 'Pilot', 'City official', 'Student', 'Teacher'];
 
-/** Digits only, keeping a leading +; spaces, dashes and brackets dropped. */
-function normalizePhone(raw: string) {
-  const trimmed = raw.trim();
-  const digits = trimmed.replace(/[^0-9]/g, '');
-  return trimmed.startsWith('+') ? `+${digits}` : digits;
-}
-
-function validateEmail(v: string) {
-  const s = v.trim();
-  if (!s) return 'Enter your email.';
-  if (!EMAIL.test(s)) return "That doesn't look like an email address.";
-  return null;
-}
-
-function validatePhone(v: string) {
-  const s = normalizePhone(v);
-  if (!s) return 'Enter your phone number.';
-  const digits = s.replace('+', '');
-  if (digits.length < 10 || digits.length > 15) {
-    return 'Enter a 10-digit mobile number (with country code if outside India).';
-  }
-  return null;
-}
-
 type Field = 'name' | 'email' | 'phone' | 'occupation' | 'password' | 'confirm';
-
-/** An inline error (red) or notice (persona tint) under the form. */
-function Message({ text, error = false }: { text: string; error?: boolean }) {
-  return (
-    <div
-      role={error ? 'alert' : 'status'}
-      className={`flex items-start gap-2 p-3 rounded-xl font-body-md text-body-md ${
-        error ? 'bg-error-container text-on-error-container' : 'bg-tint text-ink'
-      }`}
-    >
-      <Icon name={error ? 'error' : 'check_circle'} size={18} className={error ? '' : 'text-primary'} />
-      <span>{text}</span>
-    </div>
-  );
-}
 
 export default function AuthPage({ initialMode }: { initialMode: AuthMode }) {
   const auth = useAuth();
@@ -85,13 +53,7 @@ export default function AuthPage({ initialMode }: { initialMode: AuthMode }) {
     name: signUp && !values.name.trim() ? 'Enter your name.' : null,
     email: validateEmail(values.email),
     phone: signUp ? validatePhone(values.phone) : null,
-    occupation: !signUp
-      ? null
-      : !values.occupation.trim()
-        ? 'Enter your occupation.'
-        : values.occupation.trim().length > 60
-          ? 'Keep it under 60 characters.'
-          : null,
+    occupation: signUp ? validateOccupation(values.occupation) : null,
     password: !values.password
       ? 'Enter your password.'
       : signUp && values.password.length < 8
@@ -276,6 +238,17 @@ export default function AuthPage({ initialMode }: { initialMode: AuthMode }) {
           error={shown('password')}
           {...bind('password')}
         />
+        {!signUp && (
+          <div className="-mt-1.5 flex justify-end">
+            <Link
+              to="/reset-password"
+              state={{ email: values.email.trim() }}
+              className="px-2 py-1.5 rounded-lg font-label-md text-label-md font-bold text-primary hover:bg-tint"
+            >
+              Forgot password?
+            </Link>
+          </div>
+        )}
         {signUp && (
           <TextField
             label="Confirm password"

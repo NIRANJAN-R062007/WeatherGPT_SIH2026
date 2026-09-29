@@ -5,9 +5,9 @@
 // to the landing page. A guest sees an invitation to sign in or create an
 // account instead, and "Exit guest mode".
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { GuestAvatar, ProfileAvatar } from '../components/Brand';
-import { GradientButton, OutlineButton } from '../components/forms';
+import { FormMessage, GradientButton, OutlineButton } from '../components/forms';
 import PageFrame from '../components/PageFrame';
 import { ActionRow, AppCard, Icon, IconDisc, SectionTitle, Sheet } from '../components/ui';
 import { displayName } from '../lib/auth';
@@ -93,6 +93,7 @@ function GuestProfile() {
 export default function ProfilePage() {
   const { user, isGuest, signOut } = useAuth();
   const navigate = useNavigate();
+  const saved = (useLocation().state as { saved?: unknown } | null)?.saved === true;
   const [confirming, setConfirming] = useState(false);
   const orNone = (v: string) => v || 'Not added';
 
@@ -103,6 +104,11 @@ export default function ProfilePage() {
         <GuestProfile />
       ) : (
         <>
+          {saved && (
+            <div className="mb-space-md">
+              <FormMessage text="Profile saved." />
+            </div>
+          )}
           <AppCard wash pad="p-space-lg">
             <div className="flex items-center gap-space-md">
               <ProfileAvatar user={user} size={68} />
@@ -131,7 +137,8 @@ export default function ProfilePage() {
             <SectionTitle text="Persona" />
           </div>
           <PersonaRow />
-          <div className="mt-space-xl">
+          <div className="mt-space-xl flex flex-col gap-3">
+            <GradientButton label="Edit profile" icon="edit" onClick={() => navigate('/profile/edit')} />
             <OutlineButton label="Sign out" icon="logout" destructive onClick={() => setConfirming(true)} />
           </div>
           <Sheet open={confirming} onClose={() => setConfirming(false)} title="Sign out?">

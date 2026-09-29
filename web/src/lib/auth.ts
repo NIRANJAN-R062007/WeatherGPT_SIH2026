@@ -130,6 +130,13 @@ function friendlyError(status: number, data: Json): AuthError {
     case 'email_address_invalid':
       message = raw ?? 'Please check the details you entered.';
       break;
+    case 'otp_expired':
+    case 'otp_disabled':
+      message = 'That code is wrong or has expired. Request a new one.';
+      break;
+    case 'same_password':
+      message = 'Choose a password different from your current one.';
+      break;
     default:
       message =
         status === 429
@@ -139,13 +146,15 @@ function friendlyError(status: number, data: Json): AuthError {
   return new AuthError(message, code);
 }
 
-async function post(path: string, body: Json | null, accessToken?: string): Promise<Json> {
+const post = (path: string, body: Json | null, accessToken?: string) => send('POST', path, body, accessToken);
+
+async function send(method: 'POST' | 'PUT', path: string, body: Json | null, accessToken?: string): Promise<Json> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), AUTH_TIMEOUT_MS);
   let res: Response;
   try {
     res = await fetch(`${SUPABASE_URL}/auth/v1/${path}`, {
-      method: 'POST',
+      method,
       signal: controller.signal,
       headers: {
         apikey: SUPABASE_ANON_KEY,
@@ -209,6 +218,36 @@ export async function resendConfirmation(email: string): Promise<void> {
 
 export async function refreshSession(refreshToken: string): Promise<AuthSession> {
   return sessionFromJson(await post('token?grant_type=refresh_token', { refresh_token: refreshToken }));
+}
+
+/** Saves name, phone and occupation to the account's user_metadata and
+ *  returns the updated user. */
+export async function updateProfile(
+  accessToken: string,
+  details: { fullName: string; phone: string; occupation: string },
+): Promise<AuthUser> {
+  const data = await send(
+    'PUT',
+    'user',
+    { data: { full_name: details.fullName, phone: details.phone, occupation: details.occupation } },
+    accessToken,
+  );
+  return userFromJson(data);
+}
+
+/** Mails a password-reset code. The mail template has to include
+ *  `{{ .Token }}` for the code to appear (Supabase dashboard setting). */
+export async function sendPasswordReset(email: string): Promise<void> {
+  await post('recover', { email });
+}
+
+/** Trades the emailed reset code for a session that may set a new password. */
+export async function verifyRecoveryCode(email: string, code: string): Promise<AuthSession> {
+  return sessionFromJson(await post('verify', { type: 'recovery', email, token: code }));
+}
+
+export async function updatePassword(accessToken: string, password: string): Promise<AuthUser> {
+  return userFromJson(await send('PUT', 'user', { password }, accessToken));
 }
 
 /** Revokes the session server-side. Best effort — the caller forgets the

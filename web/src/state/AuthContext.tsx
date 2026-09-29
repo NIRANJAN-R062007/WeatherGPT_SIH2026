@@ -15,9 +15,13 @@ import {
   isStale,
   refreshSession,
   resendConfirmation,
+  sendPasswordReset,
   signIn as apiSignIn,
   signOutRemote,
   signUp as apiSignUp,
+  updatePassword,
+  updateProfile as apiUpdateProfile,
+  verifyRecoveryCode,
   type AuthSession,
   type AuthUser,
   type SignUpResult,
@@ -70,6 +74,11 @@ interface AuthCtx {
     occupation: string;
   }) => Promise<SignUpResult>;
   resendConfirmation: (email: string) => Promise<void>;
+  /** Saves the edited profile to the account and to the saved session. */
+  updateProfile: (details: { fullName: string; phone: string; occupation: string }) => Promise<void>;
+  sendPasswordReset: (email: string) => Promise<void>;
+  /** Checks the emailed reset code, sets the new password, and signs in. */
+  resetPassword: (details: { email: string; code: string; newPassword: string }) => Promise<void>;
   /** Use the app without an account. */
   continueAsGuest: () => void;
   /** Signs out, or leaves guest mode; either way back to the landing page. */
@@ -139,6 +148,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return result;
       },
       resendConfirmation: (email) => resendConfirmation(email.trim()),
+      updateProfile: async (d) => {
+        if (!session) throw new AuthError('You are signed out. Sign in again to continue.');
+        // Refresh an expired access token first.
+        let current = session;
+        if (isStale(current)) {
+          current = await refreshSession(current.refreshToken);
+          adopt(current);
+        }
+        const user = await apiUpdateProfile(current.accessToken, {
+          fullName: d.fullName.trim(),
+          phone: d.phone.trim(),
+          occupation: d.occupation.trim(),
+        });
+        adopt({ ...current, user });
+      },
+      sendPasswordReset: (email) => sendPasswordReset(email.trim()),
+      resetPassword: async (d) => {
+        const recovered = await verifyRecoveryCode(d.email.trim(), d.code.trim());
+        const user = await updatePassword(recovered.accessToken, d.newPassword);
+        adopt({ ...recovered, user });
+      },
       continueAsGuest: () => {
         setSession(null);
         setStatus('guest');

@@ -142,6 +142,21 @@ export function OutlineButton({
   );
 }
 
+/** An inline error (red) or notice (persona tint) under a form. */
+export function FormMessage({ text, error = false }: { text: string; error?: boolean }) {
+  return (
+    <div
+      role={error ? 'alert' : 'status'}
+      className={`flex items-start gap-2 p-3 rounded-xl font-body-md text-body-md ${
+        error ? 'bg-error-container text-on-error-container' : 'bg-tint text-ink'
+      }`}
+    >
+      <Icon name={error ? 'error' : 'check_circle'} size={18} className={error ? '' : 'text-primary'} />
+      <span>{text}</span>
+    </div>
+  );
+}
+
 /** "Continue as guest": the whole app without an account. */
 export function GuestButton({ disabled = false }: { disabled?: boolean }) {
   const { continueAsGuest } = useAuth();
