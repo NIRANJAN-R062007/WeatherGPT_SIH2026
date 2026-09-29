@@ -41,6 +41,10 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           <Icon name="manage_search" size={20} />
           <span>History</span>
         </NavLink>
+        <NavLink to="/aviation" onClick={onNavigate} className={({ isActive }) => tile(isActive)}>
+          <Icon name="flight" size={20} />
+          <span>Airport weather</span>
+        </NavLink>
         <div className="my-space-sm h-px bg-outline-variant/60" />
         <NavLink to="/profile" onClick={onNavigate} className={({ isActive }) => tile(isActive)}>
           <Icon name="account_circle" size={20} />

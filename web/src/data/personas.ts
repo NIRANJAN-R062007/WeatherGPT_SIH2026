@@ -175,10 +175,10 @@ export const PERSONAS: Persona[] = [
         template: 'Will it rain this evening in {city}?',
         label: 'Any rain for evening departures?',
       },
-      { icon: 'calendar_month', template: '5-day forecast for {city}', label: '5-day forecast' },
+      { icon: 'flight', template: 'METAR and TAF for {city} airport', label: 'Airport METAR and TAF' },
     ],
     suggestions: [
-      { icon: 'flight', template: 'Will it rain tomorrow in {city}?' },
+      { icon: 'flight', template: 'METAR for {city} airport' },
       { icon: 'flight', template: 'What are the winds like now in {city}?' },
       { icon: 'flight', template: 'Any weather warnings for {city}?' },
       { icon: 'flight', template: '5-day forecast for {city}' },

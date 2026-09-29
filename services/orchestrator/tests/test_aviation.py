@@ -241,7 +241,8 @@ def test_issued_iso_gives_up_quietly_on_an_impossible_date():
 
 @pytest.mark.parametrize(
     "text, want",
-    [("METAR for Chennai", "metar"), ("taf chennai", "taf"), ("TAF and METAR", "taf"),
+    [("METAR for Chennai", "metar"), ("taf chennai", "taf"), ("TAF and METAR", "both"),
+     ("METAR and TAF for Chennai airport", "both"),
      ("Chennai airport weather", "both"), ("metars", "both")],
 )
 def test_want_from_text(text, want):
@@ -251,7 +252,9 @@ def test_want_from_text(text, want):
 def test_answer_text_notes_a_snapshot_and_adds_the_disclaimer():
     r = aviation.public("VOMM")  # fixtures mode: snapshots
     text = aviation.answer_text(r, "metar")
-    assert text.startswith("Snapshot taken 2026-09-29, not a live report. Chennai airport (VOMM)")
+    assert text.startswith(
+        "Snapshot taken 30 Sep 2026 03:17 IST, not a live report. Chennai airport (VOMM)"
+    )
     assert "terminal forecast" not in text
     assert text.endswith(r["disclaimer"])
     both = aviation.answer_text(r, "both")
@@ -305,7 +308,9 @@ def test_endpoint_reports_unavailable(monkeypatch, tmp_path):
 def test_ask_metar_answers_from_the_airport_report():
     r = client.get("/ask", params={"text": "METAR for Chennai airport"}).json()
     assert r["intent"] == "aviation" and r["city"] == "chennai" and r["status"] == "ok"
-    assert r["response"].startswith("Snapshot taken 2026-09-29, not a live report. Chennai airport")
+    assert r["response"].startswith(
+        "Snapshot taken 30 Sep 2026 03:17 IST, not a live report. Chennai airport"
+    )
     assert "terminal forecast" not in r["response"]  # asked for the METAR only
     assert r["aviation"]["station"] == "VOMM"
     assert r["provenance"]["source"] == "aviationweather.gov"
@@ -395,3 +400,11 @@ def test_parts_carry_the_briefing_as_lines():
         assert " ".join(part["lines"]) == part["briefing"]
         assert len(part["lines"]) > 1
     assert len(r["taf"]["lines"]) >= 1 + len(r["taf"]["decoded"]["changes"])
+
+
+def test_ist_stamp_shows_the_india_clock():
+    # 21:47 UTC on the 29th is already the next day in India.
+    assert aviation.ist_stamp("2026-09-29T21:47:58+00:00") == "30 Sep 2026 03:17 IST"
+    assert aviation.ist_stamp("2026-01-05T05:00:00+00:00") == "5 Jan 2026 10:30 IST"
+    assert aviation.ist_stamp("") == "an earlier date"
+    assert aviation.ist_stamp("not a date") == "an earlier date"

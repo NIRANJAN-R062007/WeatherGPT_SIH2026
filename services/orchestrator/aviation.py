@@ -21,7 +21,7 @@ import logging
 import re
 import time
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import cities
 import config
@@ -192,12 +192,27 @@ def issued_iso(part: dict) -> str | None:
     return moment.isoformat(timespec="minutes")
 
 
+_MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+
+
+def ist_stamp(iso: str) -> str:
+    """"30 Sep 2026 03:17 IST" for an ISO timestamp — the clock every surface
+    of this app shows. "an earlier date" if it doesn't parse."""
+    try:
+        moment = datetime.fromisoformat(iso).astimezone(timezone(timedelta(hours=5, minutes=30)))
+    except ValueError:
+        return "an earlier date"
+    return f"{moment.day} {_MONTHS[moment.month - 1]} {moment.year} {moment:%H:%M} IST"
+
+
 def want_from_text(text: str) -> str:
-    """Which report a question asks for: "taf" when it says TAF, "metar" when
-    it says METAR, else "both"."""
-    if re.search(r"\btaf\b", text, re.IGNORECASE):
+    """Which report a question asks for: "taf" when it says only TAF, "metar"
+    when it says only METAR, else "both" (naming both, or neither)."""
+    has_taf = bool(re.search(r"\btaf\b", text, re.IGNORECASE))
+    has_metar = bool(re.search(r"\bmetar\b", text, re.IGNORECASE))
+    if has_taf and not has_metar:
         return "taf"
-    if re.search(r"\bmetar\b", text, re.IGNORECASE):
+    if has_metar and not has_taf:
         return "metar"
     return "both"
 
@@ -213,8 +228,7 @@ def answer_text(result: dict, want: str = "both") -> str | None:
             continue
         text = part["briefing"]
         if not part["is_live"]:
-            when = part["retrieved_at"][:10] or "an earlier date"
-            text = f"Snapshot taken {when}, not a live report. {text}"
+            text = f"Snapshot taken {ist_stamp(part['retrieved_at'])}, not a live report. {text}"
         pieces.append(text)
     if not pieces:
         return None

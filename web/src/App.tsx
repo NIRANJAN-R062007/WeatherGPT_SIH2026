@@ -3,6 +3,7 @@ import { BrandMark } from './components/Brand';
 import Layout from './components/Layout';
 import AlertsPage from './pages/AlertsPage';
 import AuthPage from './pages/AuthPage';
+import AviationPage from './pages/AviationPage';
 import ChatPage from './pages/ChatPage';
 import EditProfilePage from './pages/EditProfilePage';
 import ForecastPage from './pages/ForecastPage';
@@ -59,6 +60,7 @@ function Gate() {
             <Route path="forecast" element={<ForecastPage />} />
             <Route path="alerts" element={<AlertsPage />} />
             <Route path="history" element={<HistoryPage />} />
+            <Route path="aviation" element={<AviationPage />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route path="persona" element={<PersonaPage />} />
             <Route path="profile" element={<ProfilePage />} />
