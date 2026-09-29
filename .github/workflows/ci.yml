@@ -73,6 +73,33 @@ jobs:
       - name: Render and validate manifests
         run: kubectl kustomize k8s/base | kubeconform -strict -summary -ignore-missing-schemas -
 
+  # Deliberately not in publish-images' needs: that job only ships the two backend images.
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install web deps
+        run: npm ci
+
+      - name: TypeScript type check
+        run: npx tsc -b
+
+      - name: Oxlint (warnings don't fail the job)
+        run: npm run lint
+
+      - name: Vite build
+        run: npx vite build
+
   publish-images:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: [lint-and-syntax, compose-build, k8s-validate]
