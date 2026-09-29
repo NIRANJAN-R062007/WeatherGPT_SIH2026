@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:weathergpt/components/app_shell.dart';
 import 'package:weathergpt/main.dart';
 
 // flutter_test answers every real HTTP request with a 400, so pages that
@@ -19,13 +20,18 @@ Future<void> _openDrawerAndGo(WidgetTester tester, String label) async {
   await _settle(tester);
 }
 
+Future<void> _tab(WidgetTester tester, String label) async {
+  await tester.tap(find.descendant(of: find.byType(BottomNav), matching: find.text(label)));
+  await _settle(tester);
+}
+
 void main() {
-  testWidgets('boots to Home with the web shell: topbar city pill and hero', (tester) async {
+  testWidgets('boots to Home: city pill, quick questions and the now card', (tester) async {
     await tester.pumpWidget(const WeatherGptApp());
     await _settle(tester);
 
     expect(find.text('Chennai, Tamil Nadu'), findsOneWidget);
-    expect(find.text('WeatherGPT Copilot'), findsOneWidget);
+    expect(find.text('Quick Questions'), findsOneWidget);
     // /facts got a 400 -> the hero shows the error panel, not stale numbers.
     expect(find.text('Live conditions unavailable'), findsOneWidget);
   });
@@ -48,16 +54,43 @@ void main() {
     await _settle(tester);
 
     await _openDrawerAndGo(tester, 'Chat & Evidence');
-    expect(find.text('Ask WeatherGPT'), findsOneWidget);
+    expect(find.text('Suggested Questions'), findsOneWidget);
 
     await _openDrawerAndGo(tester, 'Forecast');
-    expect(find.text('Forecast Provenance'), findsOneWidget);
+    expect(find.text('Forecast unavailable'), findsOneWidget);
 
     await _openDrawerAndGo(tester, 'Alerts & Warnings');
     expect(find.text('Warnings service unreachable'), findsOneWidget);
 
     await _openDrawerAndGo(tester, 'Settings');
-    expect(find.text('Persona'), findsOneWidget);
+    expect(find.text('Change Persona'), findsOneWidget);
+  });
+
+  testWidgets('bottom bar switches pages; More is Settings', (tester) async {
+    await tester.pumpWidget(const WeatherGptApp());
+    await _settle(tester);
+
+    await _tab(tester, 'Chat');
+    expect(find.text('Suggested Questions'), findsOneWidget);
+    await _tab(tester, 'Alerts');
+    expect(find.text('Active Alerts'), findsOneWidget);
+    await _tab(tester, 'More');
+    expect(find.text('Change Persona'), findsOneWidget);
+    await _tab(tester, 'Home');
+    expect(find.text('Quick Questions'), findsOneWidget);
+  });
+
+  testWidgets('a Home quick question is asked in Chat', (tester) async {
+    await tester.pumpWidget(const WeatherGptApp());
+    await _settle(tester);
+
+    await tester.ensureVisible(find.text('Will it rain today?'));
+    await _settle(tester);
+    await tester.tap(find.text('Will it rain today?'));
+    await _settle(tester);
+
+    expect(find.text('Will it rain today in Chennai?'), findsOneWidget); // the user bubble
+    expect(find.text('Suggested Questions'), findsNothing); // transcript mode
   });
 
   testWidgets('Android back: closes the drawer first, then returns Home', (tester) async {
@@ -78,7 +111,7 @@ void main() {
     await tester.binding.handlePopRoute();
     await _settle(tester);
     expect(find.text('Warnings service unreachable'), findsNothing); // back on Home
-    expect(find.text('WeatherGPT Copilot'), findsOneWidget);
+    expect(find.text('Quick Questions'), findsOneWidget);
   });
 
   testWidgets('city picker updates the shared city', (tester) async {
@@ -95,35 +128,33 @@ void main() {
     expect(find.text('Chennai, Tamil Nadu'), findsNothing);
   });
 
-  testWidgets('settings pills switch language, unit and persona', (tester) async {
+  testWidgets('settings rows switch language, unit and persona', (tester) async {
     await tester.pumpWidget(const WeatherGptApp());
     await _settle(tester);
-    await _openDrawerAndGo(tester, 'Settings');
+    await _tab(tester, 'More');
 
-    Semantics semanticsOf(String text) => tester.widget<Semantics>(
-          find
-              .ancestor(
-                of: find.text(text),
-                matching: find.byWidgetPredicate((w) => w is Semantics && w.properties.selected != null),
-              )
-              .first,
-        );
-
-    expect(semanticsOf('English').properties.selected, isTrue);
+    await tester.tap(find.text('Language'));
+    await _settle(tester);
     await tester.tap(find.text('हिन्दी'));
     await _settle(tester);
-    expect(semanticsOf('हिन्दी').properties.selected, isTrue);
-    expect(semanticsOf('English').properties.selected, isFalse);
+    expect(find.text('हिन्दी'), findsOneWidget); // the row's value, sheet closed
+    expect(find.text('English'), findsNothing);
 
+    await tester.tap(find.text('Units'));
+    await _settle(tester);
     await tester.tap(find.text('Fahrenheit (°F)'));
     await _settle(tester);
-    expect(semanticsOf('Fahrenheit (°F)').properties.selected, isTrue);
+    expect(find.text('Fahrenheit (°F)'), findsOneWidget);
 
+    await tester.tap(find.text('Change Persona'));
+    await _settle(tester);
+    expect(find.text('Choose your persona'), findsOneWidget);
     await tester.ensureVisible(find.text('Farmer'));
     await _settle(tester);
     await tester.tap(find.text('Farmer'));
     await _settle(tester);
-    expect(semanticsOf('Farmer').properties.selected, isTrue);
-    expect(semanticsOf('General Citizen').properties.selected, isFalse);
+    expect(find.text('Choose your persona'), findsNothing);
+    expect(find.text('Farmer'), findsOneWidget);
+    expect(find.text('Better decisions for your crops.'), findsOneWidget);
   });
 }

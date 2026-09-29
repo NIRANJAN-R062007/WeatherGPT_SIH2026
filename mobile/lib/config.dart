@@ -18,3 +18,6 @@ const Map<String, String> kLanguageLabels = {
   'te': 'తెలుగు',
   'mr': 'मराठी',
 };
+
+/// Shown in Settings > About; keep in step with pubspec.yaml's `version`.
+const String kAppVersion = '1.0.0';

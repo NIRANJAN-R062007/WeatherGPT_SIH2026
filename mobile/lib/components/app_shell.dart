@@ -1,14 +1,14 @@
-// The app shell — web/src/components/Layout.tsx + Sidebar.tsx + Topbar.tsx.
-// Wide screens (tablets, desktop) get the same permanent 256px sidebar as
-// web/; phones get it as a drawer behind the Topbar's menu button. Pages are
-// built on first visit and kept alive after, so a chat transcript or an
-// answer survives switching pages.
+// The app shell. Phones (the pics/ mockups): a sky-gradient top bar with the
+// menu, the WeatherGPT mark and the bell, the page in the middle, and a
+// five-tab bottom bar (Home, Chat, Forecast, Alerts, More = Settings). The
+// drawer still carries web/'s Sidebar. Wide screens (tablets, desktop) keep
+// web/'s permanent 256px sidebar instead of the bottom bar. Pages are built
+// on first visit and kept alive after, so a chat transcript or an answer
+// survives switching pages.
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../state/ui_prefs.dart';
 import '../theme.dart';
-import 'common.dart';
 
 enum AppPage { home, chat, forecast, alerts, settings }
 
@@ -16,26 +16,47 @@ class NavItem {
   final AppPage page;
   final String label;
   final IconData icon;
-  const NavItem(this.page, this.label, this.icon);
+  final String shortLabel;
+  final IconData activeIcon;
+  const NavItem(this.page, this.label, this.icon, this.shortLabel, this.activeIcon);
 }
 
 /// Sidebar.tsx's NAV_ITEMS, minus History: GET /history only answers with a
-/// Supabase bearer token, and this app has no sign-in flow to get one.
+/// Supabase bearer token, and this app has no sign-in flow to get one. The
+/// short label and filled icon are the bottom bar's.
 const List<NavItem> kNavItems = [
-  NavItem(AppPage.home, 'Home', Icons.grid_view),
-  NavItem(AppPage.chat, 'Chat & Evidence', Icons.forum_outlined),
-  NavItem(AppPage.forecast, 'Forecast', Icons.wb_cloudy_outlined),
-  NavItem(AppPage.alerts, 'Alerts & Warnings', Icons.crisis_alert),
-  NavItem(AppPage.settings, 'Settings', Icons.tune),
+  NavItem(AppPage.home, 'Home', Icons.home_outlined, 'Home', Icons.home_rounded),
+  NavItem(AppPage.chat, 'Chat & Evidence', Icons.chat_bubble_outline, 'Chat', Icons.chat_bubble),
+  NavItem(AppPage.forecast, 'Forecast', Icons.light_mode_outlined, 'Forecast', Icons.light_mode),
+  NavItem(AppPage.alerts, 'Alerts & Warnings', Icons.notifications_none, 'Alerts', Icons.notifications),
+  NavItem(AppPage.settings, 'Settings', Icons.more_horiz, 'More', Icons.more_horiz),
 ];
 
-/// Lets a page switch pages (e.g. Home's Voice Assistant tile -> Chat).
+/// Lets a page switch pages (e.g. Home's "See all" -> Forecast), or hand a
+/// question to Chat ([ask]), which switches there and asks it.
 class ShellNav extends InheritedWidget {
   final AppPage current;
   final ValueChanged<AppPage> go;
-  const ShellNav({super.key, required this.current, required this.go, required super.child});
+
+  /// The question [ask] handed over; Chat takes it and clears it.
+  final ValueNotifier<String?> pendingAsk;
+
+  const ShellNav({
+    super.key,
+    required this.current,
+    required this.go,
+    required this.pendingAsk,
+    required super.child,
+  });
 
   static ShellNav of(BuildContext context) => context.dependOnInheritedWidgetOfExactType<ShellNav>()!;
+
+  static ShellNav read(BuildContext context) => context.getInheritedWidgetOfExactType<ShellNav>()!;
+
+  void ask(String question) {
+    pendingAsk.value = question;
+    go(AppPage.chat);
+  }
 
   @override
   bool updateShouldNotify(ShellNav oldWidget) => current != oldWidget.current;
@@ -56,6 +77,13 @@ class _AppShellState extends State<AppShell> {
   AppPage _current = AppPage.home;
   final Set<AppPage> _visited = {AppPage.home};
   final GlobalKey<ScaffoldState> _scaffold = GlobalKey<ScaffoldState>();
+  final ValueNotifier<String?> _pendingAsk = ValueNotifier(null);
+
+  @override
+  void dispose() {
+    _pendingAsk.dispose();
+    super.dispose();
+  }
 
   void _go(AppPage page) {
     if (page == _current) return;
@@ -71,8 +99,7 @@ class _AppShellState extends State<AppShell> {
       index: _current.index,
       children: [
         for (final page in AppPage.values)
-          // IndexedStack keeps hidden pages' tickers running; pause them so
-          // Home's ambient gradient doesn't animate behind other pages.
+          // IndexedStack keeps hidden pages' tickers running; pause them.
           _visited.contains(page)
               ? TickerMode(enabled: page == _current, child: widget.pages[page]!(context))
               : const SizedBox.shrink(),
@@ -82,8 +109,13 @@ class _AppShellState extends State<AppShell> {
     return ShellNav(
       current: _current,
       go: _go,
+      pendingAsk: _pendingAsk,
       child: AnnotatedRegion<SystemUiOverlayStyle>(
-        value: SystemUiOverlayStyle.dark.copyWith(statusBarColor: Colors.transparent),
+        value: SystemUiOverlayStyle.dark.copyWith(
+          statusBarColor: Colors.transparent,
+          systemNavigationBarColor: AppColors.navBar,
+          systemNavigationBarIconBrightness: Brightness.dark,
+        ),
         // Android back returns to Home before it leaves the app.
         child: PopScope(
           canPop: _current == AppPage.home,
@@ -101,9 +133,23 @@ class _AppShellState extends State<AppShell> {
           child: LayoutBuilder(
             builder: (context, constraints) {
               final wide = constraints.maxWidth >= AppShell.wideBreakpoint;
+              final main = DecoratedBox(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [AppColors.skyTop, AppColors.skyBottom],
+                    stops: [0, 0.35],
+                  ),
+                ),
+                child: Column(children: [
+                  Topbar(showMenu: !wide),
+                  Expanded(child: stack),
+                ]),
+              );
               return Scaffold(
                 key: _scaffold,
-                backgroundColor: AppColors.surface,
+                backgroundColor: AppColors.skyBottom,
                 drawer: wide
                     ? null
                     : Drawer(
@@ -115,6 +161,7 @@ class _AppShellState extends State<AppShell> {
                           },
                         ),
                       ),
+                bottomNavigationBar: wide ? null : BottomNav(current: _current, onSelect: _go),
                 body: wide
                     ? Row(
                         children: [
@@ -126,27 +173,101 @@ class _AppShellState extends State<AppShell> {
                             ),
                             child: Sidebar(current: _current, onSelect: _go),
                           ),
-                          Expanded(
-                            child: Column(
-                              children: [
-                                const Topbar(showMenu: false),
-                                Expanded(child: stack),
-                              ],
-                            ),
-                          ),
+                          Expanded(child: main),
                         ],
                       )
-                    : Column(
-                        children: [
-                          const Topbar(showMenu: true),
-                          Expanded(child: stack),
-                        ],
-                      ),
+                    : main,
               );
             },
           ),
         ),
       ),
+    );
+  }
+}
+
+/// The five-tab bar: filled icon + bold primary label on the active tab.
+class BottomNav extends StatelessWidget {
+  final AppPage current;
+  final ValueChanged<AppPage> onSelect;
+  const BottomNav({super.key, required this.current, required this.onSelect});
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        color: AppColors.navBar,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        boxShadow: [BoxShadow(color: Color(0x141D6AE5), blurRadius: 16, offset: Offset(0, -3))],
+      ),
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          height: 64,
+          child: Row(children: [
+            for (final item in kNavItems)
+              Expanded(child: _BottomTab(item: item, active: item.page == current, onTap: () => onSelect(item.page))),
+          ]),
+        ),
+      ),
+    );
+  }
+}
+
+class _BottomTab extends StatelessWidget {
+  final NavItem item;
+  final bool active;
+  final VoidCallback onTap;
+  const _BottomTab({required this.item, required this.active, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final fg = active ? AppColors.primary : AppColors.navIdle;
+    return Semantics(
+      selected: active,
+      button: true,
+      label: item.label,
+      excludeSemantics: true,
+      child: InkResponse(
+        onTap: onTap,
+        radius: 32,
+        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Icon(active ? item.activeIcon : item.icon, size: 24, color: fg),
+          const SizedBox(height: 3),
+          Text(
+            item.shortLabel,
+            style: AppText.bodySm.copyWith(
+              fontSize: 11,
+              height: 1.2,
+              color: fg,
+              fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
+}
+
+/// The WeatherGPT mark: a blue cloud with the sun peeking over it.
+class BrandMark extends StatelessWidget {
+  final double size;
+  const BrandMark({super.key, this.size = 30});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox.square(
+      dimension: size,
+      child: Stack(children: [
+        Align(
+          alignment: const Alignment(0.9, -0.9),
+          child: Icon(Icons.circle, size: size * 0.42, color: AppColors.sun),
+        ),
+        Align(
+          alignment: const Alignment(-0.2, 0.5),
+          child: Icon(Icons.cloud, size: size * 0.95, color: AppColors.primary),
+        ),
+      ]),
     );
   }
 }
@@ -168,15 +289,7 @@ class Sidebar extends StatelessWidget {
             padding: const EdgeInsets.all(AppSpace.lg),
             child: Row(
               children: [
-                Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(AppRadius.md),
-                  ),
-                  child: const Icon(Icons.cloud_outlined, size: 20, color: AppColors.onPrimary),
-                ),
+                const BrandMark(size: 32),
                 const SizedBox(width: AppSpace.sm),
                 Expanded(
                   child: Column(
@@ -249,74 +362,44 @@ class _NavTile extends StatelessWidget {
   }
 }
 
-/// Topbar.tsx: the city pill (shared city for every page's calls) and the
-/// bell, which here jumps to Alerts & Warnings.
+/// The mockups' top bar: menu, the WeatherGPT mark and name, and the bell
+/// (jumps to Alerts & Warnings). Transparent — it sits on the shell's sky.
+/// The city pill lives just below it, in each page's scenery header.
 class Topbar extends StatelessWidget {
   final bool showMenu;
   const Topbar({super.key, required this.showMenu});
 
   @override
   Widget build(BuildContext context) {
-    final prefs = UiPrefs.of(context);
-    final city = prefs.cityInfo;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest.withValues(alpha: 0.9),
-        boxShadow: AppShadows.chrome,
-      ),
-      child: SafeArea(
-        bottom: false,
-        child: SizedBox(
-          height: 64,
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: showMenu ? AppSpace.sm : AppSpace.xl),
-            child: Row(
-              children: [
-                if (showMenu)
-                  IconButton(
-                    tooltip: 'Menu',
-                    icon: const Icon(Icons.menu, color: AppColors.onSurfaceVariant),
-                    onPressed: () => Scaffold.of(context).openDrawer(),
-                  ),
-                Expanded(
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Material(
-                      color: AppColors.surfaceContainerLow,
-                      borderRadius: BorderRadius.circular(999),
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(999),
-                        onTap: () => showCityPicker(context),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.location_on_outlined, size: 18, color: AppColors.primary),
-                              const SizedBox(width: 6),
-                              Flexible(
-                                child: Text(
-                                  '${city.name}, ${city.region}',
-                                  overflow: TextOverflow.ellipsis,
-                                  style: AppText.labelMd.copyWith(color: AppColors.onSurface),
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                              const Icon(Icons.expand_more, size: 16, color: AppColors.onSurfaceVariant),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
+    return SafeArea(
+      bottom: false,
+      child: SizedBox(
+        height: 56,
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: showMenu ? AppSpace.xs : AppSpace.lg),
+          child: Row(
+            children: [
+              if (showMenu)
                 IconButton(
-                  tooltip: 'Alerts & Warnings',
-                  icon: const Icon(Icons.notifications_outlined, size: 22, color: AppColors.onSurfaceVariant),
-                  onPressed: () => ShellNav.of(context).go(AppPage.alerts),
+                  tooltip: 'Menu',
+                  icon: const Icon(Icons.menu_rounded, color: AppColors.ink),
+                  onPressed: () => Scaffold.of(context).openDrawer(),
                 ),
-              ],
-            ),
+              const SizedBox(width: 2),
+              const BrandMark(),
+              const SizedBox(width: AppSpace.sm),
+              Expanded(
+                child: Text(
+                  'WeatherGPT',
+                  style: AppText.headlineSm.copyWith(color: AppColors.ink, fontWeight: FontWeight.w700),
+                ),
+              ),
+              IconButton(
+                tooltip: 'Alerts & Warnings',
+                icon: const Icon(Icons.notifications_none_rounded, size: 24, color: AppColors.ink),
+                onPressed: () => ShellNav.read(context).go(AppPage.alerts),
+              ),
+            ],
           ),
         ),
       ),

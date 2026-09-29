@@ -97,32 +97,22 @@ class _MicButtonState extends State<MicButton> {
   Widget build(BuildContext context) {
     final listening = _voice == _Voice.listening;
     final busy = _voice == _Voice.transcribing;
-    final Color bg = listening
-        ? AppColors.error
-        : widget.inset
-            ? Colors.transparent
-            : AppColors.surfaceContainerLowest;
+    final Color bg = listening ? AppColors.error : Colors.transparent;
     final Color fg = listening ? AppColors.onError : AppColors.onSurfaceVariant;
     final radius = BorderRadius.circular(AppRadius.lg);
     return Tooltip(
       message: listening ? 'Stop and ask' : 'Ask by voice',
-      child: DecoratedBox(
-        decoration: BoxDecoration(
+      child: Material(
+        color: bg,
+        borderRadius: radius,
+        child: InkWell(
           borderRadius: radius,
-          boxShadow: widget.inset || listening ? null : AppShadows.sm,
-        ),
-        child: Material(
-          color: bg,
-          borderRadius: radius,
-          child: InkWell(
-            borderRadius: radius,
-            onTap: widget.enabled && !busy ? _toggle : null,
-            child: Padding(
-              padding: EdgeInsets.all(widget.inset ? 6 : 8),
-              child: busy
-                  ? const InlineSpinner(size: 20)
-                  : Icon(listening ? Icons.stop : Icons.mic_none, size: 20, color: fg),
-            ),
+          onTap: widget.enabled && !busy ? _toggle : null,
+          child: Padding(
+            padding: EdgeInsets.all(widget.inset ? 6 : 8),
+            child: busy
+                ? const InlineSpinner(size: 20)
+                : Icon(listening ? Icons.stop : Icons.mic_none, size: 22, color: fg),
           ),
         ),
       ),
@@ -230,15 +220,19 @@ class _AskComposerState extends State<AskComposer> {
             ]),
           )
         : Container(
-            padding: const EdgeInsets.all(AppSpace.sm),
+            // The mockups' ask bar: sparkle, field, mic, blue send square.
+            padding: const EdgeInsets.fromLTRB(12, 6, 6, 6),
             decoration: BoxDecoration(
-              color: AppColors.surfaceContainerLow,
-              borderRadius: BorderRadius.circular(AppRadius.xl),
+              color: AppColors.card,
+              borderRadius: BorderRadius.circular(AppRadius.card),
+              border: Border.all(color: AppColors.cardBorder),
+              boxShadow: AppShadows.card,
             ),
             child: Row(children: [
-              if (mic != null) ...[mic, const SizedBox(width: AppSpace.sm)],
+              const Icon(Icons.auto_awesome, size: 20, color: AppColors.primary),
+              const SizedBox(width: 4),
               Expanded(child: field),
-              const SizedBox(width: AppSpace.sm),
+              if (mic != null) ...[mic, const SizedBox(width: 4)],
               send,
             ]),
           );
@@ -269,12 +263,12 @@ class _SendButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(AppRadius.lg);
+    final radius = BorderRadius.circular(compact ? AppRadius.lg : AppRadius.xl);
     final disabled = onPressed == null;
     return Tooltip(
       message: 'Send',
       child: DecoratedBox(
-        decoration: BoxDecoration(borderRadius: radius, boxShadow: compact ? AppShadows.sm : AppShadows.md),
+        decoration: BoxDecoration(borderRadius: radius, boxShadow: compact ? AppShadows.sm : AppShadows.card),
         child: Material(
           color: disabled && !loading ? AppColors.primary.withValues(alpha: 0.6) : AppColors.primary,
           borderRadius: radius,
@@ -282,14 +276,14 @@ class _SendButton extends StatelessWidget {
             borderRadius: radius,
             onTap: onPressed,
             child: Padding(
-              padding: EdgeInsets.all(compact ? 7 : 10),
+              padding: EdgeInsets.all(compact ? 7 : 11),
               child: loading
                   ? InlineSpinner(
                       size: compact ? 18 : 20,
                       color: AppColors.onPrimary,
                       track: AppColors.onPrimary.withValues(alpha: 0.4),
                     )
-                  : Icon(Icons.send, size: compact ? 18 : 20, color: AppColors.onPrimary),
+                  : Icon(Icons.send_rounded, size: compact ? 18 : 20, color: AppColors.onPrimary),
             ),
           ),
         ),

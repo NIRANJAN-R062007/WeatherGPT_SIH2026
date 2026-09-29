@@ -1,20 +1,23 @@
-// Forecast — web/src/pages/ForecastPage.tsx: region header, the outlook
-// accordion, the provenance card and the live /ask composer. The web page's
-// hourly chart/strip and 10-day list are static samples (no endpoint serves
-// an hourly series or a structured 10-day breakdown), so this page shows
-// what GET /facts does serve — today, tonight and tomorrow — and leaves
-// longer ranges to /ask ("5-day forecast for …"), which narrates them.
+// Forecast — the pics/ mockup's Forecast: a two-way switch over a list of
+// day rows. GET /facts serves today, tonight and tomorrow (no hourly series,
+// no structured 5-day breakdown), so the switch is "Days" (the rows) and
+// "Details" (each period's figures plus provenance) rather than the
+// mockup's "5 Days" / "Hourly"; the banner at the foot hands a 5-day
+// question to Chat, where /ask narrates it.
 import 'package:flutter/material.dart';
 
-import '../components/ask_answer.dart';
+import '../components/app_shell.dart';
 import '../components/common.dart';
-import '../components/composer.dart';
+import '../components/scenery.dart';
+import '../components/surfaces.dart';
+import '../components/weather_glyph.dart';
 import '../facts_client.dart';
 import '../format.dart';
-import '../state/ask_controller.dart';
 import '../state/ui_prefs.dart';
 import '../state/weather_store.dart';
 import '../theme.dart';
+
+enum _View { days, details }
 
 class ForecastPage extends StatefulWidget {
   const ForecastPage({super.key});
@@ -24,104 +27,35 @@ class ForecastPage extends StatefulWidget {
 }
 
 class _ForecastPageState extends State<ForecastPage> {
-  final AskController _ask = AskController();
-  final TextEditingController _query = TextEditingController();
-  final Set<String> _expanded = {'today'};
-
-  @override
-  void dispose() {
-    _ask.dispose();
-    _query.dispose();
-    super.dispose();
-  }
-
-  void _submit(String text) {
-    final prefs = UiPrefs.read(context);
-    _ask.ask(text, lang: prefs.lang, city: prefs.city, persona: prefs.persona);
-  }
-
-  void _toggle(String key) => setState(() => _expanded.contains(key) ? _expanded.remove(key) : _expanded.add(key));
+  _View _view = _View.days;
 
   @override
   Widget build(BuildContext context) {
     final prefs = UiPrefs.of(context);
     final weather = WeatherStore.of(context);
-    final city = prefs.cityInfo;
+    final nav = ShellNav.of(context);
+    final city = prefs.cityInfo.name;
 
-    return RefreshIndicator(
+    return PageFrame(
       onRefresh: weather.refresh,
-      child: ListView(
-        padding: const EdgeInsets.all(AppSpace.gutter),
-        children: [
-          const PageHeader(
-            title: 'Forecast',
-            subtitle: 'Today, tonight and tomorrow, read straight from the forecast feed — never generated.',
-          ),
-          const SizedBox(height: AppSpace.lg),
-          SurfaceCard(
-            radius: AppRadius.xl,
-            child: Row(children: [
-              const _PulseDot(),
-              const SizedBox(width: AppSpace.sm),
-              Expanded(child: Text('${city.name}, ${city.region}', style: AppText.headlineSm)),
-              if (weather.today?.hasData == true) LiveBadge(live: weather.today!.isLive),
-            ]),
-          ),
-          const SizedBox(height: AppSpace.lg),
-          Text('Outlook', style: AppText.headlineMd),
-          const SizedBox(height: AppSpace.md),
-          ..._periods(weather),
-          const SizedBox(height: AppSpace.lg),
-          _ProvenanceCard(weather: weather),
-          const SizedBox(height: AppSpace.lg),
-          ListenableBuilder(
-            listenable: _ask,
-            builder: (context, _) => SurfaceCard(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                const RuleLabel(icon: Icons.bolt, text: 'Live — answers come from /ask'),
-                if (_ask.asked != null) ...[
-                  const SizedBox(height: AppSpace.sm),
-                  AskAnswer(
-                    asked: _ask.asked,
-                    loading: _ask.loading,
-                    outcome: _ask.outcome,
-                    error: _ask.error,
-                    detail: true,
-                    playbackLang: _ask.lang,
-                  ),
-                ],
-                const SizedBox(height: AppSpace.sm),
-                SuggestionChips(
-                  enabled: !_ask.loading,
-                  suggestions: [
-                    Suggestion('📅', '5-day forecast for ${city.name}'),
-                    Suggestion('🌙', 'Will it rain tonight in ${city.name}?'),
-                  ],
-                  onPick: (text) {
-                    _query.text = text;
-                    _submit(text);
-                  },
-                ),
-                const SizedBox(height: AppSpace.sm),
-                AskComposer(
-                  controller: _query,
-                  loading: _ask.loading,
-                  lang: prefs.lang,
-                  showMic: false,
-                  hint: "Ask for a forecast, e.g. '5-day forecast for ${city.name}'",
-                  onSubmit: _submit,
-                ),
-                const SizedBox(height: 6),
-                const Padding(padding: EdgeInsets.symmetric(horizontal: 4), child: CityHintRow()),
-              ]),
-            ),
-          ),
-        ],
-      ),
+      children: [
+        const PageHeader(title: 'Forecast', subtitle: 'Plan your day with confidence.'),
+        const SizedBox(height: AppSpace.md),
+        _Switch(value: _view, onChanged: (v) => setState(() => _view = v)),
+        const SizedBox(height: AppSpace.md),
+        ..._body(weather),
+        const SizedBox(height: AppSpace.sm),
+        InfoBanner(
+          icon: Icons.info_outline,
+          title: 'Need more days?',
+          body: 'Ask for a 5-day forecast for $city in Chat.',
+          onTap: () => nav.ask('5-day forecast for $city'),
+        ),
+      ],
     );
   }
 
-  List<Widget> _periods(WeatherStore weather) {
+  List<Widget> _body(WeatherStore weather) {
     if (weather.error != null) {
       return [
         ErrorPanel(
@@ -130,171 +64,203 @@ class _ForecastPageState extends State<ForecastPage> {
           message: weather.error!.message,
           onRetry: weather.refresh,
         ),
+        const SizedBox(height: AppSpace.sm),
       ];
     }
-    if (weather.today == null) return [const LoadingPanel('Loading the forecast…')];
+    if (weather.today == null) return [const LoadingPanel('Loading the forecast…'), const SizedBox(height: AppSpace.sm)];
 
     final rows = [
-      ('today', 'Today', weather.today, 0, false),
-      ('tonight', 'Tonight', weather.tonight, 0, true),
-      ('tomorrow', 'Tomorrow', weather.tomorrow, 1, false),
+      ('Today', weather.today, 0, false),
+      ('Tonight', weather.tonight, 0, true),
+      ('Tomorrow', weather.tomorrow, 1, false),
     ];
     return [
-      for (final (key, label, result, offset, night) in rows) ...[
-        _PeriodCard(
-          label: label,
-          result: result,
-          dayOffset: offset,
-          night: night,
-          expanded: _expanded.contains(key),
-          onToggle: () => _toggle(key),
-        ),
+      for (final (label, result, offset, night) in rows) ...[
+        _view == _View.days
+            ? _DayRow(label: label, result: result, dayOffset: offset, night: night)
+            : _DetailCard(label: label, result: result, dayOffset: offset, night: night),
+        const SizedBox(height: 10),
+      ],
+      if (_view == _View.details) ...[
+        _ProvenanceCard(weather: weather),
         const SizedBox(height: 10),
       ],
     ];
   }
 }
 
-/// `w-2.5 h-2.5 rounded-full bg-secondary-container animate-pulse`.
-class _PulseDot extends StatefulWidget {
-  const _PulseDot();
-
-  @override
-  State<_PulseDot> createState() => _PulseDotState();
-}
-
-class _PulseDotState extends State<_PulseDot> with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(seconds: 1));
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (MediaQuery.disableAnimationsOf(context)) {
-      _c.stop();
-    } else if (!_c.isAnimating) {
-      _c.repeat(reverse: true);
-    }
-  }
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
+/// The mockup's "5 Days | Hourly" pill switch.
+class _Switch extends StatelessWidget {
+  final _View value;
+  final ValueChanged<_View> onChanged;
+  const _Switch({required this.value, required this.onChanged});
 
   @override
   Widget build(BuildContext context) {
-    return FadeTransition(
-      opacity: Tween<double>(begin: 1, end: 0.5).animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut)),
-      child: Container(
-        width: 10,
-        height: 10,
-        decoration: const BoxDecoration(color: AppColors.secondaryContainer, shape: BoxShape.circle),
-      ),
+    Widget tab(_View v, String label) {
+      final selected = v == value;
+      return Expanded(
+        child: Semantics(
+          selected: selected,
+          button: true,
+          child: Material(
+            color: selected ? AppColors.primary : Colors.transparent,
+            borderRadius: BorderRadius.circular(999),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(999),
+              onTap: () => onChanged(v),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                child: Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  style: AppText.labelMd.copyWith(
+                    color: selected ? AppColors.onPrimary : AppColors.ink,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(color: AppColors.tint, borderRadius: BorderRadius.circular(999)),
+      child: Row(children: [tab(_View.days, 'Days'), const SizedBox(width: 4), tab(_View.details, 'Details')]),
     );
   }
 }
 
-/// One outlook accordion row (ForecastPage.tsx's synoptic accordion).
-class _PeriodCard extends StatelessWidget {
+/// Label + date | glyph | high / low + condition.
+class _DayRow extends StatelessWidget {
   final String label;
   final FactsResult? result;
   final int dayOffset;
   final bool night;
-  final bool expanded;
-  final VoidCallback onToggle;
-
-  const _PeriodCard({
-    required this.label,
-    required this.result,
-    required this.dayOffset,
-    required this.night,
-    required this.expanded,
-    required this.onToggle,
-  });
+  const _DayRow({required this.label, required this.result, required this.dayOffset, required this.night});
 
   @override
   Widget build(BuildContext context) {
     final prefs = UiPrefs.of(context);
     final r = result;
-    final style = conditionStyle(r?.condition, night: night);
+    final hasData = r?.hasData == true;
     final high = r?.number('high_c');
     final low = r?.number('low_c');
-    final rain = r?.number('rain_probability_pct');
-    final hasData = r?.hasData == true;
+    final String temps;
+    if (!hasData) {
+      temps = '—';
+    } else if (night) {
+      // Tonight's high/low are the whole day's — show only the low.
+      temps = low == null ? '—' : 'Low ${prefs.temp(low)}°';
+    } else {
+      temps = '${high == null ? '—' : prefs.temp(high)}° / ${low == null ? '—' : prefs.temp(low)}°';
+    }
 
-    return SurfaceCard(
-      radius: AppRadius.xl,
-      onTap: hasData ? onToggle : null,
-      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Row(children: [
-          Icon(style.icon, size: 28, color: style.iconColor),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('$label, ${istDayMonth(r?.issued, fallbackOffsetDays: dayOffset)}', style: AppText.headlineSm),
-              Text(
-                hasData ? sentenceCase(r!.conditionLabel) : (r?.message ?? 'No forecast for this period.'),
-                style: AppText.bodySm.copyWith(color: AppColors.onSurfaceVariant),
-              ),
-            ]),
-          ),
-          if (hasData) ...[
-            // Tonight's high/low are the whole day's — show only the low.
-            Text.rich(
-              TextSpan(children: [
-                if (!night && high != null) TextSpan(text: '${prefs.temp(high)}°', style: AppText.headlineSm),
-                if (low != null)
-                  TextSpan(
-                    text: night ? 'Low ${prefs.temp(low)}°' : ' / ${prefs.temp(low)}°',
-                    style: night ? AppText.headlineSm : AppText.bodySm.copyWith(color: AppColors.outline),
-                  ),
-              ]),
+    return AppCard(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpace.md, vertical: 12),
+      child: Row(children: [
+        Expanded(
+          flex: 4,
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(label, style: AppText.labelMd.copyWith(color: AppColors.ink, fontWeight: FontWeight.w700)),
+            Text(
+              istDayMonth(r?.issued, fallbackOffsetDays: dayOffset),
+              style: AppText.bodySm.copyWith(color: AppColors.inkMuted),
             ),
-            const SizedBox(width: AppSpace.sm),
-            Icon(expanded ? Icons.expand_less : Icons.expand_more, size: 20, color: AppColors.onSurfaceVariant),
-          ],
-        ]),
-        if (hasData && expanded) ...[
-          const SizedBox(height: AppSpace.sm),
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: AppColors.surfaceContainerLow.withValues(alpha: 0.6),
-              borderRadius: BorderRadius.circular(AppRadius.lg),
-              border: const Border(top: BorderSide(color: AppColors.surfaceContainer)),
+          ]),
+        ),
+        WeatherGlyph(r?.condition, night: night, size: 40),
+        const SizedBox(width: AppSpace.md),
+        Expanded(
+          flex: 5,
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(temps, style: AppText.labelMd.copyWith(color: AppColors.ink, fontWeight: FontWeight.w600)),
+            Text(
+              hasData ? sentenceCase(r!.conditionLabel) : (r?.message ?? 'No forecast for this period.'),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: AppText.bodySm.copyWith(color: AppColors.inkMuted),
             ),
-            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Expanded(
-                child: _Stat('Precip prob', rain == null ? '—' : '${rain.round()}%', color: AppColors.primary),
-              ),
-              Expanded(
-                child: night
-                    ? _Stat('Overnight low', low == null ? '—' : prefs.tempLabel(low))
-                    : _Stat('High / Low',
-                        '${high == null ? '—' : prefs.temp(high)}° / ${low == null ? '—' : prefs.temp(low)}°'),
-              ),
-              Expanded(child: _Stat('Period', night ? 'Night' : 'Day')),
-            ]),
-          ),
-        ],
+          ]),
+        ),
       ]),
     );
   }
 }
 
-class _Stat extends StatelessWidget {
+/// One period's figures, as served.
+class _DetailCard extends StatelessWidget {
+  final String label;
+  final FactsResult? result;
+  final int dayOffset;
+  final bool night;
+  const _DetailCard({required this.label, required this.result, required this.dayOffset, required this.night});
+
+  @override
+  Widget build(BuildContext context) {
+    final prefs = UiPrefs.of(context);
+    final r = result;
+    final hasData = r?.hasData == true;
+    final high = r?.number('high_c');
+    final low = r?.number('low_c');
+    final rain = r?.number('rain_probability_pct');
+
+    return AppCard(
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Row(children: [
+          WeatherGlyph(r?.condition, night: night, size: 32),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              '$label, ${istDayMonth(r?.issued, fallbackOffsetDays: dayOffset)}',
+              style: AppText.labelMd.copyWith(color: AppColors.ink, fontWeight: FontWeight.w700),
+            ),
+          ),
+          if (hasData) LiveBadge(live: r!.isLive),
+        ]),
+        const SizedBox(height: 12),
+        if (!hasData)
+          Text(r?.message ?? 'No forecast for this period.', style: AppText.bodySm.copyWith(color: AppColors.inkMuted))
+        else
+          Row(children: [
+            Expanded(child: _Figure(Icons.umbrella_outlined, 'Rain chance', rain == null ? '—' : '${rain.round()}%')),
+            Expanded(
+              child: night
+                  ? _Figure(Icons.nights_stay_outlined, 'Overnight low', low == null ? '—' : prefs.tempLabel(low))
+                  : _Figure(Icons.thermostat, 'High', high == null ? '—' : prefs.tempLabel(high)),
+            ),
+            Expanded(
+              child: night
+                  ? _Figure(Icons.cloud_outlined, 'Sky', sentenceCase(r!.conditionLabel))
+                  : _Figure(Icons.thermostat_auto_outlined, 'Low', low == null ? '—' : prefs.tempLabel(low)),
+            ),
+          ]),
+      ]),
+    );
+  }
+}
+
+class _Figure extends StatelessWidget {
+  final IconData icon;
   final String label;
   final String value;
-  final Color color;
-  const _Stat(this.label, this.value, {this.color = AppColors.onSurface});
+  const _Figure(this.icon, this.label, this.value);
 
   @override
   Widget build(BuildContext context) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(label.toUpperCase(), style: AppText.citationMono.copyWith(color: AppColors.outline)),
+      Row(children: [
+        Icon(icon, size: 14, color: AppColors.primary),
+        const SizedBox(width: 4),
+        Flexible(
+          child: Text(label, overflow: TextOverflow.ellipsis, style: AppText.bodySm.copyWith(color: AppColors.inkMuted)),
+        ),
+      ]),
       const SizedBox(height: 2),
-      Text(value, style: AppText.headlineSm.copyWith(color: color)),
+      Text(value, style: AppText.headlineSm.copyWith(color: AppColors.ink, fontSize: 16)),
     ]);
   }
 }
@@ -305,24 +271,26 @@ class _ProvenanceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final r = weather.today;
-    final source = r?.source;
-    return SurfaceCard(
-      radius: AppRadius.xl,
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          const Icon(Icons.verified_outlined, size: 20, color: AppColors.secondary),
-          const SizedBox(width: AppSpace.sm),
-          Expanded(child: Text('Forecast Provenance', style: AppText.headlineSm)),
-          if (r?.hasData == true) LiveBadge(live: r!.isLive),
-        ]),
-        const SizedBox(height: AppSpace.sm),
-        Text(
-          source == null
-              ? 'Every figure on this page is read directly from the forecast feed — never generated by the language model.'
-              : 'As served by $source. Every figure above is read directly from that response — '
-                  'never generated by the language model.',
-          style: AppText.bodySm.copyWith(color: AppColors.onSurfaceVariant),
+    final source = weather.today?.source;
+    return AppCard(
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const IconDisc(Icons.verified_outlined, size: 36),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(
+              'Forecast Provenance',
+              style: AppText.labelMd.copyWith(color: AppColors.ink, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              source == null
+                  ? 'Every figure on this page is read directly from the forecast feed — never generated by the language model.'
+                  : 'As served by $source. Every figure above is read directly from that response — '
+                      'never generated by the language model.',
+              style: AppText.bodySm.copyWith(color: AppColors.inkMuted),
+            ),
+          ]),
         ),
       ]),
     );

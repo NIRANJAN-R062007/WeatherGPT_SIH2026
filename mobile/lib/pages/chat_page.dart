@@ -1,14 +1,19 @@
-// Chat & Evidence — web/src/pages/ChatPage.tsx as a real transcript: the
-// user bubble and answer card use the web page's (static-sample) bubble
-// styling, every answer renders through AskAnswer with its evidence detail
-// on, and the composer carries voice input (POST /asr) plus the city hint.
-// Session-only, like web/: nothing here is persisted.
+// Chat & Evidence — the pics/ mockup: before the first question, the ask
+// bar sits under the title with Suggested Questions below it; once a
+// conversation starts it becomes a transcript (web/src/pages/ChatPage.tsx's
+// bubbles, every answer through AskAnswer with its evidence detail on) with
+// the ask bar docked at the bottom. The ask bar carries voice input (POST
+// /asr). Questions handed over by other pages (ShellNav.ask) are asked on
+// arrival. Session-only, like web/: nothing here is persisted.
 import 'package:flutter/material.dart';
 
 import '../api_client.dart';
+import '../components/app_shell.dart';
 import '../components/ask_answer.dart';
 import '../components/common.dart';
 import '../components/composer.dart';
+import '../components/scenery.dart';
+import '../components/surfaces.dart';
 import '../format.dart';
 import '../state/ui_prefs.dart';
 import '../theme.dart';
@@ -23,11 +28,11 @@ class _Turn {
   bool get pending => outcome == null && error == null;
 }
 
-List<Suggestion> _suggestions(String city) => [
-      Suggestion('🌧️', 'Will it rain tomorrow in $city?'),
-      Suggestion('📅', '5-day forecast for $city'),
-      Suggestion('💧', 'How much rain so far today in $city?'),
-      Suggestion('⚠️', 'Any weather warnings for $city?'),
+List<(IconData, String)> _suggestions(String city) => [
+      (Icons.umbrella_outlined, 'Will it rain tomorrow in $city?'),
+      (Icons.calendar_month_outlined, '5-day forecast for $city'),
+      (Icons.water_drop_outlined, 'How much rain so far today in $city?'),
+      (Icons.warning_amber_rounded, 'Any weather warnings for $city?'),
     ];
 
 class ChatPage extends StatefulWidget {
@@ -42,9 +47,29 @@ class _ChatPageState extends State<ChatPage> {
   final ScrollController _scroll = ScrollController();
   final TextEditingController _query = TextEditingController();
   bool _loading = false;
+  ValueNotifier<String?>? _pending;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final pending = ShellNav.read(context).pendingAsk;
+    if (pending == _pending) return;
+    _pending?.removeListener(_takePending);
+    _pending = pending..addListener(_takePending);
+    // A question handed over before this page was first built.
+    if (pending.value != null) WidgetsBinding.instance.addPostFrameCallback((_) => _takePending());
+  }
+
+  void _takePending() {
+    final question = _pending?.value;
+    if (question == null || !mounted) return;
+    _pending!.value = null;
+    _ask(question);
+  }
 
   @override
   void dispose() {
+    _pending?.removeListener(_takePending);
     _scroll.dispose();
     _query.dispose();
     super.dispose();
@@ -92,91 +117,53 @@ class _ChatPageState extends State<ChatPage> {
   @override
   Widget build(BuildContext context) {
     final prefs = UiPrefs.of(context);
-    return Column(children: [
-      Expanded(
-        child: ListView(
-          controller: _scroll,
-          padding: const EdgeInsets.all(AppSpace.gutter),
-          children: [
-            if (_turns.isEmpty)
-              _Intro(
-                suggestions: _suggestions(prefs.cityInfo.name),
-                onPick: (s) => _ask(s),
-              )
-            else ...[
-              const RuleLabel(icon: Icons.bolt, text: 'Live — answers come from /ask'),
-              const SizedBox(height: AppSpace.md),
-              for (final turn in _turns) ...[
-                _UserBubble(turn),
-                const SizedBox(height: AppSpace.sm),
-                _AnswerBubble(turn),
-                const SizedBox(height: AppSpace.lg),
-              ],
-            ],
-          ],
-        ),
-      ),
-      _Dock(
-        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          AskComposer(
-            controller: _query,
-            loading: _loading,
-            lang: prefs.lang,
-            clearOnSubmit: true,
-            hint: 'Ask WeatherGPT in English, हिंदी, मराठी, தமிழ், తెలుగు…',
-            onSubmit: _ask,
+    final composer = AskComposer(
+      controller: _query,
+      loading: _loading,
+      lang: prefs.lang,
+      clearOnSubmit: true,
+      hint: 'Ask WeatherGPT…',
+      onSubmit: _ask,
+    );
+
+    if (_turns.isEmpty) {
+      return PageFrame(
+        children: [
+          const PageHeader(
+            title: 'Chat & Evidence',
+            subtitle: 'Every number in an answer is checked against the source data before you see it — '
+                'and the evidence comes with it.',
           ),
-          const SizedBox(height: 6),
-          const Padding(padding: EdgeInsets.symmetric(horizontal: 4), child: CityHintRow()),
-        ]),
-      ),
-    ]);
-  }
-}
-
-class _Intro extends StatelessWidget {
-  final List<Suggestion> suggestions;
-  final ValueChanged<String> onPick;
-  const _Intro({required this.suggestions, required this.onPick});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      const PageHeader(
-        title: 'Chat & Evidence',
-        subtitle: 'Every number in an answer is checked against the source data before you see it — '
-            'and the evidence comes with it.',
-      ),
-      const SizedBox(height: AppSpace.lg),
-      SurfaceCard(
-        padding: const EdgeInsets.all(AppSpace.lg),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          Row(children: [
-            Container(
-              width: 28,
-              height: 28,
-              decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
-              child: const Icon(Icons.smart_toy_outlined, size: 16, color: AppColors.onPrimary),
-            ),
-            const SizedBox(width: AppSpace.sm),
-            Text('Ask WeatherGPT', style: AppText.headlineSm.copyWith(fontWeight: FontWeight.w700)),
-          ]),
+          const SizedBox(height: AppSpace.lg),
+          composer,
+          const SizedBox(height: AppSpace.lg),
+          const SectionTitle('Suggested Questions'),
           const SizedBox(height: AppSpace.sm),
-          Text(
-            'Current conditions, a forecast, rain so far today, or IMD warnings — by text or voice, '
-            'in English, हिन्दी, தமிழ், తెలుగు or मराठी.',
-            style: AppText.bodyMd.copyWith(color: AppColors.onSurfaceVariant),
-          ),
-          const SizedBox(height: AppSpace.md),
-          const MonoLabel('Suggested', color: AppColors.outline),
-          const SizedBox(height: 6),
-          for (final s in suggestions) ...[
-            QuickQueryButton(emoji: s.emoji, text: s.text, onTap: () => onPick(s.text)),
-            const SizedBox(height: 6),
+          for (final (icon, text) in _suggestions(prefs.cityInfo.name)) ...[
+            ActionRow(icon: icon, title: text, onTap: () => _ask(text)),
+            const SizedBox(height: AppSpace.sm),
           ],
-        ]),
-      ),
-    ]);
+        ],
+      );
+    }
+
+    return PageFrame(
+      controller: _scroll,
+      footer: SceneryFooter.none,
+      dock: _Dock(child: composer),
+      children: [
+        Text('Chat & Evidence', style: AppText.headlineMd.copyWith(color: AppColors.ink, fontWeight: FontWeight.w700)),
+        const SizedBox(height: AppSpace.sm),
+        const RuleLabel(icon: Icons.bolt, text: 'Live — answers come from /ask'),
+        const SizedBox(height: AppSpace.md),
+        for (final turn in _turns) ...[
+          _UserBubble(turn),
+          const SizedBox(height: AppSpace.sm),
+          _AnswerBubble(turn),
+          const SizedBox(height: AppSpace.lg),
+        ],
+      ],
+    );
   }
 }
 
@@ -229,10 +216,11 @@ class _AnswerBubble extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(right: AppSpace.sm),
       padding: const EdgeInsets.all(12),
-      decoration: const BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
-        boxShadow: AppShadows.sm,
-        borderRadius: BorderRadius.only(
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        border: Border.all(color: AppColors.cardBorder),
+        boxShadow: AppShadows.card,
+        borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(AppRadius.x2l),
           topRight: Radius.circular(AppRadius.x2l),
           bottomRight: Radius.circular(AppRadius.x2l),
@@ -257,16 +245,10 @@ class _Dock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
-      decoration: const BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
-        boxShadow: [BoxShadow(color: Color(0x0F000000), blurRadius: 8, offset: Offset(0, -1))],
-      ),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
-          child: child,
-        ),
+      decoration: const BoxDecoration(color: AppColors.sheet),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(AppSpace.gutter, AppSpace.sm, AppSpace.gutter, AppSpace.sm),
+        child: child,
       ),
     );
   }

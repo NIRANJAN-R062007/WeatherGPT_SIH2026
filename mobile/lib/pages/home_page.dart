@@ -1,46 +1,29 @@
-// Home — web/src/pages/HomePage.tsx: the current-weather hero (with its
-// time-of-day/condition gradient), the feature tiles, and the WeatherGPT
-// Copilot composer. Unlike web/'s hero, every figure here is live from
-// GET /facts; the web hero's sunrise/sunset panel and "rain so far today"
-// tile are left out because /facts doesn't carry them.
+// Home — the pics/ mockup's Home: a greeting with the persona avatar, the
+// current-conditions card, the outlook strip and Quick Questions. Every
+// figure is live from GET /facts (WeatherStore). /facts serves today,
+// tonight and tomorrow only, so the strip shows those three rather than the
+// mockup's five days; longer ranges are one tap away as a Quick Question,
+// which Chat answers through /ask.
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 
 import '../components/app_shell.dart';
-import '../components/ask_answer.dart';
 import '../components/common.dart';
-import '../components/composer.dart';
+import '../components/scenery.dart';
+import '../components/surfaces.dart';
+import '../components/weather_glyph.dart';
 import '../facts_client.dart';
 import '../format.dart';
-import '../state/ask_controller.dart';
 import '../state/ui_prefs.dart';
 import '../state/weather_store.dart';
 import '../theme.dart';
+import 'persona_page.dart';
 
-const String _quickQuery = 'Will it rain today?';
-
-// Only tints the hero (dawn/day/dusk/night), exactly as HomePage.tsx does
-// with the same fixed IST times — /facts has no sunrise/sunset field.
-const int _sunriseMin = 6 * 60 + 32;
-const int _sunsetMin = 18 * 60 + 14;
-const int _transitionWindowMin = 40;
-
-enum _Mood { dawn, day, dusk, night }
-
-const Map<_Mood, Color> _moodTint = {
-  _Mood.dawn: AppColors.tertiaryFixedDim,
-  _Mood.day: AppColors.surfaceContainerLow,
-  _Mood.dusk: AppColors.tertiaryContainer,
-  _Mood.night: AppColors.inverseSurface,
-};
-
-_Mood _moodAt(DateTime ist) {
-  final now = ist.hour * 60 + ist.minute;
-  if ((now - _sunriseMin).abs() <= _transitionWindowMin) return _Mood.dawn;
-  if ((now - _sunsetMin).abs() <= _transitionWindowMin) return _Mood.dusk;
-  if (now > _sunriseMin && now < _sunsetMin) return _Mood.day;
-  return _Mood.night;
+String _greeting(DateTime ist) {
+  if (ist.hour < 12) return 'Good morning!';
+  if (ist.hour < 17) return 'Good afternoon!';
+  return 'Good evening!';
 }
 
 class HomePage extends StatefulWidget {
@@ -50,14 +33,7 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin {
-  final AskController _ask = AskController();
-  final TextEditingController _query = TextEditingController();
-
-  // `.animate-gradient-drift`: 18 s ease-in-out there and back.
-  late final AnimationController _drift =
-      AnimationController(vsync: this, duration: const Duration(seconds: 9));
-  late final Animation<double> _driftCurve = CurvedAnimation(parent: _drift, curve: Curves.easeInOut);
+class _HomePageState extends State<HomePage> {
   late Timer _clock;
   DateTime _now = nowIst();
 
@@ -68,521 +44,309 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   }
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // Ambient only — honour the OS "remove animations" setting.
-    if (MediaQuery.disableAnimationsOf(context)) {
-      _drift.stop();
-    } else if (!_drift.isAnimating) {
-      _drift.repeat(reverse: true);
-    }
-  }
-
-  @override
   void dispose() {
     _clock.cancel();
-    _drift.dispose();
-    _ask.dispose();
-    _query.dispose();
     super.dispose();
-  }
-
-  void _submit(String text) {
-    final prefs = UiPrefs.read(context);
-    _ask.ask(text, lang: prefs.lang, city: prefs.city, persona: prefs.persona);
   }
 
   @override
   Widget build(BuildContext context) {
     final weather = WeatherStore.of(context);
-    return RefreshIndicator(
+    final nav = ShellNav.of(context);
+    final city = UiPrefs.of(context).cityInfo.name;
+    final questions = [
+      (Icons.umbrella_outlined, 'Will it rain today?', 'Will it rain today in $city?'),
+      (Icons.nights_stay_outlined, 'What should I expect this evening?', 'What is the weather tonight in $city?'),
+      (Icons.calendar_month_outlined, '5-day forecast', '5-day forecast for $city'),
+    ];
+
+    return PageFrame(
       onRefresh: weather.refresh,
-      child: ListView(
-        padding: const EdgeInsets.all(AppSpace.gutter),
-        children: [
-          _Hero(weather: weather, mood: _moodAt(_now), drift: _driftCurve),
-          const SizedBox(height: AppSpace.lg),
-          const _FeatureTiles(),
-          const SizedBox(height: AppSpace.lg),
-          ListenableBuilder(
-            listenable: _ask,
-            builder: (context, _) => _CopilotCard(ask: _ask, query: _query, onSubmit: _submit),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Hero extends StatelessWidget {
-  final WeatherStore weather;
-  final _Mood mood;
-  final Animation<double> drift;
-  const _Hero({required this.weather, required this.mood, required this.drift});
-
-  @override
-  Widget build(BuildContext context) {
-    final prefs = UiPrefs.of(context);
-    final current = weather.current;
-    final accent = conditionStyle(current?.condition).accent;
-    final tint = _moodTint[mood]!;
-
-    final Widget content;
-    if (weather.error != null) {
-      content = ErrorPanel(
-        icon: Icons.wifi_off,
-        title: 'Live conditions unavailable',
-        message: weather.error!.message,
-        onRetry: weather.refresh,
-      );
-    } else if (current == null) {
-      content = LoadingPanel('Loading live conditions for ${prefs.cityInfo.name}…');
-    } else if (!current.hasData) {
-      content = _NoData(current.message ?? 'No current conditions for this city right now.');
-    } else {
-      content = _HeroBody(weather: weather, accent: accent, tint: tint);
-    }
-
-    // `linear-gradient(135deg, #f1f3ff 0%, <mood>33 55%, <accent>4d 100%)` on
-    // a 200% background drifting left to right, as in HomePage.tsx.
-    return AnimatedBuilder(
-      animation: drift,
-      builder: (context, child) {
-        final t = drift.value;
-        return DecoratedBox(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppRadius.x2l),
-            boxShadow: AppShadows.sm,
-            gradient: LinearGradient(
-              begin: Alignment(-1 - 2 * t, -2),
-              end: Alignment(3 - 2 * t, 2),
-              colors: [
-                AppColors.surfaceContainerLow,
-                tint.withValues(alpha: 0x33 / 255),
-                accent.withValues(alpha: 0x4d / 255),
-              ],
-              stops: const [0, 0.55, 1],
-            ),
-          ),
-          child: child,
-        );
-      },
-      child: Padding(padding: const EdgeInsets.all(AppSpace.md), child: content),
-    );
-  }
-}
-
-class _NoData extends StatelessWidget {
-  final String message;
-  const _NoData(this.message);
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpace.md),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceContainer,
-        borderRadius: BorderRadius.circular(AppRadius.xl),
-      ),
-      child: Row(children: [
-        const Icon(Icons.info_outline, size: 18, color: AppColors.onSurfaceVariant),
-        const SizedBox(width: AppSpace.sm),
-        Expanded(child: Text(message, style: AppText.bodyMd)),
-      ]),
-    );
-  }
-}
-
-class _HeroBody extends StatelessWidget {
-  final WeatherStore weather;
-  final Color accent;
-  final Color tint;
-  const _HeroBody({required this.weather, required this.accent, required this.tint});
-
-  @override
-  Widget build(BuildContext context) {
-    final prefs = UiPrefs.of(context);
-    final c = weather.current!;
-    final style = conditionStyle(c.condition);
-    final temp = c.number('temp_c');
-    final feels = c.number('feels_like_c');
-    final humidity = c.number('humidity_pct');
-    final wind = c.number('wind_kmh');
-    final windDir = c.text('wind_dir');
-    final uv = c.number('uv_index');
-    final uvBand = c.text('uv_band');
-    final rain = weather.today?.number('rain_probability_pct');
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      footer: SceneryFooter.waves,
       children: [
-        // Temperature block: `linear-gradient(135deg, <accent>4d, <mood>1a 60%, transparent)`.
-        Container(
-          padding: const EdgeInsets.all(AppSpace.md),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppRadius.xl),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                accent.withValues(alpha: 0x4d / 255),
-                tint.withValues(alpha: 0x1a / 255),
-                Colors.transparent,
-              ],
-              stops: const [0, 0.6, 1],
-            ),
-          ),
-          child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.baseline,
-              textBaseline: TextBaseline.alphabetic,
-              children: [
-                Text(temp == null ? '—' : '${prefs.temp(temp)}°', style: AppText.metricDisplay),
-                const SizedBox(width: 4),
-                Text(prefs.unitSymbol, style: AppText.headlineSm.copyWith(color: AppColors.onSurfaceVariant)),
-              ],
-            ),
-            const SizedBox(width: AppSpace.md),
-            Expanded(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Row(children: [
-                  Icon(style.icon, size: 26, color: AppColors.primary),
-                  const SizedBox(width: AppSpace.sm),
-                  Expanded(
-                    child: Text(
-                      sentenceCase(c.conditionLabel),
-                      style: AppText.headlineSm.copyWith(color: AppColors.primary),
-                    ),
-                  ),
-                ]),
-                if (feels != null) ...[
-                  const SizedBox(height: AppSpace.xs),
-                  Text.rich(
-                    TextSpan(children: [
-                      const TextSpan(text: 'Feels like '),
-                      TextSpan(
-                        text: prefs.tempLabel(feels),
-                        style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.onSurface),
-                      ),
-                    ]),
-                    style: AppText.bodyMd.copyWith(color: AppColors.onSurfaceVariant),
-                  ),
-                ],
-              ]),
-            ),
-          ]),
-        ),
-        const SizedBox(height: AppSpace.sm),
-        Wrap(spacing: AppSpace.sm, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: [
-          TagChip(c.cityName ?? prefs.cityInfo.name, icon: Icons.location_on_outlined),
-          LiveBadge(live: c.isLive),
-          if (c.issued != null)
-            Text(
-              'Updated ${istTime(c.issued)}',
-              style: AppText.citationMono.copyWith(color: AppColors.onSurfaceVariant),
-            ),
-        ]),
+        _Greeting(text: _greeting(_now)),
         const SizedBox(height: AppSpace.md),
-        Row(children: [
-          Expanded(
-            child: _MetricTile(
-              label: 'Humidity',
-              icon: Icons.water_drop_outlined,
-              value: humidity == null ? '—' : '${humidity.round()}%',
-            ),
-          ),
-          const SizedBox(width: AppSpace.sm),
-          Expanded(
-            child: _MetricTile(
-              label: 'Wind',
-              icon: Icons.air,
-              value: wind == null ? '—' : '${wind.round()} km/h${windDir == null ? '' : ' $windDir'}',
-              secondary: true,
-            ),
-          ),
-        ]),
+        _NowCard(weather: weather),
+        const SizedBox(height: AppSpace.lg),
+        SectionTitle('Forecast', action: 'See all', onAction: () => nav.go(AppPage.forecast)),
         const SizedBox(height: AppSpace.sm),
-        Row(children: [
-          Expanded(
-            child: _MetricTile(
-              label: 'Rain chance today',
-              icon: Icons.umbrella_outlined,
-              value: rain == null ? '—' : '${rain.round()}%',
-            ),
-          ),
-          const SizedBox(width: AppSpace.sm),
-          Expanded(
-            child: _MetricTile(
-              label: 'UV index',
-              icon: Icons.wb_sunny_outlined,
-              value: uv == null ? '—' : '${uv.round()}${uvBand == null ? '' : ' · ${uvBand.replaceAll('_', ' ')}'}',
-            ),
-          ),
-        ]),
-        const SizedBox(height: AppSpace.md),
-        const MonoLabel('Outlook'),
+        _OutlookStrip(weather: weather),
+        const SizedBox(height: AppSpace.lg),
+        const SectionTitle('Quick Questions'),
         const SizedBox(height: AppSpace.sm),
-        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Expanded(child: _DayChip(label: 'Today', result: weather.today, highlight: true)),
-          const SizedBox(width: AppSpace.sm),
-          Expanded(child: _DayChip(label: 'Tonight', result: weather.tonight, night: true)),
-          const SizedBox(width: AppSpace.sm),
-          Expanded(child: _DayChip(label: 'Tomorrow', result: weather.tomorrow)),
-        ]),
+        for (final (icon, label, question) in questions) ...[
+          ActionRow(icon: icon, title: label, onTap: () => nav.ask(question)),
+          const SizedBox(height: AppSpace.sm),
+        ],
       ],
     );
   }
 }
 
-/// `p-2.5 rounded-xl bg-primary-container text-on-primary-container`.
-class _MetricTile extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final String value;
-  final bool secondary;
-  const _MetricTile({required this.label, required this.icon, required this.value, this.secondary = false});
+class _Greeting extends StatelessWidget {
+  final String text;
+  const _Greeting({required this.text});
 
   @override
   Widget build(BuildContext context) {
-    final fg = secondary ? AppColors.onSecondaryContainer : AppColors.onPrimaryContainer;
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: secondary ? AppColors.secondaryContainer : AppColors.primaryContainer,
-        borderRadius: BorderRadius.circular(AppRadius.xl),
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(
-          label.toUpperCase(),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: AppText.citationMono.copyWith(color: fg.withValues(alpha: 0.8)),
-        ),
-        const SizedBox(height: 4),
-        Row(children: [
-          Icon(icon, size: 18, color: fg),
-          const SizedBox(width: 4),
-          Expanded(
-            child: Text(
-              value,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppText.headlineSm.copyWith(color: fg),
-            ),
+    final persona = UiPrefs.of(context).personaInfo;
+    return Row(
+      children: [
+        Tooltip(
+          message: 'Change persona',
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: () => openPersonaPicker(context),
+            child: IconDisc(persona.icon, color: persona.accent, size: 44, solid: true),
           ),
-        ]),
-      ]),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                text,
+                style: AppText.headlineSm.copyWith(color: AppColors.ink, fontWeight: FontWeight.w700),
+              ),
+              Text(
+                "Here's the latest weather for your city.",
+                style: AppText.bodySm.copyWith(color: AppColors.inkMuted),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
 
-/// One outlook chip — the first is the solid primary "Today" chip.
-class _DayChip extends StatelessWidget {
+/// The big current-conditions card.
+class _NowCard extends StatelessWidget {
+  final WeatherStore weather;
+  const _NowCard({required this.weather});
+
+  @override
+  Widget build(BuildContext context) {
+    final prefs = UiPrefs.of(context);
+    final c = weather.current;
+
+    final Widget body;
+    if (weather.error != null) {
+      body = ErrorPanel(
+        icon: Icons.wifi_off,
+        title: 'Live conditions unavailable',
+        message: weather.error!.message,
+        onRetry: weather.refresh,
+      );
+    } else if (c == null) {
+      body = LoadingPanel('Loading live conditions for ${prefs.cityInfo.name}…');
+    } else if (!c.hasData) {
+      body = Text(
+        c.message ?? 'No current conditions for this city right now.',
+        style: AppText.bodyMd.copyWith(color: AppColors.inkMuted),
+      );
+    } else {
+      body = _NowBody(c: c, rain: weather.today?.number('rain_probability_pct'));
+    }
+    return AppCard(padding: const EdgeInsets.all(AppSpace.md), child: body);
+  }
+}
+
+class _NowBody extends StatelessWidget {
+  final FactsResult c;
+  final num? rain;
+  const _NowBody({required this.c, required this.rain});
+
+  @override
+  Widget build(BuildContext context) {
+    final prefs = UiPrefs.of(context);
+    final temp = c.number('temp_c');
+    final feels = c.number('feels_like_c');
+    final humidity = c.number('humidity_pct');
+    final wind = c.number('wind_kmh');
+    final night = nowIst().hour >= 19 || nowIst().hour < 6;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            WeatherGlyph(c.condition, night: night, size: 64),
+            const SizedBox(width: 12),
+            Expanded(
+              flex: 5,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      temp == null ? '—' : prefs.tempLabel(temp),
+                      style: AppText.headlineXl.copyWith(fontSize: 34, color: AppColors.ink, height: 1.1),
+                    ),
+                  ),
+                  Text(
+                    sentenceCase(c.conditionLabel),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.bodyMd.copyWith(color: AppColors.inkMuted),
+                  ),
+                  if (feels != null)
+                    Text(
+                      'Feels like ${prefs.tempLabel(feels)}',
+                      style: AppText.bodySm.copyWith(color: AppColors.inkMuted),
+                    ),
+                ],
+              ),
+            ),
+            Container(
+              width: 1,
+              height: 72,
+              margin: const EdgeInsets.symmetric(horizontal: 10),
+              color: AppColors.cardBorder,
+            ),
+            Expanded(
+              flex: 5,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _Stat(Icons.water_drop_outlined, 'Humidity', humidity == null ? '—' : '${humidity.round()}%'),
+                  const SizedBox(height: 6),
+                  _Stat(Icons.air, 'Wind', wind == null ? '—' : '${wind.round()} km/h'),
+                  const SizedBox(height: 6),
+                  _Stat(Icons.umbrella_outlined, 'Rain', rain == null ? '—' : '${rain!.round()}%'),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            LiveBadge(live: c.isLive),
+            const SizedBox(width: AppSpace.sm),
+            if (c.issued != null)
+              Expanded(
+                child: Text(
+                  'Updated ${istTime(c.issued)}',
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.citationMono.copyWith(color: AppColors.inkMuted),
+                ),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _Stat extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  const _Stat(this.icon, this.label, this.value);
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 15, color: AppColors.inkMuted),
+        const SizedBox(width: 5),
+        Expanded(
+          child: Text(
+            label,
+            overflow: TextOverflow.ellipsis,
+            style: AppText.bodySm.copyWith(color: AppColors.inkMuted),
+          ),
+        ),
+        Text(
+          value,
+          style: AppText.bodySm.copyWith(color: AppColors.ink, fontWeight: FontWeight.w600),
+        ),
+      ],
+    );
+  }
+}
+
+/// Today / Tonight / Tomorrow in one card, like the mockup's day columns.
+class _OutlookStrip extends StatelessWidget {
+  final WeatherStore weather;
+  const _OutlookStrip({required this.weather});
+
+  @override
+  Widget build(BuildContext context) {
+    if (weather.error != null) {
+      return AppCard(
+        child: Text(
+          'The outlook will appear once the weather service answers.',
+          style: AppText.bodySm.copyWith(color: AppColors.inkMuted),
+        ),
+      );
+    }
+    if (weather.today == null) return const LoadingPanel('Loading the outlook…');
+    return AppCard(
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: AppSpace.sm),
+      child: Row(
+        children: [
+          Expanded(
+            child: _DayCell(label: 'Today', result: weather.today),
+          ),
+          Expanded(
+            child: _DayCell(label: 'Tonight', result: weather.tonight, night: true),
+          ),
+          Expanded(
+            child: _DayCell(label: 'Tomorrow', result: weather.tomorrow),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DayCell extends StatelessWidget {
   final String label;
   final FactsResult? result;
-  final bool highlight;
   final bool night;
-  const _DayChip({required this.label, required this.result, this.highlight = false, this.night = false});
+  const _DayCell({required this.label, required this.result, this.night = false});
 
   @override
   Widget build(BuildContext context) {
     final prefs = UiPrefs.of(context);
     final r = result;
-    final style = conditionStyle(r?.condition, night: night);
-    final fg = highlight ? AppColors.onPrimary : AppColors.onSurface;
-    final muted = highlight ? AppColors.onPrimary.withValues(alpha: 0.7) : AppColors.onSurfaceVariant;
     final high = r?.number('high_c');
     final low = r?.number('low_c');
-    final rain = r?.number('rain_probability_pct');
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: AppSpace.sm),
-      decoration: BoxDecoration(
-        color: highlight ? AppColors.primary : AppColors.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(AppRadius.xl),
-        boxShadow: AppShadows.sm,
-      ),
-      child: Column(children: [
+    final muted = AppText.bodySm.copyWith(color: AppColors.inkMuted);
+    return Column(
+      children: [
         Text(
-          label.toUpperCase(),
-          style: AppText.chipMono.copyWith(color: highlight ? fg : muted, fontWeight: FontWeight.w700),
+          label,
+          style: AppText.labelMd.copyWith(color: AppColors.ink, fontWeight: FontWeight.w600),
         ),
-        const SizedBox(height: 4),
-        Icon(style.icon, size: 22, color: highlight ? AppColors.secondaryFixed : style.iconColor),
-        const SizedBox(height: 4),
+        const SizedBox(height: 8),
+        WeatherGlyph(r?.condition, night: night, size: 34),
+        const SizedBox(height: 8),
         if (r == null || !r.hasData)
-          Text('—', style: AppText.labelMd.copyWith(color: muted))
+          Text('—', style: muted)
         else
           // Tonight's high/low are the whole day's, so only the overnight low.
           Text.rich(
-            TextSpan(children: [
-              if (!night && high != null) TextSpan(text: '${prefs.temp(high)}° '),
-              if (low != null)
-                TextSpan(
-                  text: '${night ? 'Low ' : ''}${prefs.temp(low)}°',
-                  style: TextStyle(color: muted, fontSize: 11),
-                ),
-            ]),
-            style: AppText.labelMd.copyWith(color: fg, fontWeight: FontWeight.w600),
-          ),
-        const SizedBox(height: 4),
-        Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(Icons.umbrella_outlined, size: 12, color: highlight ? fg : AppColors.primary),
-          const SizedBox(width: 2),
-          Text(
-            rain == null ? '—' : '${rain.round()}%',
-            style: AppText.chipMono.copyWith(color: highlight ? fg : muted),
-          ),
-        ]),
-      ]),
-    );
-  }
-}
-
-class _FeatureTiles extends StatelessWidget {
-  const _FeatureTiles();
-
-  @override
-  Widget build(BuildContext context) {
-    final nav = ShellNav.of(context);
-    return IntrinsicHeight(
-      child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Expanded(
-          child: _FeatureTile(
-            icon: Icons.mic_none,
-            tag: 'AI audio',
-            title: 'Voice Assistant',
-            body: 'Ask in हिंदी, தமிழ், తెలుగు, मराठी or English',
-            onTap: () => nav.go(AppPage.chat),
-          ),
-        ),
-        const SizedBox(width: AppSpace.md),
-        Expanded(
-          child: _FeatureTile(
-            icon: Icons.translate,
-            tag: '5 languages',
-            title: 'Multilingual Answers',
-            body: 'Narration translated, numbers stay grounded',
-            secondary: true,
-            onTap: () => nav.go(AppPage.settings),
-          ),
-        ),
-      ]),
-    );
-  }
-}
-
-class _FeatureTile extends StatelessWidget {
-  final IconData icon;
-  final String tag;
-  final String title;
-  final String body;
-  final bool secondary;
-  final VoidCallback onTap;
-  const _FeatureTile({
-    required this.icon,
-    required this.tag,
-    required this.title,
-    required this.body,
-    required this.onTap,
-    this.secondary = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return SurfaceCard(
-      onTap: onTap,
-      padding: const EdgeInsets.all(14),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: secondary ? AppColors.secondaryContainer : AppColors.primaryContainer,
-              borderRadius: BorderRadius.circular(AppRadius.xl),
+            TextSpan(
+              children: [
+                if (!night && high != null)
+                  TextSpan(
+                    text: '${prefs.temp(high)}°  ',
+                    style: const TextStyle(color: AppColors.ink, fontWeight: FontWeight.w600),
+                  ),
+                if (low != null) TextSpan(text: night ? 'Low ${prefs.temp(low)}°' : '${prefs.temp(low)}°'),
+              ],
             ),
-            child: Icon(
-              icon,
-              size: 20,
-              color: secondary ? AppColors.onSecondaryContainer : AppColors.onPrimaryContainer,
-            ),
+            style: muted,
           ),
-          const SizedBox(width: AppSpace.sm),
-          Expanded(
-            child: Text(
-              tag.toUpperCase(),
-              textAlign: TextAlign.right,
-              style: AppText.chipMono.copyWith(
-                color: secondary ? AppColors.secondary : AppColors.primary,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ]),
-        const SizedBox(height: 12),
-        Text(title, style: AppText.labelMd.copyWith(fontWeight: FontWeight.w700)),
-        const SizedBox(height: 2),
-        Text(body, style: AppText.bodySm.copyWith(fontSize: 11, height: 1.3, color: AppColors.onSurfaceVariant)),
-      ]),
-    );
-  }
-}
-
-class _CopilotCard extends StatelessWidget {
-  final AskController ask;
-  final TextEditingController query;
-  final ValueChanged<String> onSubmit;
-  const _CopilotCard({required this.ask, required this.query, required this.onSubmit});
-
-  @override
-  Widget build(BuildContext context) {
-    final prefs = UiPrefs.of(context);
-    return SurfaceCard(
-      padding: const EdgeInsets.all(AppSpace.lg),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Row(children: [
-          Container(
-            width: 28,
-            height: 28,
-            decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
-            child: const Icon(Icons.smart_toy_outlined, size: 16, color: AppColors.onPrimary),
-          ),
-          const SizedBox(width: AppSpace.sm),
-          Text('WeatherGPT Copilot', style: AppText.headlineSm.copyWith(fontWeight: FontWeight.w700)),
-        ]),
-        const SizedBox(height: AppSpace.md),
-        const MonoLabel('Quick situational inquiries'),
-        const SizedBox(height: 6),
-        QuickQueryButton(
-          text: _quickQuery,
-          enabled: !ask.loading,
-          onTap: () {
-            query.text = _quickQuery;
-            onSubmit(_quickQuery);
-          },
-        ),
-        const SizedBox(height: AppSpace.sm),
-        AskComposer(
-          inset: true,
-          controller: query,
-          loading: ask.loading,
-          lang: prefs.lang,
-          onSubmit: onSubmit,
-        ),
-        const SizedBox(height: AppSpace.sm),
-        const CityHintRow(showLang: false),
-        if (ask.asked != null) ...[
-          const SizedBox(height: AppSpace.md),
-          AskAnswer(
-            asked: ask.asked,
-            loading: ask.loading,
-            outcome: ask.outcome,
-            error: ask.error,
-            playbackLang: ask.lang,
-          ),
-        ],
-      ]),
+      ],
     );
   }
 }

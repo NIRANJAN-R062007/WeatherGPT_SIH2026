@@ -82,7 +82,7 @@ class SectionCard extends StatelessWidget {
   }
 }
 
-/// The h1 + lead paragraph the web pages open with (SettingsPage.tsx).
+/// The page title + lead line each page's sheet opens with.
 class PageHeader extends StatelessWidget {
   final String title;
   final String subtitle;
@@ -93,9 +93,9 @@ class PageHeader extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: AppText.headlineLg.copyWith(fontWeight: FontWeight.w700)),
+        Text(title, style: AppText.headlineLg.copyWith(color: AppColors.ink, fontWeight: FontWeight.w700)),
         const SizedBox(height: AppSpace.xs),
-        Text(subtitle, style: AppText.bodyMd.copyWith(color: AppColors.onSurfaceVariant)),
+        Text(subtitle, style: AppText.bodyMd.copyWith(color: AppColors.inkMuted)),
       ],
     );
   }
