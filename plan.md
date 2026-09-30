@@ -169,9 +169,21 @@ The validator runs on every response before it reaches the user.
 **Idea:** don't just tell the user what the weather is. Read the forecast, detect meaningful changes, find useful time windows, and turn the data into a decision for that user. Today's path is `Weather API → LLM → answer`; the engine adds a deterministic step in between. Nothing here is built yet — tasks are in §8 Phase 9.
 
 ```
-Google Weather API (hourly + daily forecast)
+User
    ↓
-Normalised facts ──→ Redis (latest) + Postgres forecast_snapshots (history)
+Web / Mobile / WhatsApp / IVR
+   ↓
+API gateway (FastAPI)
+   ↓
+Conversation orchestrator → intent + entities (city, day, hour(s), activity, persona, language)
+   ↓
+Weather tool router
+   ↓
+Google Weather API (hourly + daily forecast) — the source of truth for every value
+   ↓
+Weather data normalisation → typed per-hour facts
+   ↓
+Redis (latest forecast, per-product TTL) + Postgres forecast_snapshots (history)
    ↓
 WEATHER INTELLIGENCE ENGINE — deterministic rules, no LLM
    • change detection   • best-window analysis
@@ -179,12 +191,18 @@ WEATHER INTELLIGENCE ENGINE — deterministic rules, no LLM
    ↓
 Structured result (every number and time in it comes from the forecast)
    ↓
-LLM → words the result (persona framing via persona.py)
+LLM response composer → words the result only (Gemini / Groq / local Llama behind
+   the one abstraction; persona framing via persona.py)
    ↓
-Validator: every number and clock time in the output must exist in the structured result
-   ↓  (fail → regenerate or fall back to template)
-Response + provenance footer
+Numeric validator: every number and clock time in the output must exist in the structured result
+   ↓
+Grounding guardrail: nothing beyond the facts — no "safe", no invented threshold or warning
+   ↓  (either check fails → regenerate or fall back to template)
+Provenance footer + response → User
 ```
+Both checks exist today and are only named separately here: the numeric validator is `guardrail.py`'s `check()` (§4, the grounding guardrail), and the no-safety-verdict check is `persona.py`'s `makes_unsafe_claim()`. The new part is that clock times are checked like numbers (WIE-5).
+
+**Redis** holds the latest forecasts, the frequently asked locations (the registered demo cities, which the existing cache keys already cover) and short-lived intelligence results. The per-product TTLs do not change: current conditions 15 min, hourly forecast 1 h, daily forecast 6 h. An intelligence result never outlives the hourly forecast it was computed from.
 
 | # | Feature | User asks | Engine output |
 |---|---|---|---|
@@ -486,6 +504,18 @@ This phase closes those gaps before IVR or the alert engine goes live on any pub
 ### Phase 9 — Weather Intelligence Engine
 Added 2026-09-30. Design and rationale: §4 (Weather Intelligence Engine); feature tier: §6 item 15. Nothing below is built yet. **Owners are proposed from the §7 roles and are not confirmed** — change them here once the team agrees. Code goes in `services/orchestrator/weather_intelligence/` (`intelligence_engine.py`, `change_detector.py`, `window_analyzer.py`, `persona_advisor.py`, `scenario_analyzer.py`, `rules.py`, `schemas.py`), tests in `services/orchestrator/tests/`, the migration in `services/orchestrator/sql/`, following the existing layout rather than a separate service.
 
+**Order and dependencies.** The steps below are the priority order; this table is what blocks what. Tasks in the same stage can be done in parallel by different people.
+
+| Stage | Tasks | Can start when |
+|---|---|---|
+| 1. Foundation | WIE-1 hourly facts, WIE-2 `rules.py`, WIE-9 snapshot table | Straight away, all three in parallel. Agree the structured result shape (`schemas.py`) here, so stages 3 and 4 can start against it |
+| 2. Core engine | WIE-3 window analyzer, WIE-6 what-if, WIE-7 persona advisor, WIE-10 change detector | WIE-1 and WIE-2 are done; WIE-7 also needs WIE-3, WIE-10 also needs WIE-9, and WIE-6 needs its follow-up contract decided |
+| 3. Endpoints and guardrail | WIE-4, WIE-5, WIE-8, WIE-11, WIE-12 | The matching engine piece from stage 2 is done (WIE-5 and WIE-8 need only the agreed result shape) |
+| 4. Apps and hardening | WIE-13 web, WIE-14 mobile, WIE-15 rate limits and caching | The endpoints exist (the views can be built earlier against the agreed result shape) |
+| 5. Wrap-up | WIE-16 live LLM check, WIE-17 slide and Q&A | Everything above works |
+
+The four features do not block each other: best window, what-if, persona and change detection each ship on their own (R19).
+
 **Step 1 — Hourly facts and best weather window (no history needed)**
 - [ ] WIE-1 — Hourly facts: decode `forecast_hours` into a typed per-hour list (time in city-local time, temperature, rain probability, wind speed, condition, UV where present) — done when: `weather_data.py` (or the new package) returns it for every demo city from fixtures and live, with tests. — **Syed + Deepthi** (proposed)
 - [ ] WIE-2 — `rules.py`: the suitable-hour rule (start: rain < 20%, 20–32 °C, wind < 25 km/h) and per-activity variants, thresholds overridable by config — done when: every threshold lives in this one file and is covered by tests at its boundaries. — **Deepthi** (proposed)
@@ -499,7 +529,7 @@ Added 2026-09-30. Design and rationale: §4 (Weather Intelligence Engine); featu
 - [ ] WIE-8 — Template fallback strings for the three answer shapes in all five languages (`i18n.py`), so the engine works with no LLM and offline (R5) — done when: each shape renders in en/hi/ta/te/mr with the LLM off; new strings marked `TODO: native_qa` until reviewed. — **Niranjan** (proposed)
 
 **Step 3 — Forecast change detection (needs stored snapshots)**
-- [ ] WIE-9 — `sql/006_forecast_snapshots.sql`: `id, city, forecast_time, retrieved_at, temp_c, rain_probability_pct, wind_kmh, condition, uv_index`, indexed on `(city, forecast_time, retrieved_at DESC)`, with a retention sweep like `weather_facts`. Plain Postgres table; make it a TimescaleDB hypertable only if that extension is actually installed. Written off the request path by `weather_store.py`'s existing worker — done when: the migration applies and re-runs clean against a throwaway PostGIS container and a live fetch writes rows. — **Syed** (proposed)
+- [ ] WIE-9 — `sql/006_forecast_snapshots.sql`: `id, city, latitude, longitude, forecast_time, retrieved_at, temp_c, rain_probability_pct, wind_kmh, condition, uv_index`, indexed on `(city, forecast_time, retrieved_at DESC)`, with a retention sweep like `weather_facts`. `city` stays the lookup key; `latitude`/`longitude` record the point the forecast was fetched for. Plain Postgres table; make it a TimescaleDB hypertable only if that extension is actually installed. Written off the request path by `weather_store.py`'s existing worker — done when: the migration applies and re-runs clean against a throwaway PostGIS container and a live fetch writes rows. — **Syed** (proposed)
 - [ ] WIE-10 — `change_detector.py`: compare the latest forecast with the most recent earlier snapshot per target hour; significance thresholds in `rules.py`; no earlier snapshot → "no earlier forecast to compare with", never "no change" — done when: tests cover a significant rise, a sub-threshold change, a missing previous snapshot and a fixture-mode request. — **Syed + Mahesh** (proposed)
 - [ ] WIE-11 — `GET /intelligence/changes` plus a `forecast_change` intent in `/ask` — done when: a seeded pair of snapshots produces the "rose from 30% to 70%" style answer end to end. — **Mahesh** (proposed)
 - [ ] WIE-12 — A seeded previous-snapshot fixture per demo city so change detection can be demonstrated offline, labelled as a sample when it is the source — done when: the demo path works with `WEATHER_MODE=fixtures` and the answer says its comparison baseline is a sample. — **Deepthi** (proposed)
@@ -510,6 +540,26 @@ Added 2026-09-30. Design and rationale: §4 (Weather Intelligence Engine); featu
 - [ ] WIE-15 — Rate limits on `/intelligence/*` (`limits.py`), and Redis caching of results keyed by city/day/activity with the hourly-forecast TTL — done when: each route returns 429 with `Retry-After` past its limit and a repeat request is served from cache. — **Niranjan + Abel** (proposed)
 - [ ] WIE-16 — Live check with real LLM keys: how often a windowed or persona answer trips the guardrail into a regenerate or the template, and the added latency against the 2 s p95 target — done when: the numbers are logged here with the date. — **Niranjan** (proposed)
 - [ ] WIE-17 — PPT and jury Q&A: the "rules decide, LLM only words it" slide and the four-feature table — done when: the slide exists and claims only what the steps above have finished. — **Surya Deepthi** (proposed)
+
+**Test cases** (the minimum per feature; each belongs to the task named, in `services/orchestrator/tests/`):
+
+| Feature | Case | Expected | Task |
+|---|---|---|---|
+| Change detection | Rain probability 30% → 70% for the same target hours | Reported as a significant change, with both values and both retrieval times | WIE-10 |
+| Change detection | A change below the threshold | Not reported as a change | WIE-10 |
+| Change detection | No earlier snapshot | "No earlier forecast to compare with", never "no change" | WIE-10 |
+| Best window | Hours at 10% rain, 28 °C, 9 km/h wind | Returned as a suitable window with those values | WIE-3 |
+| Best window | An hour exactly on a threshold (20% rain, 32 °C or 25 km/h) | Passes or fails as `rules.py` defines it, at each boundary | WIE-2 |
+| Best window | No hour passes the rule | "No suitable window", not the least-bad hour | WIE-3 |
+| Best window | Hours missing from the forecast | The window never spans a missing hour | WIE-3 |
+| Persona | Identical facts for farmer, traveller and general | Different framing, identical numbers | WIE-7 |
+| Persona | `fisherman` or `aviation` | Plain forecast with the existing caveats, no window verdict | WIE-7 |
+| What-if | 9 AM against 5 PM | Both hours' temperature, rain probability and wind, and the one with the lower rain chance named | WIE-6 |
+| What-if | An hour outside the forecast range | Says the hour is not available, no invented values | WIE-6 |
+| Numeric validator | Engine says 65%, the narration says 80% | Rejected → regenerate or template | WIE-5 |
+| Numeric validator | The narration quotes a window the engine did not produce | Rejected → regenerate or template | WIE-5 |
+| Grounding guardrail | The narration calls a window "safe" | Rejected → regenerate or template | WIE-7 |
+| No LLM | Each answer shape with the LLM off | Renders from the template in en/hi/ta/te/mr | WIE-8 |
 
 ---
 
