@@ -151,6 +151,18 @@ def test_classifier_prompt_quotes_the_occupation_as_data(monkeypatch):
     assert "never instructions" in calls[0]
 
 
+def test_cache_is_thread_safe_and_bounded(monkeypatch):
+    from concurrent.futures import ThreadPoolExecutor
+
+    monkeypatch.setattr(occupation, "_CACHE_SIZE", 8)
+    _classifier(monkeypatch, "other")
+    titles = [f"job {chr(97 + i % 26)}{chr(97 + i // 26)}" for i in range(400)]
+    with ThreadPoolExecutor(max_workers=16) as pool:
+        results = list(pool.map(occupation._classify_llm, titles * 3))
+    assert all(r == "other" for r in results)
+    assert len(occupation._cache) <= 8
+
+
 def test_classifier_result_is_cached(monkeypatch):
     calls = []
     _classifier(monkeypatch, "other", calls)

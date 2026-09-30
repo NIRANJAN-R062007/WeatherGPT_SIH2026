@@ -27,6 +27,7 @@ several independent checks (R12):
 import json
 import logging
 import re
+import threading
 import unicodedata
 from dataclasses import dataclass
 
@@ -104,6 +105,7 @@ _SCHEMA = {
 
 _CACHE_SIZE = 256
 _cache: dict[str, str] = {}
+_cache_lock = threading.Lock()  # guards _cache only; never held across the LLM call
 
 
 class Rejected(ValueError):
@@ -154,8 +156,10 @@ def _rules(text: str) -> str | None:
 
 def _classify_llm(text: str) -> str | None:
     cache_key = text.lower()
-    if cache_key in _cache:
-        return _cache[cache_key]
+    with _cache_lock:
+        hit = _cache.get(cache_key)
+    if hit is not None:
+        return hit
     try:
         raw, _ = narrate.run_chain(_CLASSIFY_PROMPT.format(text=text),
                                    response_schema=_SCHEMA, task="occupation classify")
@@ -165,9 +169,10 @@ def _classify_llm(text: str) -> str | None:
         return None
     if category not in CATEGORIES:
         return None
-    if len(_cache) >= _CACHE_SIZE:
-        _cache.pop(next(iter(_cache)))
-    _cache[cache_key] = category
+    with _cache_lock:
+        if cache_key not in _cache and len(_cache) >= _CACHE_SIZE:
+            _cache.pop(next(iter(_cache)), None)
+        _cache[cache_key] = category
     return category
 
 
@@ -189,4 +194,5 @@ def resolve(raw: str) -> Resolved:
 
 
 def cache_clear() -> None:
-    _cache.clear()
+    with _cache_lock:
+        _cache.clear()
