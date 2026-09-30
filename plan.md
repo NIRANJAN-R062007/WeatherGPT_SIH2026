@@ -28,6 +28,8 @@ A **grounded, multilingual, multi-channel conversational weather assistant** tha
 **One-line pitch for the PPT:**
 > "WeatherGPT turns Google Weather API's authoritative data into a conversation — in English, Hindi, Tamil, Telugu and Marathi, over app, WhatsApp and a plain phone call — with zero hallucinated numbers, because the LLM routes queries and the data answers them."
 
+**Planned next (added 2026-09-30): the Weather Intelligence Engine.** Beyond reporting the forecast, a deterministic layer reads it: it detects meaningful forecast changes, finds the best time window for an activity, and compares "what if I go at 5 PM instead of 9 AM" scenarios. The LLM only words the engine's result. See §4 (Weather Intelligence Engine), §6 item 15 and §8 Phase 9.
+
 *(Naming five concrete languages beats "10 languages" in front of a jury — it invites "show me" and we can. The five span both major families — Indo-Aryan: Hindi, Marathi / Dravidian: Tamil, Telugu — plus English as the link language, and cover ~63% of India by mother tongue (2011 Census). Any other Bhashini-supported language is a config change, so "all 22 scheduled languages" stays an honest roadmap line.)*
 
 ---
@@ -40,7 +42,7 @@ A **grounded, multilingual, multi-channel conversational weather assistant** tha
 | Response latency | Redis caching with per-product TTL (current conditions 15 min, hourly forecast 1 h, daily forecast 6 h); rule-based fast path skips the LLM for the top ~20 intents; p95 < 2s tracked in Grafana | §5 Cache/NLU/Observability rows, §8 Phase 6 |
 | Multilingual capability | Bhashini ASR/TTS/translate as primary; self-hosted IndicTrans2 + IndicConformer as fallback. **Fixed target set: English, Hindi, Tamil, Telugu, Marathi** (both language families, ~63% of India by mother tongue). All five ship as **text in P0**; **voice (ASR/TTS) for all five in P1** | §5 Multilingual row, §6 P0/P1, §8 Phase 3–4 |
 | User interface and accessibility | Flutter app + WhatsApp Cloud API + IVR via Exotel for feature-phone access | §5 Mobile/Channels rows, §8 Phase 4 |
-| Scalability and innovation | Docker Compose → k3s/kind → K8s+Helm deployment path; Celery+Redis async ingestion | §5 Deploy/Async jobs rows, §3.3, §8 Phase 6 |
+| Scalability and innovation | Docker Compose → k3s/kind → K8s+Helm deployment path; Celery+Redis async ingestion. **Innovation (planned):** the Weather Intelligence Engine — rule-based forecast-change detection, best-weather-window and what-if comparison, worded by the LLM but never decided by it | §5 Deploy/Async jobs/Intelligence rows, §3.3, §4 Weather Intelligence Engine, §8 Phase 6 and Phase 9 |
 | Integration with real-time met systems | Direct **Google Weather API** (`weather.googleapis.com`) integration across every endpoint in §3.1; CAP/SACHET alert listener retained for the disaster-alert use case | §3.1, §3.3 |
 
 ---
@@ -53,6 +55,7 @@ A **grounded, multilingual, multi-channel conversational weather assistant** tha
 4. **Warnings are never paraphrased loosely.** Colour-coded warnings (Red/Orange/Yellow/Green), sourced from CAP/SACHET, are rendered with the official category text; the LLM only translates and explains, never re-grades severity.
 5. **Offline-degradable.** Last-known forecast cached on device; SMS/IVR fallback when data is down.
 6. **Attribution to Google Weather API** on every surface — standard API usage/attribution terms apply.
+7. **Rules decide; the LLM only words it.** *(added 2026-09-30, for the Weather Intelligence Engine)* Whether a forecast change is significant, which time window is recommended and how two scenarios compare are decided by deterministic, explainable rules over the retrieved forecast, never by the LLM. The engine hands the LLM a structured result, and the guardrail checks the wording against it like any other answer. A recommendation says "more suitable" or "lower rain chance"; it never says "safe" (same rule as `persona.py`'s `_RULES`).
 
 ---
 
@@ -123,6 +126,7 @@ Base: `https://weather.googleapis.com/v1/` · Reference: Google Maps Platform We
 │                      TOOL / SERVICE LAYER                       │
 │ current-conditions · hourly-forecast · daily-forecast ·         │
 │ warnings(CAP) · agromet · aviation(METAR) · geocode              │
+│ weather-intelligence (changes · best-window · what-if)          │
 └──────────────────────────┬─────────────────────────────────────┘
                            │
 ┌──────────────────────────▼─────────────────────────────────────┐
@@ -161,6 +165,66 @@ Response + provenance footer
 ```
 The validator runs on every response before it reaches the user.
 
+### The Weather Intelligence Engine (planned, added 2026-09-30)
+**Idea:** don't just tell the user what the weather is. Read the forecast, detect meaningful changes, find useful time windows, and turn the data into a decision for that user. Today's path is `Weather API → LLM → answer`; the engine adds a deterministic step in between. Nothing here is built yet — tasks are in §8 Phase 9.
+
+```
+Google Weather API (hourly + daily forecast)
+   ↓
+Normalised facts ──→ Redis (latest) + Postgres forecast_snapshots (history)
+   ↓
+WEATHER INTELLIGENCE ENGINE — deterministic rules, no LLM
+   • change detection   • best-window analysis
+   • what-if comparison • persona weighting
+   ↓
+Structured result (every number and time in it comes from the forecast)
+   ↓
+LLM → words the result (persona framing via persona.py)
+   ↓
+Validator: every number and clock time in the output must exist in the structured result
+   ↓  (fail → regenerate or fall back to template)
+Response + provenance footer
+```
+
+| # | Feature | User asks | Engine output |
+|---|---|---|---|
+| 1 | **Forecast change detection** | "What's changed?" | Compares the latest forecast with a stored earlier snapshot for the same target hours and reports only significant changes, e.g. "tomorrow's rain probability rose from 30% to 70%, concentrated between 2 PM and 5 PM". No earlier snapshot, or nothing significant → says so (§2 principle 3). |
+| 2 | **Best weather window** | "When is the best time to go outside / travel tomorrow?" | Scores each forecast hour against rules on precipitation probability, temperature, wind speed, weather condition and UV (where the hourly payload carries it), and returns the best contiguous window plus the values that justify it. The most demo-friendly of the four. |
+| 3 | **Persona-aware intelligence** | "Can I do field work tomorrow?" | Same forecast, same engine, persona-specific rule weights and framing (farmer: field work; traveller: travel; general: outdoor walk). Extends the existing persona advisories (§6 item 9) from wording-only to a rule-backed recommendation. |
+| 4 | **What-if / scenario analysis** | "What if I go out at 5 PM tomorrow?" then "What if I go at 9 AM?" | Pulls the forecast for each named hour and compares them side by side (temperature, rain probability, wind), then states which has the lower rain chance. |
+
+**Starting rule for a suitable outdoor hour** (first version is rule-based, not ML, so every recommendation is explainable; thresholds live in one `rules.py` and are config-tunable):
+```
+rain_probability < 20%  AND  temperature BETWEEN 20°C AND 32°C  AND  wind_speed < 25 km/h
+```
+A change counts as significant only past a per-parameter threshold (rain-probability points, °C, km/h, or a change of condition category). Those thresholds are set in Phase 9, not here.
+
+**Structured result handed to the LLM** (example):
+```json
+{ "city": "chennai", "day": "tomorrow", "persona": "traveller",
+  "recommended_window": {"start": "08:00", "end": "11:00"},
+  "temp_c": 28, "rain_probability_pct": 10, "wind_kmh": 9 }
+```
+If the engine says 65% and the narration says 80%, the validator rejects it, exactly as for any other answer.
+
+**How it fits what is already built:**
+- `forecast_hours` is already fetched, cached and snapshotted to fixtures (`google_weather.py`, Phase 1) but nothing reads it yet — `weather_data.py` only uses current conditions, daily forecast and history. The engine is its first consumer.
+- `weather_facts` (`sql/002`) already stores every live snapshot, but as a write-only audit log of raw JSON with 30-day retention. Change detection needs a small read-side table, `forecast_snapshots`, one row per city × forecast hour × retrieval time.
+- The guardrail already grounds numbers against the facts; clock times ("8 AM–11 AM") are new and need checking the same way.
+- `persona.py` forbids any time or threshold "not in the Facts". That rule stays: the window becomes part of the Facts because the engine computed it, so the LLM quotes it rather than inventing it. There is no `traveller` persona today (`general`, `farmer`, `fisherman`, `aviation`, `city_official`); Phase 9 adds it.
+- `fisherman` and `aviation` get no best-window verdict: the facts are a land/city forecast with no sea state or aerodrome data, as `persona.py` already states.
+
+**Endpoints** (city-keyed like `/facts` and `/aviation`, registered cities only):
+
+| Endpoint | Example |
+|---|---|
+| `GET /intelligence/changes` | `?city=chennai&day=tomorrow` |
+| `GET /intelligence/best-window` | `?city=chennai&day=tomorrow&activity=outdoor` |
+| `POST /intelligence/advisory` | `{"city": "chennai", "persona": "farmer", "day": "tomorrow"}` |
+| `POST /intelligence/scenario` | `{"city": "chennai", "day": "tomorrow", "times": ["09:00", "17:00"], "activity": "outdoor"}` |
+
+The same four are reachable in conversation through new `/ask` intents, which is how voice, IVR and WhatsApp get them.
+
 ---
 
 ## 5. Tech stack (aligned to the PS's suggested stack)
@@ -172,6 +236,7 @@ The validator runs on every response before it reaches the user.
 | Realtime | Native WebSockets (FastAPI) for push updates to clients | Keeps the client in sync without polling |
 | LLM | **Gemini 1.5/2.0 Flash as primary** (free-tier keys, no cost risk for dev/demo volume); **`openai/gpt-oss-120b` via Groq as latency fallback** for the p95 < 2s claim (originally scoped as Llama-3, but Groq deprecated `llama-3.3-70b-versatile` off free/developer tiers in Aug 2026 — `gpt-oss-120b` is Groq's own recommended replacement); **local quantised Llama (Ollama) as offline fallback** for venue Wi-Fi failure | Free Gemini removes cost risk; Groq covers the stage-demo latency moment and Gemini's live ~1-in-3 free-tier 503 rate; local Llama is the offline safety net (R5) — keep all three behind one pluggable abstraction |
 | NLU | LLM function-calling + a rule-based fast path for the top ~20 intents | Fast path = latency win, also keeps Gemini free-tier rate limits comfortable |
+| Intelligence engine *(planned)* | **Pure-Python rule engine** inside the orchestrator (`weather_intelligence/`): forecast comparison, hour scoring, scenario comparison. No ML, no new service, no new dependency; Postgres for forecast snapshots, Redis for short-lived results (same per-product TTLs) | Explainable to the jury: "the LLM does not decide what a suitable window is; our rules evaluate the forecast and the LLM only communicates the result" |
 | Multilingual | **Bhashini** (ASR/TTS/translate) primary; **AI4Bharat IndicTrans2 + IndicConformer** self-hosted fallback. **Target set: English, Hindi, Tamil, Telugu, Marathi** — language is a config flag, not a hardcode | Govt-of-India stack scores points. Five languages span Indo-Aryan (Hindi, Marathi) + Dravidian (Tamil, Telugu) + English link language, ~63% of India by mother tongue (2011 Census); adding a sixth is a language code + a QA pass, so "all 22 scheduled languages" stays an honest roadmap claim |
 | Geo | PostGIS, GeoPandas, Shapely; **MapLibre GL** (not Mapbox/Google Maps) on client, tiles from **OpenStreetMap / Bhuvan (ISRO)** | Free, open-source, no additional API key or billing account beyond Google Weather API, no demo-day risk; Bhuvan reinforces the "sovereign India stack" story for the map layer even though weather data itself now comes from Google |
 | Met data | xarray, cfgrib, metpy, `python-metar` | Real met tooling ≠ toy project — parses raw GFS/NWP GRIB2 grids and METAR codes, not just REST JSON |
@@ -199,6 +264,7 @@ The validator runs on every response before it reaches the user.
 7. **IVR channel**: dial a number, speak in Tamil, hear the forecast.
 8. **Proactive alerts**: CAP polygon → geofenced push, with "why you got this" explanation.
 9. **Persona-aware advisories**: farmer / fisherman / aviation / city-official — same data, different framing, driven by a user profile flag.
+15. **Weather Intelligence Engine** *(added 2026-09-30; numbered 15 so existing item references stay valid)*: forecast change detection, best weather window, persona-aware intelligence and what-if scenario comparison — deterministic rules over the hourly forecast, worded by the LLM, grounded by the guardrail. Build order: best window first (needs no history, strongest demo), then what-if, then persona weighting, then change detection (needs stored snapshots). Design in §4, tasks in §8 Phase 9.
 
 ### P2 — Differentiators if time permits
 10. **METAR/TAF decoder** → plain-language aviation briefing.
@@ -417,6 +483,34 @@ This phase closes those gaps before IVR or the alert engine goes live on any pub
 - A decision is needed first: SEC-A3 and SEC-A12 (decide whether mobile sign-up should collect a phone number at all before encrypting or documenting it; the alert-subscription table is unused while the engine is off, and phone numbers live in Supabase), and SEC-N16 (the "TLS 1.3 at the edge" standard: TLS 1.3 only would exclude Android 9 and older, so TLS 1.2 or newer with 1.3 preferred is safer — verify against the Amplify and Render settings).
 - Not needed at prototype scale, or already covered by the 2026-09-30 fixes: SEC-N3, SEC-N4, SEC-N9, SEC-N11 (its cases fold into SEC-A4), SEC-N14, SEC-N17, SEC-N20, SEC-N21, SEC-A7, SEC-A8, SEC-A9, SEC-A10, SEC-A11, SEC-A13, SEC-A14.
 
+### Phase 9 — Weather Intelligence Engine
+Added 2026-09-30. Design and rationale: §4 (Weather Intelligence Engine); feature tier: §6 item 15. Nothing below is built yet. **Owners are proposed from the §7 roles and are not confirmed** — change them here once the team agrees. Code goes in `services/orchestrator/weather_intelligence/` (`intelligence_engine.py`, `change_detector.py`, `window_analyzer.py`, `persona_advisor.py`, `scenario_analyzer.py`, `rules.py`, `schemas.py`), tests in `services/orchestrator/tests/`, the migration in `services/orchestrator/sql/`, following the existing layout rather than a separate service.
+
+**Step 1 — Hourly facts and best weather window (no history needed)**
+- [ ] WIE-1 — Hourly facts: decode `forecast_hours` into a typed per-hour list (time in city-local time, temperature, rain probability, wind speed, condition, UV where present) — done when: `weather_data.py` (or the new package) returns it for every demo city from fixtures and live, with tests. — **Syed + Deepthi** (proposed)
+- [ ] WIE-2 — `rules.py`: the suitable-hour rule (start: rain < 20%, 20–32 °C, wind < 25 km/h) and per-activity variants, thresholds overridable by config — done when: every threshold lives in this one file and is covered by tests at its boundaries. — **Deepthi** (proposed)
+- [ ] WIE-3 — `window_analyzer.py`: best contiguous window for a day and activity, with the values that justify it; returns "no suitable window" rather than the least-bad one when no hour passes — done when: tests cover a clear window, a split day, a fully unsuitable day and a day with missing hours. — **Mahesh** (proposed)
+- [ ] WIE-4 — `GET /intelligence/best-window` plus a `best_window` intent in `/ask` (`nlu.py` rules for en/ta + LLM schema, `router.py`) — done when: "when is the best time to go outside tomorrow in Chennai" returns a grounded answer with provenance, and rows for it are in `ml/nlu/eval_set.jsonl`. — **Mahesh + Niranjan** (proposed)
+- [ ] WIE-5 — Guardrail: ground clock times and time ranges in an answer against the structured result, as numbers are today — done when: an answer quoting a window the engine didn't produce fails grounding in a test. — **Mahesh** (proposed)
+
+**Step 2 — What-if and persona intelligence**
+- [ ] WIE-6 — `scenario_analyzer.py` + `POST /intelligence/scenario` + a `what_if` intent: evaluate one hour, or compare two — done when: a 9 AM vs 5 PM comparison returns both hours' values and names the one with the lower rain chance. **Open design point:** `/ask` is stateless, so the follow-up "what if I go at 9 AM?" only compares against the earlier 5 PM if the client sends the previous time back; decide that contract first. — **Mahesh** (proposed)
+- [ ] WIE-7 — `persona_advisor.py` + `POST /intelligence/advisory`: per-persona rule weights and the advisory label (farm / travel / outdoor); add a vetted `traveller` persona to `persona.py`; `fisherman` and `aviation` return the plain forecast with their existing caveats, no window verdict — done when: farmer, traveller and general give different framing from identical facts in tests, with identical numbers. — **Mahesh** (proposed)
+- [ ] WIE-8 — Template fallback strings for the three answer shapes in all five languages (`i18n.py`), so the engine works with no LLM and offline (R5) — done when: each shape renders in en/hi/ta/te/mr with the LLM off; new strings marked `TODO: native_qa` until reviewed. — **Niranjan** (proposed)
+
+**Step 3 — Forecast change detection (needs stored snapshots)**
+- [ ] WIE-9 — `sql/006_forecast_snapshots.sql`: `id, city, forecast_time, retrieved_at, temp_c, rain_probability_pct, wind_kmh, condition, uv_index`, indexed on `(city, forecast_time, retrieved_at DESC)`, with a retention sweep like `weather_facts`. Plain Postgres table; make it a TimescaleDB hypertable only if that extension is actually installed. Written off the request path by `weather_store.py`'s existing worker — done when: the migration applies and re-runs clean against a throwaway PostGIS container and a live fetch writes rows. — **Syed** (proposed)
+- [ ] WIE-10 — `change_detector.py`: compare the latest forecast with the most recent earlier snapshot per target hour; significance thresholds in `rules.py`; no earlier snapshot → "no earlier forecast to compare with", never "no change" — done when: tests cover a significant rise, a sub-threshold change, a missing previous snapshot and a fixture-mode request. — **Syed + Mahesh** (proposed)
+- [ ] WIE-11 — `GET /intelligence/changes` plus a `forecast_change` intent in `/ask` — done when: a seeded pair of snapshots produces the "rose from 30% to 70%" style answer end to end. — **Mahesh** (proposed)
+- [ ] WIE-12 — A seeded previous-snapshot fixture per demo city so change detection can be demonstrated offline, labelled as a sample when it is the source — done when: the demo path works with `WEATHER_MODE=fixtures` and the answer says its comparison baseline is a sample. — **Deepthi** (proposed)
+
+**Step 4 — Surfaces and hardening**
+- [ ] WIE-13 — Web: a best-window card and a what-if comparison view, reached from Forecast and Chat — done when: both render live `/intelligence/*` data for a city switch, with loading, empty and error states. — **Chelsea + Mahesh** (proposed)
+- [ ] WIE-14 — Mobile: the same two views — done when: `flutter analyze` and `flutter test` are clean with new widget tests. — **Chelsea** (proposed)
+- [ ] WIE-15 — Rate limits on `/intelligence/*` (`limits.py`), and Redis caching of results keyed by city/day/activity with the hourly-forecast TTL — done when: each route returns 429 with `Retry-After` past its limit and a repeat request is served from cache. — **Niranjan + Abel** (proposed)
+- [ ] WIE-16 — Live check with real LLM keys: how often a windowed or persona answer trips the guardrail into a regenerate or the template, and the added latency against the 2 s p95 target — done when: the numbers are logged here with the date. — **Niranjan** (proposed)
+- [ ] WIE-17 — PPT and jury Q&A: the "rules decide, LLM only words it" slide and the four-feature table — done when: the slide exists and claims only what the steps above have finished. — **Surya Deepthi** (proposed)
+
 ---
 
 ## 9. Risks & mitigations
@@ -440,6 +534,9 @@ This phase closes those gaps before IVR or the alert engine goes live on any pub
 | R14 | **Outbound-request abuse (SSRF) / credential forwarding** — a caller-supplied IVR `RecordingUrl` or alert webhook target makes the server send requests (with Exotel credentials, for the recording) to arbitrary or internal hosts | Host allowlist and public-https checks are in place on both paths (2026-09-30); SEC-N0 confirms the IVR is off on the live deployment; pinning the real Exotel hosts and disabling failing targets (SEC-N1, SEC-N3, SEC-N12) are deferred until the IVR goes live (Phase 8, deferred list). |
 | R15 | **Spoofed or replayed CAP alert reaches users** — blocked until SACHET access; whether SACHET messages are signed is unverified | SEC-A6 finds out whether SACHET messages are signed; source authenticity, replay/staleness checks, audit log and kill switch before any push (SEC-A1, SEC-A2, SEC-N7) are deferred until a real CAP feed exists (Phase 8, deferred list). |
 | R16 | **Personal-data exposure** — subscriber locations, webhook targets/FCM tokens and phone numbers from mobile sign-up stored or logged in plaintext | Log redaction (SEC-N8) and secure mobile storage (SEC-N19) are scheduled; field encryption and DPDP-readiness (SEC-A3, SEC-A12) are deferred until it is decided whether to collect phone at all (Phase 8, deferred list). |
+| R17 | **A window or comparison is read as a safety verdict** — "best time to go out" during a warning, or a fisherman/pilot treating a city-forecast window as clearance | Wording is "more suitable" / "lower rain chance", never "safe" (§2 principle 7, `persona.py` `_RULES`); no window verdict for `fisherman` or `aviation` (WIE-7); "no suitable window" is a valid answer (WIE-3); warnings still come only from the warnings feed |
+| R18 | **Change detection has nothing to compare, or compares against stale data** — cold start, fixture mode, Postgres down (the store is best-effort by design), or snapshots taken hours apart | Missing baseline is reported as such, never as "no change" (WIE-10); the answer states when each forecast was retrieved; a seeded, labelled sample baseline for the demo (WIE-12); change detection is built last so the other three features never depend on it |
+| R19 | **Engine scope creep before the finale** — four features across backend, web and mobile on top of open Phase 7/8 work | Fixed build order with best window first (§6 item 15); each step ships on its own; thresholds stay rule-based, no ML |
 
 ---
 
@@ -510,6 +607,7 @@ weathergpt/
 **Still on the roadmap, not built yet** (target layout from earlier planning — see §8 for owners):
 - `services/ingestion/{cap,nwp,metar}/` — CAP/SACHET parser, GFS GRIB fetch (Google Weather ingestion currently lives inline as `orchestrator/google_weather.py`, not yet split into per-source modules; the METAR and TAF decoders and their live fetch were built inline as `orchestrator/metar.py`, `taf.py` and `aviation.py` on 2026-09-29/30 rather than as a `services/ingestion/metar/` service; there is no scheduled poller, `aviation.py` fetches on request and caches)
 - `services/channels/whatsapp/` — WhatsApp bot (P2, open). The IVR channel and the alert engine were built inline in the orchestrator instead of as separate services (`orchestrator/ivr.py`, `orchestrator/alert_engine.py`, Phase 4 — both backend-done, live channels blocked per Phase 7)
+- `services/orchestrator/weather_intelligence/` — the Weather Intelligence Engine (`intelligence_engine.py`, `change_detector.py`, `window_analyzer.py`, `persona_advisor.py`, `scenario_analyzer.py`, `rules.py`, `schemas.py`), with `sql/006_forecast_snapshots.sql` and `tests/test_change_detector.py`, `test_window_analyzer.py`, `test_persona_advisor.py`, `test_scenario_analyzer.py` — planned 2026-09-30, §8 Phase 9; kept inside the orchestrator like the IVR and alert engine, not a separate service
 - `data/climate/` — gridded historical subsets, if a supplementary climate source is added
 - `docs/` — architecture.md, demo-script.md, jury-qa.md
 - top-level `tests/` — currently per-service (`services/orchestrator/tests/`, `services/gateway/tests/`) rather than centralized
