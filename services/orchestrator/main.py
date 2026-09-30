@@ -37,7 +37,7 @@ import taf
 import weather_data
 from auth import get_bearer_token, get_current_user
 from config import ALLOWED_ORIGINS
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -378,28 +378,32 @@ def alerts_subscribe(req: AlertSubscribeRequest):
     or `lat`/`lon`/`radius_km` — see alert_engine.subscribe()'s docstring."""
     _require_lang(req.lang)
     try:
-        sub_id = alert_engine.subscribe(
+        sub_id, manage_token = alert_engine.subscribe(
             channel=req.channel, target=req.target, city_key=req.city_key,
             lat=req.lat, lon=req.lon, radius_km=req.radius_km, lang=req.lang,
         )
     except alert_engine.SubscriptionError as e:
         raise HTTPException(status_code=422, detail=str(e)) from e
-    return {"id": sub_id}
+    return {"id": sub_id, "manage_token": manage_token}
 
 
 @app.delete("/alerts/subscribe/{sub_id}")
-def alerts_unsubscribe(sub_id: int):
-    if not alert_engine.unsubscribe(sub_id):
+def alerts_unsubscribe(sub_id: int, x_manage_token: str | None = Header(default=None)):
+    """Needs the manage token returned by POST /alerts/subscribe. A wrong or
+    missing token gets the same 404 as an unknown id."""
+    if not alert_engine.unsubscribe(sub_id, x_manage_token):
         raise HTTPException(status_code=404, detail="no such subscription")
     return {"deleted": True}
 
 
 @app.get("/alerts/subscriptions")
-def alerts_list(target: str):
-    """`target` (the caller's own webhook URL/FCM token) is the capability
-    for listing — same trust model unsubscribe()'s bare id uses, no sign-in
-    plumbing required for a first pass."""
-    return {"subscriptions": alert_engine.list_subscriptions(target)}
+def alerts_list(target: str, x_manage_token: str | None = Header(default=None)):
+    """Lists the caller's subscriptions for `target`; needs the manage token
+    (X-Manage-Token). 404 when nothing matches, so ids can't be probed."""
+    subs = alert_engine.list_subscriptions(target, x_manage_token)
+    if not subs:
+        raise HTTPException(status_code=404, detail="no such subscription")
+    return {"subscriptions": subs}
 
 
 # ~60 s of 16 kHz 16-bit mono PCM is ~1.9 MB raw, ~2.6 MB base64.

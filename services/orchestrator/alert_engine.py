@@ -32,8 +32,11 @@ re-fire every poll tick, but any change (new alert, escalation,
 de-escalation, or clearing back to green/unavailable) does.
 """
 
+import hashlib
+import hmac
 import logging
 import os
+import secrets
 import threading
 import time
 
@@ -64,11 +67,13 @@ def subscribe(
     lon: float | None = None,
     radius_km: float | None = None,
     lang: str = "en",
-) -> int:
+) -> tuple[int, str]:
     """Registers a subscription. Exactly one of `city_key` or
     `(lat, lon, radius_km)` must be given — mirrors the DB CHECK constraint,
     checked here too so a bad request gets a clean error instead of an
-    IntegrityError. Returns the new subscription id.
+    IntegrityError. Returns `(id, manage_token)`; the token is shown to the
+    caller only here (just its SHA-256 hash is stored) and is required by
+    unsubscribe() / list_subscriptions().
     """
     if channel not in ("webhook", "fcm"):
         raise SubscriptionError(f"channel must be 'webhook' or 'fcm', got {channel!r}")
@@ -88,51 +93,78 @@ def subscribe(
             f"radius_km must be between 0 and {config.ALERT_MAX_SUBSCRIPTION_RADIUS_KM}",
         )
 
+    manage_token = secrets.token_urlsafe(32)
     weather_store._ensure_schema()
     with weather_store._engine.begin() as conn:
         row = conn.execute(
             text("""
                 INSERT INTO alert_subscriptions
-                    (city_key, lat, lon, radius_km, lang, channel, target)
-                VALUES (:city_key, :lat, :lon, :radius_km, :lang, :channel, :target)
+                    (city_key, lat, lon, radius_km, lang, channel, target, manage_token_hash)
+                VALUES (:city_key, :lat, :lon, :radius_km, :lang, :channel, :target,
+                        :token_hash)
                 RETURNING id
             """),
             {
                 "city_key": city_key, "lat": lat, "lon": lon, "radius_km": radius_km,
                 "lang": lang, "channel": channel, "target": target,
+                "token_hash": _hash_token(manage_token),
             },
         ).fetchone()
-    return row[0]
+    return row[0], manage_token
 
 
-def unsubscribe(sub_id: int) -> bool:
-    """Deletes a subscription by id. Its id is itself the capability token
-    for an anonymous (no user_id) subscription — same trust model as, say, a
-    calendar unsubscribe link. Returns whether a row was actually deleted."""
+def _hash_token(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def _token_matches(stored_hash: str | None, token: str | None) -> bool:
+    """Constant-time check; a NULL stored hash (pre-token row) or a missing
+    token never matches."""
+    if not stored_hash or not token:
+        return False
+    return hmac.compare_digest(stored_hash, _hash_token(token))
+
+
+def unsubscribe(sub_id: int, token: str | None) -> bool:
+    """Deletes a subscription if `token` is its manage token. Returns whether
+    a row was deleted; a wrong/missing token is indistinguishable from an
+    unknown id (callers answer 404 either way)."""
     weather_store._ensure_schema()
     with weather_store._engine.begin() as conn:
+        row = conn.execute(
+            text("SELECT manage_token_hash FROM alert_subscriptions WHERE id = :id"),
+            {"id": sub_id},
+        ).fetchone()
+        if row is None or not _token_matches(row[0], token):
+            return False
         result = conn.execute(
-            text("DELETE FROM alert_subscriptions WHERE id = :id"), {"id": sub_id},
+            text("DELETE FROM alert_subscriptions WHERE id = :id AND manage_token_hash = :h"),
+            {"id": sub_id, "h": row[0]},
         )
     return result.rowcount > 0
 
 
-def list_subscriptions(target: str) -> list[dict]:
-    """Subscriptions for a given dispatch target (a webhook URL or FCM
-    token). No sign-in required — `target` is caller-known (they own the
-    webhook), so it's the same capability model unsubscribe() uses, just for
-    listing instead of deleting."""
+def list_subscriptions(target: str, token: str | None) -> list[dict]:
+    """Subscriptions for a dispatch target (a webhook URL or FCM token) whose
+    manage token is `token`. Rows without a matching token are never
+    returned."""
     weather_store._ensure_schema()
     with weather_store._engine.begin() as conn:
         rows = conn.execute(
             text("""
                 SELECT id, city_key, lat, lon, radius_km, lang, channel, target,
-                       last_notified_colour, last_notified_at, created_at
+                       last_notified_colour, last_notified_at, created_at,
+                       manage_token_hash
                 FROM alert_subscriptions WHERE target = :target ORDER BY created_at DESC
             """),
             {"target": target},
         ).mappings().all()
-    return [dict(r) for r in rows]
+    out = []
+    for r in rows:
+        d = dict(r)
+        if _token_matches(d.pop("manage_token_hash"), token):
+            out.append(d)
+    return out
 
 
 def _all_subscriptions() -> list[dict]:
