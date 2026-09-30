@@ -258,7 +258,8 @@ def _narrate_grounded(intent: str, name: str, data: dict, prompt_facts: dict,
         return None, None, False, 1, None
     provider = narrate_module.last_provider or "llm"
     report = guardrail.check(text, data)
-    if report.ok and report.total > 0:
+    if (report.ok and report.total > 0
+            and not persona_module.makes_unsafe_claim(persona, text)):
         return text, report, True, 1, provider
 
     unmatched = [f["reading"] for f in report.figures if not f["matched"]]
@@ -267,7 +268,8 @@ def _narrate_grounded(intent: str, name: str, data: dict, prompt_facts: dict,
     if text2 is not None:
         provider = narrate_module.last_provider or "llm"
         report2 = guardrail.check(text2, data)
-        if report2.ok and report2.total > 0:
+        if (report2.ok and report2.total > 0
+                and not persona_module.makes_unsafe_claim(persona, text2)):
             return text2, report2, True, 2, provider
 
     return None, None, True, 2, provider

@@ -177,3 +177,50 @@ def test_persona_answer_gets_a_bigger_char_cap(monkeypatch):
     farmer = narrate.narrate("current_weather", "Chennai", facts, persona="farmer")
     assert len(plain) <= narrate.MAX_CHARS
     assert narrate.MAX_CHARS < len(farmer) <= narrate.MAX_CHARS + persona.EXTRA_CHARS
+
+
+# ---- unvetted Custom persona: claim check ---------------------------------------
+
+_FACTS = {"temp_c": 28}
+_CUSTOM = persona.Custom("beekeeper")
+
+
+def _grounded(monkeypatch, text, who):
+    monkeypatch.setattr(main, "narrate", lambda *a, **k: text)
+    return main._narrate_grounded("current_weather", "Chennai", _FACTS, _FACTS, who)
+
+
+@pytest.mark.parametrize("claim", [
+    "Chennai: 28°C, a cyclone warning is in force.",
+    "Chennai: 28°C and conditions are safe.",
+    "Chennai: 28°C, unsafe outside.",
+    "Chennai: 28°C, it is risk-free.",
+    "Chennai: 28°C, there is no risk.",
+    "Chennai: 28°C, an alert has been issued.",
+    "Chennai: 28°C, you should evacuate.",
+])
+def test_custom_persona_claim_falls_back_to_template(monkeypatch, claim):
+    text, _report, attempted, attempts, _ = _grounded(monkeypatch, claim, _CUSTOM)
+    assert text is None and attempted and attempts == 2
+
+
+def test_custom_persona_benign_text_passes(monkeypatch):
+    text, _report, _, attempts, _ = _grounded(
+        monkeypatch, "Chennai: 28°C, so plan outdoor work for the cooler hours.", _CUSTOM)
+    assert text is not None and attempts == 1
+
+
+def test_vetted_persona_may_point_to_official_warning(monkeypatch):
+    said = "Chennai: 28°C; check the official IMD fishermen warning before going out."
+    text, *_ = _grounded(monkeypatch, said, "fisherman")
+    assert text == said
+
+
+def test_custom_claim_in_ask_serves_template(monkeypatch):
+    monkeypatch.setattr(main, "narrate", lambda *a, **k: "Chennai: 28°C, conditions are safe.")
+    monkeypatch.setattr(main.occupation_module, "resolve",
+                        lambda *a, **k: main.occupation_module.Resolved(
+                            _CUSTOM, "beekeeper", "llm"))
+    body = _ask("what's the weather in Chennai", occupation="beekeeper")
+    assert body["grounding"]["narration"] == "template"
+    assert "safe" not in body["response"].lower()

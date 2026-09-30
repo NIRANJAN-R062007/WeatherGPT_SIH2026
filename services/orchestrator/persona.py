@@ -25,6 +25,7 @@ design, and it is also what serves every non-LLM deploy, so a persona must
 never be required to get a correct answer.
 """
 
+import re
 from dataclasses import dataclass
 
 DEFAULT = "general"
@@ -113,6 +114,25 @@ _CUSTOM_HINT = (
     "planning their day. Never invent a detail about that work that the Facts "
     "don't contain."
 )
+
+
+# A crafted job title could steer the unvetted Custom persona into a claim the
+# numeric guardrail can't see. Checked on the English narration only (it is
+# written in English before any translation); vetted personas are exempt, as
+# the fisherman hint legitimately says "check the official IMD fishermen
+# warning".
+_UNSAFE_CLAIM = re.compile(
+    r"\b(?:safe|safely|unsafe|risk[- ]?free|no\s+risk|evacuat\w*"
+    r"|(?:warning|alert|advisory)s?\b[^.!?\n]{0,40}?"
+    r"\b(?:in\s+force|in\s+effect|issued|active|is\s+on|are\s+on))",
+    re.IGNORECASE,
+)
+
+
+def makes_unsafe_claim(persona: "str | Custom | None", text: str) -> bool:
+    """True if `text` narrated for a Custom persona claims a warning is in
+    force or gives a safety verdict. Always False for any other persona."""
+    return isinstance(persona, Custom) and bool(_UNSAFE_CLAIM.search(text))
 
 
 def is_valid(value: str | None) -> bool:
