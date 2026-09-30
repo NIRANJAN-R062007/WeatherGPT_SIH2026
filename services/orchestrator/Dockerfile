@@ -25,6 +25,13 @@ COPY prototype/frontend prototype/frontend
 
 WORKDIR /app/services/orchestrator
 
+# Non-root runtime: fixed UID/GID so k8s runAsUser/fsGroup can match. App files
+# stay root-owned and read-only (the service writes nothing under /app);
+# /tmp is the only writable path (emptyDir under readOnlyRootFilesystem).
+ENV PYTHONDONTWRITEBYTECODE=1 HOME=/tmp TMPDIR=/tmp
+RUN groupadd --gid 10001 app && useradd --uid 10001 --gid 10001 --no-create-home --shell /usr/sbin/nologin app
+USER 10001:10001
+
 EXPOSE 8001
 
 # --no-proxy-headers: a container never sees a 127.0.0.1 peer, so uvicorn's
