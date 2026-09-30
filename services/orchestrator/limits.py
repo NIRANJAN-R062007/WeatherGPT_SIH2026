@@ -58,6 +58,15 @@ from starlette.responses import JSONResponse
 _LOG = logging.getLogger("weathergpt.limits")
 
 LIMITED_PATHS = frozenset({"/ask", "/asr", "/tts"})
+# Read-style routes that still cost something (a DB scan, a decoder run) get
+# their own per-client bucket at RATE_LIMIT_PER_MINUTE so they can't drain the
+# /ask budget or be used to probe past it.
+READ_PATHS = frozenset({"/alerts/subscriptions", "/metar/decode"})
+# Subscription writes create rows (and later trigger outbound messages), so
+# they are stricter: ALERTS_WRITE_RATE_LIMIT_PER_MINUTE (config.py). Matched by
+# prefix because DELETE /alerts/subscribe/{sub_id} is parameterised.
+_WRITE_PREFIX = "/alerts/subscribe"
+_IVR_PATH = "/ivr/recording"
 _WINDOW_SECONDS = 60.0
 # Long enough that a flapping Redis doesn't add a connect timeout to every
 # request, short enough to pick a restarted one back up within a window.
@@ -142,16 +151,41 @@ def _over_limit(key: str, per_minute: int) -> bool:
     return _local_over_limit(key, per_minute)
 
 
+def _rule(path: str) -> tuple[str, int, bool]:
+    """(bucket, per-minute limit, per_client) for `path`; limit 0 = unlimited.
+
+    RATE_LIMIT_PER_MINUTE=0 switches every per-client rule off; the IVR global
+    cap has its own switch (IVR_GLOBAL_RATE_PER_MIN=0).
+    """
+    path = path.rstrip("/") or "/"  # Starlette would 307 "/x/" onto "/x"
+    per_client = config.RATE_LIMIT_PER_MINUTE
+    if path == _IVR_PATH:
+        return "ivr", config.IVR_GLOBAL_RATE_PER_MIN, False
+    if path == _WRITE_PREFIX or path.startswith(_WRITE_PREFIX + "/"):
+        if per_client <= 0:
+            return "alerts-write", 0, True
+        return "alerts-write", min(per_client, config.ALERTS_WRITE_RATE_LIMIT_PER_MINUTE), True
+    if path in READ_PATHS:
+        return "read", per_client, True
+    if path in LIMITED_PATHS:
+        return "", per_client, True
+    return "", 0, True
+
+
 class RequestLimits(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         length = request.headers.get("content-length")
         if length and length.isdigit() and int(length) > config.MAX_BODY_BYTES:
             return JSONResponse({"detail": "request body too large"}, status_code=413)
 
-        per_minute = config.RATE_LIMIT_PER_MINUTE
-        if per_minute > 0 and request.url.path in LIMITED_PATHS:
+        bucket, per_minute, per_client = _rule(request.url.path)
+        if per_minute > 0:
+            # /ivr/recording: one shared bucket, whoever calls (Exotel's IPs).
+            key = client_key(request) if per_client else "global"
+            if bucket:
+                key = f"{bucket}:{key}"
             # Blocking Redis I/O — keep it off the event loop.
-            if await run_in_threadpool(_over_limit, client_key(request), per_minute):
+            if await run_in_threadpool(_over_limit, key, per_minute):
                 return JSONResponse(
                     {"detail": "too many requests — try again in a minute"},
                     status_code=429,

@@ -260,3 +260,64 @@ def test_me_without_supabase_config_is_503_not_500(monkeypatch):
     monkeypatch.setattr(auth, "SUPABASE_URL", None)
     resp = client.get("/me", headers={"Authorization": "Bearer abc"})
     assert resp.status_code == 503
+
+
+# --- /alerts, /metar/decode and the /ivr/recording global cap ------------------
+
+
+def _xff(i: int) -> dict:
+    return {"x-forwarded-for": f"198.51.100.{i}"}
+
+
+def test_alerts_writes_are_stricter_and_cover_delete(monkeypatch):
+    monkeypatch.setattr(config, "RATE_LIMIT_PER_MINUTE", 30)
+    monkeypatch.setattr(config, "ALERTS_WRITE_RATE_LIMIT_PER_MINUTE", 2)
+    body = {"target": "x", "city": "chennai"}
+    assert client.post("/alerts/subscribe", json=body).status_code != 429
+    assert client.delete("/alerts/subscribe/abc").status_code != 429  # parameterised path
+    assert client.post("/alerts/subscribe", json=body).status_code == 429
+    assert client.delete("/alerts/subscribe/other").status_code == 429
+    assert client.post("/alerts/subscribe/", json=body).status_code == 429  # trailing slash
+    # another client has its own budget; /ask is a separate bucket
+    assert client.post("/alerts/subscribe", json=body, headers=_xff(7)).status_code != 429
+    assert client.get("/ask", params=Q).status_code == 200
+
+
+def test_alerts_write_limit_never_exceeds_the_master_limit(monkeypatch):
+    monkeypatch.setattr(config, "RATE_LIMIT_PER_MINUTE", 1)
+    monkeypatch.setattr(config, "ALERTS_WRITE_RATE_LIMIT_PER_MINUTE", 5)
+    assert client.delete("/alerts/subscribe/a").status_code != 429
+    assert client.delete("/alerts/subscribe/a").status_code == 429
+
+
+@pytest.mark.parametrize("path,params", [
+    ("/alerts/subscriptions", {"target": "x"}),
+    ("/metar/decode", {"raw": "VOMM 010000Z 27005KT 9999 FEW020 28/24 Q1009"}),
+])
+def test_read_style_routes_are_limited_in_their_own_bucket(monkeypatch, path, params):
+    monkeypatch.setattr(config, "RATE_LIMIT_PER_MINUTE", 2)
+    # the handlers may 5xx here (no DB in tests); only the 429 matters
+    tolerant = TestClient(main.app, raise_server_exceptions=False)
+    statuses = [tolerant.get(path, params=params).status_code for _ in range(3)]
+    assert 429 not in statuses[:2]
+    assert statuses[2] == 429
+    assert client.get("/ask", params=Q).status_code == 200  # /ask budget untouched
+
+
+def test_new_paths_unlimited_when_master_switch_is_off():
+    for _ in range(40):
+        assert client.get("/metar/decode", params={"raw": "x"}).status_code != 429
+        assert client.delete("/alerts/subscribe/a").status_code != 429
+
+
+def test_ivr_recording_hits_a_global_cap_regardless_of_client(monkeypatch):
+    monkeypatch.setattr(config, "IVR_GLOBAL_RATE_PER_MIN", 3)
+    # RATE_LIMIT_PER_MINUTE is 0 (conftest): the IVR cap is independent of it.
+    statuses = [client.post("/ivr/recording", headers=_xff(i)).status_code for i in range(4)]
+    assert 429 not in statuses[:3]
+    assert statuses[3] == 429
+
+
+def test_ivr_global_cap_zero_disables_it(monkeypatch):
+    monkeypatch.setattr(config, "IVR_GLOBAL_RATE_PER_MIN", 0)
+    assert all(client.post("/ivr/recording").status_code != 429 for _ in range(10))

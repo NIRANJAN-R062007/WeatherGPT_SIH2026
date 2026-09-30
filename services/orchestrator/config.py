@@ -65,6 +65,19 @@ OLLAMA_TIMEOUT: float = _float_env("OLLAMA_TIMEOUT", 30.0)
 # Public-surface limits (limits.py). 0 disables the rate limit.
 MAX_BODY_BYTES: int = int(_float_env("MAX_BODY_BYTES", 2 * 1024 * 1024))
 RATE_LIMIT_PER_MINUTE: int = int(_float_env("RATE_LIMIT_PER_MINUTE", 30))
+# /alerts/subscribe (POST, and DELETE .../{id}): per client per minute. Each
+# subscription is a stored row that later triggers outbound messages, and a
+# real user makes one or two per session, so 5 is generous for humans while a
+# script is stopped after 5 rows/min (min'd with RATE_LIMIT_PER_MINUTE, which
+# stays the master switch: 0 disables this too).
+ALERTS_WRITE_RATE_LIMIT_PER_MINUTE: int = int(_float_env("ALERTS_WRITE_RATE_LIMIT_PER_MINUTE", 5))
+# /ivr/recording: GLOBAL cap (all callers combined, not per client) per minute;
+# each hit costs ASR + LLM + TTS. Real traffic comes from Exotel's few IPs, so a
+# per-client limit would throttle legitimate callers. PROPOSAL pending team
+# sign-off: 120/min ~= 30 new calls/min at ~4 recordings per call (~1,800
+# calls/hour), several times a pilot/demo load, but a hard ceiling on spend if
+# the endpoint is discovered. 0 disables. Independent of RATE_LIMIT_PER_MINUTE.
+IVR_GLOBAL_RATE_PER_MIN: int = int(_float_env("IVR_GLOBAL_RATE_PER_MIN", 120))
 # Proxies between the internet and the orchestrator, the gateway counting as
 # one (the gateway reads the same variable, same meaning): that many
 # X-Forwarded-For hops from the right were appended by something we trust, and
