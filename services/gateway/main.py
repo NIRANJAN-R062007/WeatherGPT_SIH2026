@@ -1,6 +1,6 @@
 """WeatherGPT API gateway (plan.md §4).
 
-Everything except `/health`, `/livez` and `/metrics` is reverse-proxied to
+Everything except `/health`, `/livez` and `/metrics` (bearer METRICS_TOKEN) is reverse-proxied to
 the orchestrator (`services/orchestrator/`, the former `prototype/ask_service`).
 The orchestrator still owns per-route rate limiting (`limits.py`, keyed off
 the TRUSTED_PROXY_HOPS-th X-Forwarded-For hop from the right — by default the
@@ -26,6 +26,7 @@ set 2, and both services key on that address.
 """
 
 import asyncio
+import hmac
 import logging
 import os
 import time
@@ -54,6 +55,7 @@ PROXY_TIMEOUT = httpx.Timeout(float(os.getenv("PROXY_TIMEOUT") or "60"), connect
 MAX_BODY_BYTES = int(float(os.getenv("MAX_BODY_BYTES") or 2 * 1024 * 1024))
 HEALTH_RATE_LIMIT_PER_MINUTE = int(float(os.getenv("HEALTH_RATE_LIMIT_PER_MINUTE") or 60))
 HEALTH_CACHE_SECONDS = 10.0
+METRICS_TOKEN = os.getenv("METRICS_TOKEN") or ""  # see metrics_route
 # See the module docstring; 0 must be checked explicitly below, since hops[-0]
 # would be the leftmost, attacker-controlled hop.
 _TRUSTED_XFF_HOPS = max(int(float(os.getenv("TRUSTED_PROXY_HOPS") or 1)) - 1, 0)
@@ -149,7 +151,8 @@ def _check_postgres() -> dict:
             # thing entirely.
             try:
                 postgis_version = conn.execute(text("SELECT PostGIS_Version()")).scalar()
-                result["postgis"] = f"ok ({postgis_version})"
+                _LOG.info("health check: postgis %s", postgis_version)
+                result["postgis"] = "ok"
             except Exception:
                 _LOG.exception("health check: postgis unavailable")
                 result["postgis"] = "error"
@@ -176,7 +179,9 @@ async def _probe() -> dict:
     independent — a dead database must not hide a live orchestrator. /health is
     unauthenticated and internet-facing, so results stay generic ("ok"/"error")
     — full exception details (which can include internal hostnames/DSNs) go to
-    the server log only, not the caller."""
+    the server log only, not the caller. The orchestrator's own /health is
+    detailed (providers, cache stats) and internal: only whether it answered 200
+    is reported, never its body."""
     status: dict = {"postgres": "unknown", "postgis": "unknown", "redis": "unknown",
                     "orchestrator": "unknown"}
 
@@ -185,12 +190,14 @@ async def _probe() -> dict:
 
     try:
         r = await _client.get("/health", timeout=5.0)
-        status["orchestrator"] = r.json() if r.status_code == 200 else "error"
+        status["orchestrator"] = "ok" if r.status_code == 200 else "error"
     except Exception:
         _LOG.exception("health check: orchestrator unreachable")
         status["orchestrator"] = "error"
 
-    return status
+    status["gateway"] = "ok"
+    ok = all(v == "ok" for v in status.values())
+    return {"status": "ok" if ok else "degraded", "components": status}
 
 
 @app.get("/health")
@@ -220,7 +227,17 @@ def livez():
 
 
 @app.get("/metrics")
-def metrics_route():
+def metrics_route(request: Request):
+    """Internal only. /metrics is served on the same port as the public API
+    (and Render has no ingress to filter it), so it needs `Authorization:
+    Bearer $METRICS_TOKEN` — what Prometheus sends via `authorization` in its
+    scrape config. With METRICS_TOKEN unset it is disabled (404), never open."""
+    if not METRICS_TOKEN:
+        return JSONResponse({"detail": "not found"}, status_code=404)
+    supplied = request.headers.get("authorization", "")
+    if not hmac.compare_digest(supplied.encode(), f"Bearer {METRICS_TOKEN}".encode()):
+        return JSONResponse({"detail": "unauthorized"}, status_code=401,
+                            headers={"WWW-Authenticate": "Bearer"})
     body, content_type = metrics.render()
     return Response(content=body, media_type=content_type)
 

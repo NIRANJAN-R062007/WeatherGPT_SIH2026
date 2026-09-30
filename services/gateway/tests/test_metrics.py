@@ -40,31 +40,50 @@ def test_livez_is_the_gateways_own(upstream):
     assert upstream.last is None  # never proxied
 
 
-def test_metrics_is_the_gateways_own(upstream):
-    r = client.get("/metrics")
+def test_metrics_is_the_gateways_own(upstream, monkeypatch):
+    monkeypatch.setattr(main, "METRICS_TOKEN", "tok")
+    r = client.get("/metrics", headers={"Authorization": "Bearer tok"})
     assert r.status_code == 200
     assert upstream.last is None  # never proxied
 
 
-def test_proxied_ask_is_counted_under_the_catchall_route(upstream):
+def test_proxied_ask_is_counted_under_the_catchall_route(upstream, monkeypatch):
+    monkeypatch.setattr(main, "METRICS_TOKEN", "tok")
     r = client.get("/ask?text=weather%20in%20Chennai&lang=en")
     assert r.status_code == 200
     assert upstream.last.url.path == "/ask"  # actually reached the orchestrator
 
-    body = client.get("/metrics").text
+    body = client.get("/metrics", headers={"Authorization": "Bearer tok"}).text
     # FastAPI's catch-all matches everything as one route template — asserting
     # on what's actually observed rather than assuming "/ask" survives as a label.
     assert 'route="/{path:path}"' in body
     assert 'http_requests_total{' in body
 
 
-def test_unreachable_orchestrator_bumps_upstream_errors_total(upstream):
+def test_unreachable_orchestrator_bumps_upstream_errors_total(upstream, monkeypatch):
+    monkeypatch.setattr(main, "METRICS_TOKEN", "tok")
     r = client.get("/boom")
     assert r.status_code == 502
 
-    body = client.get("/metrics").text
+    body = client.get("/metrics", headers={"Authorization": "Bearer tok"}).text
     assert "gateway_upstream_errors_total" in body
     for line in body.splitlines():
         if line.startswith("gateway_upstream_errors_total ") or \
                 line.startswith("gateway_upstream_errors_total{"):
             assert not line.endswith(" 0.0")
+
+
+def test_metrics_requires_the_bearer_token(upstream, monkeypatch):
+    monkeypatch.setattr(main, "METRICS_TOKEN", "s3cret")
+    assert client.get("/metrics").status_code == 401
+    assert client.get("/metrics", headers={"Authorization": "Bearer nope"}).status_code == 401
+    assert client.get("/metrics", headers={"Authorization": "s3cret"}).status_code == 401
+    r = client.get("/metrics", headers={"Authorization": "Bearer s3cret"})  # the scrape path
+    assert r.status_code == 200
+    assert upstream.last is None
+
+
+def test_metrics_is_disabled_when_no_token_is_configured(upstream, monkeypatch):
+    monkeypatch.setattr(main, "METRICS_TOKEN", "")
+    assert client.get("/metrics").status_code == 404
+    assert client.get("/metrics", headers={"Authorization": "Bearer "}).status_code == 404

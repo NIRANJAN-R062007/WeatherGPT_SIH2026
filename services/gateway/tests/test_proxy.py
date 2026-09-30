@@ -93,8 +93,9 @@ def test_health_is_the_gateways_own_and_reports_orchestrator(upstream, monkeypat
     r = client.get("/health")
     assert r.status_code == 200
     body = r.json()
-    assert body["orchestrator"] == {"ok": True}
-    assert body["postgres"].startswith("error") and body["redis"].startswith("error")
+    assert body["components"]["orchestrator"] == "ok"
+    assert body["status"] == "degraded"
+    assert body["components"]["postgres"] == "error" and body["components"]["redis"] == "error"
     assert upstream.last.url.path == "/health"
 
 
@@ -124,6 +125,6 @@ def test_missing_postgis_does_not_report_postgres_as_dead(upstream, monkeypatch)
 
     monkeypatch.setattr(main, "engine", _Engine())
     monkeypatch.setattr(main, "_health_cache", None)  # force a real probe
-    body = client.get("/health").json()
+    body = client.get("/health").json()["components"]
     assert body["postgres"] == "ok"
     assert body["postgis"] == "error"

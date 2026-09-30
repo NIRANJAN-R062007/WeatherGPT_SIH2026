@@ -5,7 +5,13 @@ global:
   scrape_interval: 5s
 
 scrape_configs:
+  # The gateway's /metrics needs a bearer token (METRICS_TOKEN, see
+  # docker-compose.yml). The orchestrator's is only reachable on the compose
+  # network / :8001 and stays open.
   - job_name: gateway
+    authorization:
+      type: Bearer
+      credentials_file: /etc/prometheus/metrics_token
     static_configs:
       - targets: ["gateway:8000"]
 

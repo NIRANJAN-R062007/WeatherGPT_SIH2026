@@ -15,6 +15,12 @@ from fastapi.testclient import TestClient
 from starlette.requests import Request
 
 client = TestClient(main.app)
+AUTH = {"Authorization": "Bearer test-token"}
+
+
+@pytest.fixture(autouse=True)
+def _metrics_token(monkeypatch):
+    monkeypatch.setattr(main, "METRICS_TOKEN", "test-token")
 
 
 class _Engine:
@@ -95,8 +101,9 @@ def _io(d) -> tuple[int, int, int]:
 def test_repeat_hits_within_the_ttl_are_served_from_cache(deps):
     first = client.get("/health")
     assert first.status_code == 200
-    assert first.json() == {"postgres": "ok", "postgis": "ok (3.4)", "redis": "ok",
-                            "orchestrator": {"ok": True}}
+    assert first.json() == {"status": "ok", "components": {
+        "postgres": "ok", "postgis": "ok", "redis": "ok", "orchestrator": "ok",
+        "gateway": "ok"}}
     deps.now += main.HEALTH_CACHE_SECONDS - 0.1
     assert client.get("/health").json() == first.json()
     assert _io(deps) == (1, 1, 1)
@@ -135,7 +142,7 @@ def test_livez_and_metrics_are_neither_limited_nor_proxied(deps, monkeypatch):
     assert client.get("/health").status_code == 429
     for _ in range(3):
         assert client.get("/livez").json() == {"status": "ok"}
-        assert client.get("/metrics").status_code == 200
+        assert client.get("/metrics", headers=AUTH).status_code == 200
     assert deps.upstream.calls == 1
 
 
@@ -146,8 +153,9 @@ def test_failures_stay_generic_and_are_cached_too(deps, monkeypatch):
           _Upstream(error=httpx.ConnectError("orchestrator-internal refused")))
     r = client.get("/health")
     assert r.status_code == 200
-    assert r.json() == {"postgres": "error", "postgis": "error", "redis": "error",
-                        "orchestrator": "error"}
+    assert r.json() == {"status": "degraded", "components": {
+        "postgres": "error", "postgis": "error", "redis": "error", "orchestrator": "error",
+        "gateway": "ok"}}
     for leak in ("s3cret", "db-internal", "redis-internal", "orchestrator-internal",
                  "RuntimeError", "ConnectError"):
         assert leak not in r.text
@@ -199,3 +207,18 @@ def test_forged_forwarded_for_does_not_buy_a_fresh_window(deps, monkeypatch):
     for i in range(3):
         r = client.get("/health", headers={"x-forwarded-for": f"198.51.100.{i}"})
         assert r.status_code == 429
+
+
+def test_public_health_hides_orchestrator_details(deps, monkeypatch):
+    detail = {"providers": ["gemini"], "ollama": {"reachable": True}, "bhashini": "configured",
+              "cache": {"hits": 3}}
+
+    async def handler(request):
+        return httpx.Response(200, json=detail)
+
+    monkeypatch.setattr(main, "_client", httpx.AsyncClient(
+        base_url="http://orchestrator", transport=httpx.MockTransport(handler)))
+    r = client.get("/health")
+    assert r.json()["components"]["orchestrator"] == "ok"
+    for leak in ("gemini", "ollama", "bhashini", "cache", "providers", "3.4"):
+        assert leak not in r.text

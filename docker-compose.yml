@@ -43,6 +43,8 @@ services:
       DATABASE_URL: postgresql://weathergpt:weathergpt_dev@postgres:5432/weathergpt
       REDIS_URL: redis://redis:6379/0
       ORCHESTRATOR_URL: http://orchestrator:8001
+      # Bearer token for the gateway's /metrics; Prometheus reads the same value.
+      METRICS_TOKEN: ${METRICS_TOKEN:-dev-metrics-token}
     ports:
       - "8000:8000"
     volumes:
@@ -117,6 +119,9 @@ services:
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
+    configs:
+      - source: metrics_token
+        target: /etc/prometheus/metrics_token
 
   grafana:
     image: grafana/grafana:13.2.1
@@ -135,6 +140,11 @@ services:
       - grafana_data:/var/lib/grafana
     depends_on:
       - prometheus
+
+# Same value the gateway is given as METRICS_TOKEN (compose >= 2.23 for `content`).
+configs:
+  metrics_token:
+    content: ${METRICS_TOKEN:-dev-metrics-token}
 
 volumes:
   postgres_data:
