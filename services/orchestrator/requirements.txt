@@ -8,4 +8,4 @@ prometheus-client==0.26.0
 sqlalchemy==2.0.52
 psycopg2-binary==2.9.13
 redis==5.0.8
-python-multipart==0.0.20
+python-multipart==0.0.31
