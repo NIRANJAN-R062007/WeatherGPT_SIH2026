@@ -7,12 +7,15 @@ blocked by conftest, so every httpx call here is mocked directly.
 """
 
 import base64
+import socket
 import struct
 
 import config
 import httpx
 import ivr
 import pytest
+from fastapi import FastAPI, HTTPException
+from fastapi.testclient import TestClient
 
 
 def _wav_bytes(pcm: bytes = b"\x00\x01\x02\x03", sample_rate: int = 8000) -> bytes:
@@ -25,21 +28,61 @@ def _wav_bytes(pcm: bytes = b"\x00\x01\x02\x03", sample_rate: int = 8000) -> byt
 
 
 class _Resp:
-    def __init__(self, content: bytes, status: int = 200):
+    def __init__(self, content: bytes, status: int = 200, headers: dict | None = None):
         self.content = content
         self.status_code = status
+        self.headers = headers or {}
 
     def raise_for_status(self):
         if self.status_code >= 400:
             raise httpx.HTTPStatusError("boom", request=None, response=self)
 
+    def iter_bytes(self, chunk_size: int = 65536):
+        for i in range(0, len(self.content), chunk_size):
+            yield self.content[i:i + chunk_size]
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+def _stream(resp_or_fn, seen: dict | None = None):
+    """Stand-in for httpx.stream returning a canned _Resp (or calling a fn)."""
+    def _s(method, url, **k):
+        if seen is not None:
+            seen["url"], seen["kwargs"] = url, k
+        if isinstance(resp_or_fn, BaseException):
+            raise resp_or_fn
+        return resp_or_fn
+    return _s
+
+
+def _dns(monkeypatch, *addrs):
+    def _gai(host, port, *a, **k):
+        return [(socket.AF_INET6 if ":" in ad else socket.AF_INET, 0, 0, "", (ad, 0))
+                for ad in addrs]
+    monkeypatch.setattr(socket, "getaddrinfo", _gai)
+
+
+_GOOD_URL = "https://recordings.exotel.com/rec.wav"
+
+
+@pytest.fixture(autouse=True)
+def _public_dns_by_default(monkeypatch):
+    _dns(monkeypatch, "93.184.216.34")
+
 
 # ---- _check_secret ----------------------------------------------------------
 
-def test_check_secret_noop_when_unset(monkeypatch):
+def test_check_secret_fails_closed_when_unset(monkeypatch):
+    # Behaviour intentionally changed: an unset secret used to be a no-op.
     monkeypatch.setattr(config, "IVR_WEBHOOK_SECRET", None)
-    ivr._check_secret(None)  # doesn't raise
-    ivr._check_secret("anything")  # doesn't raise
+    for key in (None, "", "anything"):
+        with pytest.raises(HTTPException) as exc:
+            ivr._check_secret(key)
+        assert exc.value.status_code == 403
 
 
 def test_check_secret_rejects_wrong_key(monkeypatch):
@@ -58,35 +101,167 @@ def test_check_secret_accepts_right_key(monkeypatch):
 # ---- _download_recording -----------------------------------------------------
 
 def test_download_recording_rejects_non_wav(monkeypatch):
-    monkeypatch.setattr(httpx, "get", lambda *a, **k: _Resp(b"ID3not a wav"))
-    assert ivr._download_recording("https://example.test/rec.mp3") is None
+    monkeypatch.setattr(httpx, "stream", _stream(_Resp(b"ID3not a wav")))
+    assert ivr._download_recording(_GOOD_URL) is None
 
 
 def test_download_recording_returns_wav_bytes(monkeypatch):
     wav = _wav_bytes()
-    monkeypatch.setattr(httpx, "get", lambda *a, **k: _Resp(wav))
-    assert ivr._download_recording("https://example.test/rec.wav") == wav
+    monkeypatch.setattr(httpx, "stream", _stream(_Resp(wav)))
+    assert ivr._download_recording(_GOOD_URL) == wav
 
 
 def test_download_recording_none_on_http_error(monkeypatch):
-    def _raise(*a, **k):
-        raise httpx.ConnectError("down")
-    monkeypatch.setattr(httpx, "get", _raise)
-    assert ivr._download_recording("https://example.test/rec.wav") is None
+    monkeypatch.setattr(httpx, "stream", _stream(httpx.ConnectError("down")))
+    assert ivr._download_recording(_GOOD_URL) is None
 
 
-def test_download_recording_uses_exotel_basic_auth(monkeypatch):
+def test_download_recording_uses_exotel_basic_auth_for_allowlisted_host(monkeypatch):
     monkeypatch.setattr(config, "EXOTEL_API_KEY", "key123")
     monkeypatch.setattr(config, "EXOTEL_API_TOKEN", "tok456")
     seen = {}
+    monkeypatch.setattr(httpx, "stream", _stream(_Resp(_wav_bytes()), seen))
+    assert ivr._download_recording(_GOOD_URL) is not None
+    assert seen["kwargs"]["auth"] == ("key123", "tok456")
+    assert seen["kwargs"]["follow_redirects"] is False
 
-    def _get(url, auth=None, timeout=None, follow_redirects=None):
-        seen["auth"] = auth
-        return _Resp(_wav_bytes())
 
-    monkeypatch.setattr(httpx, "get", _get)
-    ivr._download_recording("https://example.test/rec.wav")
-    assert seen["auth"] == ("key123", "tok456")
+def test_download_recording_sends_no_credentials_to_non_allowlisted_host(monkeypatch):
+    monkeypatch.setattr(config, "EXOTEL_API_KEY", "key123")
+    monkeypatch.setattr(config, "EXOTEL_API_TOKEN", "tok456")
+    called = []
+    monkeypatch.setattr(httpx, "stream", lambda *a, **k: called.append(k) or _Resp(_wav_bytes()))
+    assert ivr._download_recording("https://attacker.example/rec.wav") is None
+    assert called == []  # never even contacted
+
+
+@pytest.mark.parametrize("url", [
+    "https://exotel.com.attacker.example/rec.wav",   # allowlisted name as a prefix
+    "https://attacker.example/exotel.com/rec.wav",   # ...in the path
+    "https://notexotel.com/rec.wav",                 # substring, not dot-suffix
+    "https://exotel.com@attacker.example/rec.wav",   # userinfo trick
+    "https://exotel.com:pw@exotel.com/rec.wav",      # embedded credentials
+])
+def test_download_recording_allowlist_is_exact_or_dot_suffix(monkeypatch, url):
+    monkeypatch.setattr(httpx, "stream", _stream(_Resp(_wav_bytes())))
+    assert ivr._download_recording(url) is None
+
+
+def test_download_recording_accepts_exact_and_subdomain_hosts(monkeypatch):
+    monkeypatch.setattr(httpx, "stream", _stream(_Resp(_wav_bytes())))
+    assert ivr._download_recording("https://exotel.com/r.wav") is not None
+    assert ivr._download_recording("https://a.b.exotel.com/r.wav") is not None
+
+
+def test_download_recording_rejects_http(monkeypatch):
+    called = []
+    monkeypatch.setattr(httpx, "stream", lambda *a, **k: called.append(1) or _Resp(_wav_bytes()))
+    assert ivr._download_recording("http://recordings.exotel.com/rec.wav") is None
+    assert called == []
+
+
+@pytest.mark.parametrize("addr", [
+    "127.0.0.1", "10.0.0.5", "192.168.1.1", "172.16.0.9", "169.254.169.254",
+    "224.0.0.1", "240.0.0.1", "0.0.0.0", "::1", "fe80::1", "fc00::1", "ff02::1",
+    "::ffff:127.0.0.1",
+])
+def test_download_recording_rejects_non_public_resolution(monkeypatch, addr):
+    _dns(monkeypatch, addr)
+    called = []
+    monkeypatch.setattr(httpx, "stream", lambda *a, **k: called.append(1) or _Resp(_wav_bytes()))
+    assert ivr._download_recording(_GOOD_URL) is None
+    assert called == []
+
+
+def test_download_recording_rejects_if_any_resolved_address_is_private(monkeypatch):
+    _dns(monkeypatch, "93.184.216.34", "10.0.0.1")
+    monkeypatch.setattr(httpx, "stream", _stream(_Resp(_wav_bytes())))
+    assert ivr._download_recording(_GOOD_URL) is None
+
+
+def test_download_recording_rejects_unresolvable_host(monkeypatch):
+    def _fail(*a, **k):
+        raise socket.gaierror("nope")
+    monkeypatch.setattr(socket, "getaddrinfo", _fail)
+    assert ivr._download_recording(_GOOD_URL) is None
+
+
+def test_download_recording_does_not_follow_redirects(monkeypatch):
+    monkeypatch.setattr(httpx, "stream", _stream(_Resp(b"", status=302)))
+    assert ivr._download_recording(_GOOD_URL) is None
+
+
+def test_download_recording_refuses_oversized_body(monkeypatch):
+    monkeypatch.setattr(config, "IVR_MAX_RECORDING_BYTES", 1000)
+    big = _wav_bytes(pcm=b"\x00" * 5000)
+    monkeypatch.setattr(httpx, "stream", _stream(_Resp(big)))
+    assert ivr._download_recording(_GOOD_URL) is None
+
+
+def test_download_recording_refuses_oversized_declared_length(monkeypatch):
+    monkeypatch.setattr(config, "IVR_MAX_RECORDING_BYTES", 1000)
+    resp = _Resp(_wav_bytes(), headers={"content-length": "999999"})
+    monkeypatch.setattr(httpx, "stream", _stream(resp))
+    assert ivr._download_recording(_GOOD_URL) is None
+
+
+def test_insecure_override_allows_http_loopback_but_never_sends_credentials(monkeypatch):
+    monkeypatch.setattr(config, "IVR_ALLOW_INSECURE_RECORDING_URLS", True)
+    monkeypatch.setattr(config, "EXOTEL_API_KEY", "key123")
+    monkeypatch.setattr(config, "EXOTEL_API_TOKEN", "tok456")
+    seen = {}
+    monkeypatch.setattr(httpx, "stream", _stream(_Resp(_wav_bytes()), seen))
+    assert ivr._download_recording("http://127.0.0.1:9999/rec.wav") is not None
+    assert seen["kwargs"]["auth"] is None
+
+
+def test_insecure_override_is_off_by_default():
+    assert config.IVR_ALLOW_INSECURE_RECORDING_URLS is False
+
+
+def test_download_recording_does_not_log_full_url(monkeypatch, caplog):
+    url = "https://attacker.example/secret-path/rec.wav?token=abc123"
+    with caplog.at_level("WARNING", logger="weathergpt.ivr"):
+        ivr._download_recording(url)
+    assert "abc123" not in caplog.text and "secret-path" not in caplog.text
+    assert "attacker.example" in caplog.text
+
+
+# ---- mount / routes -------------------------------------------------------------
+
+def _mounted_app(monkeypatch, enabled=True, secret="s3cr3t"):
+    monkeypatch.setattr(config, "IVR_ENABLED", enabled)
+    monkeypatch.setattr(config, "IVR_WEBHOOK_SECRET", secret)
+    app = FastAPI()
+    ivr.mount(app, lambda **k: {}, lambda key, lang: "")
+    return app
+
+
+@pytest.mark.parametrize("secret", [None, ""])
+def test_mount_skips_routes_when_enabled_without_secret(monkeypatch, caplog, secret):
+    with caplog.at_level("ERROR", logger="weathergpt.ivr"):
+        app = _mounted_app(monkeypatch, secret=secret)
+    assert not [r for r in app.routes if getattr(r, "path", "").startswith("/ivr")]
+    assert "IVR_WEBHOOK_SECRET" in caplog.text
+
+
+def test_mount_registers_routes_with_secret(monkeypatch):
+    app = _mounted_app(monkeypatch)
+    assert "/ivr/recording" in {r.path for r in app.routes}
+
+
+def test_mount_noop_when_disabled(monkeypatch):
+    app = _mounted_app(monkeypatch, enabled=False)
+    assert not [r for r in app.routes if getattr(r, "path", "").startswith("/ivr")]
+
+
+def test_routes_return_403_for_wrong_or_missing_key(monkeypatch):
+    client = TestClient(_mounted_app(monkeypatch))
+    data = {"CallSid": "CA1", "RecordingUrl": _GOOD_URL}
+    assert client.post("/ivr/recording", params={"key": "wrong"}, data=data).status_code == 403
+    assert client.post("/ivr/recording", data=data).status_code == 403
+    assert client.get("/ivr/answer/CA1.wav", params={"key": "wrong"}).status_code == 403
+    assert client.get("/ivr/menu.wav").status_code == 403
 
 
 # ---- answer cache -------------------------------------------------------------
@@ -104,6 +279,17 @@ def test_answer_cache_expires(monkeypatch):
     import time
     time.sleep(0.01)
     assert ivr._cache_get("CA999") is None
+
+
+def test_answer_cache_is_bounded_and_evicts_oldest(monkeypatch):
+    ivr._answer_cache.clear()
+    monkeypatch.setattr(config, "IVR_ANSWER_CACHE_MAX", 3)
+    for i in range(6):
+        ivr._cache_put(f"CA{i}", b"w")
+    assert len(ivr._answer_cache) == 3
+    assert list(ivr._answer_cache) == ["CA3", "CA4", "CA5"]
+    assert ivr._cache_get("CA0") is None
+    assert ivr._cache_get("CA5") == b"w"
 
 
 def test_answer_cache_missing_call_returns_none():

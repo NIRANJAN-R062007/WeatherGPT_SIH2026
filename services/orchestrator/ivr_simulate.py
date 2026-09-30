@@ -255,6 +255,8 @@ def simulate_call(client, question_wav: bytes, lang: str, out_dir: Path,
     _say(f"Record   question: {len(telephony)} bytes, 8kHz mono")
 
     taps = _Taps() if tap else None
+    insecure_before = config.IVR_ALLOW_INSECURE_RECORDING_URLS
+    config.IVR_ALLOW_INSECURE_RECORDING_URLS = True  # simulator-only: recording is on 127.0.0.1
     with _RecordingServer(telephony, f"{call_sid}.wav") as rec:
         if taps:
             taps.__enter__()
@@ -264,6 +266,7 @@ def simulate_call(client, question_wav: bytes, lang: str, out_dir: Path,
                 data={"CallSid": call_sid, "Digits": manifest["digits"], "RecordingUrl": rec.url},
             )
         finally:
+            config.IVR_ALLOW_INSECURE_RECORDING_URLS = insecure_before
             if taps:
                 taps.__exit__(None, None, None)
     _step("Passthru", "POST /ivr/recording", resp.status_code)
@@ -316,6 +319,9 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     key = config.IVR_WEBHOOK_SECRET
+    if not key and not args.base_url:
+        # the routes are not mounted without a secret; use a throwaway one in-process
+        key = config.IVR_WEBHOOK_SECRET = uuid.uuid4().hex
     if args.base_url:
         with httpx.Client(base_url=args.base_url, timeout=120.0) as client:
             manifest = simulate_call(client, question, args.lang, args.out, key, tap=False)

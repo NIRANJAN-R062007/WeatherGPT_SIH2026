@@ -197,8 +197,27 @@ EXOTEL_API_TOKEN: str | None = os.getenv("EXOTEL_API_TOKEN")
 # Shared secret Exotel's Passthru/Greeting applet URLs must carry as
 # ?key=... — Exotel has no request-signing like Twilio's X-Twilio-Signature,
 # so this is the only thing stopping a stranger who finds the webhook URL
-# from injecting fake calls or scraping cached answer audio.
+# from injecting fake calls or scraping cached answer audio. REQUIRED when
+# IVR_ENABLED is true: with it empty the IVR routes are not mounted (fail
+# closed, see ivr.mount).
 IVR_WEBHOOK_SECRET: str | None = os.getenv("IVR_WEBHOOK_SECRET")
+# Hosts a RecordingUrl may point at (exact hostname or a dot-suffix of one of
+# these; comma-separated). The Exotel API key/token is only ever sent to these
+# hosts, over https.
+IVR_RECORDING_HOSTS: tuple[str, ...] = tuple(
+    h.strip().lower().lstrip(".")
+    for h in (os.getenv("IVR_RECORDING_HOSTS") or "exotel.com").split(",")
+    if h.strip()
+)
+# Simulator/test-only: accept http:// and non-allowlisted/loopback recording
+# hosts (ivr_simulate serves its recording from a throwaway 127.0.0.1 server).
+# Credentials are still never sent to a non-allowlisted host. Never set this
+# in a real deployment; it is deliberately not read from the environment.
+IVR_ALLOW_INSECURE_RECORDING_URLS: bool = False
+# Max bytes accepted for one downloaded recording.
+IVR_MAX_RECORDING_BYTES: int = 10 * 1024 * 1024
+# Max CallSid entries held in the in-memory answer cache (oldest evicted).
+IVR_ANSWER_CACHE_MAX: int = 500
 # How long a synthesized answer stays cached in memory, keyed by CallSid, for
 # the Greeting node's follow-up fetch. Calls are seconds-to-a-minute long
 # end to end; this just needs to outlive Exotel's own inter-applet latency.

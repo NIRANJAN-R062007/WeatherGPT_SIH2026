@@ -45,8 +45,12 @@ scoped out of this pass.
 """
 
 import base64
+import hmac
+import ipaddress
 import logging
+import socket
 import time
+from urllib.parse import urlsplit
 
 import bhashini
 import config
@@ -72,8 +76,11 @@ _answer_cache: dict[str, tuple[float, bytes]] = {}
 
 
 def _cache_put(call_sid: str, wav_bytes: bytes) -> None:
+    _answer_cache.pop(call_sid, None)  # re-insert so it counts as newest
     _answer_cache[call_sid] = (time.monotonic() + config.IVR_ANSWER_TTL_SECONDS, wav_bytes)
     _cache_sweep()
+    while len(_answer_cache) > config.IVR_ANSWER_CACHE_MAX:
+        _answer_cache.pop(next(iter(_answer_cache)), None)  # dicts keep insertion order
 
 
 def _cache_get(call_sid: str) -> bytes | None:
@@ -98,33 +105,99 @@ def _check_secret(key: str | None) -> None:
     """Exotel has no request-signing (no X-Twilio-Signature equivalent), so a
     shared ?key= query param is the only thing stopping a stranger who finds
     the webhook URL from injecting fake calls or scraping cached answer
-    audio. If IVR_WEBHOOK_SECRET is unset, this is a no-op — fine for local
-    dev against a tunnel nobody else has the URL for, never for a public
-    deploy; config.py's docstring says so."""
-    if config.IVR_WEBHOOK_SECRET and key != config.IVR_WEBHOOK_SECRET:
+    audio. mount() refuses to register the routes without a secret; this
+    check also fails closed if it is somehow empty."""
+    secret = config.IVR_WEBHOOK_SECRET
+    if not secret or not key or not hmac.compare_digest(key.encode(), secret.encode()):
         raise HTTPException(status_code=403, detail="bad or missing key")
+
+
+def _host_allowed(host: str) -> bool:
+    host = host.lower().rstrip(".")
+    return any(host == h or host.endswith("." + h) for h in config.IVR_RECORDING_HOSTS)
+
+
+def _host_is_public(host: str) -> bool:
+    """True only if every address the host resolves to is a public one."""
+    try:
+        infos = socket.getaddrinfo(host, None, proto=socket.IPPROTO_TCP)
+    except (socket.gaierror, UnicodeError, OSError):
+        return False
+    if not infos:
+        return False
+    for info in infos:
+        try:
+            ip = ipaddress.ip_address(info[4][0].split("%")[0])
+        except ValueError:
+            return False
+        if ip.version == 6 and ip.ipv4_mapped is not None:
+            ip = ip.ipv4_mapped
+        if (ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_multicast
+                or ip.is_reserved or ip.is_unspecified or not ip.is_global):
+            return False
+    return True
 
 
 def _download_recording(url: str) -> bytes | None:
     """Fetch Exotel's RecordingUrl. Needs Basic Auth with the account's API
-    Key/API Token (EXOTEL_API_KEY/EXOTEL_API_TOKEN — the Developer Settings
-    -> API Settings credential pair, not the Account SID). Only a WAV
-    response (RIFF/WAVE header) is usable — see the module docstring's MP3
-    gap; anything else returns None so the caller falls back to the "no
-    data" answer rather than silently feeding Bhashini bytes it can't parse."""
-    have_creds = config.EXOTEL_API_KEY and config.EXOTEL_API_TOKEN
-    auth = (config.EXOTEL_API_KEY, config.EXOTEL_API_TOKEN) if have_creds else None
+    Key/API Token (EXOTEL_API_KEY/EXOTEL_API_TOKEN). The URL is caller
+    supplied, so: https only, host must be on IVR_RECORDING_HOSTS and resolve
+    to public addresses only, credentials go to allowlisted hosts only,
+    redirects are not followed, and the body is capped. Only a WAV response
+    (RIFF/WAVE header) is usable — see the module docstring's MP3 gap;
+    anything else returns None so the caller falls back to the "no data"
+    answer. config.IVR_ALLOW_INSECURE_RECORDING_URLS (simulator/tests only)
+    relaxes the scheme/host/IP checks but never the credential rule."""
     try:
-        resp = httpx.get(url, auth=auth, timeout=15.0, follow_redirects=True)
-        resp.raise_for_status()
-    except httpx.HTTPError as exc:
-        _LOG.warning("IVR: failed to download recording %s (%s)", url, exc)
+        parts = urlsplit(url)
+        host = (parts.hostname or "").lower()
+        parts.port  # noqa: B018 - raises ValueError on a malformed port
+    except ValueError:
+        _LOG.warning("IVR: recording URL rejected (unparseable)")
         return None
-    body = resp.content
+    allowed = _host_allowed(host) if host else False
+    if not config.IVR_ALLOW_INSECURE_RECORDING_URLS:
+        if parts.scheme != "https" or not allowed or parts.username or parts.password:
+            _LOG.warning("IVR: recording URL rejected (scheme/host not allowed): host=%s", host)
+            return None
+        if not _host_is_public(host):
+            _LOG.warning("IVR: recording host rejected (non-public address): host=%s", host)
+            return None
+    elif parts.scheme not in ("http", "https") or not host:
+        _LOG.warning("IVR: recording URL rejected (bad scheme): host=%s", host)
+        return None
+    have_creds = config.EXOTEL_API_KEY and config.EXOTEL_API_TOKEN
+    auth = (config.EXOTEL_API_KEY, config.EXOTEL_API_TOKEN) \
+        if have_creds and allowed and parts.scheme == "https" else None
+    limit = config.IVR_MAX_RECORDING_BYTES
+    try:
+        with httpx.stream("GET", url, auth=auth, timeout=15.0, follow_redirects=False) as resp:
+            resp.raise_for_status()
+            if resp.status_code != 200:
+                _LOG.warning("IVR: recording download refused (status %s) host=%s",
+                             resp.status_code, host)
+                return None
+            declared = resp.headers.get("content-length")
+            if declared and declared.isdigit() and int(declared) > limit:
+                _LOG.warning("IVR: recording too large (declared) host=%s", host)
+                return None
+            chunks: list[bytes] = []
+            total = 0
+            for chunk in resp.iter_bytes():
+                total += len(chunk)
+                if total > limit:
+                    _LOG.warning("IVR: recording too large host=%s", host)
+                    return None
+                chunks.append(chunk)
+    except httpx.HTTPError as exc:
+        # type only: httpx exception text includes the full URL
+        _LOG.warning("IVR: failed to download recording from %s (%s)", host, type(exc).__name__)
+        return None
+    body = b"".join(chunks)
     if body[:4] != b"RIFF" or body[8:12] != b"WAVE":
         _LOG.warning(
-            "IVR: recording at %s is not WAV (got %r) — MP3 transcoding isn't wired up yet",
-            url, body[:12],
+            "IVR: recording from %s is not WAV (got %r) — MP3 transcoding isn't wired up yet",
+            host, body[:12],
         )
         return None
     return body
@@ -260,6 +333,12 @@ def mount(app: FastAPI, ask_fn, msg_fn) -> None:
     """Registers the IVR routes on `app`. No-op if IVR_ENABLED is unset, so a
     repo clone with no Exotel account configured doesn't expose them."""
     if not config.IVR_ENABLED:
+        return
+    if not config.IVR_WEBHOOK_SECRET:
+        _LOG.error(
+            "IVR_ENABLED is set but IVR_WEBHOOK_SECRET is empty - IVR routes NOT mounted. "
+            "Set IVR_WEBHOOK_SECRET to enable the IVR channel."
+        )
         return
 
     @app.get("/ivr/menu.wav")

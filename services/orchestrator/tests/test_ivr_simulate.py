@@ -21,12 +21,24 @@ def _wav(pcm: bytes, rate: int, channels: int = 1) -> bytes:
     return ivr_simulate._pcm16_wav(pcm, rate, channels)
 
 
-class _Resp:
+class _StreamResp:
+    status_code = 200
+    headers: dict = {}
+
     def __init__(self, content: bytes):
         self.content = content
 
     def raise_for_status(self):
         pass
+
+    def iter_bytes(self):
+        yield self.content
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
 
 
 @pytest.fixture
@@ -35,7 +47,8 @@ def fake_call(monkeypatch):
     monkeypatch.setattr(ivr, "_menu_cache", None)
     monkeypatch.setattr(config, "IVR_WEBHOOK_SECRET", "s3cr3t")
     monkeypatch.setattr(
-        httpx, "get", lambda url, **k: _Resp(urllib.request.urlopen(url).read()),
+        httpx, "stream",
+        lambda method, url, **k: _StreamResp(urllib.request.urlopen(url).read()),
     )
     seen = {"asr": []}
 
@@ -104,6 +117,7 @@ def test_wrong_key_is_rejected_by_the_real_routes(fake_call, tmp_path):
 
 def test_build_app_does_not_leave_ivr_enabled(monkeypatch):
     monkeypatch.setattr(config, "IVR_ENABLED", False)
+    monkeypatch.setattr(config, "IVR_WEBHOOK_SECRET", "s3cr3t")
     app = ivr_simulate.build_app(lambda **k: {}, lambda k, lang: "")
     assert config.IVR_ENABLED is False
     assert "/ivr/recording" in {r.path for r in app.routes}
@@ -134,3 +148,9 @@ def test_tag_simulated_keeps_wav_parseable():
     assert struct.unpack("<I", tagged[4:8])[0] == len(tagged) - 8
     assert ivr._wav_data_chunk(tagged) == ivr._wav_data_chunk(wav)
     assert ivr_simulate.tag_simulated(b"ID3 mp3") == b"ID3 mp3"
+
+
+def test_simulator_does_not_leave_insecure_recording_flag_on(fake_call, tmp_path):
+    client, _ = fake_call
+    ivr_simulate.simulate_call(client, _wav(b"\x00\x00" * 800, 8000), "en", tmp_path, key="s3cr3t")
+    assert config.IVR_ALLOW_INSECURE_RECORDING_URLS is False
