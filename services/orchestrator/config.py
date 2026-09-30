@@ -5,6 +5,7 @@ at import time — /ask must import with an empty environment (CI has no .env).
 Call require() at the point of use to fail loudly with an actionable message.
 """
 
+import logging
 import os
 from pathlib import Path
 
@@ -81,6 +82,17 @@ BHASHINI_INFERENCE_KEY: str | None = os.getenv("BHASHINI_INFERENCE_KEY")
 
 _origins = (os.getenv("ALLOWED_ORIGINS") or "").strip()
 ALLOWED_ORIGINS: list[str] = [o.strip() for o in _origins.split(",") if o.strip()] or ["*"]
+
+
+def warn_if_wildcard_cors(origins: list[str]) -> bool:
+    """Log a startup WARNING when CORS is open to every origin; True if it did."""
+    if "*" not in origins:
+        return False
+    logging.getLogger(__name__).warning(
+        "ALLOWED_ORIGINS is unset or '*': CORS is open to every origin. "
+        "Fine for local dev; production must set ALLOWED_ORIGINS to explicit origins."
+    )
+    return True
 
 # Directory of static files main.py serves at `/` next to the API (the
 # prototype/frontend demo page — plan.md §14 host pin, one tunnel for UI and

@@ -90,3 +90,15 @@ def test_offline_defaults(monkeypatch):
     assert reloaded.OLLAMA_MODEL == "llama3.2:3b"
     assert reloaded.OLLAMA_TIMEOUT == 30.0
     importlib.reload(config)
+
+
+def test_wildcard_cors_logs_startup_warning(caplog):
+    with caplog.at_level("WARNING", logger="config"):
+        assert config.warn_if_wildcard_cors(["*"]) is True
+    assert "ALLOWED_ORIGINS" in caplog.text
+
+
+def test_explicit_cors_origins_log_no_warning(caplog):
+    with caplog.at_level("WARNING", logger="config"):
+        assert config.warn_if_wildcard_cors(["https://app.example.com"]) is False
+    assert caplog.text == ""

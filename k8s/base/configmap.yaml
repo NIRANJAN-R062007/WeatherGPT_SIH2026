@@ -27,6 +27,8 @@ data:
   TRUSTED_PROXY_HOPS: "2"
 
   # CORS for the /ask surface — comma-separated origins; unset means "*"
+  # TODO: production origins pending a decision by the deployment owners; empty
+  # means "*" and the orchestrator logs a warning at startup.
   ALLOWED_ORIGINS: ""
 
   # Static demo page the orchestrator serves at / (services/orchestrator/main.py),

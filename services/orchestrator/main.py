@@ -54,6 +54,7 @@ app = FastAPI(title="WeatherGPT Orchestrator", version="0.1.0")
 # origin, as does frontend-only local dev — see prototype/README.md
 # "Integration". POST is for /asr and /tts (JSON bodies too large/binary for
 # query params), no credentials.
+config.warn_if_wildcard_cors(ALLOWED_ORIGINS)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
