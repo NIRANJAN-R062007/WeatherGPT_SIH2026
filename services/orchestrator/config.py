@@ -219,6 +219,15 @@ ALERT_POLL_SECONDS: float = _float_env("ALERT_POLL_SECONDS", 60.0)
 # city via weather_store.nearest_city(); this bounds how far "nearest" is
 # allowed to be before it's not a meaningful match.
 ALERT_MAX_SUBSCRIPTION_RADIUS_KM: float = _float_env("ALERT_MAX_SUBSCRIPTION_RADIUS_KM", 200.0)
+# LOCAL DEV ONLY. By default webhook targets must be https URLs whose host
+# resolves only to public addresses (SSRF guard, netguard.py). Setting this
+# allows http and loopback/private hosts so a local demo can POST to
+# 127.0.0.1. Never enable on a deployed server.
+ALERT_WEBHOOK_ALLOW_PRIVATE: bool = (
+    os.getenv("ALERT_WEBHOOK_ALLOW_PRIVATE") or ""
+).strip().lower() in (
+    "1", "true", "yes",
+)
 
 
 class ConfigError(RuntimeError):

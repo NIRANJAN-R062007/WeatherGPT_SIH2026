@@ -43,6 +43,7 @@ import time
 import config
 import httpx
 import imd_warnings
+import netguard
 import weather_store
 from sqlalchemy import text
 
@@ -79,6 +80,13 @@ def subscribe(
         raise SubscriptionError(f"channel must be 'webhook' or 'fcm', got {channel!r}")
     if not target:
         raise SubscriptionError("target is required")
+    if channel == "webhook":
+        try:
+            netguard.validate_public_https_url(
+                target, allow_private=config.ALERT_WEBHOOK_ALLOW_PRIVATE,
+            )
+        except netguard.UnsafeURLError as exc:
+            raise SubscriptionError(f"invalid webhook target: {exc}") from exc
 
     by_city = city_key is not None
     by_point = lat is not None and lon is not None and radius_km is not None
@@ -208,20 +216,33 @@ def _build_payload(sub: dict, city_key: str, verdict: dict) -> dict:
 
 
 def _dispatch_webhook(target: str, payload: dict) -> bool:
+    host = netguard.url_host(target)
     try:
-        resp = httpx.post(target, json=payload, timeout=10.0)
+        # Re-validate at send time: DNS may have changed since subscribe.
+        netguard.validate_public_https_url(
+            target, allow_private=config.ALERT_WEBHOOK_ALLOW_PRIVATE,
+        )
+    except netguard.UnsafeURLError as exc:
+        _LOG.warning("alert webhook to host %s blocked: %s", host, exc)
+        return False
+    try:
+        resp = httpx.post(
+            target, json=payload, timeout=5.0, follow_redirects=False,
+        )
         resp.raise_for_status()
         return True
     except httpx.HTTPError as exc:
-        _LOG.warning("alert webhook dispatch to %s failed: %s", target, exc)
+        _LOG.warning(
+            "alert webhook dispatch to host %s failed: %s", host, type(exc).__name__,
+        )
         return False
 
 
 def _dispatch_fcm(target: str, payload: dict) -> bool:
     _LOG.warning(
-        "alert dispatch: channel=fcm not implemented yet (target=%s) — "
+        "alert dispatch: channel=fcm not implemented yet (token sha256=%s) — "
         "subscription stored, nothing sent. See alert_engine.py's module docstring.",
-        target,
+        hashlib.sha256(target.encode()).hexdigest()[:8],
     )
     return False
 

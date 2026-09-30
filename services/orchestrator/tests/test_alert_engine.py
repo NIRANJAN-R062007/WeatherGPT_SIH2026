@@ -9,10 +9,18 @@ a throwaway PostGIS container, same as weather_store's Phase 1 work.
 """
 
 import alert_engine
+import config
 import httpx
 import imd_warnings
 import pytest
 import weather_store
+
+
+@pytest.fixture(autouse=True)
+def _allow_private_webhooks(monkeypatch):
+    # These tests use fake hosts and mock the transport; the SSRF guard has
+    # its own tests in test_netguard.py.
+    monkeypatch.setattr(config, "ALERT_WEBHOOK_ALLOW_PRIVATE", True)
 
 
 def _sub(**overrides):
@@ -120,7 +128,7 @@ def test_dispatch_webhook_success(monkeypatch):
         def raise_for_status(self):
             pass
 
-    def _post(url, json=None, timeout=None):
+    def _post(url, json=None, timeout=None, **kw):
         calls.append((url, json))
         return _Resp()
 
@@ -130,7 +138,7 @@ def test_dispatch_webhook_success(monkeypatch):
 
 
 def test_dispatch_webhook_failure(monkeypatch):
-    def _post(url, json=None, timeout=None):
+    def _post(url, json=None, timeout=None, **kw):
         raise httpx.ConnectError("down")
 
     monkeypatch.setattr(httpx, "post", _post)
