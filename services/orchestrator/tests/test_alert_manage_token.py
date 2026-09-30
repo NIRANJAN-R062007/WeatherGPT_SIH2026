@@ -71,6 +71,10 @@ def db(monkeypatch):
     fake = _FakeDB()
     monkeypatch.setattr(weather_store, "_engine", fake, raising=False)
     monkeypatch.setattr(weather_store, "_ensure_schema", lambda: None)
+    # Webhook-target validation has its own tests (test_netguard.py); these
+    # use placeholder targets and are only about the manage token.
+    monkeypatch.setattr(alert_engine.netguard, "validate_public_https_url",
+                        lambda url, **kw: url)
     return fake
 
 
