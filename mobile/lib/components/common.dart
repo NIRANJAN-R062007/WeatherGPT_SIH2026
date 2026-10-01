@@ -169,6 +169,43 @@ class TagChip extends StatelessWidget {
   }
 }
 
+/// Phase 7 B2: `warning.disclaimer` ("Simulated data — pending official feed
+/// access"), shown on every warning card sourced from fixtures — mirrors
+/// web's `bg-tertiary-fixed text-on-tertiary-fixed` banner with the
+/// `science` icon in AlertsPage.tsx / AskAnswer.tsx. Takes the raw field so
+/// callers stay null-tolerant with an older orchestrator that doesn't send it.
+class DisclaimerBanner extends StatelessWidget {
+  final String text;
+  const DisclaimerBanner(this.text, {super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppColors.tertiaryFixed,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+      ),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Padding(
+          padding: EdgeInsets.only(top: 2),
+          child: Icon(Icons.science_outlined, size: 14, color: AppColors.onTertiaryFixed),
+        ),
+        const SizedBox(width: 6),
+        Expanded(child: Text(text, style: AppText.bodySm.copyWith(color: AppColors.onTertiaryFixed))),
+      ]),
+    );
+  }
+}
+
+/// `w['disclaimer']` (or an older orchestrator's absent field) as a widget,
+/// or null to omit it — callers that build gapped lists (e.g. `_gap`'s
+/// null-aware spread) drop it cleanly instead of leaving an empty gap.
+Widget? disclaimerBanner(Map<String, dynamic> w) {
+  final d = w['disclaimer'];
+  return d is String && d.isNotEmpty ? DisclaimerBanner(d) : null;
+}
+
 /// The LIVE / NOT LIVE provenance badge.
 class LiveBadge extends StatelessWidget {
   final bool live;

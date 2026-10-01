@@ -98,6 +98,7 @@ void main() {
         'category_label': 'Heavy rain',
         'headline': 'Heavy rain likely at isolated places.',
         'advice': 'Avoid low-lying areas.',
+        'disclaimer': 'Simulated data — pending official feed access',
         'valid_from': '2026-09-27T00:00:00Z',
         'valid_to': '2026-09-28T00:00:00Z',
         'issued_by': 'IMD Chennai',
@@ -122,7 +123,47 @@ void main() {
     expect(find.text('Heavy rain likely at isolated places.'), findsOneWidget);
     expect(find.text('Avoid low-lying areas.'), findsOneWidget);
     expect(find.text('FIXTURE'), findsOneWidget);
+    // Phase 7 B2: every fixture-sourced warning card carries this label.
+    expect(find.text('Simulated data — pending official feed access'), findsOneWidget);
     expect(_paintsColour(tester, warningColor('orange')), isTrue);
+  });
+
+  testWidgets('warnings: no disclaimer field (older orchestrator) renders with no gap', (tester) async {
+    await _pump(tester, {
+      'intent': 'warnings',
+      'city': 'chennai',
+      'response': 'Heavy rain likely at isolated places.',
+      'status': 'active',
+      'warning': {
+        'city': 'chennai',
+        'district': 'Chennai',
+        'colour': 'orange',
+        'colour_label': 'Orange',
+        'category': 'heavy_rain',
+        'category_label': 'Heavy rain',
+        'headline': 'Heavy rain likely at isolated places.',
+        'advice': 'Avoid low-lying areas.',
+        'valid_from': '2026-09-27T00:00:00Z',
+        'valid_to': '2026-09-28T00:00:00Z',
+        'issued_by': 'IMD Chennai',
+        'source': 'fixture',
+      },
+      'legend': _legend,
+      'provenance': {
+        'source': 'fixture',
+        'issued_by': 'IMD Chennai',
+        'valid_from': '2026-09-27T00:00:00Z',
+        'valid_to': '2026-09-28T00:00:00Z',
+        'is_live': false,
+        'retrieved_at': '2026-09-27T08:20:00Z',
+      },
+      'grounding': {
+        'ok': true, 'matched': 0, 'total': 0, 'figures': [],
+        'fallback_used': false, 'narration': 'verbatim', 'attempts': 0, 'provider': 'feed',
+      },
+      'nlu': _nlu,
+    });
+    expect(find.textContaining('Simulated data'), findsNothing);
   });
 
   testWidgets('warnings unavailable is neutral — never green', (tester) async {
