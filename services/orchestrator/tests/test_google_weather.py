@@ -254,4 +254,8 @@ def test_live_failure_log_never_contains_the_api_key(monkeypatch, caplog):
     with caplog.at_level("WARNING"):
         google_weather.snapshot("current_conditions", "chennai")
     assert "sekret-key-123" not in caplog.text
-    assert "REDACTED" in caplog.text
+    # The process-wide scrub (log_redaction, SEC-N8) shrinks the URL to its
+    # host before this module's own _redacted() marker would show; the latter
+    # stays as a second layer and is checked directly.
+    assert "https://x" in caplog.text
+    assert "REDACTED" in google_weather._redacted(httpx.ConnectError("https://x/y?key=sekret-key-123"))

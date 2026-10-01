@@ -13,6 +13,7 @@ template.
 
 import hmac
 from dataclasses import asdict
+
 from datetime import datetime, timezone
 
 import alert_engine
@@ -27,6 +28,7 @@ import httpx
 import imd_warnings as warnings_module
 import ivr
 import limits
+import log_redaction
 import metar
 import metrics
 import narrate as narrate_module
@@ -49,6 +51,11 @@ from narrate import is_configured as llm_configured
 from narrate import narrate
 from pydantic import BaseModel, Field
 from weather_data import get_weather
+
+# Before the app logs anything: scrubs tokens, URLs, phone numbers and
+# coordinates from every record in the process, uvicorn's access log
+# included (plan.md SEC-N8).
+log_redaction.install()
 
 app = FastAPI(title="WeatherGPT Orchestrator", version="0.1.0",
               **security_headers.docs_kwargs())

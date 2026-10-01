@@ -219,7 +219,8 @@ def nearest_city(lat: float, lon: float, max_km: float) -> str | None:
             ).fetchone()
         return row[0] if row else None
     except Exception as exc:
-        _LOG.warning("nearest_city(%s, %s, %skm) failed: %s", lat, lon, max_km, exc)
+        # Rounded to ~1 km: a user's location never goes into the log (SEC-N8).
+        _LOG.warning("nearest_city(%.2f, %.2f, %skm) failed: %s", lat, lon, max_km, exc)
         return None
 
 

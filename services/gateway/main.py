@@ -28,18 +28,25 @@ set 2, and both services key on that address.
 
 import asyncio
 import hmac
+
 import logging
 import os
 import time
 from collections import defaultdict, deque
 
 import httpx
+import log_redaction
 import metrics
 import redis
 import security_headers
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 from sqlalchemy import create_engine, text
+
+# Before the app logs anything: scrubs tokens, URLs, phone numbers and
+# coordinates from every record in the process, uvicorn's access log
+# included (plan.md SEC-N8).
+log_redaction.install()
 
 _LOG = logging.getLogger("weathergpt.gateway")
 
