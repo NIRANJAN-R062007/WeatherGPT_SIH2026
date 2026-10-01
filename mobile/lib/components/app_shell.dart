@@ -14,6 +14,7 @@ import '../pages/aviation_page.dart';
 import '../pages/profile_page.dart';
 import '../persona_theme.dart';
 import '../state/auth_store.dart';
+import '../state/ui_prefs.dart';
 import '../theme.dart';
 
 enum AppPage { home, chat, forecast, alerts, settings }
@@ -96,6 +97,8 @@ class _AppShellState extends State<AppShell> {
   @override
   Widget build(BuildContext context) {
     final t = PersonaTheme.of(context);
+    // Airport weather (METAR / TAF) is the Aviation persona's page only.
+    final aviation = UiPrefs.of(context).persona == 'aviation';
     final stack = IndexedStack(
       index: _current.index,
       children: [
@@ -159,10 +162,12 @@ class _AppShellState extends State<AppShell> {
                             Navigator.of(context).pop();
                             openProfile(context);
                           },
-                          onAviation: () {
-                            Navigator.of(context).pop();
-                            openAviation(context);
-                          },
+                          onAviation: aviation
+                              ? () {
+                                  Navigator.of(context).pop();
+                                  openAviation(context);
+                                }
+                              : null,
                         ),
                       ),
                 bottomNavigationBar: wide ? null : BottomNav(current: _current, onSelect: _go),
@@ -176,7 +181,7 @@ class _AppShellState extends State<AppShell> {
                               current: _current,
                               onSelect: _go,
                               onProfile: () => openProfile(context),
-                              onAviation: () => openAviation(context),
+                              onAviation: aviation ? () => openAviation(context) : null,
                             ),
                           ),
                           Expanded(child: main),
@@ -294,7 +299,8 @@ class Sidebar extends StatelessWidget {
   final VoidCallback? onProfile;
 
   /// Opens the Airport weather page (METAR / TAF), which isn't one of the
-  /// five tabs — like Profile, a page pushed on top.
+  /// five tabs — like Profile, a page pushed on top. Null (no tile) unless
+  /// the persona is Aviation.
   final VoidCallback? onAviation;
   const Sidebar({super.key, required this.current, required this.onSelect, this.onProfile, this.onAviation});
 

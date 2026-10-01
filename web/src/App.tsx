@@ -16,7 +16,7 @@ import ResetPasswordPage from './pages/ResetPasswordPage';
 import SettingsPage from './pages/SettingsPage';
 import { AuthProvider, useAuth } from './state/AuthContext';
 import { ChatProvider } from './state/ChatContext';
-import { UiPrefsProvider } from './state/UiPrefsContext';
+import { UiPrefsProvider, useUiPrefs } from './state/UiPrefsContext';
 import { WeatherProvider } from './state/WeatherContext';
 
 /** Signed out → the landing page (sign in / create account / guest);
@@ -24,6 +24,7 @@ import { WeatherProvider } from './state/WeatherContext';
  *  Profile lands back on the landing page. */
 function Gate() {
   const { status } = useAuth();
+  const { persona } = useUiPrefs();
 
   if (status === 'restoring') {
     // The moment between load and the saved session being read.
@@ -60,7 +61,8 @@ function Gate() {
             <Route path="forecast" element={<ForecastPage />} />
             <Route path="alerts" element={<AlertsPage />} />
             <Route path="history" element={<HistoryPage />} />
-            <Route path="aviation" element={<AviationPage />} />
+            {/* Airport weather is the Aviation persona's page only. */}
+            <Route path="aviation" element={persona === 'aviation' ? <AviationPage /> : <Navigate to="/" replace />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route path="persona" element={<PersonaPage />} />
             <Route path="profile" element={<ProfilePage />} />
