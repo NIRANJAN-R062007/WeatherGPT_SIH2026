@@ -4,7 +4,7 @@ dict of exactly the keys an answer may quote. Runs on the committed fixtures.
 
 import copy
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import google_weather
 import pytest
@@ -275,3 +275,73 @@ def test_forecast_day_label_has_no_digit_with_malformed_display_date(monkeypatch
     for offset in (3, 4):
         day = weather_data.forecast_day("chennai", offset)["day"]
         assert day in DAY_KEYS and not re.search(r"\d", day)
+
+
+# --- hourly_facts (plan.md §8 Phase 9, WIE-1) -------------------------------
+
+HOURLY_KEYS = {"time_iso", "local_time", "temp_c", "rain_probability_pct", "wind_kmh", "condition"}
+
+
+@pytest.mark.parametrize("city", ["chennai", "madurai", "coimbatore"])
+def test_hourly_facts_key_set_and_local_time_format(city):
+    facts = weather_data.hourly_facts(city, "today")
+    assert facts is not None
+    assert facts["day"] == "today"
+    assert facts["hours"], "every demo city's committed fixture has at least one hour"
+    for hour in facts["hours"]:
+        assert HOURLY_KEYS <= hour.keys()
+        assert re.fullmatch(r"\d{2}:\d{2}", hour["local_time"])
+
+
+def test_hourly_facts_today_is_the_series_first_hour_regardless_of_real_date():
+    # "today" is positional (the series' own first hour), like forecast_day's
+    # offset 0 — not tied to the real wall-clock date, so fixture mode (whose
+    # hourly series is a past snapshot) behaves the same as live.
+    today = weather_data.hourly_facts("chennai", "today")
+    # The first "today" hour must be the series' own first entry.
+    snap = google_weather.snapshot("forecast_hours", "chennai")
+    raw = snap.payload["forecastHours"]
+    assert today["hours"][0]["time_iso"] == raw[0]["interval"]["startTime"]
+
+
+def test_hourly_facts_today_and_tomorrow_are_disjoint_calendar_days():
+    # Partitioned by LOCAL (Chennai) calendar date, not UTC — late UTC hours
+    # are already the next local day at IST (+5:30), so the UTC date alone
+    # isn't the right disjointness check.
+    tz = weather_data._city_timezone("chennai")
+    today = weather_data.hourly_facts("chennai", "today")
+    tomorrow = weather_data.hourly_facts("chennai", "tomorrow")
+    if tomorrow is None:
+        pytest.skip("this fixture's hourly series doesn't reach a second day")
+    def _local_date(h):
+        return weather_data._parse_ts(h["time_iso"]).astimezone(tz).date()
+
+    today_dates = {_local_date(h) for h in today["hours"]}
+    tomorrow_dates = {_local_date(h) for h in tomorrow["hours"]}
+    assert today_dates.isdisjoint(tomorrow_dates)
+    assert min(tomorrow_dates) == max(today_dates) + timedelta(days=1)
+
+
+def test_hourly_facts_unknown_city_is_none():
+    assert weather_data.hourly_facts("narnia", "today") is None
+
+
+def test_hourly_facts_no_snapshot_is_none(monkeypatch):
+    monkeypatch.setattr(google_weather, "snapshot", lambda kind, city_key, **kw: None)
+    assert weather_data.hourly_facts("chennai", "today") is None
+
+
+def test_hourly_facts_empty_forecast_hours_is_none(monkeypatch):
+    orig = google_weather.snapshot
+
+    def _snapshot(kind, city_key, **kw):
+        snap = orig(kind, city_key, **kw)
+        if kind == "forecast_hours":
+            payload = copy.deepcopy(snap.payload)
+            payload["forecastHours"] = []
+            return google_weather.Snapshot(snap.kind, snap.city, payload,
+                                           snap.is_live, snap.retrieved_at, snap.source)
+        return snap
+
+    monkeypatch.setattr(google_weather, "snapshot", _snapshot)
+    assert weather_data.hourly_facts("chennai", "today") is None

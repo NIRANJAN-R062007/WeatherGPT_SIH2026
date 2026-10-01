@@ -4,6 +4,7 @@ import Layout from './components/Layout';
 import AlertsPage from './pages/AlertsPage';
 import AuthPage from './pages/AuthPage';
 import AviationPage from './pages/AviationPage';
+import BestWindowPage from './pages/BestWindowPage';
 import ChatPage from './pages/ChatPage';
 import EditProfilePage from './pages/EditProfilePage';
 import ForecastPage from './pages/ForecastPage';
@@ -61,6 +62,7 @@ function Gate() {
             <Route path="alerts" element={<AlertsPage />} />
             <Route path="history" element={<HistoryPage />} />
             <Route path="aviation" element={<AviationPage />} />
+            <Route path="best-window" element={<BestWindowPage />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route path="persona" element={<PersonaPage />} />
             <Route path="profile" element={<ProfilePage />} />

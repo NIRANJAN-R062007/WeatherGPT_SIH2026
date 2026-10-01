@@ -49,7 +49,9 @@ from i18n import SUPPORTED_LANGUAGES, condition_table, render
 from narrate import is_configured as llm_configured
 from narrate import narrate
 from pydantic import BaseModel, Field
-from weather_data import get_weather
+from weather_data import get_weather, hourly_facts
+from weather_intelligence.scenario_analyzer import compare_scenario
+from weather_intelligence.window_analyzer import find_best_window
 
 # Before the app logs anything: scrubs tokens, URLs, phone numbers and
 # coordinates from every record in the process, uvicorn's access log
@@ -564,6 +566,86 @@ def aviation_route(city: str | None = None, station: str | None = None):
     if icao is None:
         raise HTTPException(status_code=404, detail="unknown city or station")
     return aviation.public(icao)
+
+
+@app.get("/intelligence/best-window")
+def intelligence_best_window(city: str, day: str = "tomorrow", activity: str = "outdoor"):
+    """WIE-3/WIE-13/WIE-14: the best contiguous suitable window in a day's
+    hourly forecast, and the values that justify it — deterministic rules
+    only (weather_intelligence/rules.py), nothing narrated by an LLM
+    (plan.md §2 principle 7). `status`: "ok" (a window exists),
+    "no_suitable_window" (every hour was checked and none passed — a real,
+    honest negative result, never the least-bad hour), or "unavailable" (no
+    hourly forecast to check at all — e.g. "tomorrow" against the committed
+    fixtures, which only snapshot a single day's hourly series)."""
+    if day not in ("today", "tomorrow"):
+        raise HTTPException(status_code=422, detail="day must be today or tomorrow")
+    key = cities.resolve(city)
+    if key is None:
+        raise HTTPException(status_code=404, detail="unknown city")
+    hourly = hourly_facts(key, day)
+    if hourly is None:
+        return {
+            "city": key,
+            "city_name": cities.display_name(key, "en"),
+            "day": day,
+            "activity": activity,
+            "status": "unavailable",
+            "window": None,
+            "provenance": None,
+        }
+    window = find_best_window(hourly["hours"], activity)
+    return {
+        "city": key,
+        "city_name": cities.display_name(key, "en"),
+        "day": hourly["day"],
+        "activity": activity,
+        "status": "ok" if window else "no_suitable_window",
+        "window": window,
+        "provenance": {"source": hourly["source"], "is_live": hourly["is_live"]},
+    }
+
+
+class ScenarioRequest(BaseModel):
+    city: str
+    day: str = "today"
+    times: list[str] = Field(..., min_length=1, max_length=6)
+    activity: str = "outdoor"
+
+
+@app.post("/intelligence/scenario")
+def intelligence_scenario(req: ScenarioRequest):
+    """WIE-6/WIE-13/WIE-14: compares named times of day ("09:00" vs "17:00")
+    against the decoded hourly forecast — one hour, or several. Deterministic
+    rules only; a time outside the forecast's hours is reported as
+    unavailable, never filled in with an invented value."""
+    if req.day not in ("today", "tomorrow"):
+        raise HTTPException(status_code=422, detail="day must be today or tomorrow")
+    key = cities.resolve(req.city)
+    if key is None:
+        raise HTTPException(status_code=404, detail="unknown city")
+    hourly = hourly_facts(key, req.day)
+    if hourly is None:
+        return {
+            "city": key,
+            "city_name": cities.display_name(key, "en"),
+            "day": req.day,
+            "activity": req.activity,
+            "status": "unavailable",
+            "hours": [{"time": t, "available": False} for t in req.times],
+            "better_time": None,
+            "provenance": None,
+        }
+    result = compare_scenario(hourly["hours"], req.times, req.activity)
+    return {
+        "city": key,
+        "city_name": cities.display_name(key, "en"),
+        "day": hourly["day"],
+        "activity": req.activity,
+        "status": "ok",
+        **result,
+        "provenance": {"source": hourly["source"], "is_live": hourly["is_live"]},
+    }
 
 
 def _persona_fields(persona, occ: "occupation_module.Resolved | None") -> dict:

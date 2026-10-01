@@ -11,6 +11,7 @@ import 'package:flutter/services.dart';
 
 import '../auth_client.dart';
 import '../pages/aviation_page.dart';
+import '../pages/best_window_page.dart';
 import '../pages/profile_page.dart';
 import '../persona_theme.dart';
 import '../state/auth_store.dart';
@@ -163,6 +164,10 @@ class _AppShellState extends State<AppShell> {
                             Navigator.of(context).pop();
                             openAviation(context);
                           },
+                          onBestWindow: () {
+                            Navigator.of(context).pop();
+                            openBestWindow(context);
+                          },
                         ),
                       ),
                 bottomNavigationBar: wide ? null : BottomNav(current: _current, onSelect: _go),
@@ -177,6 +182,7 @@ class _AppShellState extends State<AppShell> {
                               onSelect: _go,
                               onProfile: () => openProfile(context),
                               onAviation: () => openAviation(context),
+                              onBestWindow: () => openBestWindow(context),
                             ),
                           ),
                           Expanded(child: main),
@@ -296,7 +302,18 @@ class Sidebar extends StatelessWidget {
   /// Opens the Airport weather page (METAR / TAF), which isn't one of the
   /// five tabs — like Profile, a page pushed on top.
   final VoidCallback? onAviation;
-  const Sidebar({super.key, required this.current, required this.onSelect, this.onProfile, this.onAviation});
+
+  /// Opens the Best Time & What-if page — also pushed on top, like Profile
+  /// and Airport weather.
+  final VoidCallback? onBestWindow;
+  const Sidebar({
+    super.key,
+    required this.current,
+    required this.onSelect,
+    this.onProfile,
+    this.onAviation,
+    this.onBestWindow,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -352,6 +369,16 @@ class Sidebar extends StatelessWidget {
                         label: 'Airport weather',
                         active: false,
                         onTap: onAviation!,
+                      ),
+                    ),
+                  if (onBestWindow != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: _NavTile(
+                        icon: Icons.schedule_outlined,
+                        label: 'Best Time & What-if',
+                        active: false,
+                        onTap: onBestWindow!,
                       ),
                     ),
                   if (onProfile != null) ...[
