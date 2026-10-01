@@ -1,0 +1,16 @@
+# gitleaks config for CI (.github/workflows/security.yml, plan.md SEC-N18).
+# Default rules, plus one allowlist entry.
+
+[extend]
+useDefault = true
+
+# The Supabase **anon** key: public by design (shipped in every client, with row
+# level security deciding access), committed in prototype/frontend/auth.js,
+# web/src/lib/auth.ts and mobile/lib/config.dart. Matched on its header and
+# payload (iss=supabase, ref=bkohiigdngppywnzakvg, role=anon), so a
+# service_role key or another project's key still fails the scan. (No
+# targetRules: gitleaks 8.28 then skips the entry; the regex is specific enough.)
+[[allowlists]]
+description = "Supabase anon key (public, RLS-protected)"
+regexTarget = "secret"
+regexes = ['''^eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJrb2hpaWdkbmdwcHl3bnpha3ZnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkyMTk5MjUsImV4cCI6MjEwNDc5NTkyNX0\.''']

@@ -1,9 +1,21 @@
 FROM python:3.11-slim
 
+# Debian security fixes the base tag hasn't been rebuilt with yet (openssl,
+# pcre2, ...). CI's Trivy gate fails on any fixable HIGH/CRITICAL finding
+# (.github/workflows/security.yml, plan.md SEC-N18).
+RUN apt-get update \
+    && apt-get upgrade -y --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+
+# Then drop the packaging tools: nothing at runtime needs them, and pip
+# vendors its own (vulnerable) urllib3/msgpack that no pip upgrade fixes.
+RUN pip uninstall -y pip setuptools wheel \
+    && rm -rf /usr/local/lib/python3.11/ensurepip
 
 COPY . .
 
