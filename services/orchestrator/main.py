@@ -13,7 +13,6 @@ template.
 
 import hmac
 from dataclasses import asdict
-
 from datetime import datetime, timezone
 
 import alert_engine

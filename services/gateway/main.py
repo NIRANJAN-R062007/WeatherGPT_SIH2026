@@ -28,7 +28,6 @@ set 2, and both services key on that address.
 
 import asyncio
 import hmac
-
 import logging
 import os
 import time

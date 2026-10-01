@@ -31,7 +31,8 @@ _BEARER = re.compile(r"(?i)\b(bearer)\s+[A-Za-z0-9._~+/=-]+")
 _JWT = re.compile(r"\beyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]*")
 # scheme://[user:pass@]host[/path?query] -> scheme://host: the userinfo goes
 # too (a DATABASE_URL in a driver error would otherwise keep its password).
-_URL = re.compile(r"\b([a-z][a-z0-9+.-]*://)(?:[^/\s?#@'\"<>)]*@)?([^/\s?#'\"<>)]+)[^\s'\"<>)]*", re.I)
+_URL = re.compile(
+    r"\b([a-z][a-z0-9+.-]*://)(?:[^/\s?#@'\"<>)]*@)?([^/\s?#'\"<>)]+)[^\s'\"<>)]*", re.I)
 _SECRET_PARAM = re.compile(
     r"(?i)([?&;](?:key|api_?key|token|access_token|refresh_token|manage_token|secret"
     r"|password|signature|sig|target|recordingurl|from|to|phone|callfrom|callto)=)[^&#\s\"']*"
