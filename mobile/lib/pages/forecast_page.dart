@@ -17,6 +17,7 @@ import '../state/ui_prefs.dart';
 import '../state/weather_store.dart';
 import '../persona_theme.dart';
 import '../theme.dart';
+import 'best_window_page.dart';
 
 enum _View { days, details }
 
@@ -51,6 +52,13 @@ class _ForecastPageState extends State<ForecastPage> {
           title: 'Need more days?',
           body: 'Ask for a 5-day forecast for $city in Chat.',
           onTap: () => nav.ask('5-day forecast for $city'),
+        ),
+        const SizedBox(height: AppSpace.sm),
+        InfoBanner(
+          icon: Icons.schedule,
+          title: "When's the best time to go outside?",
+          body: 'See the best window today or tomorrow, and compare two times.',
+          onTap: () => openBestWindow(context),
         ),
       ],
     );
