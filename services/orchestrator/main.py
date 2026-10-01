@@ -36,7 +36,7 @@ import router
 import taf
 import weather_data
 from auth import get_bearer_token, get_current_user
-from config import ALLOWED_ORIGINS
+from config import ALLOWED_ORIGINS, CORS_ALLOW_HEADERS
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse, Response
@@ -59,7 +59,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
     allow_methods=["GET", "POST", "DELETE"],
-    allow_headers=["*"],
+    allow_headers=CORS_ALLOW_HEADERS,
 )
 app.add_middleware(limits.RequestLimits)
 # Outermost so it also counts the 413s/429s limits.py returns (plan.md §14

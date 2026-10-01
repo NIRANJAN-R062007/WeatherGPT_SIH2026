@@ -26,10 +26,10 @@ data:
   # trusted proxy appended (see services/orchestrator/limits.py).
   TRUSTED_PROXY_HOPS: "2"
 
-  # CORS for the /ask surface — comma-separated origins; unset means "*"
-  # TODO: production origins pending a decision by the deployment owners; empty
-  # means "*" and the orchestrator logs a warning at startup.
-  ALLOWED_ORIGINS: ""
+  # CORS — comma-separated browser origins allowed to call the orchestrator.
+  # Production is the Amplify frontend only (amplify.yml, app d2fpifryktvg3k);
+  # empty would mean "*" and a startup warning (plan.md SEC-N5).
+  ALLOWED_ORIGINS: "https://main.d2fpifryktvg3k.amplifyapp.com"
 
   # Static demo page the orchestrator serves at / (services/orchestrator/main.py),
   # baked into its image at this path. Empty means API-only.

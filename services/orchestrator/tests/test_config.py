@@ -16,6 +16,9 @@ client = TestClient(app)
 def test_config_imports_without_environment(monkeypatch):
     for var in ("GOOGLE_WEATHER_API_KEY", "GEMINI_API_KEY", "GEMINI_MODEL", "ALLOWED_ORIGINS"):
         monkeypatch.delenv(var, raising=False)
+    # Empty rather than unset: config's load_dotenv() would refill an unset
+    # var from a local .env (which now pins origins), but never overrides one.
+    monkeypatch.setenv("ALLOWED_ORIGINS", "")
     reloaded = importlib.reload(config)
     assert reloaded.GEMINI_MODEL == "gemini-flash-latest"
     assert reloaded.ALLOWED_ORIGINS == ["*"]
@@ -102,3 +105,44 @@ def test_explicit_cors_origins_log_no_warning(caplog):
     with caplog.at_level("WARNING", logger="config"):
         assert config.warn_if_wildcard_cors(["https://app.example.com"]) is False
     assert caplog.text == ""
+
+
+def _cors_kwargs():
+    from starlette.middleware.cors import CORSMiddleware
+    return next(m.kwargs for m in app.user_middleware if m.cls is CORSMiddleware)
+
+
+def test_cors_allow_headers_are_pinned():
+    # SEC-N5: no "*" — only the headers a browser client actually sends.
+    assert _cors_kwargs()["allow_headers"] == config.CORS_ALLOW_HEADERS
+    assert "*" not in config.CORS_ALLOW_HEADERS
+
+
+def test_cors_blocks_disallowed_origin():
+    # main.app's origins come from .env, so rebuild its CORS layer with a
+    # pinned origin list to exercise the blocking behaviour deterministically.
+    from fastapi import FastAPI
+    from starlette.middleware.cors import CORSMiddleware
+
+    amplify = "https://main.d2fpifryktvg3k.amplifyapp.com"
+    probe = FastAPI()
+    probe.get("/ping")(lambda: {"ok": True})
+    probe.add_middleware(CORSMiddleware, **{**_cors_kwargs(), "allow_origins": [amplify]})
+    c = TestClient(probe)
+
+    def preflight(origin, headers="authorization"):
+        return c.options("/ping", headers={
+            "Origin": origin, "Access-Control-Request-Method": "GET",
+            "Access-Control-Request-Headers": headers,
+        })
+
+    assert preflight(amplify).status_code == 200
+    assert c.get("/ping", headers={"Origin": amplify}).headers[
+        "access-control-allow-origin"] == amplify
+
+    evil = "https://evil.example.com"
+    assert preflight(evil).status_code == 400
+    assert "access-control-allow-origin" not in c.get(
+        "/ping", headers={"Origin": evil}).headers
+    # An allowed origin still can't send headers outside the pinned list.
+    assert preflight(amplify, "x-anything").status_code == 400

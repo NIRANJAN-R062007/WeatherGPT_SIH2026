@@ -56,10 +56,10 @@ services:
         sync: false
       - key: BHASHINI_INFERENCE_KEY
         sync: false
-      # Production origins pending a decision by the deployment owners; unset
-      # means "*" (startup warning).
+      # CORS: the Amplify frontend only (plan.md SEC-N5). Not a secret, so it
+      # lives here rather than as a sync:false dashboard value.
       - key: ALLOWED_ORIGINS
-        sync: false
+        value: https://main.d2fpifryktvg3k.amplifyapp.com
       # Serve the demo page at / from the image (services/orchestrator/main.py);
       # drop this to run API-only behind a separately hosted frontend.
       - key: FRONTEND_DIR

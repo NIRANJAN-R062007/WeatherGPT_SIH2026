@@ -94,8 +94,13 @@ this — only what the tunnel points at did. (Before 2026-09-14 the frontend
 called the prototype directly because the old gateway had no `/ask` route and
 a DB-dependent `/health`.)
 
-CORS on `/ask` is open (`ALLOWED_ORIGINS`, default `*`) — GET/POST/DELETE, no
-credentials, and it covers a `file://` origin.
+CORS is pinned by `ALLOWED_ORIGINS` (plan.md SEC-N5): the Amplify frontend
+plus local dev (`:5181`, `:8777`) in `.env.example`, Amplify only in k8s and
+`render.yaml`. GET/POST/DELETE, no credentials, and only the `Authorization`,
+`Content-Type`, `X-Manage-Token` and `ngrok-skip-browser-warning` request
+headers. A page opened from `file://` (origin `null`) is no longer allowed —
+serve it with `python -m http.server 8777` instead. Unset means `*` plus a
+startup warning.
 
 **`WEATHER_MODE`** (`.env`): `auto` (default — live, fixture fallback) |
 `live` (no fallback, fail loud in dev) | `fixtures` (never touch the network —

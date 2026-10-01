@@ -95,6 +95,12 @@ BHASHINI_INFERENCE_KEY: str | None = os.getenv("BHASHINI_INFERENCE_KEY")
 
 _origins = (os.getenv("ALLOWED_ORIGINS") or "").strip()
 ALLOWED_ORIGINS: list[str] = [o.strip() for o in _origins.split(",") if o.strip()] or ["*"]
+# Request headers browsers may send cross-origin — only the ones a client
+# actually sets: the Supabase bearer token, JSON bodies (/asr, /tts), the alert
+# manage token, and the header prototype/frontend adds for ngrok tunnels.
+CORS_ALLOW_HEADERS: list[str] = [
+    "Authorization", "Content-Type", "X-Manage-Token", "ngrok-skip-browser-warning",
+]
 
 
 def warn_if_wildcard_cors(origins: list[str]) -> bool:
