@@ -323,6 +323,8 @@ class _AuthPageState extends State<AuthPage> {
       if (_notice != null) ...[const SizedBox(height: AppSpace.md), FormMessage(text: _notice!)],
       const SizedBox(height: AppSpace.lg),
       GradientButton(label: signUp ? 'Create account' : 'Sign in', loading: _busy, onPressed: _submit),
+      const SizedBox(height: 12),
+      GoogleSignInButton(enabled: !_busy),
       const SizedBox(height: AppSpace.md),
       Center(
         child: Wrap(

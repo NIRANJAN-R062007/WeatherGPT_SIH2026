@@ -1,6 +1,7 @@
-// Email + password accounts on the team's Supabase project (config.dart), via
-// Supabase Auth's REST API (GoTrue) — the same project prototype/frontend/
-// auth.js signs in to with Google. The profile fields the app shows (name,
+// Email + password and Google accounts on the team's Supabase project
+// (config.dart), via Supabase Auth's REST API (GoTrue) — the same project
+// prototype/frontend/auth.js signs in to with Google. The Google browser
+// round trip is in google_auth.dart. The profile fields the app shows (name,
 // phone, occupation) live in the account's user_metadata, so they follow the
 // user to any device. The project requires email confirmation, so a fresh
 // sign-up returns no session until the link in the confirmation mail is
@@ -254,6 +255,25 @@ class AuthClient {
   Future<AuthUser> updatePassword(String accessToken, String password) async {
     final data = await _send('PUT', 'user', {'password': password}, accessToken: accessToken);
     return AuthUser.fromJson(data);
+  }
+
+  /// Where the browser goes to start Google sign-in. Supabase sends it on to
+  /// Google, then back to [redirectTo] with `?code=…` (or `error=…`).
+  Uri googleAuthorizeUrl({required String redirectTo, required String codeChallenge}) =>
+      Uri.parse('$baseUrl/auth/v1/authorize').replace(
+        queryParameters: {
+          'provider': 'google',
+          'redirect_to': redirectTo,
+          'code_challenge': codeChallenge,
+          'code_challenge_method': 's256',
+        },
+      );
+
+  /// Trades the `code` from the sign-in redirect, plus the PKCE verifier its
+  /// challenge was made from, for a session.
+  Future<AuthSession> exchangeCode({required String code, required String codeVerifier}) async {
+    final data = await _post('token?grant_type=pkce', {'auth_code': code, 'code_verifier': codeVerifier});
+    return AuthSession.fromJson(data);
   }
 
   /// Revokes the session server-side. Best effort — the caller forgets the

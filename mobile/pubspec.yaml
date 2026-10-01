@@ -39,6 +39,11 @@ dependencies:
   record: ^6.1.1
   audioplayers: ^6.1.0
   path_provider: ^2.1.4
+  # Google sign-in (lib/google_auth.dart): the system browser, the redirect
+  # link back into the app, and the PKCE SHA-256.
+  url_launcher: ^6.3.1
+  app_links: ^6.4.0
+  crypto: ^3.0.6
 
 dev_dependencies:
   flutter_test:

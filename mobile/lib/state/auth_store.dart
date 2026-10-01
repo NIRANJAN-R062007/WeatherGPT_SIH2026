@@ -17,6 +17,7 @@ import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../auth_client.dart';
+import '../google_auth.dart';
 
 enum AuthStatus { restoring, signedOut, guest, signedIn }
 
@@ -64,9 +65,13 @@ class AuthStore extends ChangeNotifier {
   final AuthClient client;
   final SessionStorage storage;
 
-  AuthStore({AuthClient? client, SessionStorage? storage})
+  /// Builds the Google sign-in flow; tests swap in one without the browser.
+  final GoogleSignInFlow Function(AuthClient client) googleFlow;
+
+  AuthStore({AuthClient? client, SessionStorage? storage, GoogleSignInFlow Function(AuthClient)? googleFlow})
     : client = client ?? AuthClient(),
-      storage = storage ?? FileSessionStorage();
+      storage = storage ?? FileSessionStorage(),
+      googleFlow = googleFlow ?? GoogleSignInFlow.platform;
 
   AuthStatus _status = AuthStatus.restoring;
   AuthSession? _session;
@@ -113,6 +118,14 @@ class AuthStore extends ChangeNotifier {
 
   Future<void> signIn(String email, String password) async {
     final session = await client.signIn(email: email.trim(), password: password);
+    await _adopt(session);
+  }
+
+  /// Signs in (or signs up — Supabase creates the account on first use) with
+  /// Google in the system browser. Throws [AuthError]; code
+  /// `google_cancelled` means the user backed out.
+  Future<void> signInWithGoogle() async {
+    final session = await googleFlow(client).signIn();
     await _adopt(session);
   }
 
