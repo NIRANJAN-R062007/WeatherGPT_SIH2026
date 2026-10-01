@@ -73,11 +73,21 @@ RATE_LIMIT_PER_MINUTE: int = int(_float_env("RATE_LIMIT_PER_MINUTE", 30))
 ALERTS_WRITE_RATE_LIMIT_PER_MINUTE: int = int(_float_env("ALERTS_WRITE_RATE_LIMIT_PER_MINUTE", 5))
 # /ivr/recording: GLOBAL cap (all callers combined, not per client) per minute;
 # each hit costs ASR + LLM + TTS. Real traffic comes from Exotel's few IPs, so a
-# per-client limit would throttle legitimate callers. PROPOSAL pending team
-# sign-off: 120/min ~= 30 new calls/min at ~4 recordings per call (~1,800
+# per-client limit would throttle legitimate callers. Signed off 2026-10-01
+# (plan.md SEC-N6, R13 c): 120/min ~= 30 new calls/min at ~4 recordings per call (~1,800
 # calls/hour), several times a pilot/demo load, but a hard ceiling on spend if
 # the endpoint is discovered. 0 disables. Independent of RATE_LIMIT_PER_MINUTE.
 IVR_GLOBAL_RATE_PER_MIN: int = int(_float_env("IVR_GLOBAL_RATE_PER_MIN", 120))
+# Cheap reads the frontends fire on every page load and city switch (/me,
+# /history, /facts, /warnings, /cities, /glossary — three or more per view):
+# per client per minute, in their own bucket so browsing never eats the /ask
+# budget. Higher than RATE_LIMIT_PER_MINUTE because a venue or campus NAT puts
+# many real users behind one key. RATE_LIMIT_PER_MINUTE=0 disables this too.
+BROWSE_RATE_LIMIT_PER_MINUTE: int = int(_float_env("BROWSE_RATE_LIMIT_PER_MINUTE", 120))
+# /ivr/menu.wav and /ivr/answer/{CallSid}.wav: GLOBAL cap, like /ivr/recording
+# and for the same reason (Exotel fetches them from a few shared IPs). About
+# two fetches per recording, so twice that cap. 0 disables.
+IVR_AUDIO_RATE_PER_MIN: int = int(_float_env("IVR_AUDIO_RATE_PER_MIN", 240))
 # Proxies between the internet and the orchestrator, the gateway counting as
 # one (the gateway reads the same variable, same meaning): that many
 # X-Forwarded-For hops from the right were appended by something we trust, and

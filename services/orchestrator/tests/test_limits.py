@@ -321,3 +321,70 @@ def test_ivr_recording_hits_a_global_cap_regardless_of_client(monkeypatch):
 def test_ivr_global_cap_zero_disables_it(monkeypatch):
     monkeypatch.setattr(config, "IVR_GLOBAL_RATE_PER_MIN", 0)
     assert all(client.post("/ivr/recording").status_code != 429 for _ in range(10))
+
+
+# SEC-N6 (plan.md §8 Phase 8, finding F7): every remaining public route is limited.
+# The IVR routes aren't mounted here (IVR_ENABLED off), but the limiter runs
+# before routing, so the 429 is the same either way.
+BROWSE_ROUTES = [
+    ("GET", "/me"), ("GET", "/history"), ("DELETE", "/history"),
+    ("GET", "/facts"), ("GET", "/warnings"), ("GET", "/cities"), ("GET", "/glossary"),
+]
+
+
+@pytest.mark.parametrize("method,path", BROWSE_ROUTES)
+def test_browse_routes_return_429_with_retry_after(monkeypatch, method, path):
+    monkeypatch.setattr(config, "RATE_LIMIT_PER_MINUTE", 30)
+    monkeypatch.setattr(config, "BROWSE_RATE_LIMIT_PER_MINUTE", 2)
+    tolerant = TestClient(main.app, raise_server_exceptions=False)
+    statuses = [tolerant.request(method, path).status_code for _ in range(3)]
+    assert 429 not in statuses[:2]
+    assert statuses[2] == 429
+    assert tolerant.request(method, path).headers["retry-after"] == "60"
+
+
+def test_browse_bucket_is_shared_by_its_routes_but_not_with_ask(monkeypatch):
+    monkeypatch.setattr(config, "RATE_LIMIT_PER_MINUTE", 30)
+    monkeypatch.setattr(config, "BROWSE_RATE_LIMIT_PER_MINUTE", 2)
+    assert client.get("/cities").status_code == 200
+    assert client.get("/glossary").status_code != 429
+    assert client.get("/facts").status_code == 429  # same bucket, now full
+    assert client.get("/ask", params=Q).status_code == 200  # /ask budget untouched
+    assert client.get("/cities", headers=_xff(9)).status_code == 200  # per client
+
+
+def test_browse_limit_follows_the_master_switch(monkeypatch):
+    monkeypatch.setattr(config, "BROWSE_RATE_LIMIT_PER_MINUTE", 1)
+    # RATE_LIMIT_PER_MINUTE is 0 (conftest): every per-client rule is off.
+    assert all(client.get("/cities").status_code == 200 for _ in range(5))
+
+
+@pytest.mark.parametrize("path", ["/ivr/menu.wav", "/ivr/answer/CA123.wav"])
+def test_ivr_audio_hits_a_global_cap_with_retry_after(monkeypatch, path):
+    monkeypatch.setattr(config, "IVR_AUDIO_RATE_PER_MIN", 2)
+    statuses = [client.get(path, headers=_xff(i)) for i in range(3)]
+    assert 429 not in [r.status_code for r in statuses[:2]]
+    assert statuses[2].status_code == 429
+    assert statuses[2].headers["retry-after"] == "60"
+
+
+def test_ivr_audio_and_recording_caps_are_separate_buckets(monkeypatch):
+    monkeypatch.setattr(config, "IVR_AUDIO_RATE_PER_MIN", 1)
+    monkeypatch.setattr(config, "IVR_GLOBAL_RATE_PER_MIN", 1)
+    assert client.get("/ivr/menu.wav").status_code != 429
+    assert client.post("/ivr/recording").status_code != 429
+    assert client.get("/ivr/answer/CA1.wav").status_code == 429
+    assert client.post("/ivr/recording").status_code == 429
+
+
+def test_ivr_audio_cap_zero_disables_it(monkeypatch):
+    monkeypatch.setattr(config, "IVR_AUDIO_RATE_PER_MIN", 0)
+    assert all(client.get("/ivr/menu.wav").status_code != 429 for _ in range(10))
+
+
+def test_ivr_recording_429_carries_retry_after(monkeypatch):
+    # R13 (c): confirms the recording cap's 429 shape, not just its status.
+    monkeypatch.setattr(config, "IVR_GLOBAL_RATE_PER_MIN", 1)
+    client.post("/ivr/recording")
+    r = client.post("/ivr/recording")
+    assert r.status_code == 429 and r.headers["retry-after"] == "60"

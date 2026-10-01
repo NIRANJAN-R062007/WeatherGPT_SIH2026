@@ -62,11 +62,17 @@ LIMITED_PATHS = frozenset({"/ask", "/asr", "/tts"})
 # their own per-client bucket at RATE_LIMIT_PER_MINUTE so they can't drain the
 # /ask budget or be used to probe past it.
 READ_PATHS = frozenset({"/alerts/subscriptions", "/metar/decode"})
+# The cheap reads every page view makes, several per load: a roomier per-client
+# bucket (BROWSE_RATE_LIMIT_PER_MINUTE) of their own (plan.md SEC-N6).
+BROWSE_PATHS = frozenset({"/me", "/history", "/facts", "/warnings", "/cities", "/glossary"})
 # Subscription writes create rows (and later trigger outbound messages), so
 # they are stricter: ALERTS_WRITE_RATE_LIMIT_PER_MINUTE (config.py). Matched by
 # prefix because DELETE /alerts/subscribe/{sub_id} is parameterised.
 _WRITE_PREFIX = "/alerts/subscribe"
 _IVR_PATH = "/ivr/recording"
+# Fetched by Exotel during a call: one global bucket, like _IVR_PATH.
+_IVR_AUDIO_PATH = "/ivr/menu.wav"
+_IVR_ANSWER_PREFIX = "/ivr/answer/"
 _WINDOW_SECONDS = 60.0
 # Long enough that a flapping Redis doesn't add a connect timeout to every
 # request, short enough to pick a restarted one back up within a window.
@@ -155,18 +161,25 @@ def _rule(path: str) -> tuple[str, int, bool]:
     """(bucket, per-minute limit, per_client) for `path`; limit 0 = unlimited.
 
     RATE_LIMIT_PER_MINUTE=0 switches every per-client rule off; the IVR global
-    cap has its own switch (IVR_GLOBAL_RATE_PER_MIN=0).
+    caps have their own switches (IVR_GLOBAL_RATE_PER_MIN=0,
+    IVR_AUDIO_RATE_PER_MIN=0).
     """
     path = path.rstrip("/") or "/"  # Starlette would 307 "/x/" onto "/x"
     per_client = config.RATE_LIMIT_PER_MINUTE
     if path == _IVR_PATH:
         return "ivr", config.IVR_GLOBAL_RATE_PER_MIN, False
+    if path == _IVR_AUDIO_PATH or path.startswith(_IVR_ANSWER_PREFIX):
+        return "ivr-audio", config.IVR_AUDIO_RATE_PER_MIN, False
     if path == _WRITE_PREFIX or path.startswith(_WRITE_PREFIX + "/"):
         if per_client <= 0:
             return "alerts-write", 0, True
         return "alerts-write", min(per_client, config.ALERTS_WRITE_RATE_LIMIT_PER_MINUTE), True
     if path in READ_PATHS:
         return "read", per_client, True
+    if path in BROWSE_PATHS:
+        if per_client <= 0:
+            return "browse", 0, True
+        return "browse", config.BROWSE_RATE_LIMIT_PER_MINUTE, True
     if path in LIMITED_PATHS:
         return "", per_client, True
     return "", 0, True
@@ -180,7 +193,7 @@ class RequestLimits(BaseHTTPMiddleware):
 
         bucket, per_minute, per_client = _rule(request.url.path)
         if per_minute > 0:
-            # /ivr/recording: one shared bucket, whoever calls (Exotel's IPs).
+            # /ivr/*: one shared bucket per rule, whoever calls (Exotel's IPs).
             key = client_key(request) if per_client else "global"
             if bucket:
                 key = f"{bucket}:{key}"
