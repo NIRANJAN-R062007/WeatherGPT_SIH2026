@@ -62,6 +62,11 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
+  # The logo mark, light-theme and dark-theme cuts (web/public/brand/ has the
+  # same marks as SVG).
+  assets:
+    - assets/branding/
+
   # Static-weight TTF instances of web/public/fonts/*.woff2 (see
   # lib/theme.dart) so the app uses the web frontend's typography without a
   # runtime font download or a new package dependency.
