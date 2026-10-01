@@ -310,6 +310,7 @@ void main() {
     Map<String, dynamic>? sent;
     final auth = await _signedOut((req) async {
       expect(req.url.path, '/auth/v1/signup');
+      expect(req.url.queryParameters['redirect_to'], endsWith('/email-confirmed.html?from=mobile'));
       sent = jsonDecode(req.body) as Map<String, dynamic>;
       return http.Response(jsonEncode(_user), 200); // no session: confirmation required
     });

@@ -212,7 +212,7 @@ class AuthClient {
     required String phone,
     required String occupation,
   }) async {
-    final data = await _post('signup', {
+    final data = await _post('signup?$_confirmRedirect', {
       'email': email,
       'password': password,
       'data': {'full_name': fullName, 'phone': phone, 'occupation': occupation},
@@ -221,7 +221,13 @@ class AuthClient {
   }
 
   /// Sends the confirmation mail again.
-  Future<void> resendConfirmation(String email) => _post('resend', {'type': 'signup', 'email': email});
+  Future<void> resendConfirmation(String email) =>
+      _post('resend?$_confirmRedirect', {'type': 'signup', 'email': email});
+
+  /// Sends the confirmation link to the "email confirmed — back to the app"
+  /// page, not the project's Site URL.
+  static final String _confirmRedirect =
+      'redirect_to=${Uri.encodeQueryComponent('$kEmailConfirmedUrl?from=mobile')}';
 
   Future<AuthSession> refresh(String refreshToken) async {
     final data = await _post('token?grant_type=refresh_token', {'refresh_token': refreshToken});

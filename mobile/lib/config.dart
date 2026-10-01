@@ -21,6 +21,15 @@ const String kSupabaseAnonKey = String.fromEnvironment(
       'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJrb2hpaWdkbmdwcHl3bnpha3ZnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkyMTk5MjUsImV4cCI6MjEwNDc5NTkyNX0.55NOTKMwx0--h1KL32g-M2gSYEJnVfNMbPuBJehYoek',
 );
 
+/// Where the confirmation link in a sign-up mail lands: the hosted page that
+/// says the email is confirmed and to go back to the app and sign in
+/// (prototype/frontend/email-confirmed.html, on Amplify). Must be listed
+/// under Supabase → Authentication → URL Configuration → Redirect URLs.
+const String kEmailConfirmedUrl = String.fromEnvironment(
+  'EMAIL_CONFIRMED_URL',
+  defaultValue: 'https://main.d2fpifryktvg3k.amplifyapp.com/email-confirmed.html',
+);
+
 /// i18n.SUPPORTED_LANGUAGES, services/orchestrator/i18n.py:35 — fixed enum,
 /// not derived at runtime.
 const List<String> kSupportedLanguages = ['en', 'hi', 'ta', 'te', 'mr'];
