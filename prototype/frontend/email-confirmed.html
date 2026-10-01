@@ -1,0 +1,108 @@
+<!doctype html>
+<!--
+  Where the sign-up confirmation link lands (Supabase Site URL, and the
+  redirect_to mobile/lib/auth_client.dart and web/src/lib/auth.ts send with a
+  sign-up). The apps keep their own sessions, so this page only says what
+  happened and where to go next — mobile and web differ, chosen by ?from=.
+
+  Supabase appends a session to the link (#access_token=…&refresh_token=…).
+  Nothing here uses it: the page wipes it from the address bar at once, so it
+  can't be copied or end up in history, and ends that session on the server.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex">
+<title>Email confirmed · WeatherGPT</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #eef1f4; --card: #ffffff; --ink: #22344a; --muted: #5f7082;
+    --brand: #1c4a6b; --ok: #1f7a4d; --ok-tint: #e3f3ea; --bad: #a33a2b; --bad-tint: #f8e6e2;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #101a24; --card: #182635; --ink: #e6edf3; --muted: #96a3b1;
+      --brand: #8fc1e3; --ok: #6fd3a0; --ok-tint: #173a2b; --bad: #f19a8b; --bad-tint: #3d211c;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px 16px;
+    background: var(--bg); color: var(--ink);
+    font: 500 16px/1.55 "Plus Jakarta Sans", system-ui, sans-serif;
+  }
+  main {
+    width: 100%; max-width: 420px; background: var(--card); border-radius: 20px;
+    padding: 32px 24px; text-align: center; box-shadow: 0 6px 24px rgba(0, 0, 0, .08);
+  }
+  .brand { font-weight: 700; color: var(--brand); letter-spacing: .2px; margin-bottom: 20px; }
+  .disc {
+    width: 72px; height: 72px; border-radius: 50%; margin: 0 auto 16px;
+    display: grid; place-items: center; font-size: 36px; font-weight: 700;
+    background: var(--ok-tint); color: var(--ok);
+  }
+  .bad .disc { background: var(--bad-tint); color: var(--bad); }
+  h1 { font-size: 24px; line-height: 1.25; margin: 0 0 8px; }
+  p { margin: 0 0 12px; color: var(--muted); }
+  p strong { color: var(--ink); }
+  .small { font-size: 14px; }
+</style>
+</head>
+<body>
+<main id="card">
+  <div class="brand">WeatherGPT</div>
+  <div class="disc" aria-hidden="true" id="icon">✓</div>
+  <h1 id="title">Email confirmed</h1>
+  <p id="body">Your WeatherGPT account is ready. Go back to WeatherGPT and sign in.</p>
+  <p class="small" id="note">You can close this page.</p>
+</main>
+<script>
+(function () {
+  var SUPABASE_URL = 'https://bkohiigdngppywnzakvg.supabase.co';
+  // Public by design (prototype/frontend/auth.js has the same key).
+  var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJrb2hpaWdkbmdwcHl3bnpha3ZnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkyMTk5MjUsImV4cCI6MjEwNDc5NTkyNX0.55NOTKMwx0--h1KL32g-M2gSYEJnVfNMbPuBJehYoek';
+
+  var query = new URLSearchParams(location.search);
+  var hash = new URLSearchParams(location.hash.replace(/^#/, ''));
+  var get = function (k) { return hash.get(k) || query.get(k); };
+  var from = query.get('from');
+  var accessToken = hash.get('access_token');
+  var error = get('error_code') || get('error');
+
+  // Tokens out of the address bar and history before anything else.
+  history.replaceState(null, '', location.pathname + (from ? '?from=' + encodeURIComponent(from) : ''));
+
+  if (accessToken) {
+    fetch(SUPABASE_URL + '/auth/v1/logout?scope=local', {
+      method: 'POST',
+      headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + accessToken },
+    }).catch(function () {});
+  }
+
+  var where = from === 'mobile'
+    ? 'Open the <strong>WeatherGPT app</strong> on your phone and sign in with your email and password.'
+    : from === 'web'
+      ? 'Go back to the <strong>WeatherGPT tab</strong> where you signed up and choose <strong>“I’ve confirmed — sign in”</strong>.'
+      : 'Go back to the WeatherGPT app or website and sign in with your email and password.';
+
+  var set = function (id, html) { document.getElementById(id).innerHTML = html; };
+  if (error) {
+    document.getElementById('card').className = 'bad';
+    set('icon', '!');
+    set('title', 'This link didn’t work');
+    set('body', error === 'otp_expired'
+      ? 'The confirmation link has expired or was already used. If you already confirmed, just sign in. Otherwise, sign in once to get the <strong>Resend confirmation email</strong> button, and open the newest email.'
+      : 'Something went wrong confirming your email. Try the link in the newest WeatherGPT email, or sign in and tap <strong>Resend confirmation email</strong>.');
+    set('note', '');
+  } else {
+    set('body', 'Your WeatherGPT account is ready. ' + where);
+  }
+})();
+</script>
+</body>
+</html>
