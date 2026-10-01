@@ -33,7 +33,9 @@ def test_unset_is_api_only(app_with):
     client = TestClient(app_with(None))
     r = client.get("/")
     assert r.status_code == 200
-    assert r.json() == {"service": "WeatherGPT Orchestrator", "health": "/health", "docs": "/docs"}
+    # /docs is off unless API_DOCS_ENABLED (SEC-N13), and then the pointer is None.
+    docs = "/docs" if main.security_headers.DOCS_ENABLED else None
+    assert r.json() == {"service": "WeatherGPT Orchestrator", "health": "/health", "docs": docs}
     assert client.get("/WeatherGPT.dc.html").status_code == 404
     assert client.get("/health").status_code == 200
 

@@ -11,6 +11,7 @@ grounding, or translation fails at any step, main.py falls back to the i18n
 template.
 """
 
+import hmac
 from dataclasses import asdict
 from datetime import datetime, timezone
 
@@ -33,13 +34,14 @@ import nlu
 import occupation as occupation_module
 import persona as persona_module
 import router
+import security_headers
 import taf
 import weather_data
 from auth import get_bearer_token, get_current_user
 from config import ALLOWED_ORIGINS, CORS_ALLOW_HEADERS
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import RedirectResponse, Response
+from fastapi.responses import JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from google_weather import cache_stats
 from i18n import SUPPORTED_LANGUAGES, condition_table, render
@@ -48,7 +50,8 @@ from narrate import narrate
 from pydantic import BaseModel, Field
 from weather_data import get_weather
 
-app = FastAPI(title="WeatherGPT Orchestrator", version="0.1.0")
+app = FastAPI(title="WeatherGPT Orchestrator", version="0.1.0",
+              **security_headers.docs_kwargs())
 
 # The deployed frontend (prototype/frontend on Amplify) calls this from its own
 # origin, as does frontend-only local dev — see prototype/README.md
@@ -66,6 +69,8 @@ app.add_middleware(limits.RequestLimits)
 # observability track). Route label comes from scope["route"], set once the
 # request reaches Starlette's router further in.
 app.add_middleware(metrics.HTTPMetrics, service="orchestrator")
+# Outermost of all, so the 413s/429s and CORS rejections carry the headers too.
+app.add_middleware(security_headers.SecurityHeaders)
 
 
 # hi/te/mr strings are first-draft machine translations, not reverse-engineered
@@ -214,13 +219,28 @@ def _provenance(data: dict) -> dict:
 
 
 @app.get("/livez")
-def livez():
-    """k8s liveness probe: no I/O, just "is the process serving requests"."""
+def livez(request: Request):
+    """k8s liveness probe: no I/O, just "is the process serving requests".
+    Platform-only: a proxied (public) request gets a 404 — see
+    security_headers.is_direct()."""
+    if not security_headers.is_direct(request):
+        return JSONResponse({"detail": "Not Found"}, status_code=404)
     return {"status": "ok"}
 
 
 @app.get("/metrics")
-def metrics_route():
+def metrics_route(request: Request):
+    """Internal only — same contract as the gateway's: `Authorization: Bearer
+    $METRICS_TOKEN`, which Prometheus sends via `authorization` in its scrape
+    config. With METRICS_TOKEN unset it is disabled (404), never open; the
+    orchestrator is public on its own wherever there's no gateway in front
+    (Render, the live backend)."""
+    if not config.METRICS_TOKEN:
+        return JSONResponse({"detail": "Not Found"}, status_code=404)
+    supplied = request.headers.get("authorization", "")
+    if not hmac.compare_digest(supplied.encode(), f"Bearer {config.METRICS_TOKEN}".encode()):
+        return JSONResponse({"detail": "unauthorized"}, status_code=401,
+                            headers={"WWW-Authenticate": "Bearer"})
     body, content_type = metrics.render()
     return Response(content=body, media_type=content_type)
 
@@ -769,7 +789,8 @@ alert_engine.ensure_worker()
 if config.FRONTEND_DIR is None:
     @app.get("/")
     def _api_index():
-        return {"service": app.title, "health": "/health", "docs": "/docs"}
+        return {"service": app.title, "health": "/health",
+                "docs": "/docs" if security_headers.DOCS_ENABLED else None}
 else:
     @app.get("/")
     def _frontend_index():

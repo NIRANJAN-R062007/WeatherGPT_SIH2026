@@ -62,6 +62,9 @@ services:
         value: https://main.d2fpifryktvg3k.amplifyapp.com
       # Serve the demo page at / from the image (services/orchestrator/main.py);
       # drop this to run API-only behind a separately hosted frontend.
+      # Bearer token for /metrics (plan.md SEC-N13); unset = /metrics is a 404.
+      - key: METRICS_TOKEN
+        sync: false
       - key: FRONTEND_DIR
         value: /app/prototype/frontend
       - key: WEATHER_MODE

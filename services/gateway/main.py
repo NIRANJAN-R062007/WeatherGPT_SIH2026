@@ -1,7 +1,8 @@
 """WeatherGPT API gateway (plan.md §4).
 
-Everything except `/health`, `/livez` and `/metrics` (bearer METRICS_TOKEN) is reverse-proxied to
-the orchestrator (`services/orchestrator/`, the former `prototype/ask_service`).
+Everything except `/health`, `/livez` (direct requests only) and `/metrics`
+(bearer METRICS_TOKEN) is reverse-proxied to the orchestrator
+(`services/orchestrator/`, the former `prototype/ask_service`).
 The orchestrator still owns per-route rate limiting (`limits.py`, keyed off
 the TRUSTED_PROXY_HOPS-th X-Forwarded-For hop from the right — by default the
 hop this gateway appends), so the gateway appends the client address to
@@ -35,14 +36,18 @@ from collections import defaultdict, deque
 import httpx
 import metrics
 import redis
+import security_headers
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 from sqlalchemy import create_engine, text
 
 _LOG = logging.getLogger("weathergpt.gateway")
 
-app = FastAPI(title="WeatherGPT Gateway", version="0.1.0")
+app = FastAPI(title="WeatherGPT Gateway", version="0.1.0", **security_headers.docs_kwargs())
 app.add_middleware(metrics.HTTPMetrics, service="gateway")
+# Outermost: fills in headers on the gateway's own responses; proxied ones keep
+# whatever the orchestrator already set (setdefault).
+app.add_middleware(security_headers.SecurityHeaders)
 
 # `or default`, not getenv's second argument: a k8s Secret with an empty value
 # still *sets* the variable, and create_engine("") raises at import.
@@ -221,8 +226,12 @@ async def health(request: Request):
 
 
 @app.get("/livez")
-def livez():
-    """k8s liveness probe: no I/O, just "is the process serving requests"."""
+def livez(request: Request):
+    """k8s liveness probe: no I/O, just "is the process serving requests".
+    Platform-only: a request that came through the ingress (X-Forwarded-For
+    set) gets a 404 — see security_headers.is_direct()."""
+    if not security_headers.is_direct(request):
+        return JSONResponse({"detail": "not found"}, status_code=404)
     return {"status": "ok"}
 
 

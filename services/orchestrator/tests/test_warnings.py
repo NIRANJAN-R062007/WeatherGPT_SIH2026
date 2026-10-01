@@ -421,9 +421,10 @@ def test_ask_warnings_unavailable_is_not_recorded(monkeypatch):
     assert body["status"] == "unavailable"
 
 
-def test_ask_warnings_counts_in_metrics(_warnings_enabled):
+def test_ask_warnings_counts_in_metrics(_warnings_enabled, monkeypatch):
+    monkeypatch.setattr(main.config, "METRICS_TOKEN", "tok")
     _ask("is there any warning for Chennai?")
-    body = client.get("/metrics").text
+    body = client.get("/metrics", headers={"Authorization": "Bearer tok"}).text
     assert any(
         line.startswith("weathergpt_ask_total{") and 'intent="warnings"' in line
         and 'provider="feed"' in line and 'narration="verbatim"' in line

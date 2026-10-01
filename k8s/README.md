@@ -139,9 +139,12 @@ and the kind run summarized above, which predates them.
 **metrics-server / Prometheus / Grafana.** Pods carry
 `prometheus.io/scrape`, `prometheus.io/port`, `prometheus.io/path`
 annotations for a Prometheus that discovers pods this way, and both services
-expose `/metrics`. The gateway's requires `Authorization: Bearer
-$METRICS_TOKEN` (secret.example.yaml; unset = 404), so a bare annotation-driven
-scrape gets 401 — configure the scrape job with `authorization`. No Prometheus/Grafana workload is included here; see
+expose `/metrics`. Both require `Authorization: Bearer $METRICS_TOKEN`
+(secret.example.yaml; unset = 404), so a bare annotation-driven scrape gets
+401 — configure the scrape job with `authorization`. `/livez` answers only
+direct requests (no `X-Forwarded-For`): the kubelet probe works, the same path
+through the Ingress is a 404. `/docs` and `/openapi.json` are off unless
+`API_DOCS_ENABLED` is set (plan.md SEC-N13). No Prometheus/Grafana workload is included here; see
 `docker-compose.yml`'s `--profile monitoring` (a separate agent's work) for a
 local stack, or point a cluster Prometheus's annotation-based pod discovery
 at this namespace.

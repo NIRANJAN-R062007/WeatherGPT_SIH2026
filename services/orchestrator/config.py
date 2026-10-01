@@ -118,6 +118,10 @@ def warn_if_wildcard_cors(origins: list[str]) -> bool:
 # API). Unset = API-only, no mount, no `/` redirect. Every deployed surface
 # (compose, render.yaml, k8s configmap) sets it; a bare `uvicorn main:app`
 # doesn't. `or None` so an empty k8s value means unset, not "".
+# Bearer token for /metrics (main.py), shared with the gateway. Unset = the
+# route is disabled (404), never open.
+METRICS_TOKEN: str = os.getenv("METRICS_TOKEN") or ""
+
 _frontend_dir = (os.getenv("FRONTEND_DIR") or "").strip()
 FRONTEND_DIR: Path | None = Path(_frontend_dir) if _frontend_dir else None
 

@@ -242,7 +242,7 @@ cd services/gateway && ../../.venv/bin/uvicorn main:app --reload --port 8000 --n
 
 Open http://localhost:8000/ (via the gateway) or http://localhost:8001/ (direct).
 Without `FRONTEND_DIR` the orchestrator is API-only — no static mount, and `/`
-answers with a pointer to `/health` and `/docs`; `python -m http.server 8777`
+answers with a pointer to `/health` (and `/docs` with `API_DOCS_ENABLED=1`); `python -m http.server 8777`
 in `prototype/frontend/` then serves the page for frontend-only dev against
 either port. `--no-proxy-headers` stops uvicorn rewriting the peer address
 from `X-Forwarded-For` for connections from 127.0.0.1 (the ngrok agent is one),

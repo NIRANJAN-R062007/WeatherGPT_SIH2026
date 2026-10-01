@@ -6,10 +6,18 @@ means /ask always takes the template path here unless a test monkeypatches
 `main.narrate` itself — same as test_ask_flow.py.
 """
 
+import config
 import main
+import pytest
 from fastapi.testclient import TestClient
 
-client = TestClient(main.app)
+# /metrics needs the bearer token (SEC-N13); every request here sends it.
+client = TestClient(main.app, headers={"Authorization": "Bearer test-metrics-token"})
+
+
+@pytest.fixture(autouse=True)
+def _metrics_token(monkeypatch):
+    monkeypatch.setattr(config, "METRICS_TOKEN", "test-metrics-token")
 
 
 def test_livez_shape():
