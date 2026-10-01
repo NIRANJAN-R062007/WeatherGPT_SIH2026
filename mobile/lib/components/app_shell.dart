@@ -265,9 +265,9 @@ class _BottomTab extends StatelessWidget {
   }
 }
 
-/// The WeatherGPT mark, in the active persona's badge (pics/ mockups): a
-/// solid accent disc with the persona's icon — or, for Aviation, the accent
-/// cloud carrying a plane.
+/// The WeatherGPT logo mark (assets/branding/: the light-theme and
+/// dark-theme cuts of the logo, without the wordmark — the name is set as
+/// text next to it).
 class BrandMark extends StatelessWidget {
   final double size;
   const BrandMark({super.key, this.size = 30});
@@ -275,29 +275,12 @@ class BrandMark extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = PersonaTheme.of(context);
-    if (t.scene == PersonaScene.airport) {
-      return SizedBox.square(
-        dimension: size,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            Icon(Icons.cloud, size: size * 1.08, color: t.primary),
-            Padding(
-              padding: EdgeInsets.only(top: size * 0.12),
-              child: Transform.rotate(
-                angle: 0.9,
-                child: Icon(Icons.flight, size: size * 0.46, color: t.onPrimary),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-    return Container(
+    return Image.asset(
+      t.isDark ? 'assets/branding/weathergpt-mark-dark.png' : 'assets/branding/weathergpt-mark-light.png',
       width: size,
       height: size,
-      decoration: BoxDecoration(gradient: t.accentGradient, shape: BoxShape.circle, boxShadow: t.cardShadow),
-      child: Icon(t.markIcon, size: size * 0.58, color: t.onPrimary),
+      filterQuality: FilterQuality.medium,
+      excludeFromSemantics: true,
     );
   }
 }

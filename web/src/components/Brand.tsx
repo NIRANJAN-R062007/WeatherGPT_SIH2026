@@ -1,6 +1,6 @@
-// The WeatherGPT mark in the active persona's badge (pics/ mockups): a
-// solid accent disc with the persona's icon — or, for Aviation, the accent
-// cloud carrying a plane — and the account avatars built the same way.
+// The WeatherGPT logo mark (public/brand/: the light-theme and dark-theme
+// cuts of the logo, without the wordmark — the name is set as text next to
+// it), and the account avatars.
 import type { AuthUser } from '../lib/auth';
 import { initials } from '../lib/auth';
 import { useUiPrefs } from '../state/UiPrefsContext';
@@ -8,23 +8,15 @@ import { Icon } from './ui';
 
 export function BrandMark({ size = 30 }: { size?: number }) {
   const { theme } = useUiPrefs();
-  if (theme.scene === 'airport') {
-    return (
-      <span className="relative inline-flex shrink-0 items-center justify-center" style={{ width: size, height: size }}>
-        <Icon name="cloud" fill size={Math.round(size * 1.08)} className="text-primary" />
-        <span className="absolute" style={{ paddingTop: size * 0.12, transform: 'rotate(0.9rad)' }}>
-          <Icon name="flight" fill size={Math.round(size * 0.46)} className="text-on-primary" />
-        </span>
-      </span>
-    );
-  }
   return (
-    <span
-      className="inline-flex shrink-0 items-center justify-center rounded-full bg-accent-gradient text-on-primary shadow-card"
-      style={{ width: size, height: size }}
-    >
-      <Icon name={theme.markIcon} fill size={Math.round(size * 0.58)} />
-    </span>
+    <img
+      src={`${import.meta.env.BASE_URL}brand/weathergpt-mark-${theme.brightness}.svg`}
+      alt=""
+      width={size}
+      height={size}
+      className="shrink-0 select-none"
+      draggable={false}
+    />
   );
 }
 
