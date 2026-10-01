@@ -1,0 +1,10 @@
+<!-- SIMULATED sample, hand-written to the OASIS CAP 1.2 schema for tests. Not a real IMD/SACHET message. -->
+<alert xmlns="urn:oasis:names:tc:emergency:cap:1.2">
+  <identifier>SIMULATED-WGPT-2026-10-01-0003</identifier>
+  <sender>simulated@weathergpt.invalid</sender>
+  <sent>2026-10-01T20:00:00+05:30</sent>
+  <status>Exercise</status>
+  <msgType>Cancel</msgType>
+  <scope>Public</scope>
+  <references>simulated@weathergpt.invalid,SIMULATED-WGPT-2026-10-01-0001,2026-10-01T08:30:00+05:30</references>
+</alert>

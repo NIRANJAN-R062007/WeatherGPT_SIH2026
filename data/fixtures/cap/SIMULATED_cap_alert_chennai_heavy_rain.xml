@@ -1,0 +1,57 @@
+<!-- SIMULATED sample, hand-written to the OASIS CAP 1.2 schema for tests. Not a real IMD/SACHET message. -->
+<alert xmlns="urn:oasis:names:tc:emergency:cap:1.2">
+  <identifier>SIMULATED-WGPT-2026-10-01-0001</identifier>
+  <sender>simulated@weathergpt.invalid</sender>
+  <sent>2026-10-01T08:30:00+05:30</sent>
+  <status>Exercise</status>
+  <msgType>Alert</msgType>
+  <scope>Public</scope>
+  <note>Simulated exercise message for WeatherGPT parser tests.</note>
+  <info>
+    <language>en-IN</language>
+    <category>Met</category>
+    <event>Heavy Rain</event>
+    <urgency>Expected</urgency>
+    <severity>Severe</severity>
+    <certainty>Likely</certainty>
+    <effective>2026-10-01T08:30:00+05:30</effective>
+    <onset>2026-10-01T14:00:00+05:30</onset>
+    <expires>2026-10-02T08:30:00+05:30</expires>
+    <senderName>WeatherGPT Simulated Sender</senderName>
+    <headline>SIMULATED: Heavy rain likely over Chennai</headline>
+    <description>SIMULATED. Heavy to very heavy rain is likely at isolated places over Chennai district during the next 24 hours.</description>
+    <instruction>SIMULATED. Avoid low-lying areas and follow local advisories.</instruction>
+    <web>https://weathergpt.invalid/simulated/0001</web>
+    <contact>simulated@weathergpt.invalid</contact>
+    <area>
+      <areaDesc>Chennai</areaDesc>
+      <polygon>13.25,80.10 13.25,80.32 12.85,80.32 12.85,80.10 13.25,80.10</polygon>
+      <geocode>
+        <valueName>District</valueName>
+        <value>Chennai</value>
+      </geocode>
+    </area>
+  </info>
+  <info>
+    <language>ta-IN</language>
+    <category>Met</category>
+    <event>கனமழை</event>
+    <urgency>Expected</urgency>
+    <severity>Severe</severity>
+    <certainty>Likely</certainty>
+    <effective>2026-10-01T08:30:00+05:30</effective>
+    <onset>2026-10-01T14:00:00+05:30</onset>
+    <expires>2026-10-02T08:30:00+05:30</expires>
+    <senderName>WeatherGPT Simulated Sender</senderName>
+    <headline>மாதிரி: சென்னையில் கனமழைக்கு வாய்ப்பு</headline>
+    <description>மாதிரி செய்தி. உண்மையான எச்சரிக்கை அல்ல.</description>
+    <area>
+      <areaDesc>சென்னை</areaDesc>
+      <polygon>13.25,80.10 13.25,80.32 12.85,80.32 12.85,80.10 13.25,80.10</polygon>
+      <geocode>
+        <valueName>District</valueName>
+        <value>Chennai</value>
+      </geocode>
+    </area>
+  </info>
+</alert>

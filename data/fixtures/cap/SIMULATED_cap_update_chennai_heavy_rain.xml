@@ -1,0 +1,26 @@
+<!-- SIMULATED sample, hand-written to the OASIS CAP 1.2 schema for tests. Not a real IMD/SACHET message. -->
+<alert xmlns="urn:oasis:names:tc:emergency:cap:1.2">
+  <identifier>SIMULATED-WGPT-2026-10-01-0002</identifier>
+  <sender>simulated@weathergpt.invalid</sender>
+  <sent>2026-10-01T14:30:00+05:30</sent>
+  <status>Exercise</status>
+  <msgType>Update</msgType>
+  <scope>Public</scope>
+  <references>simulated@weathergpt.invalid,SIMULATED-WGPT-2026-10-01-0001,2026-10-01T08:30:00+05:30</references>
+  <info>
+    <language>en-IN</language>
+    <category>Met</category>
+    <event>Heavy Rain</event>
+    <urgency>Immediate</urgency>
+    <severity>Moderate</severity>
+    <certainty>Observed</certainty>
+    <expires>2026-10-02T02:30:00+05:30</expires>
+    <senderName>WeatherGPT Simulated Sender</senderName>
+    <headline>SIMULATED: Heavy rain continuing over central Chennai</headline>
+    <description>SIMULATED. Heavy rain is being observed within 15 km of central Chennai.</description>
+    <area>
+      <areaDesc>Central Chennai</areaDesc>
+      <circle>13.0827,80.2707 15</circle>
+    </area>
+  </info>
+</alert>
