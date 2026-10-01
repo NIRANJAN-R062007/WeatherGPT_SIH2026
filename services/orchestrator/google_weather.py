@@ -32,6 +32,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
+import budget
 import cities
 import config
 import httpx
@@ -82,6 +83,7 @@ class Snapshot:
 
 def fetch_json(path: str, params: dict, timeout: float = TIMEOUT) -> dict:
     """The one outbound HTTP call. Tests monkeypatch THIS, never httpx itself."""
+    budget.charge("google_weather")  # SEC-N15 daily ceiling; raises an httpx.HTTPError
     resp = httpx.get(f"{config.GOOGLE_WEATHER_BASE}/{path}", params=params, timeout=timeout)
     resp.raise_for_status()
     return resp.json()

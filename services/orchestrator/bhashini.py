@@ -26,6 +26,7 @@ import binascii
 import logging
 import struct
 
+import budget
 import config
 import httpx
 
@@ -102,6 +103,7 @@ def translate(text: str, target_lang: str) -> str | None:
     if not is_configured() or not text:
         return None
     try:
+        budget.charge("bhashini")  # SEC-N15 daily ceiling; raises an httpx.HTTPError
         pipeline = _get_translation_pipeline(target_lang)
         headers = _inference_headers(pipeline)
         task_config = pipeline["pipelineResponseConfig"][0]["config"][0]
@@ -152,6 +154,7 @@ def speech_to_text(audio_base64: str, lang: str, sampling_rate: int = 16000) -> 
     if not is_configured() or not audio_base64:
         return None
     try:
+        budget.charge("bhashini")  # SEC-N15 daily ceiling; raises an httpx.HTTPError
         pipeline = _get_asr_pipeline(lang)
         headers = _inference_headers(pipeline)
         task_config = pipeline["pipelineResponseConfig"][0]["config"][0]
@@ -260,6 +263,7 @@ def text_to_speech(text: str, lang: str) -> str | None:
     if not is_configured() or not text:
         return None
     try:
+        budget.charge("bhashini")  # SEC-N15 daily ceiling; raises an httpx.HTTPError
         pipeline = _get_tts_pipeline(lang)
         headers = _inference_headers(pipeline)
         # The config response lists supportedVoices but picks none; compute 500s

@@ -128,6 +128,11 @@ def _llm_defaults(monkeypatch):
     monkeypatch.setattr(config, "RATE_LIMIT_PER_MINUTE", 0)  # limiter tests opt in
     import limits
     limits.reset()
+    # budget.py: per-process count only, so a developer's local Redis can't
+    # carry a spent ceiling from one run (or one test) into the next.
+    import budget
+    budget.reset()
+    monkeypatch.setattr(budget, "_redis_retry_at", float("inf"))
     import narrate
 
     monkeypatch.setattr(narrate, "last_provider", None)

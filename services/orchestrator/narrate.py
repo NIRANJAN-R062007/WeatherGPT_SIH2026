@@ -20,6 +20,7 @@ import logging
 import re
 from typing import Callable
 
+import budget
 import config
 import httpx
 import persona as persona_module
@@ -168,6 +169,7 @@ def generate(prompt: str, *, model: str, key: str, timeout: float = TIMEOUT,
     if response_schema is not None:
         generation_config["responseMimeType"] = "application/json"
         generation_config["responseSchema"] = response_schema
+    budget.charge("gemini")  # SEC-N15 daily ceiling; raises an httpx.HTTPError
     body = {
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": generation_config,
@@ -198,6 +200,7 @@ def generate_groq(prompt: str, *, model: str, key: str, timeout: float = TIMEOUT
     content=""). reasoning_effort="low" + a bigger budget avoids that — the
     Groq equivalent of Gemini's thinkingBudget:0 above.
     """
+    budget.charge("groq")  # SEC-N15 daily ceiling; raises an httpx.HTTPError
     body = {
         "model": model,
         "messages": [{"role": "user", "content": prompt}],

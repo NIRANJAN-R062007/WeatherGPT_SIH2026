@@ -88,6 +88,18 @@ BROWSE_RATE_LIMIT_PER_MINUTE: int = int(_float_env("BROWSE_RATE_LIMIT_PER_MINUTE
 # and for the same reason (Exotel fetches them from a few shared IPs). About
 # two fetches per recording, so twice that cap. 0 disables.
 IVR_AUDIO_RATE_PER_MIN: int = int(_float_env("IVR_AUDIO_RATE_PER_MIN", 240))
+# Daily ceilings on paid outbound calls, per provider, all users and replicas
+# combined, per UTC day (budget.py, plan.md SEC-N15). Over the ceiling the
+# provider is treated as down: fixture weather, template narration, no
+# translation or voice. 0 = no ceiling. Sized well above a demo day (an /ask
+# makes up to ~4 LLM calls; weather is cached per city) but low enough that a
+# discovered endpoint can't run up a bill.
+DAILY_CAPS: dict[str, int] = {
+    "google_weather": int(_float_env("DAILY_CAP_GOOGLE_WEATHER", 2000)),
+    "gemini": int(_float_env("DAILY_CAP_GEMINI", 2000)),
+    "groq": int(_float_env("DAILY_CAP_GROQ", 2000)),
+    "bhashini": int(_float_env("DAILY_CAP_BHASHINI", 5000)),
+}
 # Proxies between the internet and the orchestrator, the gateway counting as
 # one (the gateway reads the same variable, same meaning): that many
 # X-Forwarded-For hops from the right were appended by something we trust, and
