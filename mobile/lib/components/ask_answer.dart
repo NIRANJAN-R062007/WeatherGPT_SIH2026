@@ -445,6 +445,7 @@ class _Warnings extends StatelessWidget {
       // The feed's own headline, verbatim — not narrated, not translated.
       Text(response, style: AppText.bodyLg.copyWith(color: t.onSurface)),
       if (advice.isNotEmpty) Text(advice, style: AppText.bodyMd.copyWith(color: t.onSurfaceVariant)),
+      ?disclaimerBanner(w),
       if (detail) WarningLegend(rows: data['legend'], highlight: colour),
       _Footer([
         _IconText(Icons.campaign_outlined, _str(p['issued_by'] ?? w['issued_by'])),
