@@ -1,9 +1,11 @@
 // Logo block + nav; the active item is a solid primary pill. Below the
 // pages: Profile, and the account's card at the foot (both open the Profile
-// page, which has Sign out) — mobile app_shell.dart's Sidebar.
+// page, which has Sign out) — mobile app_shell.dart's Sidebar. Airport
+// weather (METAR / TAF) is listed for the Aviation persona only.
 import { NavLink } from 'react-router-dom';
 import { displayName } from '../lib/auth';
 import { useAuth } from '../state/AuthContext';
+import { useUiPrefs } from '../state/UiPrefsContext';
 import { BrandMark, GuestAvatar, ProfileAvatar } from './Brand';
 import { NAV_ITEMS } from './nav';
 import { Icon } from './ui';
@@ -17,6 +19,7 @@ const tile = (active: boolean) =>
 export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const t = useT();
   const { user, isGuest } = useAuth();
+  const { persona } = useUiPrefs();
   return (
     <div className="flex h-full flex-col">
       <div className="p-space-lg flex items-center gap-space-sm">
@@ -43,10 +46,12 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           <Icon name="manage_search" size={20} />
           <span>{t('History')}</span>
         </NavLink>
-        <NavLink to="/aviation" onClick={onNavigate} className={({ isActive }) => tile(isActive)}>
-          <Icon name="flight" size={20} />
-          <span>{t('Airport weather')}</span>
-        </NavLink>
+        {persona === 'aviation' && (
+          <NavLink to="/aviation" onClick={onNavigate} className={({ isActive }) => tile(isActive)}>
+            <Icon name="flight" size={20} />
+            <span>{t('Airport weather')}</span>
+          </NavLink>
+        )}
         <NavLink to="/best-window" onClick={onNavigate} className={({ isActive }) => tile(isActive)}>
           <Icon name="schedule" size={20} />
           <span>{t('Best Time & What-if')}</span>
