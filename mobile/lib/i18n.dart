@@ -1,7 +1,7 @@
 // The app's own text in the app language — the one picked on the Languages
 // page before signing in, or later in Settings > Language. Strings are
 // written in English in the code and looked up in kUiStrings
-// (ui_strings.dart, generated from i18n/ui_strings.json, which web/ shares);
+// (ui_strings.dart, generated from ui-strings/ui_strings.json, which web/ shares);
 // a string with no translation shows in English. Weather answers, condition
 // labels and warning text come from the backend already in the language.
 import 'package:flutter/widgets.dart';

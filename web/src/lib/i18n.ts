@@ -1,7 +1,7 @@
 // The app's own text in the app language — the one picked on the Languages
 // page before signing in, or later in Settings > Language. Strings are
 // written in English in the code and looked up in UI_STRINGS (uiStrings.ts,
-// generated from i18n/ui_strings.json, which mobile/ shares); a string with
+// generated from ui-strings/ui_strings.json, which mobile/ shares); a string with
 // no translation shows in English. Weather answers, condition labels and
 // warning text come from the backend already in the language.
 import { useCallback } from 'react';
