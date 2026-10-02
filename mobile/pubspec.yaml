@@ -44,6 +44,9 @@ dependencies:
   url_launcher: ^6.3.1
   app_links: ^6.4.0
   crypto: ^3.0.6
+  # The signed-in session (lib/state/auth_store.dart): Keystore / Keychain,
+  # not a plain file (SEC-N19).
+  flutter_secure_storage: ^11.2.0
 
 dev_dependencies:
   flutter_test:

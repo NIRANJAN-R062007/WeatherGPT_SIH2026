@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'components/app_shell.dart';
+import 'config.dart';
 import 'pages/alerts_page.dart';
 import 'pages/chat_page.dart';
 import 'pages/forecast_page.dart';
@@ -19,7 +20,28 @@ import 'state/weather_store.dart';
 import 'theme.dart';
 
 void main() {
-  runApp(const WeatherGptApp());
+  final configError = releaseConfigError();
+  runApp(configError == null ? const WeatherGptApp() : ConfigErrorApp(configError));
+}
+
+/// Shown instead of the app when a release build was made with an insecure
+/// API or Supabase URL ([releaseConfigError]), so it never sends a token
+/// over plain http.
+class ConfigErrorApp extends StatelessWidget {
+  final String message;
+  const ConfigErrorApp(this.message, {super.key});
+
+  @override
+  Widget build(BuildContext context) => MaterialApp(
+    debugShowCheckedModeBanner: false,
+    home: Scaffold(
+      body: SafeArea(
+        child: Center(
+          child: Padding(padding: const EdgeInsets.all(24), child: Text(message, textAlign: TextAlign.center)),
+        ),
+      ),
+    ),
+  );
 }
 
 class WeatherGptApp extends StatefulWidget {

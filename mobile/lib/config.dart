@@ -1,7 +1,10 @@
+import 'package:flutter/foundation.dart';
+
 // Orchestrator base URL. Override at build/run time with:
 //   flutter run --dart-define=API_BASE_URL=https://3-108-52-61.sslip.io
 // Defaults to the same localhost:8001 convention as web/.env.example and
-// prototype/frontend/WeatherGPT.dc.html.
+// prototype/frontend/WeatherGPT.dc.html. A release build must set an https
+// one — see [releaseConfigError].
 const String kApiBaseUrl = String.fromEnvironment(
   'API_BASE_URL',
   defaultValue: 'http://localhost:8001',
@@ -44,3 +47,22 @@ const Map<String, String> kLanguageLabels = {
 
 /// Shown in Settings > About; keep in step with pubspec.yaml's `version`.
 const String kAppVersion = '1.0.0';
+
+/// Why this build can't run, or null. A release build sends the session's
+/// bearer token to the API and to Supabase, so both must be https
+/// (SEC-N19); debug and profile builds may use http://localhost.
+String? releaseConfigError({
+  bool release = kReleaseMode,
+  String apiBaseUrl = kApiBaseUrl,
+  String supabaseUrl = kSupabaseUrl,
+}) {
+  if (!release) return null;
+  for (final (name, url) in [('API_BASE_URL', apiBaseUrl), ('SUPABASE_URL', supabaseUrl)]) {
+    final uri = Uri.tryParse(url);
+    if (uri == null || uri.scheme != 'https' || uri.host.isEmpty) {
+      return '$name must be an https URL in a release build (got "$url"). '
+          'Rebuild with --dart-define=$name=https://…';
+    }
+  }
+  return null;
+}
