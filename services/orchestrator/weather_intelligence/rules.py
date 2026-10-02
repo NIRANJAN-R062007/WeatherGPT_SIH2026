@@ -2,10 +2,16 @@
 
 Every threshold lives in this one file, so "our rules decide, the LLM only
 words it" (plan.md §2 principle 7) points at one place a jury can be shown.
-Only the "outdoor" activity is defined here — WIE-7's persona-weighted
-variants (farmer/traveller/general framing) are not built (plan.md §8
-Phase 9); an unrecognised activity name falls back to "outdoor" rather than
-422, so a client can't accidentally dead-end a demo on an unknown name.
+An unrecognised activity name falls back to "outdoor" rather than 422, so a
+client can't accidentally dead-end a demo on an unknown name.
+
+WIE-7's persona advisory labels ("farm" for farmer, "travel" for traveller)
+are activities here too, so a future per-persona tuning is a one-line edit
+in this file, not a change anywhere persona_advisor.py or window_analyzer.py
+reads from. They start out pointing at the exact same Thresholds as
+"outdoor" — plan.md's WIE-7 done-when requires identical numbers across
+personas for the same facts, and no persona-specific values have been
+agreed yet, so there is nothing to differ on yet.
 """
 
 from dataclasses import dataclass
@@ -24,6 +30,11 @@ OUTDOOR = Thresholds(max_rain_probability_pct=20, min_temp_c=20, max_temp_c=32, 
 
 ACTIVITIES: dict[str, Thresholds] = {
     "outdoor": OUTDOOR,
+    # WIE-7: farmer's and traveller's advisory labels. Same values as
+    # "outdoor" today (see module docstring) — tune independently here
+    # whenever persona-specific thresholds are agreed.
+    "farm": OUTDOOR,
+    "travel": OUTDOOR,
 }
 
 DEFAULT_ACTIVITY = "outdoor"

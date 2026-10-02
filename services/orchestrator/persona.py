@@ -23,6 +23,13 @@ never from narration.
 No effect on the i18n template fallback path — the fallback stays generic by
 design, and it is also what serves every non-LLM deploy, so a persona must
 never be required to get a correct answer.
+
+`traveller` (plan.md §8 Phase 9, WIE-7) joined the four personas above on
+2026-10-02: a vetted persona like the others, reusing the shared `_RULES`
+below, so it gets the same no-figures/no-safety-verdict/no-warning-claim
+guarantees. It is not added to occupation.py's VETTED: that classifier maps
+a free-text *job title* to a persona, and "traveller" isn't an occupation —
+it's reached only by asking for it directly via `persona=traveller`.
 """
 
 import re
@@ -30,7 +37,7 @@ from dataclasses import dataclass
 
 DEFAULT = "general"
 
-PERSONAS = frozenset({DEFAULT, "farmer", "fisherman", "aviation", "city_official"})
+PERSONAS = frozenset({DEFAULT, "farmer", "fisherman", "aviation", "city_official", "traveller"})
 
 # Not in PERSONAS: a client can't ask for it by name, only reach it through a
 # free-text occupation that fits none of the vetted personas (occupation.py).
@@ -102,6 +109,17 @@ _HINTS: dict[str, str] = {
         "outdoor workers and heat-exposed public; if they include strong wind, "
         "relate it to trees, hoardings and loose structures. Stay proportionate "
         "to the facts — no alarm the figures don't support."
+    ),
+    "traveller": (
+        "The reader is a traveller deciding whether and when to go out or set "
+        "off on a trip. Frame the facts for that decision: if the Facts include "
+        "a rain chance, say whether it favours going out now or waiting; if "
+        "they include wind, note whether it is calm or breezy enough to affect "
+        "being outdoors; when several days are given, name the day with the "
+        "lowest rain chance as the better one to travel; if they include heat, "
+        "feels-like temperature or a high UV band, suggest carrying water or "
+        "sun protection. Never name a destination, route or transport detail "
+        "that the Facts don't contain."
     ),
 }
 

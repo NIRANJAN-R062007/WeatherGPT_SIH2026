@@ -1,12 +1,14 @@
-"""GET /intelligence/best-window and POST /intelligence/scenario (plan.md
-§8 Phase 9, WIE-4/WIE-6 view-only slice backing WIE-13/WIE-14). The error
-paths (unknown city, bad day) and the response wiring are tested against a
-monkeypatched `main.hourly_facts` for exact, fixture-independent values;
-a smoke test against the real committed fixtures checks the endpoints are
-wired end to end.
+"""GET /intelligence/best-window, POST /intelligence/scenario and
+POST /intelligence/advisory (plan.md §8 Phase 9, WIE-4/WIE-6/WIE-7 — the
+view-only slice backing WIE-13/WIE-14, plus WIE-7's persona advisory). The
+error paths (unknown city, bad day) and the response wiring are tested
+against a monkeypatched `main.hourly_facts` for exact, fixture-independent
+values; a smoke test against the real committed fixtures checks the
+endpoints are wired end to end.
 """
 
 import main
+import pytest
 from fastapi.testclient import TestClient
 
 client = TestClient(main.app)
@@ -132,3 +134,121 @@ def test_scenario_compares_two_times(monkeypatch):
     assert body["status"] == "ok"
     assert body["better_time"] == "09:00"
     assert body["provenance"] == {"source": "fixture", "is_live": False}
+
+
+# --- POST /intelligence/advisory ---------------------------------------------
+
+
+def test_advisory_unknown_city_is_404():
+    resp = client.post("/intelligence/advisory", json={"city": "narnia", "persona": "farmer"})
+    assert resp.status_code == 404
+
+
+def test_advisory_bad_day_is_422():
+    body = {"city": "chennai", "persona": "farmer", "day": "whenever"}
+    resp = client.post("/intelligence/advisory", json=body)
+    assert resp.status_code == 422
+
+
+def test_advisory_unknown_persona_is_422():
+    body = {"city": "chennai", "persona": "wizard"}
+    resp = client.post("/intelligence/advisory", json=body)
+    assert resp.status_code == 422
+
+
+def test_advisory_no_hourly_data_is_unavailable(monkeypatch):
+    monkeypatch.setattr(main, "hourly_facts", lambda key, day: None)
+    body = {"city": "chennai", "persona": "farmer", "day": "tomorrow"}
+    resp = client.post("/intelligence/advisory", json=body)
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["status"] == "unavailable"
+    assert body["window"] is None
+    assert body["hours"] is None
+    assert body["provenance"] is None
+
+
+def test_advisory_unavailable_still_carries_the_fisherman_caveat(monkeypatch):
+    monkeypatch.setattr(main, "hourly_facts", lambda key, day: None)
+    body = {"city": "chennai", "persona": "fisherman", "day": "tomorrow"}
+    resp = client.post("/intelligence/advisory", json=body).json()
+    assert resp["status"] == "unavailable"
+    assert "IMD fishermen warning" in resp["caveat"]
+
+
+def test_advisory_with_a_suitable_window(monkeypatch):
+    hours = [hour("09:00", rain=10, temp=26, wind=10), hour("10:00", rain=10, temp=26, wind=10)]
+    monkeypatch.setattr(main, "hourly_facts", lambda key, day: _hourly(hours))
+    body = {"city": "chennai", "persona": "farmer", "day": "today"}
+    resp = client.post("/intelligence/advisory", json=body)
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["status"] == "ok"
+    assert body["label"] == "farm"
+    assert body["window"]["start_local"] == "09:00"
+    assert body["window"]["end_local"] == "10:00"
+    assert body["hours"] is None
+    assert body["caveat"] is None
+    assert body["provenance"] == {"source": "fixture", "is_live": False}
+
+
+def test_advisory_no_suitable_hour_is_a_distinct_status(monkeypatch):
+    hours = [hour("09:00", rain=90, temp=40, wind=50)]
+    monkeypatch.setattr(main, "hourly_facts", lambda key, day: _hourly(hours))
+    body = {"city": "chennai", "persona": "farmer", "day": "today"}
+    resp = client.post("/intelligence/advisory", json=body).json()
+    assert resp["status"] == "no_suitable_window"
+    assert resp["window"] is None
+
+
+def test_advisory_farmer_traveller_general_identical_numbers_different_framing(monkeypatch):
+    hours = [hour("09:00", rain=10, temp=26, wind=10), hour("10:00", rain=10, temp=26, wind=10)]
+    monkeypatch.setattr(main, "hourly_facts", lambda key, day: _hourly(hours))
+    results = {}
+    for p in ("farmer", "traveller", "general"):
+        resp = client.post("/intelligence/advisory", json={"city": "chennai", "persona": p})
+        assert resp.status_code == 200
+        results[p] = resp.json()
+    assert results["farmer"]["label"] == "farm"
+    assert results["traveller"]["label"] == "travel"
+    assert results["general"]["label"] == "outdoor"
+    windows = [r["window"] for r in results.values()]
+    assert windows[0] == windows[1] == windows[2]
+
+
+@pytest.mark.parametrize("p", ["fisherman", "aviation"])
+def test_advisory_fisherman_and_aviation_get_plain_forecast_no_window(monkeypatch, p):
+    hours = [hour("09:00", rain=10, temp=26, wind=10)]
+    monkeypatch.setattr(main, "hourly_facts", lambda key, day: _hourly(hours))
+    resp = client.post("/intelligence/advisory", json={"city": "chennai", "persona": p})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["status"] == "ok"
+    assert body["label"] is None
+    assert body["window"] is None
+    assert body["hours"] == hours
+    assert body["caveat"]
+    assert "safe" not in body["caveat"].lower()
+    assert "unsafe" not in body["caveat"].lower()
+
+
+def test_advisory_default_persona_is_general(monkeypatch):
+    hours = [hour("09:00", rain=10, temp=26, wind=10), hour("10:00", rain=10, temp=26, wind=10)]
+    monkeypatch.setattr(main, "hourly_facts", lambda key, day: _hourly(hours))
+    resp = client.post("/intelligence/advisory", json={"city": "chennai"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["persona"] == "general"
+    assert body["label"] == "outdoor"
+
+
+def test_advisory_against_the_real_fixtures_is_wired_end_to_end():
+    # No monkeypatch: exercises weather_data.hourly_facts + persona_advisor
+    # against the committed forecast_hours fixtures (WEATHER_MODE=fixtures).
+    resp = client.post("/intelligence/advisory", json={"city": "chennai", "persona": "farmer"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["status"] in ("ok", "no_suitable_window", "unavailable")
+    if body["status"] == "ok" and body["label"] is not None:
+        w = body["window"]
+        assert len(w["start_local"]) == 5 and len(w["end_local"]) == 5
