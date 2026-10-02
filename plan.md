@@ -293,6 +293,8 @@ If the engine says 65% and the narration says 80%, the validator rejects it, exa
 12. **Climate trend queries** ("has Chennai's monsoon onset shifted?") with a chart, if a supplementary long-range climate dataset is added.
 13. WhatsApp bot.
 14. Explainability panel: "sources used" expandable under each answer.
+16. **Travel advisory** *(added 2026-10-02, not built)*: "can I go to Goa today from Chennai" — a Go/Caution/Avoid verdict per transport mode, pros/cons and a best window, India-only routes, rules decide and the LLM only words it. Design: §11.6. Tasks: §8 Phase 10.
+17. **Sowing / crop advisory** *(added 2026-10-02, not built)*: "when should I sow groundnut in Madurai" — a sowing-window recommendation grounded in the forecast and a sourced crop file, no soil data. Design: §11.7. Tasks: §8 Phase 10.
 
 ### P3 — Mention in PPT as roadmap, don't build
 - Radar nowcasting ML model, crowd-sourced observation ingestion, hyperlocal downscaling, ISRO MOSDAC satellite product overlay, Digital Twin integration.
@@ -590,6 +592,42 @@ The four features do not block each other: best window, what-if, persona and cha
 
 ---
 
+### Phase 10 — Travel & farming advisory engine (planned, not started)
+
+Added 2026-10-02, mentor-suggested. Design and rationale: §11.6 (travel), §11.7 (farming), §11.2 (model). Feature tier: §6 items 16–17. **All owners below are proposed, none confirmed — see R21 on Niranjan's load before treating this as final.** Nothing in this phase has code yet; it starts after the open items from Phase 7/8 allow it, and each step ships on its own (same principle as R19).
+
+**Order and dependencies.**
+
+| Stage | Tasks | Can start when |
+|---|---|---|
+| 1. Model & harness | TFA-1 evaluation set, TFA-2 GPU hosting | Straight away, in parallel |
+| 2. Shared skeleton | TFA-3 slot parsing/ask-back, TFA-4 facts-collector interface, TFA-5 JSON schema + guardrail extension | TFA-1 done, so the schema matches what's being scored |
+| 3. Travel | TFA-6 facts collection, TFA-7 rule table, TFA-8 endpoint + tests | Stage 2 done |
+| 4. Farming | TFA-9 crop file, TFA-10 validator script, TFA-11 rule engine + endpoint | Stage 2 done; TFA-11 also needs TFA-9 |
+| 5. Surfaces | TFA-12 web pages, TFA-13 mobile pages, TFA-14 IVR wiring | Stage 3 and 4 endpoints exist |
+| 6. Hardening | TFA-15 security review, TFA-16 rate limits/caching | Endpoints exist |
+
+- [ ] TFA-1 — Evaluation set: 30–50 questions across travel and farming, multiple languages, with fixture weather — done when: it scores valid JSON, rubric match and guardrail pass per candidate model, in the style of `ml/nlu/eval_set.jsonl`. — **Mahesh** (proposed)
+- [ ] TFA-2 — Cloud GPU hosting: provision, quantise and serve Qwen3 8B (Ollama/vLLM), scale-to-zero when idle, token-gated, rate-limited — done when: TFA-1 can run against it and the idle-to-warm cold start is measured. — **Mahesh** (proposed, alone — see §11.8)
+- [ ] TFA-3 — Shared slot parsing + ask-back for both features (route+date, or crop+district) — done when: a missing slot produces a follow-up question, not a guess. — **Mahesh** (proposed)
+- [ ] TFA-4 — Facts-collector interface both features implement (weather, forecast, METAR/TAF, warnings, crop file) — done when: travel and farming each return a typed facts object the guardrail can check. — **Mahesh** (proposed)
+- [ ] TFA-5 — Extend the grounding guardrail (§2 principle 1, `guardrail.py`) to the new JSON shape (verdict/pros/cons/window) — done when: an answer citing a number or field not in the facts fails grounding in a test. — **Mahesh** (proposed)
+- [ ] TFA-6 — Travel facts collection: route weather, METAR/TAF reuse, IMD warnings per leg — done when: a multi-leg route returns facts for origin, destination and the airports involved. — **Syed + Deepthi** (proposed)
+- [ ] TFA-7 — Travel rule table: Go/Caution/Avoid thresholds per mode (flight/road/train/ferry), with the hard overrides from §11.6 — done when: a red IMD warning or a thunderstorm METAR forces "Avoid" regardless of model output, in a test. — **Mahesh**, reviewed by **Niranjan** (proposed)
+- [ ] TFA-8 — `POST /travel` (or similar) endpoint + tests, `data/cities.json` extended with more Indian destinations/airports — done when: a domestic route returns a grounded verdict end to end, same pattern as `/aviation`. — **Niranjan** (proposed)
+- [ ] TFA-9 — Crop file: gather documents (TNAU/ICAR/KVK/GKMS), draft `data/crops/crops.json` with a source + verbatim quote per value, `null` where a source gives none — done when: the agreed crops/regions (still to be picked, §11.9) are drafted and cited. — **Niranjan**, entire task (proposed, 2026-10-02 — see §11.8/R20/R21)
+- [ ] TFA-10 — Validator script: checks every number in `crops.json` against its quoted source, rejects an entry with no source — done when: a tampered or sourceless entry fails the check in a test. — **Niranjan** (proposed)
+- [ ] TFA-11 — Farming rule engine + endpoint: crop-specific thresholds replace the placeholder "farm" activity in `weather_intelligence/rules.py`; a `POST /advisory/sowing` (or similar) endpoint — done when: a sowing question for a covered crop/region returns a grounded window, and an uncovered one says so rather than guessing. — **Mahesh + Niranjan** (proposed)
+- [ ] TFA-12 — Web pages: Plan My Trip, Sowing Advisory — done when: both render loading/empty/error states against the live endpoints, same pattern as `BestWindowPage.tsx`. — **Mahesh + Chelsea** (proposed)
+- [ ] TFA-13 — Mobile pages: same two views — done when: `flutter analyze`/`flutter test` clean with new widget tests. — **Chelsea** (proposed)
+- [ ] TFA-14 — Voice/IVR wiring for the sowing advisory (the highest-priority channel for farmers) — done when: a simulated call (`ivr_simulate.py`) returns a spoken sowing answer. — **Niranjan** (proposed)
+- [ ] TFA-15 — Security review of the new LLM-facing surfaces: free-text route/crop input as a prompt-injection surface (same pattern as `occupation.py`, R12), GPU endpoint exposure, rate limits — done when: the review is written down like R12/R14. — **Abel** (proposed)
+- [ ] TFA-16 — Rate limits and caching on the new endpoints (`limits.py`) — done when: each route returns 429 past its limit, matching WIE-15's pattern. — **Niranjan + Abel** (proposed)
+
+**Unassigned, flagged open (2026-10-02):** pulling this into the demo narrative and deciding what gets cut if time runs short had been proposed as Surya Deepthi's task and was explicitly removed — nobody owns it now (§11.8, §11.9).
+
+---
+
 ## 9. Risks & mitigations
 
 | ID | Risk | Mitigation |
@@ -614,6 +652,8 @@ The four features do not block each other: best window, what-if, persona and cha
 | R17 | **A window or comparison is read as a safety verdict** — "best time to go out" during a warning, or a fisherman/pilot treating a city-forecast window as clearance | Wording is "more suitable" / "lower rain chance", never "safe" (§2 principle 7, `persona.py` `_RULES`); no window verdict for `fisherman` or `aviation` (WIE-7); "no suitable window" is a valid answer (WIE-3); warnings still come only from the warnings feed |
 | R18 | **Change detection has nothing to compare, or compares against stale data** — cold start, fixture mode, Postgres down (the store is best-effort by design), or snapshots taken hours apart | Missing baseline is reported as such, never as "no change" (WIE-10); the answer states when each forecast was retrieved; a seeded, labelled sample baseline for the demo (WIE-12); change detection is built last so the other three features never depend on it |
 | R19 | **Engine scope creep before the finale** — four features across backend, web and mobile on top of open Phase 7/8 work | Fixed build order with best window first (§6 item 15); each step ships on its own; thresholds stay rule-based, no ML |
+| R20 | **Crop file (`crops.json`) has no agronomy reviewer** — nobody on the roster (§7) is a domain expert, so a sowing window copied from a document could be misread and no one on the team would catch it | Every value carries its source and a verbatim quote so it's checkable (§11.7); a reviewer (team member, mentor or KVK contact) must sign off before the demo; an un-reviewed entry is marked as such and the answer says so, never presented as checked |
+| R21 | **Task concentration on one person** — Phase 10 (§8) gives Niranjan the crop file, the travel endpoint, the IVR wiring and the travel rule-table review, on top of his existing §7 backend/voice ownership | Confirmed with Niranjan and the team before the build starts, not assumed; rebalance (e.g. Syed/Deepthi take part of the crop-file sourcing) if it's too much on top of Phase 7/8 (R7's "no single-owner" principle applies here too) |
 
 ---
 
@@ -723,9 +763,15 @@ Why:
 - **Data stays under our control.** Queries (including trip plans) don't go to a third party.
 - **Fits the sovereign-India stack** already claimed for Bhashini and Bhuvan.
 
-Size: the 3B Llama used for offline mode is too small for the planned travel reasoning (reading several legs of weather, applying a rubric, returning valid JSON). Candidates are a 7 to 8B model (Qwen2.5 7B Instruct, Llama 3.1 8B Instruct) or Gemma 2 9B, served with Ollama or vLLM on one GPU. **No candidate is chosen yet; it is picked by measurement (11.5), not by reputation.**
+Size: the 3B Llama used for offline mode is too small for the planned travel and farming reasoning (reading several legs of weather or a crop file, applying a rubric, returning valid JSON).
 
-Language: the model works in English; Bhashini translates in and out, as today. Open models are weaker in Indic languages than in English.
+**Primary candidate (2026-10-02): Qwen3 8B, quantised 4-bit (~5–6 GB), hosted on a rented cloud GPU and scaled to zero when idle** — the cheapest model that might do the job, so it is tried first rather than assumed adequate. **Fallback tier if the 11.5 evaluation shows it failing** rubric adherence, JSON validity or the Indian-language question set: a 14B model (Qwen3 14B, ~10 GB at 4-bit), `gpt-oss-20b`, or Sarvam 30B (Apache 2.0, built for 22 Indian languages — worth testing specifically for the farming feature's Hindi/Tamil/Telugu/Marathi questions). **Neither tier is confirmed; both wait on the 11.5 measurement.**
+
+Cold start: a scaled-to-zero GPU takes tens of seconds to a few minutes to load the model. For the demo, start it 15–20 minutes early and send a test request rather than relying on auto-start; for a real deployment, tier 2/3 of 11.3 cover a request that arrives while the GPU is still waking up. The endpoint must sit behind a token and a rate limit (owned by Abel, §11.8) — an open GPU endpoint is both an abuse surface and a billing risk.
+
+Stretch goal, not required to ship either feature: LoRA/QLoRA fine-tuning of the 8B on question parsing and ask-back behaviour in Indian languages, measured against the plain 8B on the same 11.5 set. Facts and verdicts are never trained in — they stay in the crop file (§11.7) and the rule tables (§11.6), so every answer still traces to a source.
+
+Language: the model works in English; Bhashini translates in and out, as today. Open models are generally weaker in Indic languages than in English, which is part of why Sarvam is worth testing as the fallback tier.
 
 ### 11.3 Graceful degradation (the real resilience story)
 
@@ -763,20 +809,41 @@ The existing NLU eval (`ml/nlu/eval_set.jsonl`, `run_eval.py`) is the pattern fo
 
 ### 11.6 Planned feature that uses this: travel advice (not built)
 
-Suggested by the mentor, 2026-10-02: "Can I go to Bali today from Chennai?" answered with a verdict, pros and cons for each transport mode, and a best window.
+Suggested by the mentor, 2026-10-02. **Scope decided 2026-10-02: India only** — domestic routes (e.g. Chennai to Goa, Leh, Andaman), no international destinations, no geocoder, no Open-Meteo dependency. "Can I go to Goa today from Chennai?" answered with a verdict, pros and cons for each transport mode, and a best window.
 
 - **Who decides what:** the model reads structured facts (current weather and forecast for the origin, destination and route; METAR/TAF for flights; IMD warnings) and a rubric in the prompt, and returns structured JSON. It never supplies a fact of its own.
 - **Hard overrides in code**, which the model cannot talk its way past: an active red IMD warning, or a thunderstorm in the destination METAR, forces "Avoid".
 - **Guardrail:** reject output that cites a number or field not in the facts, and fall back to a rule-based answer. Missing data is reported as "not available", never as fair weather (§2).
 - **Wording:** "awareness only, check the airline or official source", the same disclaimer pattern as `aviation.py`. Never "safe to fly" (R17).
-- **Open points:** the destination set (`data/cities.json` is India-only, so Bali needs a geocoder such as Open-Meteo or a curated list), route sampling, marine data for ferries, and whether a trained delay-risk model is worth adding as a stretch goal.
-- The `traveller` persona (2026-10-02) and the aviation work are the starting point. A new risk row will be added when the build starts.
+- **Data sources — all already in the stack, nothing new to integrate:** Google Weather for conditions and forecast, METAR/TAF from aviationweather.gov for airports, IMD warnings for the route.
+- **Open points:** the destination list (`data/cities.json` is the demo-city set today and needs extending with more Indian cities/airports — a data edit, not new code), route sampling for long road/rail legs, marine data for coastal ferries, and whether a trained delay-risk model is worth adding as a stretch goal (no usable India flight-delay-vs-METAR dataset has been found yet — see R20).
+- The `traveller` persona (2026-10-02) and the aviation work are the starting point. Task breakdown and ownership: §8 Phase 10.
 
-### 11.7 Open questions
+### 11.7 Planned feature that uses this: sowing / crop advisory (not built)
 
-- Who hosts the demo model: the team laptop, a rented GPU, or a hosted open-weight API?
-- Which model passes the 11.5 test?
+Suggested by the mentor, 2026-10-02: "When should I sow groundnut in Madurai?" answered with a suitable sowing window, grounded in the forecast and a sourced crop file.
+
+- **Scope decided 2026-10-02: no soil moisture or soil temperature.** The feature uses only what the stack already has — rain probability/amount, temperature and wind from Google Weather — not a new data source.
+- **New data, and the only new data this feature needs:** `data/crops/crops.json` — per crop and region: sowing window, minimum rain or dry-spell need, temperature range. **Every value carries its source and a verbatim quote from that source**; a value the source doesn't give stays `null` rather than guessed (§2 principle 3).
+- **Sources:** state agricultural university crop guides (e.g. TNAU Agritech), ICAR/KVK crop calendars, IMD's Gramin Krishi Mausam Sewa district advisories (cited in the answer where possible, since GKMS already issues official sowing advice twice weekly and this feature must not contradict it).
+- **Build process:** documents are gathered and read, entries are drafted with a source and quote per value, a validator script checks every number against its quoted source and rejects an entry with no source, and a human review (someone with agronomy knowledge, or the mentor/a KVK contact — **not yet named, see §11.9**) signs off before the demo. An unverified entry is marked as such and the answer says so.
+- **Decision engine:** reuses the existing best-window engine (`weather_intelligence/rules.py`, `window_analyzer.py`) — crop-specific thresholds replace the generic "farm" activity's placeholder values (currently identical to "outdoor", see that file's module docstring).
+- **Wording:** "conditions look suitable for sowing" or "not available", never "sow now" or a yield guarantee; always closes with "check with your local KVK or agriculture office".
+- Task breakdown and ownership: §8 Phase 10.
+
+### 11.8 Who builds this
+
+Full task breakdown, task IDs and proposed owners: **§8 Phase 10**. Summary: Mahesh owns the evaluation harness, the GPU hosting and the shared parsing/guardrail skeleton; Syed + Deepthi own travel's facts collection; Niranjan owns the travel endpoint, the entire crop file (gathering, drafting, validator), and the voice/IVR wiring; Mahesh + Niranjan split the two rule engines; Chelsea owns mobile and co-owns web with Mahesh; Abel reviews security on the new LLM-facing surfaces. **Nobody currently owns pulling this into the demo narrative or deciding what gets cut if time runs short — flagged open, not reassigned (§11.9).**
+
+### 11.9 Open questions
+
+- Who signs off on the agronomy in `crops.json`? Nobody on the roster (§7) is a domain expert — this blocks "it's correct", not "it's built".
+- Niranjan is carrying four items in Phase 10 (crop file, travel endpoint, IVR wiring, rule-table review) on top of his existing backend/voice ownership in §7 — confirm this doesn't overload him before it's final.
+- Who owns the demo narrative and scope cuts for this initiative specifically? (Removed from Surya Deepthi 2026-10-02; not reassigned.)
+- Does Qwen3 8B pass the 11.5 evaluation, or does it fall back to the 14B/Sarvam tier?
+- Who holds the cloud GPU account and its billing alert?
 - What does a pilot cost per 1,000 queries? (Measured, not estimated.)
+- How much time is left before the finale, and how much of Phase 10 ships live versus stays roadmap-only?
 
 ---
 
