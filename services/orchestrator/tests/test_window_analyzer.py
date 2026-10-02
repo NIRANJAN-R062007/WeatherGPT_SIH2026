@@ -66,6 +66,15 @@ def test_unknown_activity_falls_back_to_outdoor():
     assert rules.thresholds_for(None) == rules.OUTDOOR
 
 
+def test_wie7_persona_activities_match_outdoor_today():
+    # farm (farmer) and travel (traveller) start out identical to outdoor —
+    # no persona-specific thresholds have been agreed yet (weather_intelligence
+    # /persona_advisor.py's docstring), so the same hour passes or fails the
+    # same way under every one of them.
+    assert rules.thresholds_for("farm") == rules.OUTDOOR
+    assert rules.thresholds_for("travel") == rules.OUTDOOR
+
+
 # --- WIE-3: find_best_window -------------------------------------------------
 
 
