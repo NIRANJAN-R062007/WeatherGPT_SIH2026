@@ -5,10 +5,11 @@
 // with the ask bar docked at the bottom. Questions handed over by other
 // pages (useChat().askInChat) land here. Session-only: nothing persisted.
 import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import AskAnswer from '../components/AskAnswer';
 import { CityHintRow } from '../components/CityPicker';
 import PageFrame from '../components/PageFrame';
-import { ActionRow, Icon, PageHeader, RuleLabel, SectionTitle, Spinner } from '../components/ui';
+import { ActionRow, Icon, InfoBanner, PageHeader, RuleLabel, SectionTitle, Spinner } from '../components/ui';
 import { question, questionTitle } from '../data/personas';
 import { useChat, type ChatTurn } from '../state/ChatContext';
 import { useUiPrefs } from '../state/UiPrefsContext';
@@ -90,6 +91,7 @@ export default function ChatPage() {
   const { personaInfo: persona, cityInfo } = useUiPrefs();
   const end = useRef<HTMLDivElement>(null);
   const city = cityInfo.name;
+  const navigate = useNavigate();
 
   // Keep the newest turn in view.
   useEffect(() => {
@@ -102,6 +104,14 @@ export default function ChatPage() {
         <PageHeader title="Chat & Evidence" subtitle={persona.chatLead} />
         <div className="mt-space-lg">
           <Composer />
+        </div>
+        <div className="mt-space-md">
+          <InfoBanner
+            icon="schedule"
+            title="When's the best time to go outside?"
+            body="Find the best window today or tomorrow, and compare two times."
+            onClick={() => navigate('/best-window')}
+          />
         </div>
         <div className="mt-space-lg mb-space-sm">
           <SectionTitle text="Suggested Questions" />

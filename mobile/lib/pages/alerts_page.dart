@@ -221,6 +221,7 @@ class _Verdict extends StatelessWidget {
     final title = active
         ? (category.isNotEmpty ? '$category Alert' : '${s('colour_label')} warning')
         : 'No warnings in force';
+    final disclaimer = disclaimerBanner(w);
 
     return AppCard(
       color: Color.alphaBlend(tone.withValues(alpha: 0.08), t.card),
@@ -256,6 +257,10 @@ class _Verdict extends StatelessWidget {
                     ),
                     const SizedBox(height: AppSpace.sm),
                     Text(s('headline'), style: AppText.bodyMd.copyWith(color: t.ink)),
+                    if (disclaimer != null) ...[
+                      const SizedBox(height: AppSpace.sm),
+                      disclaimer,
+                    ],
                   ],
                 ),
               ),

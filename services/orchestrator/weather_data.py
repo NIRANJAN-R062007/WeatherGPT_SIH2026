@@ -239,3 +239,63 @@ def rain_so_far(key: str, *, now: datetime | None = None) -> dict | None:
         "hours_counted": hours_counted,
         "condition": google_weather.decode_condition(_dig(hours[0], "weatherCondition.type")),
     }
+
+
+def hourly_facts(key: str, day: str = "today") -> dict | None:
+    """Decoded per-hour forecast for one day (plan.md §8 Phase 9, WIE-1) —
+    feeds the Weather Intelligence Engine's best-window and what-if views
+    (weather_intelligence/), never /ask directly. Each hour: `local_time`
+    ("HH:MM", city-local), `temp_c`, `rain_probability_pct`, `wind_kmh`,
+    `condition`, `uv_index` where present.
+
+    "today" / "tomorrow" are positional, like forecast_day()'s offsets —
+    the series' own first hour is "today" regardless of the real calendar
+    date, so fixture mode (whose hourly series is snapshotted, not live)
+    behaves the same as forecast_day's day-0 convention. A short fixture
+    series (the committed snapshots hold ~24h, one day) genuinely has no
+    "tomorrow" hours — that is reported as unavailable, never guessed.
+    """
+    snap = google_weather.snapshot("forecast_hours", key)
+    if snap is None:
+        return None
+    raw_hours = _dig(snap.payload, "forecastHours") or []
+    if not raw_hours:
+        return None
+
+    tz = _city_timezone(key)
+    decoded: list[tuple[datetime, dict, str]] = []
+    for h in raw_hours:
+        start = _dig(h, "interval.startTime")
+        if not start:
+            continue
+        try:
+            local = _parse_ts(start).astimezone(tz)
+        except (ValueError, TypeError):
+            continue
+        decoded.append((local, h, start))
+    if not decoded:
+        return None
+
+    anchor_date = decoded[0][0].date()  # the series' own first hour = "today"
+    target_date = anchor_date + timedelta(days=1) if day == "tomorrow" else anchor_date
+
+    hours: list[dict] = []
+    for local, h, start in decoded:
+        if local.date() != target_date:
+            continue
+        hour: dict = {"time_iso": start, "local_time": local.strftime("%H:%M")}
+        _put(hour, "temp_c", _dig(h, "temperature.degrees"))
+        _put(hour, "rain_probability_pct", _dig(h, "precipitation.probability.percent"))
+        _put(hour, "wind_kmh", _dig(h, "wind.speed.value"))
+        _put(hour, "condition", google_weather.decode_condition(_dig(h, "weatherCondition.type")))
+        _put(hour, "uv_index", _dig(h, "uvIndex"))
+        hours.append(hour)
+    if not hours:
+        return None
+
+    return {
+        "source": snap.source,
+        "is_live": snap.is_live,
+        "day": "tomorrow" if day == "tomorrow" else "today",
+        "hours": hours,
+    }

@@ -18,6 +18,7 @@ import '../format.dart';
 import '../state/ui_prefs.dart';
 import '../persona_theme.dart';
 import '../theme.dart';
+import 'best_window_page.dart';
 
 class _Turn {
   final String question;
@@ -124,6 +125,13 @@ class _ChatPageState extends State<ChatPage> {
           PageHeader(title: 'Chat & Evidence', subtitle: persona.chatLead),
           const SizedBox(height: AppSpace.lg),
           composer,
+          const SizedBox(height: AppSpace.md),
+          InfoBanner(
+            icon: Icons.schedule,
+            title: "When's the best time to go outside?",
+            body: 'Find the best window today or tomorrow, and compare two times.',
+            onTap: () => openBestWindow(context),
+          ),
           const SizedBox(height: AppSpace.lg),
           const SectionTitle('Suggested Questions'),
           const SizedBox(height: AppSpace.sm),

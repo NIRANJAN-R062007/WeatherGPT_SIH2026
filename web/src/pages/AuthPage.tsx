@@ -153,6 +153,10 @@ export default function AuthPage({ initialMode }: { initialMode: AuthMode }) {
         We sent a confirmation link to <strong className="text-ink">{awaiting}</strong>. Open it, then come back and
         sign in.
       </p>
+      <p className="mt-space-sm font-body-sm text-body-sm text-ink-muted">
+        Can't find it? Check Spam and Promotions. Some school and work email systems block our mail — if nothing
+        arrives in a few minutes, sign up with a personal email instead.
+      </p>
       <div className="w-full mt-space-md flex flex-col gap-space-md text-left">
         {error && <Message text={error} error />}
         {notice && <Message text={notice} />}

@@ -5,6 +5,7 @@
 // provenance) rather than the mockup's "5 Days" / "Hourly"; the banner at
 // the foot hands a 5-day question to Chat, where /ask narrates it.
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import PageFrame from '../components/PageFrame';
 import { AppCard, ErrorPanel, Icon, IconDisc, InfoBanner, LiveBadge, LoadingPanel, PageHeader } from '../components/ui';
 import WeatherGlyph from '../components/WeatherGlyph';
@@ -153,6 +154,7 @@ export default function ForecastPage() {
   const { askInChat } = useChat();
   const { cityInfo, personaInfo } = useUiPrefs();
   const city = cityInfo.name;
+  const navigate = useNavigate();
 
   let body;
   if (weather.error) {
@@ -184,12 +186,18 @@ export default function ForecastPage() {
         <Switch value={view} onChange={setView} />
       </div>
       <div className="mt-space-md flex flex-col gap-2.5">{body}</div>
-      <div className="mt-space-md">
+      <div className="mt-space-md flex flex-col gap-space-sm">
         <InfoBanner
           icon={personaInfo.icon}
           title="Need more days?"
           body={`Ask for a 5-day forecast for ${city} in Chat.`}
           onClick={() => askInChat(`5-day forecast for ${city}`)}
+        />
+        <InfoBanner
+          icon="schedule"
+          title="When's the best time to go outside?"
+          body="See the best window today or tomorrow, and compare two times."
+          onClick={() => navigate('/best-window')}
         />
       </div>
     </PageFrame>

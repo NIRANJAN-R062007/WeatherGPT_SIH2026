@@ -50,6 +50,10 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
             <span>Airport weather</span>
           </NavLink>
         )}
+        <NavLink to="/best-window" onClick={onNavigate} className={({ isActive }) => tile(isActive)}>
+          <Icon name="schedule" size={20} />
+          <span>Best Time & What-if</span>
+        </NavLink>
         <div className="my-space-sm h-px bg-outline-variant/60" />
         <NavLink to="/profile" onClick={onNavigate} className={({ isActive }) => tile(isActive)}>
           <Icon name="account_circle" size={20} />

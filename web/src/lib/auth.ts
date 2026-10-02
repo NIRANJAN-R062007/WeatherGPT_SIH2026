@@ -21,6 +21,16 @@ export const SUPABASE_ANON_KEY = env(
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJrb2hpaWdkbmdwcHl3bnpha3ZnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkyMTk5MjUsImV4cCI6MjEwNDc5NTkyNX0.55NOTKMwx0--h1KL32g-M2gSYEJnVfNMbPuBJehYoek',
 );
 
+/** Where the confirmation link in a sign-up mail lands: the hosted page that
+ *  says the email is confirmed and to come back here and sign in
+ *  (prototype/frontend/email-confirmed.html, on Amplify). Must be listed
+ *  under Supabase → Authentication → URL Configuration → Redirect URLs. */
+export const EMAIL_CONFIRMED_URL = `${env(
+  import.meta.env.VITE_EMAIL_CONFIRMED_URL,
+  'https://main.d2fpifryktvg3k.amplifyapp.com/email-confirmed.html',
+)}?from=web`;
+const confirmRedirect = `redirect_to=${encodeURIComponent(EMAIL_CONFIRMED_URL)}`;
+
 const AUTH_TIMEOUT_MS = 15_000;
 
 export class AuthError extends Error {
@@ -203,7 +213,7 @@ export async function signUp(details: {
   phone: string;
   occupation: string;
 }): Promise<SignUpResult> {
-  const data = await post('signup', {
+  const data = await post(`signup?${confirmRedirect}`, {
     email: details.email,
     password: details.password,
     data: { full_name: details.fullName, phone: details.phone, occupation: details.occupation },
@@ -213,7 +223,7 @@ export async function signUp(details: {
 
 /** Sends the confirmation mail again. */
 export async function resendConfirmation(email: string): Promise<void> {
-  await post('resend', { type: 'signup', email });
+  await post(`resend?${confirmRedirect}`, { type: 'signup', email });
 }
 
 export async function refreshSession(refreshToken: string): Promise<AuthSession> {
