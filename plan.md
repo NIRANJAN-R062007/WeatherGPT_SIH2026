@@ -18,6 +18,7 @@
 8. [Technical build phases & ownership](#8-technical-build-phases--ownership)
 9. [Risks & mitigations](#9-risks--mitigations)
 10. [Repo structure](#10-repo-structure)
+11. [Deployment, resilience and the open-model decision](#11-deployment-resilience-and-the-open-model-decision)
 
 ---
 
@@ -598,7 +599,7 @@ The four features do not block each other: best window, what-if, persona and cha
 | R2 | LLM hallucinates a figure | Numeric validator + template fallback; test with adversarial prompts ("is a cyclone hitting Chennai tomorrow?") |
 | R3 | Bhashini access/latency issues, or weak translation/TTS quality for a specific language | Self-hosted IndicTrans2 + IndicConformer fallback; validate quality per language in Phase 3 (Marathi/Telugu met terminology may need a glossary override); pre-generate + human-verify TTS for common warning phrases in all five languages |
 | R4 | Latency blows past 2s | Rule-based fast path for top intents (skip LLM entirely); Redis hot cache; stream tokens so perceived latency is low |
-| R5 | Venue network fails at the finale | Fully offline mode: local quantised Llama + snapshotted data + recorded video backup |
+| R5 | Venue network fails at the finale | Fully offline mode: local quantised Llama + snapshotted data + recorded video backup. This is a demo-day backup run from the team laptop, not something users run (§11.1) |
 | R6 | Scope creep — team tries to run WRF | **Hard rule: we ingest NWP output, we don't run NWP.** Say so honestly in the PPT |
 | R7 | Team member unavailable | No single-owner components; weekly cross-demo so anyone can present anything |
 | R8 | Someone claims accuracy we can't back | All claims in the PPT must trace to a source or a measured number from our own Grafana |
@@ -695,6 +696,87 @@ weathergpt/
 - `data/climate/` — gridded historical subsets, if a supplementary climate source is added
 - `docs/` — architecture.md, demo-script.md, jury-qa.md
 - top-level `tests/` — currently per-service (`services/orchestrator/tests/`, `services/gateway/tests/`) rather than centralized
+
+---
+
+## 11. Deployment, resilience and the open-model decision
+
+*(Added 2026-10-02. This is a design and pitch position, not a description of what is built. Items marked **measured** have no figure yet.)*
+
+### 11.1 Where the model runs
+
+Users never run a model. A farmer, fisherman or traveller uses the mobile app, the web app or an IVR call, and every one of them talks to the same server. So the model size is a server decision, and the "offline mode" in R5 is not a product feature.
+
+| Thing | What it is | Who it's for |
+|---|---|---|
+| **The product** | Server-side API (gateway + orchestrator) used by phone, browser and IVR. Users need nothing beyond what they already own | Citizens |
+| **Offline mode** (`OFFLINE_MODE=1`: fixtures + local Ollama + template) | A rehearsed backup for the finale if the venue network fails, run from the team laptop | The demo only |
+
+The offline mode is never described to the jury as support for farmers.
+
+### 11.2 Open-weight model as the primary (decision, not yet built)
+
+**Decision:** the primary LLM becomes a self-hosted open-weight model on a server, with the hosted APIs kept as fallback. Today's chain in `narrate.py` is Gemini, then Groq (`gpt-oss-120b`, itself an open-weight model), then Ollama.
+
+Why:
+- **No dependence on a free-tier key.** `narrate.py` records that Gemini's free tier returns 503 on roughly 1 call in 3.
+- **Data stays under our control.** Queries (including trip plans) don't go to a third party.
+- **Fits the sovereign-India stack** already claimed for Bhashini and Bhuvan.
+
+Size: the 3B Llama used for offline mode is too small for the planned travel reasoning (reading several legs of weather, applying a rubric, returning valid JSON). Candidates are a 7 to 8B model (Qwen2.5 7B Instruct, Llama 3.1 8B Instruct) or Gemma 2 9B, served with Ollama or vLLM on one GPU. **No candidate is chosen yet; it is picked by measurement (11.5), not by reputation.**
+
+Language: the model works in English; Bhashini translates in and out, as today. Open models are weaker in Indic languages than in English.
+
+### 11.3 Graceful degradation (the real resilience story)
+
+Each tier is a fallback for the one above, and the grounding guardrail (§4) validates the output of every model tier. Tiers 3 and 4 already exist.
+
+| Tier | What answers | Needs |
+|---|---|---|
+| 1 | Self-hosted open-weight model | Our GPU server (planned) |
+| 2 | Hosted open-weight or Gemini API | Network, an API key |
+| 3 | Rule-based template answer (`i18n.py`, five languages, no model) | Nothing but the facts |
+| 4 | Cached or snapshotted data, labelled with its age (`is_live`, "snapshot taken …"); never shown as current (§2) | Redis/Postgres or fixtures |
+
+Even with every model down, a user still gets a correct, templated answer. That is the claim to make, and it is stronger than "it works offline on a laptop".
+
+### 11.4 Deployment roadmap (what to tell the jury)
+
+Present this as a plan the team has already worked out, and not as a request for the jury to build the servers.
+
+| Stage | What | Status |
+|---|---|---|
+| Prototype | One server, one open-weight model, Redis cache; docker compose, k8s manifests validated on local kind (R11) | Partly built. The model server is not set up |
+| Pilot | Deploy on an Indian government cloud (NIC / MeghRaj or similar) so data stays in India. One GPU for the model | Planned. Hardware and cost estimate **not yet measured** |
+| Scale | Stateless API pods behind a load balancer (HPA already in `k8s/base`), a shared cache, the model scaled separately. Many people in one district ask the same question, so caching does most of the work | Manifests exist. The load-verified claim does not (R11) |
+| Edge | IVR and SMS for places with weak data coverage; district-level caching | IVR backend built, not live (R10) |
+
+Figures to **measure before quoting**: p95 latency on the LLM path, answers per second per GPU, and cost per 1,000 queries. No such number goes into the PPT until it comes from our own load test (R8).
+
+### 11.5 How the model is chosen
+
+1. Build a set of 30 to 50 questions (travel and the existing intents) with fixture weather.
+2. Run each candidate model, and score three things: valid structured output, a verdict that matches the rubric, and every cited number passing the guardrail.
+3. Record the results, the latency and the memory needed on the target server. Pick the smallest model that passes.
+
+The existing NLU eval (`ml/nlu/eval_set.jsonl`, `run_eval.py`) is the pattern for this. Fine-tuning is considered only if a model falls short here, and the most useful target is question parsing (Hindi, Tamil and code-mixed input), not the weather verdict.
+
+### 11.6 Planned feature that uses this: travel advice (not built)
+
+Suggested by the mentor, 2026-10-02: "Can I go to Bali today from Chennai?" answered with a verdict, pros and cons for each transport mode, and a best window.
+
+- **Who decides what:** the model reads structured facts (current weather and forecast for the origin, destination and route; METAR/TAF for flights; IMD warnings) and a rubric in the prompt, and returns structured JSON. It never supplies a fact of its own.
+- **Hard overrides in code**, which the model cannot talk its way past: an active red IMD warning, or a thunderstorm in the destination METAR, forces "Avoid".
+- **Guardrail:** reject output that cites a number or field not in the facts, and fall back to a rule-based answer. Missing data is reported as "not available", never as fair weather (§2).
+- **Wording:** "awareness only, check the airline or official source", the same disclaimer pattern as `aviation.py`. Never "safe to fly" (R17).
+- **Open points:** the destination set (`data/cities.json` is India-only, so Bali needs a geocoder such as Open-Meteo or a curated list), route sampling, marine data for ferries, and whether a trained delay-risk model is worth adding as a stretch goal.
+- The `traveller` persona (2026-10-02) and the aviation work are the starting point. A new risk row will be added when the build starts.
+
+### 11.7 Open questions
+
+- Who hosts the demo model: the team laptop, a rented GPU, or a hosted open-weight API?
+- Which model passes the 11.5 test?
+- What does a pilot cost per 1,000 queries? (Measured, not estimated.)
 
 ---
 
