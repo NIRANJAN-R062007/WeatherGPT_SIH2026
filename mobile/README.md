@@ -157,18 +157,28 @@ the work sits:
      Airport weather and Best Time & What-if show their error states.
 
    The app tolerates all of this, but users see less than `main` can serve.
-2. **Verify on a real device.** *(App)* An Android emulator (API 36) is now
-   available. On it, the 2026-10-03 release APK showed the "WeatherGPT" label,
-   the new icon and splash, and a live Home from the deployed host with no
-   `--dart-define`. Still to exercise, ideally on a phone:
+2. **Verify on a real device.** *(App)* Partly done on an Android 16 (API 36)
+   emulator on 2026-10-03, against the deployed host:
+   - ✅ The release APK shows the "WeatherGPT" label, icon and splash, and a
+     live Home, with no `--dart-define`.
+   - ✅ A restart keeps language, city, °F, persona and dark mode.
+   - ✅ "Use my location": the permission prompt, the near note ("about 4 km")
+     and the far note ("about 1755 km"). Driven with `adb shell cmd location
+     providers` test locations; `adb emu geo fix` didn't move this emulator.
+   - ✅ The mic permission prompt, recording, and the `/asr` round trip; a
+     silent recording now says "Didn't catch any audio" instead of being
+     asked. Listen played `/tts` audio (about 4 s, not listened to).
+   - ✅ Hindi / Tamil / Telugu / Marathi render through system fonts; the
+     bottom-bar labels now fit on one line in Tamil.
+   - ✅ Safe areas at 360 × 640 dp.
+   - ✅ Airport weather is in the drawer only for the Aviation persona.
+
+   Still to check, ideally on a phone:
    - sign in (email and Google) → ask in Chat → History → Clear history,
-     against the live Supabase project
-   - restart: language, city, °C / °F, persona and dark mode are kept
-   - "Use my location": the GPS permission prompt and the near / far (> 50 km)
-     notes
-   - mic → `/asr` round trip, including the permission prompt; `/tts` playback
-   - keyboard and safe-area insets on small screens
-   - Hindi / Tamil / Telugu / Marathi rendering through system fonts
+     against the live Supabase project (needs a real account)
+   - the mic with real speech, and hearing the `/tts` playback
+   - the soft keyboard on a small screen (it never appeared on the emulator)
+   - the 15 s location time limit with no fix at all (unit-tested only)
    - after the redeploy (item 1): 8 cities, Alerts, Airport weather (Aviation
      persona), Best Time & What-if
 3. ~~**Ship the backend URL with the build.**~~ ✅ Done (2026-10-03). A release
@@ -279,10 +289,10 @@ the work sits:
 
 ### P4 — engineering hygiene
 
-20. ~~**CI job for mobile/.**~~ ✅ Added (2026-10-03): the `mobile` job in
+20. ~~**CI job for mobile/.**~~ ✅ Done (2026-10-03): the `mobile` job in
     `.github/workflows/ci.yml` runs `flutter analyze`, `flutter test` and
-    `flutter build apk --debug` on Flutter 3.47.2. Unverified until it runs on
-    GitHub Actions.
+    `flutter build apk --debug` on Flutter 3.47.2. It passed on GitHub
+    Actions, first for 0bd9d8d.
 21. **Better tests.** Widget tests run against flutter_test's stub HTTP (every
     call returns 400), so they cover error paths and layout only. `AskAnswer` is
     fixture-tested per branch; the History, cities and sign-in tests use a
