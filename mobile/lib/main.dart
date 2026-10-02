@@ -11,7 +11,7 @@ import 'pages/alerts_page.dart';
 import 'pages/chat_page.dart';
 import 'pages/forecast_page.dart';
 import 'pages/home_page.dart';
-import 'pages/landing_page.dart';
+import 'pages/onboarding_pages.dart';
 import 'pages/settings_page.dart';
 import 'persona_theme.dart';
 import 'state/auth_store.dart';
@@ -120,9 +120,9 @@ class _WeatherGptAppState extends State<WeatherGptApp> {
   }
 }
 
-/// Signed out → the landing page (sign in / create account / guest); signed
+/// Signed out → onboarding: the language page, then welcome + log in; signed
 /// in or guest → the app. Signing out (or leaving guest mode) from Profile
-/// lands back on the landing page.
+/// lands back on the language page.
 class _AuthGate extends StatelessWidget {
   const _AuthGate();
 
@@ -130,7 +130,7 @@ class _AuthGate extends StatelessWidget {
   Widget build(BuildContext context) {
     return switch (AuthStore.of(context).status) {
       AuthStatus.restoring => const _Splash(),
-      AuthStatus.signedOut => const LandingPage(),
+      AuthStatus.signedOut => const LanguagePage(),
       AuthStatus.signedIn || AuthStatus.guest => AppShell(
         pages: {
           AppPage.home: (_) => const HomePage(),

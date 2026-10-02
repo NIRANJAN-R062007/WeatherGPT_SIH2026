@@ -10,7 +10,9 @@ import 'package:weathergpt/auth_client.dart';
 import 'package:weathergpt/components/forms.dart';
 import 'package:weathergpt/main.dart';
 import 'package:weathergpt/state/auth_store.dart';
+import 'package:weathergpt/pages/onboarding_pages.dart';
 import 'package:weathergpt/persona_theme.dart';
+import 'package:weathergpt/state/ui_prefs.dart';
 
 // flutter_test answers every real HTTP request with a 400, so pages that
 // fetch on load land in their error state — which is also what's checked.
@@ -81,6 +83,12 @@ Future<void> _tapVisible(WidgetTester tester, Finder finder) async {
   await tester.ensureVisible(finder);
   await tester.pump();
   await tester.tap(finder);
+  await _settle(tester);
+}
+
+/// Languages page → Continue (English stays selected) → Welcome + log in.
+Future<void> _continueToLogin(WidgetTester tester) async {
+  await _tapVisible(tester, find.text('Continue'));
   await _settle(tester);
 }
 
@@ -287,14 +295,39 @@ void main() {
     }
   });
 
-  testWidgets('signed out: landing page, then the create-account form validates', (tester) async {
+  testWidgets('signed out: languages first, then welcome + log in; Sign Up opens the account form', (tester) async {
     _phone(tester);
     await tester.pumpWidget(WeatherGptApp(auth: await _signedOut((_) async => http.Response('{}', 500))));
     await _settle(tester);
-    expect(find.text('Weather answers\nyou can trust.'), findsOneWidget);
+    expect(find.text('Languages'), findsOneWidget);
+    for (final label in ['English', 'हिन्दी', 'தமிழ்', 'తెలుగు', 'मराठी']) {
+      expect(find.text(label), findsOneWidget, reason: label);
+    }
     expect(find.text('Quick Actions'), findsNothing);
 
-    await _tapVisible(tester, find.text('Create account'));
+    await _continueToLogin(tester);
+    expect(find.text('Welcome to'), findsOneWidget);
+    for (final label in [
+      'Email or phone number',
+      'Password',
+      'Forgot password?',
+      'Log In',
+      'or',
+      'Continue with Google',
+      "Don't have an account?",
+      'Sign Up',
+      'Sign in as Guest',
+    ]) {
+      expect(find.text(label), findsOneWidget, reason: label);
+    }
+    await _tapVisible(tester, find.text('Log In'));
+    expect(find.text('Enter your email or phone number.'), findsOneWidget);
+    expect(find.text('Enter your password.'), findsOneWidget);
+    await _enter(tester, 'Email or phone number', '98765 43210');
+    await tester.pump();
+    expect(find.text("Phone sign-in isn't available yet — please use your email."), findsOneWidget);
+
+    await _tapVisible(tester, find.text('Sign Up'));
     expect(find.text('Create your account'), findsOneWidget);
     for (final label in ['Full name', 'Email', 'Phone number', 'Occupation', 'Password', 'Confirm password']) {
       expect(find.widgetWithText(TextFormField, label), findsOneWidget, reason: label);
@@ -316,7 +349,8 @@ void main() {
     });
     await tester.pumpWidget(WeatherGptApp(auth: auth));
     await _settle(tester);
-    await _tapVisible(tester, find.text('Create account'));
+    await _continueToLogin(tester);
+    await _tapVisible(tester, find.text('Sign Up'));
 
     await _enter(tester, 'Full name', 'Chelsea Joseph');
     await _enter(tester, 'Email', 'chelsea@example.com');
@@ -346,15 +380,15 @@ void main() {
     });
     await tester.pumpWidget(WeatherGptApp(auth: auth));
     await _settle(tester);
-    await _tapVisible(tester, find.text('I already have an account'));
+    await _continueToLogin(tester);
 
-    await _enter(tester, 'Email', 'chelsea@example.com');
+    await _enter(tester, 'Email or phone number', 'chelsea@example.com');
     await _enter(tester, 'Password', 'wrong');
-    await _tapVisible(tester, find.widgetWithText(GradientButton, 'Sign in'));
+    await _tapVisible(tester, find.text('Log In'));
     expect(find.text('Wrong email or password.'), findsOneWidget);
 
-    await _enter(tester, 'Password', 'right-password');
-    await _tapVisible(tester, find.widgetWithText(GradientButton, 'Sign in'));
+    await tester.enterText(find.byType(TextFormField).at(1), 'right-password');
+    await _tapVisible(tester, find.text('Log In'));
     expect(auth.status, AuthStatus.signedIn);
     expect(find.text('Quick Actions'), findsOneWidget);
   });
@@ -377,10 +411,10 @@ void main() {
     await _settle(tester);
     await _settle(tester);
     expect(auth.status, AuthStatus.signedOut);
-    expect(find.text('Weather answers\nyou can trust.'), findsOneWidget);
+    expect(find.text('Languages'), findsOneWidget);
   });
 
-  testWidgets('Continue as guest opens the app; Profile offers sign-in; exit returns to landing', (tester) async {
+  testWidgets('Sign in as Guest opens the app; Profile offers sign-in; exit returns to Languages', (tester) async {
     _phone(tester);
     final storage = MemorySessionStorage();
     final auth = AuthStore(storage: storage, client: AuthClient(client: _noNetwork));
@@ -388,7 +422,8 @@ void main() {
     await tester.pumpWidget(WeatherGptApp(auth: auth));
     await _settle(tester);
 
-    await _tapVisible(tester, find.text('Continue as guest'));
+    await _continueToLogin(tester);
+    await _tapVisible(tester, find.text('Sign in as Guest'));
     expect(auth.status, AuthStatus.guest);
     expect(await storage.read(), {'guest': true});
     expect(find.text('Quick Actions'), findsOneWidget);
@@ -403,7 +438,7 @@ void main() {
     await _settle(tester);
     expect(auth.status, AuthStatus.signedOut);
     expect(await storage.read(), isNull);
-    expect(find.text('Weather answers\nyou can trust.'), findsOneWidget);
+    expect(find.text('Languages'), findsOneWidget);
   });
 
   testWidgets('Edit profile saves name, phone and occupation to the account', (tester) async {
@@ -504,8 +539,8 @@ void main() {
     });
     await tester.pumpWidget(WeatherGptApp(auth: auth));
     await _settle(tester);
-    await _tapVisible(tester, find.text('I already have an account'));
-    await _enter(tester, 'Email', 'chelsea@example.com');
+    await _continueToLogin(tester);
+    await _enter(tester, 'Email or phone number', 'chelsea@example.com');
     await _tapVisible(tester, find.text('Forgot password?'));
 
     expect(find.text('Reset your password'), findsOneWidget);
@@ -530,6 +565,65 @@ void main() {
       'POST /auth/v1/verify',
       'PUT /auth/v1/user',
     ]);
+  });
+
+  testWidgets('the language picked first translates the welcome page and becomes the app language', (
+    tester,
+  ) async {
+    _phone(tester);
+    await tester.pumpWidget(WeatherGptApp(auth: await _signedOut((_) async => http.Response('{}', 500))));
+    await _settle(tester);
+
+    await _tapVisible(tester, find.text('हिन्दी'));
+    expect(find.text('भाषाएँ'), findsOneWidget); // the page follows the pick
+    await _tapVisible(tester, find.text('आगे बढ़ें'));
+    await _settle(tester);
+
+    for (final label in [
+      'आपका स्वागत है!',
+      'ईमेल या फ़ोन नंबर',
+      'पासवर्ड',
+      'पासवर्ड भूल गए?',
+      'लॉग इन करें',
+      'या',
+      'Google के साथ जारी रखें',
+      'खाता नहीं है?',
+      'साइन अप करें',
+      'अतिथि के रूप में साइन इन करें',
+    ]) {
+      expect(find.text(label), findsOneWidget, reason: label);
+    }
+    expect(find.text('Log In'), findsNothing);
+    expect(UiPrefs.read(tester.element(find.byType(WelcomeLoginPage))).lang, 'hi');
+
+    // Back to Languages: Tamil this time.
+    await tester.tap(find.byTooltip('वापस'));
+    await _settle(tester);
+    await _tapVisible(tester, find.text('தமிழ்'));
+    await _tapVisible(tester, find.text('தொடரவும்'));
+    await _settle(tester);
+    expect(find.text('வரவேற்கிறோம்!'), findsOneWidget);
+    expect(find.text('விருந்தினராக உள்நுழைக'), findsOneWidget);
+  });
+
+  testWidgets('onboarding has its own light and dark designs, with the saved logo cuts', (tester) async {
+    _phone(tester);
+    await tester.pumpWidget(WeatherGptApp(auth: await _signedOut((_) async => http.Response('{}', 500))));
+    await _settle(tester);
+
+    Brightness brightness() => Theme.of(tester.element(find.byType(LanguagePage))).brightness;
+    String logo() => ((tester.widget<Image>(find.byType(Image).first).image) as AssetImage).assetName;
+    expect(brightness(), Brightness.light);
+    expect(logo(), 'assets/branding/weathergpt-mark-light.png');
+
+    await tester.tap(find.byTooltip('Dark mode'));
+    await _settle(tester);
+    expect(brightness(), Brightness.dark);
+    expect(logo(), 'assets/branding/weathergpt-mark-dark.png');
+
+    await _continueToLogin(tester);
+    expect(Theme.of(tester.element(find.byType(WelcomeLoginPage))).brightness, Brightness.dark);
+    expect(find.text('Sign in as Guest'), findsOneWidget);
   });
 
   testWidgets('guest mode is remembered across launches', (tester) async {

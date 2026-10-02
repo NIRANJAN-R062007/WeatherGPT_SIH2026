@@ -4,7 +4,7 @@
 // requires email confirmation, so a new account ends on a "check your inbox"
 // step with a resend button; signing in to an unconfirmed account offers the
 // same resend. Success flips AuthStore to signed in, and main.dart swaps the
-// landing page for the app.
+// onboarding pages for the app.
 import 'package:flutter/material.dart';
 
 import '../auth_client.dart';

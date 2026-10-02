@@ -1,8 +1,9 @@
 // Profile — opened from the drawer's "Profile" item: the signed-in account's
 // details (name, email, phone, occupation from the Supabase account's
 // user_metadata), the active persona, and Sign out. Signing out clears the
-// saved session and returns to the landing page. A guest sees an invitation
-// to sign in or create an account instead, and "Exit guest mode".
+// saved session and returns to onboarding (the Languages page). A guest
+// sees an invitation to sign in or create an account instead, and "Exit
+// guest mode".
 import 'package:flutter/material.dart';
 
 import '../auth_client.dart';

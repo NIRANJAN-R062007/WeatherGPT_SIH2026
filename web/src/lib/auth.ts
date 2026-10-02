@@ -260,6 +260,60 @@ export async function updatePassword(accessToken: string, password: string): Pro
   return userFromJson(await send('PUT', 'user', { password }, accessToken));
 }
 
+// Google sign-in: Supabase's OAuth with PKCE, the same flow as mobile
+// google_auth.dart. The browser leaves for /auth/v1/authorize, Supabase
+// hands over to Google, and Google's answer comes back to `redirectTo` with
+// a `code` (or an error), which is traded for a session with the verifier
+// kept in sessionStorage. `redirectTo` must be listed under Supabase →
+// Authentication → URL Configuration → Redirect URLs, or Supabase falls back
+// to the Site URL and the app never hears back.
+
+const PKCE_KEY = 'weathergpt.pkce';
+
+const base64Url = (bytes: Uint8Array) =>
+  btoa(String.fromCharCode(...bytes))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+
+/** Sends the browser to Google; resolves only if it couldn't leave. */
+export async function startGoogleSignIn(redirectTo: string): Promise<void> {
+  if (!crypto.subtle) throw new AuthError('Google sign-in needs a secure (https) page.');
+  const verifier = base64Url(crypto.getRandomValues(new Uint8Array(32)));
+  const challenge = base64Url(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier))));
+  try {
+    sessionStorage.setItem(PKCE_KEY, verifier);
+  } catch {
+    throw new AuthError("Google sign-in needs this site's storage. Allow it and try again.");
+  }
+  const query = new URLSearchParams({
+    provider: 'google',
+    redirect_to: redirectTo,
+    code_challenge: challenge,
+    code_challenge_method: 's256',
+  });
+  window.location.assign(`${SUPABASE_URL}/auth/v1/authorize?${query}`);
+}
+
+/** The session from a Google redirect on the current URL, or null when the
+ *  URL isn't one. Throws AuthError with Google's / Supabase's reason when
+ *  the redirect carries an error instead of a code. */
+export async function finishGoogleSignIn(url: URL): Promise<AuthSession | null> {
+  const hash = new URLSearchParams(url.hash.replace(/^#/, ''));
+  const error = url.searchParams.get('error_description') ?? hash.get('error_description');
+  const code = url.searchParams.get('code');
+  let verifier: string | null = null;
+  try {
+    verifier = sessionStorage.getItem(PKCE_KEY);
+    if (code || error) sessionStorage.removeItem(PKCE_KEY);
+  } catch {
+    // No storage — no verifier.
+  }
+  if (error) throw new AuthError(error.replace(/\+/g, ' '), 'google_error');
+  if (!code || !verifier) return null;
+  return sessionFromJson(await post('token?grant_type=pkce', { auth_code: code, code_verifier: verifier }));
+}
+
 /** Revokes the session server-side. Best effort — the caller forgets the
  *  session locally either way. */
 export async function signOutRemote(accessToken: string): Promise<void> {

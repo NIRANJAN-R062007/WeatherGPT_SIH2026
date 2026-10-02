@@ -2,8 +2,8 @@
 // (mobile profile_page.dart): the signed-in account's details (name, email,
 // phone, occupation from the Supabase account's user_metadata), the active
 // persona, and Sign out. Signing out clears the saved session and returns
-// to the landing page. A guest sees an invitation to sign in or create an
-// account instead, and "Exit guest mode".
+// to onboarding (the Languages page). A guest sees an invitation to sign in
+// or create an account instead, and "Exit guest mode".
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { GuestAvatar, ProfileAvatar } from '../components/Brand';

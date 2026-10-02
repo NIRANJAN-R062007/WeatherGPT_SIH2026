@@ -1,4 +1,4 @@
-// The signed-in account, app-wide. main.dart shows the landing page while
+// The signed-in account, app-wide. main.dart shows onboarding while
 // [AuthStatus.signedOut] and the app shell once signed in or browsing as a
 // guest; the drawer's Profile page reads the user and signs out through here.
 //
@@ -221,11 +221,11 @@ class AuthStore extends ChangeNotifier {
     try {
       await storage.write(_guestMarker);
     } catch (_) {
-      // Not remembered — the landing page shows again next launch.
+      // Not remembered — onboarding shows again next launch.
     }
   }
 
-  /// Signs out, or leaves guest mode; either way back to the landing page.
+  /// Signs out, or leaves guest mode; either way back to onboarding.
   Future<void> signOut() async {
     final session = _session;
     _session = null;
