@@ -133,7 +133,7 @@ assets/fonts/               static TTF weights of web/public/fonts/*.woff2 (Inte
 
 ## Status report: what the app still needs to reach its full potential
 
-As of 2026-09-27. Each item says what is missing, why it matters, and where
+As of 2026-10-03. Each item says what is missing, why it matters, and where
 the work sits:
 
 - **App** — mobile/ only.
@@ -142,35 +142,50 @@ the work sits:
 
 ### P0 — before putting it in users' hands
 
-1. **Redeploy the backend from `main`.** *(Backend / infra)* The deployed host
-   (`3-108-52-61.sslip.io`) is behind `main`:
-   - `/warnings` has no `status` or `legend` fields, and the warnings feed is
-     off, so every city shows "No warning verdict".
-   - `/facts` has no `uv_band`.
-   - The unsupported-city reply lists only 3 cities, while the app offers 8.
+1. **Redeploy the backend from `main`.** *(Backend / infra — Niranjan, plan.md
+   B4; runbook in `deploy/README.md`)* The deployed host
+   (`3-108-52-61.sslip.io`) is an old build. `python deploy/smoke.py
+   https://3-108-52-61.sslip.io --skip-ask` on 2026-10-03: `/health` passes, the
+   other 6 checks fail:
+   - `/cities` serves 3 cities (Chennai, Madurai, Coimbatore), not 8, and
+     `/facts?city=mumbai` answers "I can only answer for Chennai, Madurai and
+     Coimbatore". Since the app takes its city list from `/cities`, it offers
+     only those 3 until the redeploy.
+   - `/warnings` has no `status` or `legend` (`{"city", "city_name",
+     "warning": null}`), so every city shows "No warning verdict".
+   - `/aviation`, `/intelligence/best-window` and `/glossary` are 404, so
+     Airport weather and Best Time & What-if show their error states.
 
    The app tolerates all of this, but users see less than `main` can serve.
-2. **Verify on a real device.** *(App)* Everything was checked with `flutter
-   analyze`, widget tests, a release APK build and rendered screenshots, but
-   not on a phone or emulator (none was available). Still to exercise:
-   - mic → `/asr` round trip, including the permission prompt
-   - `/tts` playback
-   - GPS permission flow
+2. **Verify on a real device.** *(App)* An Android emulator (API 36) is now
+   available. On it, the 2026-10-03 release APK showed the "WeatherGPT" label,
+   the new icon and splash, and a live Home from the deployed host with no
+   `--dart-define`. Still to exercise, ideally on a phone:
+   - sign in (email and Google) → ask in Chat → History → Clear history,
+     against the live Supabase project
+   - restart: language, city, °C / °F, persona and dark mode are kept
+   - "Use my location": the GPS permission prompt and the near / far (> 50 km)
+     notes
+   - mic → `/asr` round trip, including the permission prompt; `/tts` playback
    - keyboard and safe-area insets on small screens
    - Hindi / Tamil / Telugu / Marathi rendering through system fonts
-3. **Ship the backend URL with the build.** *(App)* Release builds must pass
-   `--dart-define=API_BASE_URL=…`, or `lib/config.dart`'s default must change to
-   the production host. Prefer HTTPS: the Android manifest declares no
-   cleartext or network-security config, so a plain-`http://` backend (e.g. a
-   LAN dev server) should be tested on-device before relying on it.
-4. **Release identity.** *(App + Accounts)*
-   - The Android label is `weathergpt`; the iOS display name is `Weathergpt`.
-   - The launcher icon and splash are the Flutter defaults.
-   - `android/app/build.gradle.kts` signs release builds with the **debug
-     key**.
-
-   Play Store / TestFlight needs a real app name, icon, splash, an upload
-   keystore and an Apple signing team.
+   - after the redeploy (item 1): 8 cities, Alerts, Airport weather (Aviation
+     persona), Best Time & What-if
+3. ~~**Ship the backend URL with the build.**~~ ✅ Done (2026-10-03). A release
+   build defaults to `https://3-108-52-61.sslip.io` (`lib/config.dart`); debug
+   and profile builds keep `http://localhost:8001`. `--dart-define=API_BASE_URL=…`
+   still overrides, and a release build refuses a non-https URL.
+4. **Release identity.** *(App + Accounts)* Partly done (2026-10-03):
+   - ✅ The app is "WeatherGPT" on Android and iOS.
+   - ✅ The launcher icon and native splash are generated from the logo marks
+     (see "Release builds" above).
+   - ✅ `android/app/build.gradle.kts` signs release builds with the upload key
+     from `android/key.properties`, and `tool/build_release.sh` is the
+     one-command build.
+   - Still open: the upload keystore itself (Chelsea creates it; until then
+     release builds are signed with the **debug key**, and the upload-key path
+     has not been exercised), an Apple signing team, and a Mac for iOS
+     builds. Play Store / TestFlight need all of those.
 5. **Android toolchain upgrades.** *(App)* `flutter build apk` warns that
    support will soon be dropped for the versions in `android/`:
    - Gradle 8.14.0 → at least 9.1.0 (`gradle/wrapper/gradle-wrapper.properties`)
@@ -182,7 +197,8 @@ the work sits:
 6. ~~**Sign-in and History.**~~ ✅ Done. Email and Google sign-in, the
    Profile page, Chat sending `Authorization: Bearer <token>` on `/ask` (so
    the backend records a signed-in user's questions) and the History page
-   (2026-10-03). Not yet checked on a device against the live Supabase project.
+   (2026-10-03). Not yet checked on a device against the live Supabase project
+   (item 2).
 7. **Push alerts.** *(App + Backend + Accounts)* `POST /alerts/subscribe`
    accepts `channel: "fcm"` with a `city_key` or `lat`/`lon`/`radius_km`, but
    `alert_engine._dispatch_fcm` is still a logged no-op. Needs:
@@ -196,11 +212,14 @@ the work sits:
    bundled list in `lib/cities.dart` is the fallback when it can't be reached.
    A selected city the server doesn't serve moves to its first city. City names
    are still translated by the app's own string table, so a city the server
-   adds shows in English until `ui-strings/ui_strings.json` has it.
+   adds shows in English until `ui-strings/ui_strings.json` has it. "Use my
+   location" says which city it picked and how far away it is, and warns beyond
+   50 km.
 9. **Localized glossary.** *(App)* `GET /glossary?lang=` returns the warning
-   colour words and category labels per language, with `native_qa` flags. Use
-   it for the legend and labels, and mark translations that haven't had native
-   review.
+   colour words and category labels per language, with `native_qa` flags. The
+   app doesn't call it yet; the Alerts legend comes from `/warnings`' `legend`.
+   Use it for the legend and labels, and mark translations that haven't had
+   native review. (The deployed host 404s on it until item 1.)
 
 ### P2 — plan.md commitments not yet in the app
 
@@ -213,10 +232,19 @@ the work sits:
     persona and Light / Dark / System are saved to a small JSON file in the app
     support directory (`lib/state/prefs_store.dart`) and restored at launch;
     the older language-only file is migrated. No new package was needed.
-12. **Localize the app's own UI.** *(App)* Answers come back localized from the
-    backend, but the app's labels, buttons and headings are English only. Add
-    `flutter_localizations` with ARB files for hi / ta / te / mr (native review
-    needed, as for the backend strings).
+12. **Localize the app's own UI.** *(App)* Mostly done. Labels, buttons,
+    headings and validators go through `tr()` (`lib/i18n.dart`), looked up in
+    `lib/ui_strings.dart`, generated from `ui-strings/ui_strings.json`
+    (463 strings with hi / ta / te / mr, shared with web/). Every literal
+    passed to `tr()` has an entry. What's left:
+    - **Native-speaker review.** Every hi / ta / te / mr string is
+      author-written (`TODO: native_qa` in `ui-strings/gen_ui_strings.py`).
+    - Error messages that embed the server URL or an HTTP status (e.g.
+      "Couldn't reach the weather service at …") don't match a table entry, so
+      they show in English. Their titles are translated.
+    - Text that Flutter's Material widgets supply themselves (e.g. the
+      text-selection menu's Copy / Paste) stays English, because
+      `flutter_localizations` isn't added.
 13. **Cyclone map** (plan.md §8, open). *(App + Backend)* Needs a map package
     (`flutter_map` with OSM tiles, or `google_maps_flutter`) and a source of
     cyclone tracks / CAP warning polygons. `imd_warnings.py` is a per-city
@@ -247,11 +275,16 @@ the work sits:
 
 ### P4 — engineering hygiene
 
-20. **CI job for mobile/.** `.github/workflows/ci.yml` has none. Add
-    `flutter analyze`, `flutter test` and `flutter build apk`.
+20. ~~**CI job for mobile/.**~~ ✅ Added (2026-10-03): the `mobile` job in
+    `.github/workflows/ci.yml` runs `flutter analyze`, `flutter test` and
+    `flutter build apk --debug` on Flutter 3.47.2. Unverified until it runs on
+    GitHub Actions.
 21. **Better tests.** Widget tests run against flutter_test's stub HTTP (every
     call returns 400), so they cover error paths and layout only. `AskAnswer` is
-    fixture-tested per branch. Still needed:
+    fixture-tested per branch; the History, cities and sign-in tests use a
+    `MockClient`. The Windows-only temp-folder teardown failure in "the language
+    is remembered across launches" is fixed (9fd163a: the test uses the
+    in-memory store). Still needed:
     - An injectable HTTP client with fixture-backed success-path tests per page.
     - An `integration_test` run on a device.
 22. **Web target.** There is no `web/` platform folder. `flutter create
