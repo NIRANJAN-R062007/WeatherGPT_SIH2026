@@ -2,13 +2,21 @@ import 'package:flutter/foundation.dart';
 
 // Orchestrator base URL. Override at build/run time with:
 //   flutter run --dart-define=API_BASE_URL=https://3-108-52-61.sslip.io
-// Defaults to the same localhost:8001 convention as web/.env.example and
-// prototype/frontend/WeatherGPT.dc.html. A release build must set an https
-// one — see [releaseConfigError].
-const String kApiBaseUrl = String.fromEnvironment(
-  'API_BASE_URL',
-  defaultValue: 'http://localhost:8001',
-);
+// Without it, a release build talks to the deployed host ([kReleaseApiBaseUrl])
+// and debug / profile builds to the same localhost:8001 convention as
+// web/.env.example and prototype/frontend/WeatherGPT.dc.html. A release build
+// must use an https one — see [releaseConfigError].
+const String kApiBaseUrl = String.fromEnvironment('API_BASE_URL') != ''
+    ? String.fromEnvironment('API_BASE_URL')
+    : kReleaseMode
+    ? kReleaseApiBaseUrl
+    : kDebugApiBaseUrl;
+
+/// The deployed orchestrator, the release-build default.
+const String kReleaseApiBaseUrl = 'https://3-108-52-61.sslip.io';
+
+/// The local orchestrator, the debug / profile default.
+const String kDebugApiBaseUrl = 'http://localhost:8001';
 
 /// The team's Supabase project (the same one prototype/frontend/auth.js
 /// signs in with). The anon key is public by design — Supabase's row-level

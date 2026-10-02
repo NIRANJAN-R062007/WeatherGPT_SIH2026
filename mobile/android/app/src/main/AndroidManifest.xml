@@ -9,7 +9,7 @@
          allowBackup covers Android 11 and older and cloud backup; the
          extraction rules cover device-to-device transfer on Android 12+. -->
     <application
-        android:label="weathergpt"
+        android:label="WeatherGPT"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:allowBackup="false"

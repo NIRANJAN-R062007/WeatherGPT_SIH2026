@@ -16,16 +16,63 @@ flutter pub get
 flutter run --dart-define=API_BASE_URL=https://3-108-52-61.sslip.io
 ```
 
-`API_BASE_URL` defaults to `http://localhost:8001` (`lib/config.dart`), which
-only works on a desktop target. On a phone, pass the deployed host above; on
-an Android emulator talking to a local orchestrator, use
-`http://10.0.2.2:8001`.
+In debug and profile builds `API_BASE_URL` defaults to `http://localhost:8001`
+(`lib/config.dart`), which only works on a desktop target. On a phone, pass
+the deployed host above; on an Android emulator talking to a local
+orchestrator, use `http://10.0.2.2:8001`. A release build defaults to the
+deployed host, `https://3-108-52-61.sslip.io`, and refuses to start with a
+non-https URL.
 
 ```bash
 flutter analyze                     # lints
 flutter test                        # widget tests (HTTP is stubbed to 400 by flutter_test)
-flutter build apk --release --dart-define=API_BASE_URL=https://3-108-52-61.sslip.io
 ```
+
+## Release builds
+
+One command, from `mobile/`:
+
+```bash
+tool/build_release.sh               # APK: build/app/outputs/flutter-apk/app-release.apk
+tool/build_release.sh appbundle     # AAB for Play: build/app/outputs/bundle/release/app-release.aab
+```
+
+It runs `flutter build <apk|appbundle> --release
+--dart-define=API_BASE_URL=https://3-108-52-61.sslip.io`; set `API_BASE_URL=…`
+in the environment to point it elsewhere. On Windows, run that `flutter build`
+line directly.
+
+**Signing.** `android/app/build.gradle.kts` signs release builds with the
+upload key described in `android/key.properties`. Without that file it falls
+back to the debug key and Gradle prints a warning. A debug-signed APK installs
+and runs, but Play won't accept it. The keystore and `key.properties` are made
+by the app owner (Chelsea) and never committed: `key.properties`, `*.jks` and
+`*.keystore` are in `android/.gitignore`. The format is:
+
+```properties
+# mobile/android/key.properties
+storePassword=<keystore password>
+keyPassword=<key password>
+keyAlias=upload
+# Relative to android/app/, or an absolute path
+storeFile=../upload-keystore.jks
+```
+
+One way to create the keystore (keep it, and its passwords, out of the repo
+and backed up — losing it means you can't publish updates):
+
+```bash
+keytool -genkey -v -keystore upload-keystore.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+```
+
+**Name, icon and splash.** The app is called "WeatherGPT" (`android:label`,
+iOS `CFBundleDisplayName` / `CFBundleName`). The launcher icon and the native
+splash are generated from the logo marks by `flutter_launcher_icons` and
+`flutter_native_splash`. Their config is at the end of `pubspec.yaml`. After
+changing it, re-run `dart run flutter_launcher_icons` and
+`dart run flutter_native_splash:create`. The splash tool re-indents
+`ios/Runner/Info.plist` and adds `UIStatusBarHidden`; keep only the changes
+you actually want.
 
 ## How the app maps to web/
 
