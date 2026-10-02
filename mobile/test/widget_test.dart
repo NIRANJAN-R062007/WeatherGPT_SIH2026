@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -10,6 +11,7 @@ import 'package:weathergpt/auth_client.dart';
 import 'package:weathergpt/components/forms.dart';
 import 'package:weathergpt/main.dart';
 import 'package:weathergpt/state/auth_store.dart';
+import 'package:weathergpt/state/lang_store.dart';
 import 'package:weathergpt/pages/onboarding_pages.dart';
 import 'package:weathergpt/persona_theme.dart';
 import 'package:weathergpt/state/ui_prefs.dart';
@@ -84,6 +86,15 @@ Future<void> _tapVisible(WidgetTester tester, Finder finder) async {
   await tester.pump();
   await tester.tap(finder);
   await _settle(tester);
+}
+
+/// Lets file IO started by the app finish: real time passes, then the
+/// test's fake-async zone runs the callbacks.
+Future<void> _realIo(WidgetTester tester) async {
+  for (var i = 0; i < 5; i++) {
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 20)));
+    await tester.pump();
+  }
 }
 
 /// Languages page → Continue (English stays selected) → Welcome + log in.
@@ -216,24 +227,26 @@ void main() {
     await _settle(tester);
     expect(find.text('हिन्दी'), findsOneWidget); // the row's value, sheet closed
     expect(find.text('English'), findsNothing);
+    // The app's own text follows the language too.
+    expect(find.text('भाषा'), findsOneWidget);
 
-    await tester.tap(find.text('Units'));
+    await tester.tap(find.text('इकाइयाँ')); // Units
     await _settle(tester);
-    await tester.tap(find.text('Fahrenheit (°F)'));
+    await tester.tap(find.text('फ़ारेनहाइट (°F)'));
     await _settle(tester);
-    expect(find.text('Fahrenheit (°F)'), findsOneWidget);
+    expect(find.text('फ़ारेनहाइट (°F)'), findsOneWidget);
 
-    await tester.tap(find.text('Change Persona'));
+    await tester.tap(find.text('पर्सोना बदलें')); // Change Persona
     await _settle(tester);
-    expect(find.text('Choose your persona'), findsOneWidget);
-    await tester.ensureVisible(find.text('Farmer'));
+    expect(find.text('अपना पर्सोना चुनें'), findsOneWidget);
+    await tester.ensureVisible(find.text('किसान'));
     await _settle(tester);
-    await tester.tap(find.text('Farmer'));
+    await tester.tap(find.text('किसान')); // Farmer
     await _settle(tester);
     await _settle(tester); // the picker lingers a beat so the re-theme shows
-    expect(find.text('Choose your persona'), findsNothing);
-    expect(find.text('Farmer'), findsOneWidget);
-    expect(find.text('Agriculture, crops & weather planning.'), findsOneWidget);
+    expect(find.text('अपना पर्सोना चुनें'), findsNothing);
+    expect(find.text('किसान'), findsOneWidget);
+    expect(find.text('खेती, फ़सलें और मौसम योजना।'), findsOneWidget);
   });
 
   testWidgets('the persona is the app-wide theme and survives page switches', (tester) async {
@@ -606,6 +619,59 @@ void main() {
     expect(find.text('விருந்தினராக உள்நுழைக'), findsOneWidget);
   });
 
+  testWidgets('the language picked before sign-in carries into sign-up and the whole app', (tester) async {
+    _phone(tester);
+    await tester.pumpWidget(WeatherGptApp(auth: await _signedOut((_) async => http.Response('{}', 500))));
+    await _settle(tester);
+    await _tapVisible(tester, find.text('हिन्दी'));
+    await _tapVisible(tester, find.text('आगे बढ़ें'));
+    await _settle(tester);
+
+    // Sign up: page, field labels and validation in Hindi.
+    await _tapVisible(tester, find.text('साइन अप करें'));
+    expect(find.text('अपना खाता बनाएँ'), findsOneWidget);
+    expect(find.widgetWithText(TextFormField, 'पूरा नाम'), findsOneWidget);
+    await _tapVisible(tester, find.widgetWithText(GradientButton, 'खाता बनाएँ'));
+    expect(find.text('अपना नाम दर्ज करें।'), findsOneWidget);
+    await tester.tap(find.byTooltip('वापस'));
+    await _settle(tester);
+
+    // Guest: the app itself in Hindi.
+    await _tapVisible(tester, find.text('अतिथि के रूप में साइन इन करें'));
+    expect(find.text('त्वरित कार्य'), findsOneWidget); // Quick Actions
+    expect(find.text('चेन्नई, तमिलनाडु'), findsOneWidget); // the city pill
+    for (final tab in ['होम', 'चैट', 'पूर्वानुमान', 'अलर्ट', 'और']) {
+      expect(find.descendant(of: find.byType(BottomNav), matching: find.text(tab)), findsOneWidget, reason: tab);
+    }
+    await _tab(tester, 'और');
+    expect(find.text('सेटिंग्स'), findsWidgets);
+    expect(find.text('भाषा'), findsOneWidget);
+  });
+
+  testWidgets('the language is remembered across launches', (tester) async {
+    _phone(tester);
+    final dir = await tester.runAsync(() => Directory.systemTemp.createTemp('lang'));
+    addTearDown(() => dir!.deleteSync(recursive: true));
+    final store = LangStore(dir: () async => dir!);
+
+    // First launch: pick Telugu before signing in.
+    await tester.pumpWidget(
+      WeatherGptApp(auth: await _signedOut((_) async => http.Response('{}', 500)), langStore: store),
+    );
+    await _settle(tester);
+    await _tapVisible(tester, find.text('తెలుగు'));
+    await _tapVisible(tester, find.text('కొనసాగించండి'));
+    await _realIo(tester);
+    expect(await tester.runAsync(store.read), 'te');
+
+    // Next launch, already signed in: the app opens in Telugu.
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpWidget(WeatherGptApp(auth: await _signedIn(), langStore: store));
+    await _realIo(tester);
+    await _settle(tester);
+    expect(find.text('త్వరిత చర్యలు'), findsOneWidget); // Quick Actions
+  });
+
   testWidgets('onboarding has its own light and dark designs, with the saved logo cuts', (tester) async {
     _phone(tester);
     await tester.pumpWidget(WeatherGptApp(auth: await _signedOut((_) async => http.Response('{}', 500))));
@@ -614,12 +680,12 @@ void main() {
     Brightness brightness() => Theme.of(tester.element(find.byType(LanguagePage))).brightness;
     String logo() => ((tester.widget<Image>(find.byType(Image).first).image) as AssetImage).assetName;
     expect(brightness(), Brightness.light);
-    expect(logo(), 'assets/branding/weathergpt-mark-light.png');
+    expect(logo(), 'assets/branding/weathergpt-onboarding-light.png');
 
     await tester.tap(find.byTooltip('Dark mode'));
     await _settle(tester);
     expect(brightness(), Brightness.dark);
-    expect(logo(), 'assets/branding/weathergpt-mark-dark.png');
+    expect(logo(), 'assets/branding/weathergpt-onboarding-dark.png');
 
     await _continueToLogin(tester);
     expect(Theme.of(tester.element(find.byType(WelcomeLoginPage))).brightness, Brightness.dark);

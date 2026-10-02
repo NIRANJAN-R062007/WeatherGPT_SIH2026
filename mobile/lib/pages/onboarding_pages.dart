@@ -14,7 +14,6 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../auth_client.dart';
-import '../components/app_shell.dart';
 import '../components/common.dart';
 import '../components/forms.dart';
 import '../components/onboarding_scene.dart';
@@ -123,13 +122,24 @@ class _OnbButton extends StatelessWidget {
   }
 }
 
-/// The logo mark — the saved light or dark cut (BrandMark), never redrawn.
+/// The logo mark: the saved pics/ logos (weathergpt-logo-light.svg for light,
+/// weathergpt-logo-original.svg for dark) without their "WeatherGPT" text.
 class _Logo extends StatelessWidget {
   final double size;
   const _Logo({required this.size});
 
   @override
-  Widget build(BuildContext context) => Center(child: BrandMark(size: size));
+  Widget build(BuildContext context) => Center(
+    child: Image.asset(
+      OnbPalette.of(context).isDark
+          ? 'assets/branding/weathergpt-onboarding-dark.png'
+          : 'assets/branding/weathergpt-onboarding-light.png',
+      width: size,
+      height: size,
+      filterQuality: FilterQuality.medium,
+      excludeFromSemantics: true,
+    ),
+  );
 }
 
 // --------------------------------------------------------------------------
@@ -225,7 +235,7 @@ class _LanguagePageState extends State<LanguagePage> {
   }
 }
 
-/// "WeatherGPT!" set as text, the "!" in the accent blue.
+/// "WeatherGPT!" set as text, the "!" black on light and white on dark.
 class _Wordmark extends StatelessWidget {
   final OnbPalette p;
   final double size;
@@ -249,7 +259,8 @@ class _Wordmark extends StatelessWidget {
       textBaseline: TextBaseline.alphabetic,
       children: [
         Text('WeatherGPT', style: base),
-        if (suffix.isNotEmpty) Text(suffix, style: base.copyWith(color: suffix == '!' ? p.accent : p.ink)),
+        if (suffix.isNotEmpty)
+          Text(suffix, style: base.copyWith(color: suffix == '!' ? (p.isDark ? Colors.white : Colors.black) : p.ink)),
       ],
     );
   }

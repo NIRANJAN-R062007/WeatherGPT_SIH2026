@@ -9,6 +9,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 
 import 'voice_client.dart';
+import 'i18n.dart';
 
 enum _PlayState { idle, loading, playing, error }
 
@@ -75,19 +76,19 @@ class _PlayButtonState extends State<PlayButton> {
         );
       case _PlayState.error:
         return IconButton(
-          tooltip: 'Playback unavailable',
+          tooltip: tr(context, 'Playback unavailable'),
           icon: const Icon(Icons.volume_off, size: 20),
           onPressed: () => setState(() => _state = _PlayState.idle),
         );
       case _PlayState.playing:
         return IconButton(
-          tooltip: 'Stop',
+          tooltip: tr(context, 'Stop'),
           icon: const Icon(Icons.stop_circle, size: 20),
           onPressed: _toggle,
         );
       case _PlayState.idle:
         return IconButton(
-          tooltip: 'Listen',
+          tooltip: tr(context, 'Listen'),
           icon: const Icon(Icons.volume_up, size: 20),
           onPressed: _toggle,
         );

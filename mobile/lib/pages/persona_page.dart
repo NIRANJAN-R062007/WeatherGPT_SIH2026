@@ -13,6 +13,7 @@ import '../components/surfaces.dart';
 import '../persona_theme.dart';
 import '../state/ui_prefs.dart';
 import '../theme.dart';
+import '../i18n.dart';
 
 Future<void> openPersonaPicker(BuildContext context) {
   return Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const PersonaPage()));
@@ -38,7 +39,7 @@ class PersonaPage extends StatelessWidget {
                 child: Row(
                   children: [
                     IconButton(
-                      tooltip: 'Back',
+                      tooltip: tr(context, 'Back'),
                       icon: Icon(Icons.arrow_back_rounded, color: t.ink),
                       onPressed: () => Navigator.of(context).maybePop(),
                     ),
@@ -182,11 +183,11 @@ class PersonaCard extends StatelessWidget {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    p.label,
+                                    tr(context, p.label),
                                     style: AppText.headlineMd.copyWith(color: t.ink, fontWeight: FontWeight.w700),
                                   ),
                                   const SizedBox(height: 2),
-                                  Text(p.tagline, style: AppText.bodySm.copyWith(color: t.inkMuted)),
+                                  Text(tr(context, p.tagline), style: AppText.bodySm.copyWith(color: t.inkMuted)),
                                 ],
                               ),
                             ),
@@ -254,7 +255,11 @@ class _FeatureChip extends StatelessWidget {
           Icon(feature.icon, size: 18, color: t.primary),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(feature.label, maxLines: 2, style: AppText.bodySm.copyWith(color: t.ink, height: 1.25)),
+            child: Text(
+              tr(context, feature.label),
+              maxLines: 2,
+              style: AppText.bodySm.copyWith(color: t.ink, height: 1.25),
+            ),
           ),
         ],
       ),
@@ -285,9 +290,9 @@ class _YourPersona extends StatelessWidget {
                 child: Text.rich(
                   TextSpan(
                     children: [
-                      const TextSpan(text: "You're viewing the app as\n"),
+                      TextSpan(text: '${tr(context, "You're viewing the app as")}\n'),
                       TextSpan(
-                        text: persona.label,
+                        text: tr(context, persona.label),
                         style: AppText.headlineSm.copyWith(color: t.ink, fontWeight: FontWeight.w700),
                       ),
                     ],
@@ -299,7 +304,7 @@ class _YourPersona extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            'What you get',
+            tr(context, 'What you get'),
             style: AppText.labelMd.copyWith(color: t.ink, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 6),
@@ -311,7 +316,7 @@ class _YourPersona extends StatelessWidget {
                   Icon(Icons.check_rounded, size: 18, color: t.primary),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: Text(f.label, style: AppText.bodyMd.copyWith(color: t.ink)),
+                    child: Text(tr(context, f.label), style: AppText.bodyMd.copyWith(color: t.ink)),
                   ),
                 ],
               ),

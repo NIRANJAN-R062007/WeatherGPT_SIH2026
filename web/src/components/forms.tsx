@@ -7,17 +7,19 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../state/AuthContext';
 import { BrandTitle } from './Brand';
 import { Icon, Spinner } from './ui';
+import { useT } from '../lib/i18n';
 
 /** Sky gradient, a back arrow + WeatherGPT bar, then `children` — the pages
  *  outside the app shell (sign in / create account). */
 export function SubPage({ children, backTo }: { children: ReactNode; backTo?: string }) {
+  const t = useT();
   const navigate = useNavigate();
   return (
     <div className="min-h-screen flex flex-col bg-sky-gradient">
       <header className="h-14 flex items-center gap-1 px-1 sm:px-space-md">
         <button
           type="button"
-          aria-label="Back"
+          aria-label={t('Back')}
           onClick={() => (backTo ? navigate(backTo) : navigate(-1))}
           className="p-2.5 rounded-full text-ink hover:bg-ink/5"
         >
@@ -45,11 +47,12 @@ export function TextField({
   suffix?: ReactNode;
   hint?: string;
 } & InputHTMLAttributes<HTMLInputElement>) {
+  const t = useT();
   const id = input.id ?? `f-${input.name ?? label.replace(/\s+/g, '-').toLowerCase()}`;
   return (
     <div>
       <label htmlFor={id} className="block mb-1 font-label-md text-label-md font-semibold text-ink-muted">
-        {label}
+        {t(label)}
       </label>
       <div
         className={`flex items-center gap-2 pl-3.5 pr-1.5 rounded-card bg-card border transition-colors ${
@@ -59,7 +62,7 @@ export function TextField({
         <Icon name={icon} size={20} className="text-primary" />
         <input
           id={id}
-          placeholder={hint}
+          placeholder={hint && t(hint)}
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? `${id}-err` : undefined}
           className="flex-1 min-w-0 bg-transparent border-0 outline-none py-3.5 font-body-md text-body-md text-ink placeholder:text-outline"
@@ -69,7 +72,7 @@ export function TextField({
       </div>
       {error && (
         <p id={`${id}-err`} className="mt-1 font-body-sm text-body-sm text-error">
-          {error}
+          {t(error)}
         </p>
       )}
     </div>
@@ -92,6 +95,7 @@ export function GradientButton({
   disabled?: boolean;
   type?: 'button' | 'submit';
 }) {
+  const t = useT();
   return (
     <button
       type={type}
@@ -104,7 +108,7 @@ export function GradientButton({
         <Spinner className="w-[22px] h-[22px] border-on-primary/35 border-t-on-primary" />
       ) : (
         <>
-          <span className="truncate">{label}</span>
+          <span className="truncate">{t(label)}</span>
           {icon && <Icon name={icon} size={18} />}
         </>
       )}
@@ -127,6 +131,7 @@ export function OutlineButton({
   destructive?: boolean;
   disabled?: boolean;
 }) {
+  const t = useT();
   return (
     <button
       type="button"
@@ -137,13 +142,14 @@ export function OutlineButton({
       }`}
     >
       {icon && <Icon name={icon} size={19} />}
-      <span className="truncate">{label}</span>
+      <span className="truncate">{t(label)}</span>
     </button>
   );
 }
 
 /** An inline error (red) or notice (persona tint) under a form. */
 export function FormMessage({ text, error = false }: { text: string; error?: boolean }) {
+  const t = useT();
   return (
     <div
       role={error ? 'alert' : 'status'}
@@ -152,13 +158,14 @@ export function FormMessage({ text, error = false }: { text: string; error?: boo
       }`}
     >
       <Icon name={error ? 'error' : 'check_circle'} size={18} className={error ? '' : 'text-primary'} />
-      <span>{text}</span>
+      <span>{t(text)}</span>
     </div>
   );
 }
 
 /** "Continue as guest": the whole app without an account. */
 export function GuestButton({ disabled = false }: { disabled?: boolean }) {
+  const t = useT();
   const { continueAsGuest } = useAuth();
   const navigate = useNavigate();
   return (
@@ -173,7 +180,7 @@ export function GuestButton({ disabled = false }: { disabled?: boolean }) {
         className="inline-flex items-center gap-1.5 px-3 py-2 rounded-full font-label-md text-[14px] font-semibold text-ink-muted hover:bg-tint disabled:opacity-60"
       >
         <Icon name="person" size={18} />
-        Continue as guest
+        {t('Continue as guest')}
       </button>
     </div>
   );

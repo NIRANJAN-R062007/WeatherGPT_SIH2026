@@ -16,6 +16,7 @@ import '../state/ui_prefs.dart';
 import '../persona_theme.dart';
 import '../theme.dart';
 import 'persona_page.dart';
+import '../i18n.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -58,7 +59,7 @@ class SettingsPage extends StatelessWidget {
         plainIcon: true,
         icon: Icons.location_on_outlined,
         title: 'Location',
-        subtitle: '${city.name}, ${city.region}',
+        subtitle: '${tr(context, city.name)}, ${tr(context, city.region)}',
         onTap: () => showCityPicker(context),
       ),
       ActionRow(
@@ -87,8 +88,10 @@ class SettingsPage extends StatelessWidget {
           applicationIcon: const IconDisc(Icons.cloud, solid: true),
           children: [
             Text(
-              'Grounded weather answers in English, हिन्दी, தமிழ், తెలుగు and मराठी. Every number '
-              'is checked against the source data before you see it.',
+              tr(
+                context,
+                'Grounded weather answers in English, हिन्दी, தமிழ், తెలుగు and मराठी. Every number is checked against the source data before you see it.',
+              ),
               style: AppText.bodyMd.copyWith(color: t.inkMuted),
             ),
           ],
@@ -136,10 +139,10 @@ class _ProfileCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      persona.label,
+                      tr(context, persona.label),
                       style: AppText.headlineSm.copyWith(color: t.ink, fontWeight: FontWeight.w700),
                     ),
-                    Text(persona.tagline, style: AppText.bodySm.copyWith(color: t.inkMuted)),
+                    Text(tr(context, persona.tagline), style: AppText.bodySm.copyWith(color: t.inkMuted)),
                   ],
                 ),
               ),
@@ -157,7 +160,7 @@ class _ProfileCard extends StatelessWidget {
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   child: Text(
-                    'Change Persona',
+                    tr(context, 'Change Persona'),
                     style: AppText.labelMd.copyWith(color: t.primary, fontWeight: FontWeight.w600),
                   ),
                 ),
@@ -198,10 +201,10 @@ Future<void> _pick<T>(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(title, style: AppText.headlineSm.copyWith(color: t.ink)),
+              Text(tr(sheetContext, title), style: AppText.headlineSm.copyWith(color: t.ink)),
               if (note != null) ...[
                 const SizedBox(height: 2),
-                Text(note, style: AppText.bodySm.copyWith(color: t.inkMuted)),
+                Text(tr(sheetContext, note), style: AppText.bodySm.copyWith(color: t.inkMuted)),
               ],
               const SizedBox(height: AppSpace.md),
               for (final o in options) ...[
@@ -265,7 +268,7 @@ class _OptionTile extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      label,
+                      tr(context, label),
                       style: AppText.labelMd.copyWith(
                         color: t.ink,
                         fontWeight: selected ? FontWeight.w700 : FontWeight.w500,

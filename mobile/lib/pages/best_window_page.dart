@@ -16,6 +16,7 @@ import '../intelligence_client.dart';
 import '../persona_theme.dart';
 import '../state/ui_prefs.dart';
 import '../theme.dart';
+import '../i18n.dart';
 
 typedef BestWindowFetcher = Future<Map<String, dynamic>> Function({
   required String city,
@@ -131,7 +132,7 @@ class _BestWindowPageState extends State<BestWindowPage> {
   @override
   Widget build(BuildContext context) {
     final prefs = UiPrefs.of(context);
-    final city = prefs.cityInfo.name;
+    final city = tr(context, prefs.cityInfo.name);
 
     return SubPageScaffold(
       body: PageFrame(
@@ -191,16 +192,22 @@ class _BestWindowPageState extends State<BestWindowPage> {
       return _NeutralCard(
         icon: Icons.help_outline,
         title: 'No hourly forecast to check',
-        body: "There's no hourly forecast for $city $_day right now — this can't be read as a suitable or "
-            'unsuitable window.',
+        body: tr(
+          context,
+          "There's no hourly forecast for {city} {day} right now — this can't be read as a suitable or unsuitable window.",
+          {'city': city, 'day': tr(context, _day)},
+        ),
       );
     }
     if (status == 'no_suitable_window') {
       return _NeutralCard(
         icon: Icons.block,
         title: 'No suitable window',
-        body: 'Every hour $_day in $city was checked against rain under 20%, 20–32°C and wind under 25 km/h — '
-            'none passed. That\'s a real result, not a guess.',
+        body: tr(
+          context,
+          "Every hour {day} in {city} was checked against rain under 20%, 20–32°C and wind under 25 km/h — none passed. That's a real result, not a guess.",
+          {'city': city, 'day': tr(context, _day)},
+        ),
       );
     }
     final w = data['window'] as Map<String, dynamic>?;
@@ -238,7 +245,7 @@ class _DaySwitch extends StatelessWidget {
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 10),
                   child: Text(
-                    label,
+                    tr(context, label),
                     textAlign: TextAlign.center,
                     style: AppText.labelMd.copyWith(
                       color: selected ? t.onPrimary : t.ink,
@@ -281,12 +288,15 @@ class _NeutralCard extends StatelessWidget {
               IconDisc(icon, color: t.onSurfaceVariant, background: t.surfaceContainerHigh),
               const SizedBox(width: 12),
               Expanded(
-                child: Text(title, style: AppText.labelMd.copyWith(color: t.ink, fontWeight: FontWeight.w700)),
+                child: Text(
+                  tr(context, title),
+                  style: AppText.labelMd.copyWith(color: t.ink, fontWeight: FontWeight.w700),
+                ),
               ),
             ],
           ),
           const SizedBox(height: AppSpace.sm),
-          Text(body, style: AppText.bodyMd.copyWith(color: t.onSurface)),
+          Text(tr(context, body), style: AppText.bodyMd.copyWith(color: t.onSurface)),
         ],
       ),
     );
@@ -310,7 +320,11 @@ class _Figure extends StatelessWidget {
             Icon(icon, size: 14, color: t.primary),
             const SizedBox(width: 4),
             Flexible(
-              child: Text(label, overflow: TextOverflow.ellipsis, style: AppText.bodySm.copyWith(color: t.inkMuted)),
+              child: Text(
+                tr(context, label),
+                overflow: TextOverflow.ellipsis,
+                style: AppText.bodySm.copyWith(color: t.inkMuted),
+              ),
             ),
           ],
         ),
@@ -368,7 +382,7 @@ class _WindowCard extends StatelessWidget {
             const SizedBox(height: AppSpace.md),
             Divider(height: 1, color: t.outlineVariant.withValues(alpha: 0.4)),
             const SizedBox(height: AppSpace.xs),
-            Text('source: $source', style: AppText.citationMono.copyWith(color: t.onSurfaceVariant)),
+            Text('${tr(context, 'source')}: $source', style: AppText.citationMono.copyWith(color: t.onSurfaceVariant)),
           ],
         ],
       ),
@@ -428,7 +442,7 @@ class _ScenarioHourCard extends StatelessWidget {
           ]),
           const SizedBox(height: AppSpace.sm),
           if (!available)
-            Text('Not available in this forecast.', style: AppText.bodySm.copyWith(color: t.inkMuted))
+            Text(tr(context, 'Not available in this forecast.'), style: AppText.bodySm.copyWith(color: t.inkMuted))
           else
             Row(children: [
               Expanded(child: _Figure(Icons.thermostat, 'Temp', '${result!['temp_c']}°C')),
@@ -472,12 +486,17 @@ class _WhatIfView extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Wrap(crossAxisAlignment: WrapCrossAlignment.center, spacing: 8, runSpacing: 8, children: [
-          _HourPicker(value: timeA, onChanged: onTimeA),
-          Text('vs', style: AppText.bodySm.copyWith(color: t.inkMuted)),
-          _HourPicker(value: timeB, onChanged: onTimeB),
-          PillButton(icon: Icons.compare_arrows, label: 'Compare', onPressed: onCompare),
-        ]),
+        Wrap(
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _HourPicker(value: timeA, onChanged: onTimeA),
+            Text(tr(context, 'vs'), style: AppText.bodySm.copyWith(color: t.inkMuted)),
+            _HourPicker(value: timeB, onChanged: onTimeB),
+            PillButton(icon: Icons.compare_arrows, label: 'Compare', onPressed: onCompare),
+          ],
+        ),
         const SizedBox(height: AppSpace.sm),
         if (loading) const LoadingPanel('Comparing…'),
         if (error != null)
@@ -519,9 +538,11 @@ class _InfoNote extends StatelessWidget {
           const SizedBox(width: 6),
           Expanded(
             child: Text(
-              'A window is "more suitable", never "safe" — rain under 20%, 20–32°C and wind under 25 km/h, '
-              'checked against the hourly forecast, the same rules every time regardless of persona. A '
-              'colour-code warning for $city always comes from Alerts, not from here.',
+              tr(
+                context,
+                'A window is "more suitable", never "safe" — rain under 20%, 20–32°C and wind under 25 km/h, checked against the hourly forecast, the same rules every time regardless of persona. A colour-code warning for {city} always comes from Alerts, not from here.',
+                {'city': city},
+              ),
               style: AppText.bodySm.copyWith(color: t.inkMuted),
             ),
           ),

@@ -16,6 +16,7 @@ import '../persona_theme.dart';
 import '../state/auth_store.dart';
 import '../theme.dart';
 import 'reset_password_page.dart';
+import '../i18n.dart';
 
 enum AuthMode { signIn, signUp }
 
@@ -155,7 +156,7 @@ class _AuthPageState extends State<AuthPage> {
     });
     try {
       await AuthStore.read(context).resendConfirmation(email);
-      if (mounted) setState(() => _notice = 'Confirmation email sent again to $email.');
+      if (mounted) setState(() => _notice = tr(context, 'Confirmation email sent again to {email}.', {'email': email}));
     } on AuthError catch (e) {
       if (mounted) setState(() => _error = e.message);
     } finally {
@@ -180,7 +181,7 @@ class _AuthPageState extends State<AuthPage> {
     final t = PersonaTheme.of(context);
     Widget gap([double h = 14]) => SizedBox(height: h);
     final passwordToggle = IconButton(
-      tooltip: _showPassword ? 'Hide password' : 'Show password',
+      tooltip: tr(context, _showPassword ? 'Hide password' : 'Show password'),
       icon: Icon(_showPassword ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: t.inkMuted),
       onPressed: () => setState(() => _showPassword = !_showPassword),
     );
@@ -247,7 +248,7 @@ class _AuthPageState extends State<AuthPage> {
                   spacing: 6,
                   runSpacing: 6,
                   children: [
-                    for (final o in _occupations)
+                    for (final o in _occupations.map((o) => tr(context, o)))
                       _SuggestionChip(
                         label: o,
                         selected: _occupation.text.trim().toLowerCase() == o.toLowerCase(),
@@ -286,7 +287,7 @@ class _AuthPageState extends State<AuthPage> {
                             ),
                           ),
                     child: Text(
-                      'Forgot password?',
+                      tr(context, 'Forgot password?'),
                       style: AppText.labelMd.copyWith(color: t.primary, fontWeight: FontWeight.w700),
                     ),
                   ),
@@ -331,7 +332,7 @@ class _AuthPageState extends State<AuthPage> {
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             Text(
-              signUp ? 'Already have an account? ' : 'New to WeatherGPT? ',
+              '${tr(context, signUp ? 'Already have an account?' : 'New to WeatherGPT?')} ',
               style: AppText.bodyMd.copyWith(color: t.inkMuted),
             ),
             InkWell(
@@ -340,7 +341,7 @@ class _AuthPageState extends State<AuthPage> {
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
                 child: Text(
-                  signUp ? 'Sign in' : 'Create an account',
+                  tr(context, signUp ? 'Sign in' : 'Create an account'),
                   style: AppText.labelMd.copyWith(color: t.primary, fontWeight: FontWeight.w700, fontSize: 14),
                 ),
               ),
@@ -360,7 +361,7 @@ class _AuthPageState extends State<AuthPage> {
       const Center(child: IconDisc(Icons.mark_email_unread_outlined, solid: true, size: 72)),
       const SizedBox(height: AppSpace.lg),
       Text(
-        'Confirm your email',
+        tr(context, 'Confirm your email'),
         textAlign: TextAlign.center,
         style: AppText.headlineLg.copyWith(color: t.ink, fontWeight: FontWeight.w700),
       ),
@@ -368,12 +369,18 @@ class _AuthPageState extends State<AuthPage> {
       Text.rich(
         TextSpan(
           children: [
-            const TextSpan(text: 'We sent a confirmation link to '),
-            TextSpan(
-              text: email,
-              style: TextStyle(color: t.ink, fontWeight: FontWeight.w700),
-            ),
-            const TextSpan(text: '. Open it, then come back and sign in.'),
+            // "{email}" in the translated sentence is set in bold.
+            for (final (i, part) in tr(
+              context,
+              'We sent a confirmation link to {email}. Open it, then come back and sign in.',
+            ).split('{email}').indexed) ...[
+              if (i > 0)
+                TextSpan(
+                  text: email,
+                  style: TextStyle(color: t.ink, fontWeight: FontWeight.w700),
+                ),
+              TextSpan(text: part),
+            ],
           ],
         ),
         textAlign: TextAlign.center,
@@ -381,8 +388,10 @@ class _AuthPageState extends State<AuthPage> {
       ),
       const SizedBox(height: AppSpace.sm),
       Text(
-        "Can't find it? Check Spam and Promotions. Some school and work email systems block our mail — "
-        'if nothing arrives in a few minutes, sign up with a personal email instead.',
+        tr(
+          context,
+          "Can't find it? Check Spam and Promotions. Some school and work email systems block our mail — if nothing arrives in a few minutes, sign up with a personal email instead.",
+        ),
         textAlign: TextAlign.center,
         style: AppText.bodySm.copyWith(color: t.inkMuted),
       ),
@@ -459,7 +468,7 @@ class FormMessage extends StatelessWidget {
             Icon(error ? Icons.error_outline : Icons.check_circle_outline, size: 18, color: error ? fg : t.primary),
             const SizedBox(width: 8),
             Expanded(
-              child: Text(text, style: AppText.bodyMd.copyWith(color: fg)),
+              child: Text(tr(context, text), style: AppText.bodyMd.copyWith(color: fg)),
             ),
           ],
         ),

@@ -19,6 +19,7 @@ import { Icon, IconDisc, PageHeader } from '../components/ui';
 import { AuthError } from '../lib/auth';
 import { normalizePhone, validateEmail, validateOccupation, validatePhone } from '../lib/validate';
 import { useAuth } from '../state/AuthContext';
+import { useT } from '../lib/i18n';
 
 export type AuthMode = 'signIn' | 'signUp';
 
@@ -27,6 +28,7 @@ const OCCUPATIONS = ['Farmer', 'Fisherman', 'Pilot', 'City official', 'Student',
 type Field = 'name' | 'email' | 'phone' | 'occupation' | 'password' | 'confirm';
 
 export default function AuthPage({ initialMode }: { initialMode: AuthMode }) {
+  const t = useT();
   const auth = useAuth();
   const navigate = useNavigate();
   const [mode, setMode] = useState<AuthMode>(initialMode);
@@ -123,7 +125,7 @@ export default function AuthPage({ initialMode }: { initialMode: AuthMode }) {
     setNotice(null);
     try {
       await auth.resendConfirmation(email);
-      setNotice(`Confirmation email sent again to ${email}.`);
+      setNotice(t('Confirmation email sent again to {email}.', { email }));
     } catch (err) {
       setError(err instanceof AuthError ? err.message : 'Something went wrong. Please try again.');
     } finally {
@@ -135,8 +137,8 @@ export default function AuthPage({ initialMode }: { initialMode: AuthMode }) {
     <button
       type="button"
       onClick={() => setShowPassword((s) => !s)}
-      aria-label={showPassword ? 'Hide password' : 'Show password'}
-      title={showPassword ? 'Hide password' : 'Show password'}
+      aria-label={t(showPassword ? 'Hide password' : 'Show password')}
+      title={t(showPassword ? 'Hide password' : 'Show password')}
       className="p-2 rounded-full text-ink-muted hover:bg-tint"
     >
       <Icon name={showPassword ? 'visibility_off' : 'visibility'} size={20} />
@@ -148,14 +150,21 @@ export default function AuthPage({ initialMode }: { initialMode: AuthMode }) {
       <div className="mt-space-md">
         <IconDisc icon="mark_email_unread" solid size={72} />
       </div>
-      <h1 className="mt-space-lg font-headline-lg text-headline-lg-mobile font-bold text-ink">Confirm your email</h1>
+      <h1 className="mt-space-lg font-headline-lg text-headline-lg-mobile font-bold text-ink">{t('Confirm your email')}</h1>
       <p className="mt-space-sm font-body-md text-body-md text-ink-muted">
-        We sent a confirmation link to <strong className="text-ink">{awaiting}</strong>. Open it, then come back and
-        sign in.
+        {t('We sent a confirmation link to {email}. Open it, then come back and sign in.')
+          .split('{email}')
+          .map((part, i) => (
+            <span key={i}>
+              {i > 0 && <strong className="text-ink">{awaiting}</strong>}
+              {part}
+            </span>
+          ))}
       </p>
       <p className="mt-space-sm font-body-sm text-body-sm text-ink-muted">
-        Can't find it? Check Spam and Promotions. Some school and work email systems block our mail — if nothing
-        arrives in a few minutes, sign up with a personal email instead.
+        {t(
+          "Can't find it? Check Spam and Promotions. Some school and work email systems block our mail — if nothing arrives in a few minutes, sign up with a personal email instead.",
+        )}
       </p>
       <div className="w-full mt-space-md flex flex-col gap-space-md text-left">
         {error && <Message text={error} error />}
@@ -212,7 +221,7 @@ export default function AuthPage({ initialMode }: { initialMode: AuthMode }) {
                 {...bind('occupation')}
               />
               <div className="mt-2 flex flex-wrap gap-1.5">
-                {OCCUPATIONS.map((o) => {
+                {OCCUPATIONS.map((en) => t(en)).map((o) => {
                   const selected = values.occupation.trim().toLowerCase() === o.toLowerCase();
                   return (
                     <button
@@ -249,7 +258,7 @@ export default function AuthPage({ initialMode }: { initialMode: AuthMode }) {
               state={{ email: values.email.trim() }}
               className="px-2 py-1.5 rounded-lg font-label-md text-label-md font-bold text-primary hover:bg-tint"
             >
-              Forgot password?
+              {t('Forgot password?')}
             </Link>
           </div>
         )}
@@ -284,14 +293,14 @@ export default function AuthPage({ initialMode }: { initialMode: AuthMode }) {
         </div>
       </form>
       <p className="mt-space-md text-center font-body-md text-body-md text-ink-muted">
-        {signUp ? 'Already have an account? ' : 'New to WeatherGPT? '}
+        {t(signUp ? 'Already have an account?' : 'New to WeatherGPT?')}{' '}
         <button
           type="button"
           disabled={busy}
           onClick={() => switchMode(signUp ? 'signIn' : 'signUp')}
           className="px-1 py-1.5 rounded-lg font-label-md text-[14px] font-bold text-primary hover:bg-tint"
         >
-          {signUp ? 'Sign in' : 'Create an account'}
+          {t(signUp ? 'Sign in' : 'Create an account')}
         </button>
       </p>
       <div className="mt-space-xs">

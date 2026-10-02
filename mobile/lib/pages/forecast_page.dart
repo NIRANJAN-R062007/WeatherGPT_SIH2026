@@ -18,6 +18,7 @@ import '../state/weather_store.dart';
 import '../persona_theme.dart';
 import '../theme.dart';
 import 'best_window_page.dart';
+import '../i18n.dart';
 
 enum _View { days, details }
 
@@ -36,7 +37,7 @@ class _ForecastPageState extends State<ForecastPage> {
     final prefs = UiPrefs.of(context);
     final weather = WeatherStore.of(context);
     final nav = ShellNav.of(context);
-    final city = prefs.cityInfo.name;
+    final city = tr(context, prefs.cityInfo.name);
 
     return PageFrame(
       onRefresh: weather.refresh,
@@ -50,8 +51,8 @@ class _ForecastPageState extends State<ForecastPage> {
         InfoBanner(
           icon: prefs.personaInfo.icon,
           title: 'Need more days?',
-          body: 'Ask for a 5-day forecast for $city in Chat.',
-          onTap: () => nav.ask('5-day forecast for $city'),
+          body: tr(context, 'Ask for a 5-day forecast for {city} in Chat.', {'city': city}),
+          onTap: () => nav.ask(tr(context, '5-day forecast for {city}', {'city': city})),
         ),
         const SizedBox(height: AppSpace.sm),
         InfoBanner(
@@ -126,7 +127,7 @@ class _Switch extends StatelessWidget {
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 10),
                   child: Text(
-                    label,
+                    tr(context, label),
                     textAlign: TextAlign.center,
                     style: AppText.labelMd.copyWith(
                       color: selected ? t.onPrimary : t.ink,
@@ -170,7 +171,7 @@ class _DayRow extends StatelessWidget {
       temps = '—';
     } else if (night) {
       // Tonight's high/low are the whole day's — show only the low.
-      temps = low == null ? '—' : 'Low ${prefs.temp(low)}°';
+      temps = low == null ? '—' : tr(context, 'Low {temp}°', {'temp': prefs.temp(low)});
     } else {
       temps = '${high == null ? '—' : prefs.temp(high)}° / ${low == null ? '—' : prefs.temp(low)}°';
     }
@@ -185,11 +186,11 @@ class _DayRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  label,
+                  tr(context, label),
                   style: AppText.labelMd.copyWith(color: t.ink, fontWeight: FontWeight.w700),
                 ),
                 Text(
-                  istDayMonth(r?.issued, fallbackOffsetDays: dayOffset),
+                  istDayMonth(r?.issued, fallbackOffsetDays: dayOffset, lang: langOf(context)),
                   style: AppText.bodySm.copyWith(color: t.inkMuted),
                 ),
               ],
@@ -207,7 +208,9 @@ class _DayRow extends StatelessWidget {
                   style: AppText.labelMd.copyWith(color: t.ink, fontWeight: FontWeight.w600),
                 ),
                 Text(
-                  hasData ? sentenceCase(r!.conditionLabel) : (r?.message ?? 'No forecast for this period.'),
+                  hasData
+                      ? sentenceCase(r!.conditionLabel)
+                      : (r?.message ?? tr(context, 'No forecast for this period.')),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: AppText.bodySm.copyWith(color: t.inkMuted),
@@ -249,7 +252,7 @@ class _DetailCard extends StatelessWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  '$label, ${istDayMonth(r?.issued, fallbackOffsetDays: dayOffset)}',
+                  '${tr(context, label)}, ${istDayMonth(r?.issued, fallbackOffsetDays: dayOffset, lang: langOf(context))}',
                   style: AppText.labelMd.copyWith(color: t.ink, fontWeight: FontWeight.w700),
                 ),
               ),
@@ -258,7 +261,10 @@ class _DetailCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           if (!hasData)
-            Text(r?.message ?? 'No forecast for this period.', style: AppText.bodySm.copyWith(color: t.inkMuted))
+            Text(
+              r?.message ?? tr(context, 'No forecast for this period.'),
+              style: AppText.bodySm.copyWith(color: t.inkMuted),
+            )
           else
             Row(
               children: [
@@ -301,7 +307,7 @@ class _Figure extends StatelessWidget {
             const SizedBox(width: 4),
             Flexible(
               child: Text(
-                label,
+                tr(context, label),
                 overflow: TextOverflow.ellipsis,
                 style: AppText.bodySm.copyWith(color: t.inkMuted),
               ),
@@ -334,15 +340,21 @@ class _ProvenanceCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Forecast Provenance',
+                  tr(context, 'Forecast Provenance'),
                   style: AppText.labelMd.copyWith(color: t.ink, fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   source == null
-                      ? 'Every figure on this page is read directly from the forecast feed — never generated by the language model.'
-                      : 'As served by $source. Every figure above is read directly from that response — '
-                            'never generated by the language model.',
+                      ? tr(
+                          context,
+                          'Every figure on this page is read directly from the forecast feed — never generated by the language model.',
+                        )
+                      : tr(
+                          context,
+                          'As served by {source}. Every figure above is read directly from that response — never generated by the language model.',
+                          {'source': source},
+                        ),
                   style: AppText.bodySm.copyWith(color: t.inkMuted),
                 ),
               ],

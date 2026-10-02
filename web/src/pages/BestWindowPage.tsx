@@ -11,11 +11,13 @@ import PageFrame from '../components/PageFrame';
 import { AppCard, ErrorPanel, Icon, IconDisc, LoadingPanel, PageHeader, PillButton, SectionTitle, TagChip } from '../components/ui';
 import { type Day, useBestWindow, useScenario } from '../lib/intelligence';
 import { useUiPrefs } from '../state/UiPrefsContext';
+import { useT } from '../lib/i18n';
 
 const HOUR_OPTIONS = Array.from({ length: 24 }, (_, h) => `${String(h).padStart(2, '0')}:00`);
 
 /** The mockup's pill switch, reused from Forecast's "Days | Details". */
 function DaySwitch({ value, onChange }: { value: Day; onChange: (v: Day) => void }) {
+  const t = useT();
   const tab = (v: Day, label: string) => (
     <button
       type="button"
@@ -26,7 +28,7 @@ function DaySwitch({ value, onChange }: { value: Day; onChange: (v: Day) => void
         v === value ? 'bg-accent-gradient text-on-primary font-bold' : 'text-ink font-medium hover:bg-tint-strong'
       }`}
     >
-      {label}
+      {t(label)}
     </button>
   );
   return (
@@ -38,6 +40,7 @@ function DaySwitch({ value, onChange }: { value: Day; onChange: (v: Day) => void
 }
 
 function BestWindowCard({ city, day }: { city: string; day: Day }) {
+  const t = useT();
   const { loading, data, error, load } = useBestWindow();
 
   useEffect(() => {
@@ -57,11 +60,13 @@ function BestWindowCard({ city, day }: { city: string; day: Day }) {
       <AppCard className="!bg-surface-container-low !border-outline-variant">
         <div className="flex items-center gap-3">
           <IconDisc icon="help" color="rgb(var(--c-on-surface-variant))" />
-          <div className="font-label-md text-label-md font-bold text-ink">No hourly forecast to check</div>
+          <div className="font-label-md text-label-md font-bold text-ink">{t('No hourly forecast to check')}</div>
         </div>
         <p className="mt-space-sm font-body-md text-body-md text-on-surface">
-          There's no hourly forecast for {data.city_name} {day} right now — this can't be read as a suitable or
-          unsuitable window.
+          {t(
+            "There's no hourly forecast for {city} {day} right now — this can't be read as a suitable or unsuitable window.",
+            { city: t(data.city_name), day: t(day) },
+          )}
         </p>
       </AppCard>
     );
@@ -72,11 +77,13 @@ function BestWindowCard({ city, day }: { city: string; day: Day }) {
       <AppCard className="!bg-surface-container-low !border-outline-variant">
         <div className="flex items-center gap-3">
           <IconDisc icon="block" color="rgb(var(--c-on-surface-variant))" />
-          <div className="font-label-md text-label-md font-bold text-ink">No suitable window</div>
+          <div className="font-label-md text-label-md font-bold text-ink">{t('No suitable window')}</div>
         </div>
         <p className="mt-space-sm font-body-md text-body-md text-on-surface">
-          Every hour {day} in {data.city_name} was checked against rain under 20%, 20–32°C and wind under 25 km/h —
-          none passed. That's a real result, not a guess.
+          {t(
+            "Every hour {day} in {city} was checked against rain under 20%, 20–32°C and wind under 25 km/h — none passed. That's a real result, not a guess.",
+            { city: t(data.city_name), day: t(day) },
+          )}
         </p>
       </AppCard>
     );
@@ -93,7 +100,7 @@ function BestWindowCard({ city, day }: { city: string; day: Day }) {
           </div>
           <div className="mt-1 flex flex-wrap gap-1.5">
             <TagChip icon="location_on">{data.city_name}</TagChip>
-            <TagChip>more suitable for being outdoors</TagChip>
+            <TagChip>{t('more suitable for being outdoors')}</TagChip>
           </div>
         </div>
       </div>
@@ -104,7 +111,7 @@ function BestWindowCard({ city, day }: { city: string; day: Day }) {
       </div>
       {data.provenance && (
         <div className="mt-space-md pt-space-sm border-t border-outline-variant/40 font-citation-mono text-citation-mono text-on-surface-variant">
-          source: {data.provenance.source}
+          {t('source')}: {data.provenance.source}
         </div>
       )}
     </AppCard>
@@ -112,11 +119,12 @@ function BestWindowCard({ city, day }: { city: string; day: Day }) {
 }
 
 function Figure({ icon, label, value }: { icon: string; label: string; value: string }) {
+  const t = useT();
   return (
     <div className="min-w-0">
       <div className="flex items-center gap-1 font-body-sm text-body-sm text-ink-muted">
         <Icon name={icon} size={14} className="text-primary" />
-        <span className="truncate">{label}</span>
+        <span className="truncate">{t(label)}</span>
       </div>
       <div className="mt-0.5 font-headline-sm text-[16px] text-ink">{value}</div>
     </div>
@@ -132,14 +140,15 @@ function ScenarioHourCard({
   result: { available: boolean; temp_c?: number; rain_probability_pct?: number; wind_kmh?: number; suitable?: boolean } | undefined;
   better: boolean;
 }) {
+  const t = useT();
   return (
     <AppCard className={better ? '!border-primary' : ''}>
       <div className="flex items-center gap-2">
         <span className="font-label-md text-label-md font-bold text-ink">{time}</span>
-        {better && <TagChip tone="primary">lower rain chance</TagChip>}
+        {better && <TagChip tone="primary">{t('lower rain chance')}</TagChip>}
       </div>
       {!result || !result.available ? (
-        <p className="mt-space-sm font-body-sm text-body-sm text-ink-muted">Not available in this forecast.</p>
+        <p className="mt-space-sm font-body-sm text-body-sm text-ink-muted">{t('Not available in this forecast.')}</p>
       ) : (
         <div className="mt-space-sm grid grid-cols-3 gap-2">
           <Figure icon="thermostat" label="Temp" value={`${result.temp_c}°C`} />
@@ -152,6 +161,7 @@ function ScenarioHourCard({
 }
 
 function WhatIfView({ city, day }: { city: string; day: Day }) {
+  const t = useT();
   const [timeA, setTimeA] = useState('09:00');
   const [timeB, setTimeB] = useState('17:00');
   const { loading, data, error, compare, reset } = useScenario();
@@ -196,7 +206,10 @@ function WhatIfView({ city, day }: { city: string; day: Day }) {
       {data && data.status === 'unavailable' && (
         <AppCard className="!bg-surface-container-low !border-outline-variant">
           <p className="font-body-md text-body-md text-on-surface">
-            There's no hourly forecast for {data.city_name} {day} right now to compare against.
+            {t("There's no hourly forecast for {city} {day} right now to compare against.", {
+              city: t(data.city_name),
+              day: t(day),
+            })}
           </p>
         </AppCard>
       )}
@@ -211,6 +224,7 @@ function WhatIfView({ city, day }: { city: string; day: Day }) {
 }
 
 export default function BestWindowPage() {
+  const t = useT();
   const [day, setDay] = useState<Day>('today');
   const { cityInfo } = useUiPrefs();
 
@@ -234,9 +248,10 @@ export default function BestWindowPage() {
       <div className="mt-space-lg flex items-start gap-1.5 px-3 py-2 rounded-xl bg-tint font-body-sm text-body-sm text-ink-muted">
         <Icon name="info" size={16} className="mt-0.5 text-primary" />
         <span>
-          A window is "more suitable", never "safe" — rain under 20%, 20–32°C and wind under 25 km/h, checked against
-          the hourly forecast, the same rules every time regardless of persona. A colour-code warning for{' '}
-          {cityInfo.name} always comes from Alerts, not from here.
+          {t(
+            'A window is "more suitable", never "safe" — rain under 20%, 20–32°C and wind under 25 km/h, checked against the hourly forecast, the same rules every time regardless of persona. A colour-code warning for {city} always comes from Alerts, not from here.',
+            { city: t(cityInfo.name) },
+          )}
         </span>
       </div>
     </PageFrame>

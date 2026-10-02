@@ -19,6 +19,7 @@ import '../state/ui_prefs.dart';
 import '../persona_theme.dart';
 import '../theme.dart';
 import 'best_window_page.dart';
+import '../i18n.dart';
 
 class _Turn {
   final String question;
@@ -109,7 +110,7 @@ class _ChatPageState extends State<ChatPage> {
     final t = PersonaTheme.of(context);
     final prefs = UiPrefs.of(context);
     final persona = prefs.personaInfo;
-    final city = prefs.cityInfo.name;
+    final city = tr(context, prefs.cityInfo.name);
     final composer = AskComposer(
       controller: _query,
       loading: _loading,
@@ -136,7 +137,11 @@ class _ChatPageState extends State<ChatPage> {
           const SectionTitle('Suggested Questions'),
           const SizedBox(height: AppSpace.sm),
           for (final q in persona.suggestions) ...[
-            ActionRow(icon: q.icon, title: q.title(city), onTap: () => _ask(q.question(city))),
+            ActionRow(
+              icon: q.icon,
+              title: tr(context, q.label ?? q.template, {'city': city}),
+              onTap: () => _ask(tr(context, q.template, {'city': city})),
+            ),
             const SizedBox(height: AppSpace.sm),
           ],
         ],
@@ -149,7 +154,7 @@ class _ChatPageState extends State<ChatPage> {
       dock: _Dock(child: composer),
       children: [
         Text(
-          'Chat & Evidence',
+          tr(context, 'Chat & Evidence'),
           style: AppText.headlineMd.copyWith(color: t.ink, fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: AppSpace.sm),

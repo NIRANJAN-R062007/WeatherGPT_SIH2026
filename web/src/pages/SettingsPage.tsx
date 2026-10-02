@@ -13,6 +13,7 @@ import { CityPickerSheet } from '../components/CityPicker';
 import PageFrame from '../components/PageFrame';
 import { ActionRow, AppCard, IconDisc, OptionTile, PageHeader, Sheet } from '../components/ui';
 import { LANG_NAMES, useUiPrefs, type Appearance, type LangCode, type Unit } from '../state/UiPrefsContext';
+import { useT } from '../lib/i18n';
 
 const APPEARANCE_LABELS: Record<Appearance, string> = {
   light: 'Light Mode',
@@ -43,6 +44,7 @@ function Options<T extends string>({
 }
 
 export default function SettingsPage() {
+  const t = useT();
   const prefs = useUiPrefs();
   const navigate = useNavigate();
   const [open, setOpen] = useState<Picker>(null);
@@ -58,8 +60,8 @@ export default function SettingsPage() {
           <div className="flex items-center gap-space-md">
             <IconDisc icon={persona.icon} solid size={52} />
             <div className="min-w-0">
-              <div className="font-headline-sm text-headline-sm font-bold text-ink">{persona.label}</div>
-              <div className="font-body-sm text-body-sm text-ink-muted">{persona.tagline}</div>
+              <div className="font-headline-sm text-headline-sm font-bold text-ink">{t(persona.label)}</div>
+              <div className="font-body-sm text-body-sm text-ink-muted">{t(persona.tagline)}</div>
             </div>
           </div>
           <div className="mt-3 flex justify-end">
@@ -68,7 +70,7 @@ export default function SettingsPage() {
               onClick={() => navigate('/persona')}
               className="px-3.5 py-2 rounded-lg bg-card font-label-md text-label-md font-semibold text-primary hover:bg-surface-container-low"
             >
-              Change Persona
+              {t('Change Persona')}
             </button>
           </div>
         </AppCard>
@@ -81,7 +83,7 @@ export default function SettingsPage() {
           plainIcon
           icon="location_on"
           title="Location"
-          subtitle={`${prefs.cityInfo.name}, ${prefs.cityInfo.region}`}
+          subtitle={`${t(prefs.cityInfo.name)}, ${t(prefs.cityInfo.region)}`}
           onClick={() => setOpen('location')}
         />
         <ActionRow
@@ -147,8 +149,9 @@ export default function SettingsPage() {
         <div className="flex items-start gap-3">
           <IconDisc icon="cloud" solid />
           <p className="font-body-md text-body-md text-ink-muted">
-            Grounded weather answers in English, हिन्दी, தமிழ், తెలుగు and मराठी. Every number is checked against the
-            source data before you see it.
+            {t(
+              'Grounded weather answers in English, हिन्दी, தமிழ், తెలుగు and मराठी. Every number is checked against the source data before you see it.',
+            )}
           </p>
         </div>
       </Sheet>

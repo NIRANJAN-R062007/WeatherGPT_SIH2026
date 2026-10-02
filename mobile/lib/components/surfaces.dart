@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 
 import '../persona_theme.dart';
 import '../theme.dart';
+import '../i18n.dart';
 
 /// White card with a hairline persona-tinted border and a soft tinted lift.
 /// [wash] fades the card from white into the persona tint (weather cards).
@@ -75,7 +76,7 @@ class SectionTitle extends StatelessWidget {
       children: [
         Expanded(
           child: Text(
-            text,
+            tr(context, text),
             style: AppText.headlineSm.copyWith(color: t.ink, fontWeight: FontWeight.w700),
           ),
         ),
@@ -86,7 +87,7 @@ class SectionTitle extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
               child: Text(
-                action!,
+                tr(context, action!),
                 style: AppText.labelMd.copyWith(color: t.primary, fontWeight: FontWeight.w600),
               ),
             ),
@@ -179,7 +180,7 @@ class ActionRow extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    title,
+                    tr(context, title),
                     style: AppText.labelMd.copyWith(
                       color: t.ink,
                       fontWeight: subtitle == null ? FontWeight.w500 : FontWeight.w600,
@@ -187,9 +188,9 @@ class ActionRow extends StatelessWidget {
                   ),
                   if (subtitle != null) ...[
                     const SizedBox(height: 1),
-                    Text(subtitle!, style: AppText.bodySm.copyWith(color: t.inkMuted)),
+                    Text(tr(context, subtitle!), style: AppText.bodySm.copyWith(color: t.inkMuted)),
                   ],
-                  if (detail != null) Text(detail!, style: AppText.bodySm.copyWith(color: t.inkMuted)),
+                  if (detail != null) Text(tr(context, detail!), style: AppText.bodySm.copyWith(color: t.inkMuted)),
                 ],
               ),
             ),
@@ -231,10 +232,10 @@ class InfoBanner extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      title,
+                      tr(context, title),
                       style: AppText.labelMd.copyWith(color: t.ink, fontWeight: FontWeight.w600),
                     ),
-                    if (body != null) Text(body!, style: AppText.bodySm.copyWith(color: t.inkMuted)),
+                    if (body != null) Text(tr(context, body!), style: AppText.bodySm.copyWith(color: t.inkMuted)),
                   ],
                 ),
               ),

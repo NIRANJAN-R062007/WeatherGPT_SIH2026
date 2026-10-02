@@ -13,6 +13,7 @@ import { ActionRow, AppCard, Icon, IconDisc, SectionTitle, Sheet } from '../comp
 import { displayName } from '../lib/auth';
 import { useAuth } from '../state/AuthContext';
 import { useUiPrefs } from '../state/UiPrefsContext';
+import { useT, type T } from '../lib/i18n';
 
 /** "+919876543210" / "9876543210" → "+91 98765 43210" / "98765 43210". */
 function formatPhone(raw: string) {
@@ -22,11 +23,14 @@ function formatPhone(raw: string) {
   return raw;
 }
 
-function memberSince(iso: string | null) {
+function memberSince(t: T, iso: string | null) {
   if (!iso) return '—';
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '—';
-  return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).format(d);
+  // "29 Sep 2026", the month in the app language.
+  return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+    .format(d)
+    .replace(/[A-Z][a-z]{2}/, (m) => t(m));
 }
 
 function PersonaRow() {
@@ -47,6 +51,7 @@ function Detail({ icon, label, value }: { icon: string; label: string; value: st
 }
 
 function GuestProfile() {
+  const t = useT();
   const { signOut } = useAuth();
   const navigate = useNavigate();
   return (
@@ -55,9 +60,9 @@ function GuestProfile() {
         <div className="flex items-center gap-space-md">
           <GuestAvatar size={68} />
           <div>
-            <div className="font-headline-md text-headline-md font-bold text-ink">Guest</div>
+            <div className="font-headline-md text-headline-md font-bold text-ink">{t('Guest')}</div>
             <div className="mt-0.5 font-body-sm text-body-sm text-ink-muted">
-              You're using WeatherGPT without an account.
+              {t("You're using WeatherGPT without an account.")}
             </div>
           </div>
         </div>
@@ -91,6 +96,7 @@ function GuestProfile() {
 }
 
 export default function ProfilePage() {
+  const t = useT();
   const { user, isGuest, signOut } = useAuth();
   const navigate = useNavigate();
   const saved = (useLocation().state as { saved?: unknown } | null)?.saved === true;
@@ -118,7 +124,7 @@ export default function ProfilePage() {
                 {user.occupation && (
                   <span className="mt-space-sm inline-flex max-w-full items-center gap-1 px-2.5 py-1 rounded-full bg-card font-label-md text-label-md font-semibold text-primary">
                     <Icon name="work" size={14} />
-                    <span className="truncate">{user.occupation}</span>
+                    <span className="truncate">{t(user.occupation)}</span>
                   </span>
                 )}
               </div>
@@ -131,7 +137,7 @@ export default function ProfilePage() {
             <Detail icon="mail" label="Email" value={user.email} />
             <Detail icon="phone" label="Phone" value={orNone(formatPhone(user.phone))} />
             <Detail icon="work" label="Occupation" value={orNone(user.occupation)} />
-            <Detail icon="event" label="Member since" value={memberSince(user.createdAt)} />
+            <Detail icon="event" label="Member since" value={memberSince(t, user.createdAt)} />
           </div>
           <div className="mt-space-md mb-space-sm">
             <SectionTitle text="Persona" />
@@ -143,7 +149,7 @@ export default function ProfilePage() {
           </div>
           <Sheet open={confirming} onClose={() => setConfirming(false)} title="Sign out?">
             <p className="font-body-md text-body-md text-ink-muted">
-              You'll need your email and password to sign in again.
+              {t("You'll need your email and password to sign in again.")}
             </p>
             <div className="mt-space-lg flex justify-end gap-2">
               <button
@@ -151,7 +157,7 @@ export default function ProfilePage() {
                 onClick={() => setConfirming(false)}
                 className="px-4 py-2 rounded-full font-label-md text-label-md font-semibold text-primary hover:bg-tint"
               >
-                Cancel
+                {t('Cancel')}
               </button>
               <button
                 type="button"
@@ -162,7 +168,7 @@ export default function ProfilePage() {
                 }}
                 className="px-4 py-2 rounded-full font-label-md text-label-md font-semibold text-error hover:bg-error-container"
               >
-                Sign out
+                {t('Sign out')}
               </button>
             </div>
           </Sheet>

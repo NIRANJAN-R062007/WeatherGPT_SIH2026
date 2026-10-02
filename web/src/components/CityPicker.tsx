@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { CITIES, nearestCity } from '../data/cities';
 import { useUiPrefs } from '../state/UiPrefsContext';
 import { Icon, Sheet, Spinner } from './ui';
+import { useT } from '../lib/i18n';
 
 function locate(): Promise<GeolocationPosition> {
   return new Promise((resolve, reject) => {
@@ -27,6 +28,7 @@ function locate(): Promise<GeolocationPosition> {
 }
 
 export function CityPickerSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const t = useT();
   const { city, setCity } = useUiPrefs();
   const [locating, setLocating] = useState(false);
   const [locateError, setLocateError] = useState<string | null>(null);
@@ -51,9 +53,9 @@ export function CityPickerSheet({ open, onClose }: { open: boolean; onClose: () 
       <button type="button" disabled={locating} onClick={useMyLocation} className={`${row} hover:bg-tint`}>
         <Icon name="my_location" size={18} className="text-on-surface-variant" />
         <span className="flex-1">
-          <span className="block font-label-md text-label-md text-on-surface">Use my location</span>
+          <span className="block font-label-md text-label-md text-on-surface">{t('Use my location')}</span>
           <span className="block font-body-sm text-body-sm text-on-surface-variant">
-            {locateError ?? 'Nearest supported city'}
+            {t(locateError ?? 'Nearest supported city')}
           </span>
         </span>
         {locating && <Spinner />}
@@ -79,7 +81,7 @@ export function CityPickerSheet({ open, onClose }: { open: boolean; onClose: () 
             <span
               className={`font-label-md text-label-md ${active ? 'text-primary font-semibold' : 'text-on-surface'}`}
             >
-              {c.name}, {c.region}
+              {t(c.name)}, {t(c.region)}
             </span>
           </button>
         );
@@ -89,6 +91,7 @@ export function CityPickerSheet({ open, onClose }: { open: boolean; onClose: () 
 }
 
 export function CityPill() {
+  const t = useT();
   const { cityInfo } = useUiPrefs();
   const [open, setOpen] = useState(false);
   return (
@@ -100,7 +103,7 @@ export function CityPill() {
       >
         <Icon name="location_on" size={18} fill className="text-primary" />
         <span className="max-w-[220px] truncate font-label-md text-label-md font-semibold text-ink">
-          {cityInfo.name}, {cityInfo.region}
+          {t(cityInfo.name)}, {t(cityInfo.region)}
         </span>
         <Icon name="keyboard_arrow_down" size={18} className="text-ink-muted" />
       </button>
@@ -112,18 +115,19 @@ export function CityPill() {
 /** The composers' "IF UNSPECIFIED, ASSUME [city] · LANG XX" row. The city is
  *  only a hint — /ask's NLU uses a city named in the question first. */
 export function CityHintRow() {
+  const t = useT();
   const { cityInfo, lang } = useUiPrefs();
   const [open, setOpen] = useState(false);
   return (
     <div className="flex flex-wrap items-center gap-1.5 px-1 font-citation-mono text-citation-mono text-on-surface-variant">
       <Icon name="my_location" size={14} />
-      <span>IF UNSPECIFIED, ASSUME</span>
+      <span>{t('IF UNSPECIFIED, ASSUME')}</span>
       <button
         type="button"
         onClick={() => setOpen(true)}
         className="inline-flex items-center rounded px-1.5 py-1 bg-surface-container-low text-on-surface font-label-md text-label-md hover:bg-surface-container"
       >
-        {cityInfo.name}
+        {t(cityInfo.name)}
         <Icon name="expand_more" size={16} className="text-on-surface-variant" />
       </button>
       <span className="text-outline">· LANG {lang.toUpperCase()}</span>

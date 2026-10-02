@@ -17,6 +17,7 @@ import '../format.dart';
 import '../persona_theme.dart';
 import '../state/ui_prefs.dart';
 import '../theme.dart';
+import '../i18n.dart';
 
 Future<void> openAviation(BuildContext context) {
   return Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const AviationPage()));
@@ -83,7 +84,7 @@ class _AviationPageState extends State<AviationPage> {
   @override
   Widget build(BuildContext context) {
     final t = PersonaTheme.of(context);
-    final city = UiPrefs.of(context).cityInfo.name;
+    final city = tr(context, UiPrefs.of(context).cityInfo.name);
     final data = _data;
 
     return SubPageScaffold(
@@ -92,7 +93,9 @@ class _AviationPageState extends State<AviationPage> {
         children: [
           PageHeader(
             title: 'Airport weather',
-            subtitle: 'The latest METAR and TAF for $city airport, decoded into plain language.',
+            subtitle: tr(context, 'The latest METAR and TAF for {city} airport, decoded into plain language.', {
+              'city': city,
+            }),
           ),
           const SizedBox(height: AppSpace.lg),
           if (_loading)
@@ -173,7 +176,7 @@ class _Unavailable extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'No airport reports',
+                      tr(context, 'No airport reports'),
                       style: AppText.labelMd.copyWith(color: t.ink, fontWeight: FontWeight.w700),
                     ),
                     Text(data.where, style: AppText.bodySm.copyWith(color: t.inkMuted)),
@@ -184,7 +187,11 @@ class _Unavailable extends StatelessWidget {
           ),
           const SizedBox(height: AppSpace.sm),
           Text(
-            "The airport reports for $city aren't available right now — this can't be read as fair weather.",
+            tr(
+              context,
+              "The airport reports for {city} aren't available right now — this can't be read as fair weather.",
+              {'city': city},
+            ),
             style: AppText.bodyMd.copyWith(color: t.ink),
           ),
         ],
@@ -229,13 +236,13 @@ class _ReportCard extends StatelessWidget {
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         Text(
-                          title,
+                          tr(context, title),
                           style: AppText.headlineSm.copyWith(color: t.ink, fontWeight: FontWeight.w700),
                         ),
                         if (r != null) LiveBadge(live: r.isLive),
                       ],
                     ),
-                    Text(subtitle, style: AppText.bodySm.copyWith(color: t.inkMuted)),
+                    Text(tr(context, subtitle), style: AppText.bodySm.copyWith(color: t.inkMuted)),
                   ],
                 ),
               ),
@@ -243,7 +250,7 @@ class _ReportCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpace.md),
           if (r == null)
-            Text(missing, style: AppText.bodyMd.copyWith(color: t.inkMuted))
+            Text(tr(context, missing), style: AppText.bodyMd.copyWith(color: t.inkMuted))
           else ...[
             if (!r.isLive) ...[
               Container(
@@ -259,7 +266,9 @@ class _ReportCard extends StatelessWidget {
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
-                        'Snapshot taken ${istTimestamp(r.retrievedAt)} — not a live report.',
+                        tr(context, 'Snapshot taken {time} — not a live report.', {
+                          'time': istTimestamp(r.retrievedAt),
+                        }),
                         style: AppText.bodySm.copyWith(color: AppColors.onTertiaryFixed),
                       ),
                     ),
@@ -275,7 +284,7 @@ class _ReportCard extends StatelessWidget {
               ),
             Divider(height: AppSpace.md, color: t.outlineVariant.withValues(alpha: 0.5)),
             Text(
-              [if (r.stamp != null) r.stamp!, 'source: ${r.source}'].join('   '),
+              [if (r.stamp != null) r.stamp!, '${tr(context, 'source')}: ${r.source}'].join('   '),
               style: AppText.citationMono.copyWith(color: t.onSurfaceVariant),
             ),
             Theme(
@@ -284,7 +293,7 @@ class _ReportCard extends StatelessWidget {
                 tilePadding: EdgeInsets.zero,
                 childrenPadding: EdgeInsets.zero,
                 title: Text(
-                  'Show the code as issued',
+                  tr(context, 'Show the code as issued'),
                   style: AppText.labelMd.copyWith(color: t.primary, fontWeight: FontWeight.w600),
                 ),
                 children: [

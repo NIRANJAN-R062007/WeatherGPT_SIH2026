@@ -11,6 +11,7 @@ import '../theme.dart';
 import '../voice_client.dart';
 import '../voice_recorder.dart';
 import 'common.dart';
+import '../i18n.dart';
 
 enum _Voice { idle, listening, transcribing }
 
@@ -63,7 +64,7 @@ class _MicButtonState extends State<MicButton> {
       if (!mounted) return;
       if (audio == null) {
         setState(() => _voice = _Voice.idle);
-        widget.onNotice("Didn't catch any audio — try again.");
+        widget.onNotice(tr(context, "Didn't catch any audio — try again."));
         return;
       }
       String? notice;
@@ -74,19 +75,20 @@ class _MicButtonState extends State<MicButton> {
         widget.onNotice(null);
         widget.onTranscript(text);
       } else {
-        widget.onNotice(notice ?? "Didn't catch that — try again.");
+        widget.onNotice(tr(context, notice ?? "Didn't catch that — try again."));
       }
       return;
     }
 
     widget.onNotice(null);
+    final lang = langOf(context);
     try {
       await recorder.start();
       if (mounted) setState(() => _voice = _Voice.listening);
     } on MicPermissionDenied {
-      widget.onNotice('Microphone permission denied — allow it in Settings to ask by voice.');
+      widget.onNotice(trIn(lang, 'Microphone permission denied — allow it in Settings to ask by voice.'));
     } catch (_) {
-      widget.onNotice("Couldn't access the microphone on this device.");
+      widget.onNotice(trIn(lang, "Couldn't access the microphone on this device."));
     }
   }
 
@@ -99,7 +101,7 @@ class _MicButtonState extends State<MicButton> {
     final Color fg = listening ? AppColors.onError : t.onSurfaceVariant;
     final radius = BorderRadius.circular(AppRadius.lg);
     return Tooltip(
-      message: listening ? 'Stop and ask' : 'Ask by voice',
+      message: tr(context, listening ? 'Stop and ask' : 'Ask by voice'),
       child: Material(
         color: bg,
         borderRadius: radius,
@@ -189,7 +191,7 @@ class _AskComposerState extends State<AskComposer> {
       onSubmitted: (_) => _submit(),
       style: AppText.bodyMd.copyWith(color: t.onSurface),
       decoration: InputDecoration(
-        hintText: widget.hint,
+        hintText: tr(context, widget.hint),
         hintMaxLines: 1,
         contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
       ),
@@ -267,7 +269,7 @@ class _SendButton extends StatelessWidget {
     final radius = BorderRadius.circular(compact ? AppRadius.lg : AppRadius.xl);
     final disabled = onPressed == null;
     return Tooltip(
-      message: 'Send',
+      message: tr(context, 'Send'),
       child: DecoratedBox(
         // The persona's accent gradient, faded while there's nothing to send.
         decoration: BoxDecoration(

@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 
 import 'cities.dart';
 import 'theme.dart';
+import 'i18n.dart';
 
 const Duration _istOffset = Duration(hours: 5, minutes: 30);
 const _months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -36,10 +37,10 @@ String istTime(String? iso) {
 }
 
 /// "27 Sep" for [iso], or for today + [fallbackOffsetDays] when [iso] is
-/// missing.
-String istDayMonth(String? iso, {int fallbackOffsetDays = 0}) {
+/// missing; the month in [lang].
+String istDayMonth(String? iso, {int fallbackOffsetDays = 0, String lang = 'en'}) {
   final d = _parseIst(iso) ?? nowIst().add(Duration(days: fallbackOffsetDays));
-  return '${d.day} ${_months[d.month - 1]}';
+  return '${d.day} ${trIn(lang, _months[d.month - 1])}';
 }
 
 /// Resolved city keys come back lowercase ("chennai"); use the bundled

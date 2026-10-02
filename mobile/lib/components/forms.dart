@@ -10,6 +10,7 @@ import '../state/auth_store.dart';
 import '../theme.dart';
 import 'app_shell.dart';
 import 'common.dart';
+import '../i18n.dart';
 
 /// Sky gradient, a back arrow + WeatherGPT bar, then [body].
 class SubPageScaffold extends StatelessWidget {
@@ -34,7 +35,7 @@ class SubPageScaffold extends StatelessWidget {
                   children: [
                     if (showBack)
                       IconButton(
-                        tooltip: 'Back',
+                        tooltip: tr(context, 'Back'),
                         icon: Icon(Icons.arrow_back_rounded, color: t.ink),
                         onPressed: () => Navigator.of(context).maybePop(),
                       )
@@ -106,13 +107,19 @@ class AppTextField extends StatelessWidget {
       textInputAction: textInputAction,
       textCapitalization: capitalization,
       autofillHints: autofillHints,
-      validator: validator,
+      // Validators return English; shown in the app language.
+      validator: validator == null
+          ? null
+          : (v) {
+              final error = validator!(v);
+              return error == null ? null : tr(context, error);
+            },
       onFieldSubmitted: onSubmitted,
       autovalidateMode: AutovalidateMode.onUserInteraction,
       style: AppText.bodyMd.copyWith(color: t.ink),
       decoration: InputDecoration(
-        labelText: label,
-        hintText: hint,
+        labelText: tr(context, label),
+        hintText: hint == null ? null : tr(context, hint!),
         isDense: false,
         filled: true,
         fillColor: t.card,
@@ -150,7 +157,7 @@ class GradientButton extends StatelessWidget {
     return Semantics(
       button: true,
       enabled: enabled,
-      label: label,
+      label: tr(context, label),
       excludeSemantics: true,
       child: Opacity(
         opacity: onPressed == null ? 0.6 : 1,
@@ -178,7 +185,7 @@ class GradientButton extends StatelessWidget {
                           children: [
                             Flexible(
                               child: Text(
-                                label,
+                                tr(context, label),
                                 overflow: TextOverflow.ellipsis,
                                 style: AppText.labelMd.copyWith(
                                   color: t.onPrimary,
@@ -231,7 +238,7 @@ class OutlineActionButton extends StatelessWidget {
               if (icon != null) ...[Icon(icon, size: 19, color: fg), const SizedBox(width: 8)],
               Flexible(
                 child: Text(
-                  label,
+                  tr(context, label),
                   overflow: TextOverflow.ellipsis,
                   style: AppText.labelMd.copyWith(color: fg, fontSize: 15, fontWeight: FontWeight.w700),
                 ),
@@ -264,7 +271,7 @@ class GuestButton extends StatelessWidget {
             : null,
         icon: Icon(Icons.person_outline, size: 18, color: t.inkMuted),
         label: Text(
-          'Continue as guest',
+          tr(context, 'Continue as guest'),
           style: AppText.labelMd.copyWith(color: t.inkMuted, fontWeight: FontWeight.w600, fontSize: 14),
         ),
       ),
@@ -294,12 +301,13 @@ class _GoogleSignInButtonState extends State<GoogleSignInButton> {
     final auth = AuthStore.read(context);
     final navigator = Navigator.of(context);
     final messenger = ScaffoldMessenger.of(context);
+    final lang = langOf(context);
     setState(() => _busy = true);
     try {
       await auth.signInWithGoogle();
       navigator.popUntil((r) => r.isFirst);
     } on AuthError catch (e) {
-      if (e.code != 'google_cancelled') messenger.showSnackBar(SnackBar(content: Text(e.message)));
+      if (e.code != 'google_cancelled') messenger.showSnackBar(SnackBar(content: Text(trIn(lang, e.message))));
     } finally {
       if (mounted) setState(() => _busy = false);
     }

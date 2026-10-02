@@ -9,8 +9,10 @@ import { NAV_ITEMS } from './nav';
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
 import { Icon } from './ui';
+import { useT } from '../lib/i18n';
 
 function BottomNav() {
+  const t = useT();
   return (
     <nav className="lg:hidden fixed inset-x-0 bottom-0 z-40 bg-nav-bar rounded-t-[20px] shadow-[0_-3px_16px_rgb(var(--c-shadow)/0.08)] pb-safe">
       <div className="flex h-16">
@@ -19,7 +21,7 @@ function BottomNav() {
             key={item.to}
             to={item.to}
             end={item.end}
-            aria-label={item.label}
+            aria-label={t(item.label)}
             className={({ isActive }) =>
               `flex-1 flex flex-col items-center justify-center gap-0.5 ${isActive ? 'text-primary' : 'text-nav-idle'}`
             }
@@ -28,7 +30,7 @@ function BottomNav() {
               <>
                 <Icon name={item.icon} size={25} fill={isActive} />
                 <span className={`text-[11px] leading-tight ${isActive ? 'font-bold' : 'font-medium'}`}>
-                  {item.short}
+                  {t(item.short)}
                 </span>
               </>
             )}

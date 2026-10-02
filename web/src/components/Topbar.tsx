@@ -4,15 +4,17 @@
 import { useNavigate } from 'react-router-dom';
 import { BrandTitle } from './Brand';
 import { Icon } from './ui';
+import { useT } from '../lib/i18n';
 
 export default function Topbar({ onMenu }: { onMenu: () => void }) {
+  const t = useT();
   const navigate = useNavigate();
   return (
     <header className="sticky top-0 z-40 h-14 flex items-center gap-1 px-1 lg:px-space-lg bg-sky-top/80 backdrop-blur-md">
       <button
         type="button"
         onClick={onMenu}
-        aria-label="Menu"
+        aria-label={t('Menu')}
         className="lg:hidden p-2.5 rounded-full text-ink hover:bg-ink/5"
       >
         <Icon name="menu" size={24} />
@@ -24,8 +26,8 @@ export default function Topbar({ onMenu }: { onMenu: () => void }) {
       <button
         type="button"
         onClick={() => navigate('/alerts')}
-        aria-label="Alerts & Warnings"
-        title="Alerts & Warnings"
+        aria-label={t('Alerts & Warnings')}
+        title={t('Alerts & Warnings')}
         className="p-2.5 rounded-full text-ink hover:bg-ink/5"
       >
         <Icon name="notifications" size={24} />

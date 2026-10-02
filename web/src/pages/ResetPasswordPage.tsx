@@ -11,6 +11,7 @@ import { Icon, PageHeader } from '../components/ui';
 import { AuthError } from '../lib/auth';
 import { validateEmail, validateNewPassword } from '../lib/validate';
 import { useAuth } from '../state/AuthContext';
+import { useT } from '../lib/i18n';
 
 const CODE = /^\d{6,10}$/;
 
@@ -22,6 +23,7 @@ function validateCode(v: string) {
 }
 
 export default function ResetPasswordPage() {
+  const t = useT();
   const auth = useAuth();
   const navigate = useNavigate();
   const carried = (useLocation().state as { email?: unknown } | null)?.email;
@@ -63,7 +65,7 @@ export default function ResetPasswordPage() {
       setCodeSent(true);
       setSubmitted(false);
       setNotice(
-        again ? `A new code is on its way to ${email.trim()}.` : `We sent a reset code to ${email.trim()}.`,
+        t(again ? 'A new code is on its way to {email}.' : 'We sent a reset code to {email}.', { email: email.trim() }),
       );
     });
 
@@ -88,8 +90,8 @@ export default function ResetPasswordPage() {
     <button
       type="button"
       onClick={() => setShowPassword((s) => !s)}
-      aria-label={showPassword ? 'Hide password' : 'Show password'}
-      title={showPassword ? 'Hide password' : 'Show password'}
+      aria-label={t(showPassword ? 'Hide password' : 'Show password')}
+      title={t(showPassword ? 'Hide password' : 'Show password')}
       className="p-2 rounded-full text-ink-muted hover:bg-tint"
     >
       <Icon name={showPassword ? 'visibility_off' : 'visibility'} size={20} />

@@ -18,6 +18,7 @@ import '../persona_theme.dart';
 import '../theme.dart';
 import '../warning_colors.dart';
 import '../warnings_client.dart';
+import '../i18n.dart';
 
 class AlertsPage extends StatefulWidget {
   const AlertsPage({super.key});
@@ -92,7 +93,7 @@ class _AlertsPageState extends State<AlertsPage> {
     final data = _data;
     final warning = data?['warning'] is Map<String, dynamic> ? data!['warning'] as Map<String, dynamic> : null;
     final prefs = UiPrefs.of(context);
-    final city = prefs.cityInfo.name;
+    final city = tr(context, prefs.cityInfo.name);
     final active =
         warning != null && (data!['status'] ?? (warning['colour'] == 'green' ? 'clear' : 'active')) == 'active';
 
@@ -133,8 +134,10 @@ class _AlertsPageState extends State<AlertsPage> {
                 Expanded(
                   child: Text(
                     warning != null
-                        ? 'No active alerts for $city.'
-                        : 'Alerts for $city will be listed here when the warnings feed has a verdict.',
+                        ? tr(context, 'No active alerts for {city}.', {'city': city})
+                        : tr(context, 'Alerts for {city} will be listed here when the warnings feed has a verdict.', {
+                            'city': city,
+                          }),
                     style: AppText.bodyMd.copyWith(color: t.inkMuted),
                   ),
                 ),
@@ -163,7 +166,7 @@ class _NoVerdict extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = PersonaTheme.of(context);
-    final cityName = data['city_name'] as String? ?? cityLabel(data['city'] as String?);
+    final cityName = tr(context, data['city_name'] as String? ?? cityLabel(data['city'] as String?));
     return AppCard(
       color: t.surfaceContainerLow,
       borderColor: t.outlineVariant,
@@ -179,7 +182,7 @@ class _NoVerdict extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'No warning verdict',
+                      tr(context, 'No warning verdict'),
                       style: AppText.labelMd.copyWith(color: t.ink, fontWeight: FontWeight.w700),
                     ),
                     Text(cityName, style: AppText.bodySm.copyWith(color: t.inkMuted)),
@@ -190,7 +193,11 @@ class _NoVerdict extends StatelessWidget {
           ),
           const SizedBox(height: AppSpace.sm),
           Text(
-            "Weather warnings aren't available right now for $cityName — this can't be read as an all-clear.",
+            tr(
+              context,
+              "Weather warnings aren't available right now for {city} — this can't be read as an all-clear.",
+              {'city': cityName},
+            ),
             style: AppText.bodyMd.copyWith(color: t.onSurface),
           ),
           const SizedBox(height: AppSpace.sm),
@@ -219,8 +226,10 @@ class _Verdict extends StatelessWidget {
     String s(String k) => w[k] is String ? w[k] as String : '';
     final category = s('category_label');
     final title = active
-        ? (category.isNotEmpty ? '$category Alert' : '${s('colour_label')} warning')
-        : 'No warnings in force';
+        ? (category.isNotEmpty
+              ? tr(context, '{category} Alert', {'category': category})
+              : tr(context, '{colour} warning', {'colour': s('colour_label')}))
+        : tr(context, 'No warnings in force');
     final disclaimer = disclaimerBanner(w);
 
     return AppCard(
@@ -252,7 +261,7 @@ class _Verdict extends StatelessWidget {
                           icon: Icons.location_on_outlined,
                         ),
                         if (s('colour_label').isNotEmpty)
-                          TagChip('${s('colour_label')}${active ? ' — in force' : ' — nothing in force'}'),
+                          TagChip('${s('colour_label')} — ${tr(context, active ? 'in force' : 'nothing in force')}'),
                       ],
                     ),
                     const SizedBox(height: AppSpace.sm),
@@ -283,7 +292,7 @@ class _Verdict extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          expanded ? 'Hide details' : 'View details',
+                          tr(context, expanded ? 'Hide details' : 'View details'),
                           style: AppText.labelMd.copyWith(color: t.primary, fontWeight: FontWeight.w600),
                         ),
                         const SizedBox(width: 4),
@@ -323,8 +332,13 @@ class _Verdict extends StatelessWidget {
                         Flexible(child: Text(s('issued_by'))),
                       ],
                     ),
-                    Text('Valid ${istTimestamp(s('valid_from'))} → ${istTimestamp(s('valid_to'))}'),
-                    Text('source: ${s('source')}', style: TextStyle(color: t.outline)),
+                    Text(
+                      tr(context, 'Valid {from} → {to}', {
+                        'from': istTimestamp(s('valid_from')),
+                        'to': istTimestamp(s('valid_to')),
+                      }),
+                    ),
+                    Text('${tr(context, 'source')}: ${s('source')}', style: TextStyle(color: t.outline)),
                   ],
                 ),
               ),
@@ -353,7 +367,7 @@ class _AlertRow extends StatelessWidget {
       iconColor: tone,
       title: category.isNotEmpty ? category : s('colour_label'),
       subtitle: data['city_name'] as String? ?? cityLabel(data['city'] as String?),
-      detail: s('valid_to').isEmpty ? null : 'Until ${istTimestamp(s('valid_to'))}',
+      detail: s('valid_to').isEmpty ? null : tr(context, 'Until {time}', {'time': istTimestamp(s('valid_to'))}),
       onTap: onTap,
     );
   }
@@ -374,14 +388,15 @@ class _SourceNote extends StatelessWidget {
             children: [
               Icon(Icons.verified_outlined, size: 18, color: t.primary),
               const SizedBox(width: AppSpace.sm),
-              Text('Source', style: AppText.labelMd.copyWith(fontWeight: FontWeight.w600)),
+              Text(tr(context, 'Source'), style: AppText.labelMd.copyWith(fontWeight: FontWeight.w600)),
             ],
           ),
           const SizedBox(height: AppSpace.sm),
           Text(
-            'The colour code and headline are the warning feed\'s own, shown verbatim — WeatherGPT '
-            'explains a colour, it never re-grades one. The source line on each verdict names the feed '
-            'that answered.',
+            tr(
+              context,
+              "The colour code and headline are the warning feed's own, shown verbatim — WeatherGPT explains a colour, it never re-grades one. The source line on each verdict names the feed that answered.",
+            ),
             style: AppText.bodySm.copyWith(color: t.onSurfaceVariant),
           ),
         ],

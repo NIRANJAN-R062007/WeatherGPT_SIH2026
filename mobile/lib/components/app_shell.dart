@@ -16,6 +16,7 @@ import '../pages/profile_page.dart';
 import '../persona_theme.dart';
 import '../state/auth_store.dart';
 import '../theme.dart';
+import '../i18n.dart';
 
 enum AppPage { home, chat, forecast, alerts, settings }
 
@@ -245,7 +246,7 @@ class _BottomTab extends StatelessWidget {
     return Semantics(
       selected: active,
       button: true,
-      label: item.label,
+      label: tr(context, item.label),
       excludeSemantics: true,
       child: InkResponse(
         onTap: onTap,
@@ -256,7 +257,7 @@ class _BottomTab extends StatelessWidget {
             Icon(active ? item.activeIcon : item.icon, size: 25, color: fg),
             const SizedBox(height: 3),
             Text(
-              item.shortLabel,
+              tr(context, item.shortLabel),
               style: AppText.bodySm.copyWith(
                 fontSize: 11,
                 height: 1.2,
@@ -337,7 +338,10 @@ class Sidebar extends StatelessWidget {
                     children: [
                       Text('WeatherGPT', style: AppText.headlineSm.copyWith(height: 1, letterSpacing: -0.45)),
                       const SizedBox(height: 2),
-                      Text('Your AI weather assistant', style: AppText.bodySm.copyWith(color: t.onSurfaceVariant)),
+                      Text(
+                        tr(context, 'Your AI weather assistant'),
+                        style: AppText.bodySm.copyWith(color: t.onSurfaceVariant),
+                      ),
                     ],
                   ),
                 ),
@@ -429,12 +433,12 @@ class _AccountCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        user?.displayName ?? 'Guest',
+                        user?.displayName ?? tr(context, 'Guest'),
                         overflow: TextOverflow.ellipsis,
                         style: AppText.labelMd.copyWith(color: t.ink, fontWeight: FontWeight.w700),
                       ),
                       Text(
-                        user?.email ?? 'Not signed in',
+                        user?.email ?? tr(context, 'Not signed in'),
                         overflow: TextOverflow.ellipsis,
                         style: AppText.bodySm.copyWith(color: t.inkMuted),
                       ),
@@ -479,7 +483,7 @@ class _NavTile extends StatelessWidget {
                 Icon(icon, size: 20, color: fg),
                 const SizedBox(width: AppSpace.sm),
                 Expanded(
-                  child: Text(label, style: AppText.labelMd.copyWith(color: fg)),
+                  child: Text(tr(context, label), style: AppText.labelMd.copyWith(color: fg)),
                 ),
               ],
             ),
@@ -510,7 +514,7 @@ class Topbar extends StatelessWidget {
             children: [
               if (showMenu)
                 IconButton(
-                  tooltip: 'Menu',
+                  tooltip: tr(context, 'Menu'),
                   icon: Icon(Icons.menu_rounded, color: t.ink),
                   onPressed: () => Scaffold.of(context).openDrawer(),
                 ),
@@ -524,7 +528,7 @@ class Topbar extends StatelessWidget {
                 ),
               ),
               IconButton(
-                tooltip: 'Alerts & Warnings',
+                tooltip: tr(context, 'Alerts & Warnings'),
                 icon: Icon(Icons.notifications_none_rounded, size: 24, color: t.ink),
                 onPressed: () => ShellNav.read(context).go(AppPage.alerts),
               ),
