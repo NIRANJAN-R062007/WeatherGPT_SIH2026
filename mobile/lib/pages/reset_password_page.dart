@@ -12,6 +12,7 @@ import '../persona_theme.dart';
 import '../state/auth_store.dart';
 import '../theme.dart';
 import 'auth_page.dart';
+import '../i18n.dart';
 
 class ResetPasswordPage extends StatefulWidget {
   final String initialEmail;
@@ -67,7 +68,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
       if (mounted) {
         setState(() {
           _codeSent = true;
-          _notice = 'We sent a reset code to ${_email.text.trim()}.';
+          _notice = tr(context, 'We sent a reset code to {email}.', {'email': _email.text.trim()});
         });
       }
     });
@@ -160,7 +161,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                 icon: Icons.lock_outline,
                 obscure: !_showPassword,
                 suffix: IconButton(
-                  tooltip: _showPassword ? 'Hide password' : 'Show password',
+                  tooltip: tr(context, _showPassword ? 'Hide password' : 'Show password'),
                   icon: Icon(
                     _showPassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
                     color: t.inkMuted,
@@ -199,7 +200,12 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                 final auth = AuthStore.read(context);
                 _run(() async {
                   await auth.sendPasswordReset(_email.text);
-                  if (mounted) setState(() => _notice = 'A new code is on its way to ${_email.text.trim()}.');
+                  if (mounted) {
+                    setState(
+                      () =>
+                          _notice = tr(context, 'A new code is on its way to {email}.', {'email': _email.text.trim()}),
+                    );
+                  }
                 });
               },
       ),

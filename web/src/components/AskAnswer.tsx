@@ -9,6 +9,7 @@ import type {
   WeatherProvenance,
 } from '../lib/api';
 import { COLOUR_BAR, COLOUR_TEXT, istTimestamp } from '../lib/warningUi';
+import { useT } from '../lib/i18n';
 
 /** Resolved city keys come back lowercase ("chennai"); data/cities.ts already
  *  mirrors data/cities.json, so use its English display name and only fall
@@ -54,6 +55,7 @@ function Chip({ children, tone = 'neutral' }: { children: ReactNode; tone?: 'neu
 }
 
 function WeatherProvenanceFooter({ p, g }: { p: WeatherProvenance; g: Grounding }) {
+  const t = useT();
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-space-xs border-t border-outline-variant/40 font-citation-mono text-citation-mono text-on-surface-variant">
       <span className="flex items-center gap-1">
@@ -67,27 +69,28 @@ function WeatherProvenanceFooter({ p, g }: { p: WeatherProvenance; g: Grounding 
             : 'px-1.5 py-0.5 rounded bg-surface-container-high text-on-surface-variant font-semibold'
         }
       >
-        {p.is_live ? 'LIVE' : 'NOT LIVE'}
+        {t(p.is_live ? 'LIVE' : 'NOT LIVE')}
       </span>
-      {p.issued && <span>Issued {istTimestamp(p.issued)}</span>}
-      <span>Retrieved {istTimestamp(p.retrieved_at)}</span>
+      {p.issued && <span>{t('Issued {time}', { time: istTimestamp(p.issued) })}</span>}
+      <span>{t('Retrieved {time}', { time: istTimestamp(p.retrieved_at) })}</span>
       <span className="text-outline">
         {g.narration} · {g.provider}
-        {g.attempts > 1 ? ` · ${g.attempts} attempts` : ''}
-        {g.fallback_used ? ' · fell back to template' : ''}
+        {g.attempts > 1 ? ` · ${t('{n} attempts', { n: g.attempts })}` : ''}
+        {g.fallback_used ? ` · ${t('fell back to template')}` : ''}
       </span>
     </div>
   );
 }
 
 function FigureList({ figures }: { figures: Grounding['figures'] }) {
+  const t = useT();
   if (figures.length === 0) return null;
   return (
     <div className="flex flex-wrap gap-1.5">
       {figures.map((f, i) => (
         <span
           key={`${f.reading}-${i}`}
-          title={f.matched ? `matched ${f.path ?? ''}` : 'no matching value in the source data'}
+          title={f.matched ? t('matched {path}', { path: f.path ?? '' }) : t('no matching value in the source data')}
           className={`flex items-center gap-1 px-2 py-0.5 rounded font-citation-mono text-citation-mono ${
             f.matched
               ? 'bg-secondary-container text-on-secondary-container'
@@ -146,6 +149,7 @@ export interface AskAnswerProps {
  *  treatment — in particular a refusal carries `message`, not `response`, and
  *  an unavailable warning is never shown as an all-clear. */
 export default function AskAnswer({ asked, loading, outcome, error, detail = false }: AskAnswerProps) {
+  const t = useT();
   if (!loading && !outcome && !error) return null;
 
   return (
@@ -160,7 +164,7 @@ export default function AskAnswer({ asked, loading, outcome, error, detail = fal
       {loading && (
         <div className="flex items-center gap-2 p-space-md rounded-xl bg-surface-container-low font-body-md text-body-md text-on-surface-variant">
           <span className="w-4 h-4 rounded-full border-2 border-outline-variant border-t-primary animate-spin" />
-          Grounding an answer against live weather data…
+          {t('Grounding an answer against live weather data…')}
         </div>
       )}
 
@@ -169,14 +173,16 @@ export default function AskAnswer({ asked, loading, outcome, error, detail = fal
           <div className="flex items-center gap-1.5 font-label-md text-label-md font-semibold">
             <span className="material-symbols-outlined text-[18px]">{ERROR_ICON[error.kind]}</span>
             {error.kind === 'http'
-              ? `Weather service error${error.status ? ` (HTTP ${error.status})` : ''}`
-              : error.kind === 'timeout'
-                ? 'Request timed out'
-                : error.kind === 'malformed'
-                  ? 'Unreadable reply'
-                  : 'Weather service unreachable'}
+              ? `${t('Weather service error')}${error.status ? ` (HTTP ${error.status})` : ''}`
+              : t(
+                  error.kind === 'timeout'
+                    ? 'Request timed out'
+                    : error.kind === 'malformed'
+                      ? 'Unreadable reply'
+                      : 'Weather service unreachable',
+                )}
           </div>
-          <p className="font-body-md text-body-md">{error.message}</p>
+          <p className="font-body-md text-body-md">{t(error.message)}</p>
         </div>
       )}
 
@@ -185,17 +191,23 @@ export default function AskAnswer({ asked, loading, outcome, error, detail = fal
           <div className="flex flex-wrap items-center gap-1.5">
             <span
               className="flex items-center gap-1 px-2 py-0.5 rounded bg-secondary-container text-on-secondary-container font-citation-mono text-[10px] font-bold"
-              title={`${outcome.data.grounding.matched} of ${outcome.data.grounding.total} figures matched the source data`}
+              title={t('{matched} of {total} figures matched the source data', {
+                matched: outcome.data.grounding.matched,
+                total: outcome.data.grounding.total,
+              })}
             >
               <span className="material-symbols-outlined text-[12px]">verified_user</span>
-              GROUNDED {outcome.data.grounding.matched}/{outcome.data.grounding.total}
+              {t('GROUNDED {matched}/{total}', {
+                matched: outcome.data.grounding.matched,
+                total: outcome.data.grounding.total,
+              })}
             </span>
-            <Chip tone="primary">{outcome.data.intent.replace(/_/g, ' ').toUpperCase()}</Chip>
+            <Chip tone="primary">{t(outcome.data.intent.replace(/_/g, ' ').toUpperCase())}</Chip>
             <Chip>
               <span className="material-symbols-outlined text-[11px] align-middle">location_on</span>{' '}
-              {cityLabel(outcome.data.city)}
+              {t(cityLabel(outcome.data.city))}
             </Chip>
-            <Chip>{dayLabel(outcome.data.day)}</Chip>
+            <Chip>{t(dayLabel(outcome.data.day))}</Chip>
           </div>
 
           {outcome.data.notice && <Notice text={outcome.data.notice} />}
@@ -221,7 +233,8 @@ export default function AskAnswer({ asked, loading, outcome, error, detail = fal
                 {outcome.data.status === 'active' ? 'warning' : 'check_circle'}
               </span>
               {outcome.data.warning.colour_label}
-              {outcome.data.status === 'active' ? ' — in force' : ' — nothing in force'}
+              {' — '}
+              {t(outcome.data.status === 'active' ? 'in force' : 'nothing in force')}
             </span>
             <Chip>
               <span className="material-symbols-outlined text-[11px] align-middle">location_on</span>{' '}
@@ -259,13 +272,17 @@ export default function AskAnswer({ asked, loading, outcome, error, detail = fal
                   : 'px-1.5 py-0.5 rounded bg-surface-container-high text-on-surface-variant font-semibold'
               }
             >
-              {outcome.data.provenance.is_live ? 'LIVE FEED' : 'FIXTURE'}
+              {t(outcome.data.provenance.is_live ? 'LIVE FEED' : 'FIXTURE')}
             </span>
             <span>
-              Valid {istTimestamp(outcome.data.provenance.valid_from)} →{' '}
-              {istTimestamp(outcome.data.provenance.valid_to)}
+              {t('Valid {from} → {to}', {
+                from: istTimestamp(outcome.data.provenance.valid_from),
+                to: istTimestamp(outcome.data.provenance.valid_to),
+              })}
             </span>
-            <span className="text-outline">verbatim · {outcome.data.grounding.provider}</span>
+            <span className="text-outline">
+              {t('verbatim')} · {outcome.data.grounding.provider}
+            </span>
           </div>
         </div>
       )}
@@ -276,13 +293,15 @@ export default function AskAnswer({ asked, loading, outcome, error, detail = fal
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="flex items-center gap-1 font-label-md text-label-md font-bold text-on-surface-variant">
               <span className="material-symbols-outlined text-[18px]">help</span>
-              No warning verdict
+              {t('No warning verdict')}
             </span>
             <Chip>
               <span className="material-symbols-outlined text-[11px] align-middle">location_on</span>{' '}
-              {cityLabel(outcome.data.city)}
+              {t(cityLabel(outcome.data.city))}
             </Chip>
-            <Chip>STATUS: {outcome.data.status.toUpperCase()}</Chip>
+            <Chip>
+              {t('STATUS')}: {t(outcome.data.status).toUpperCase()}
+            </Chip>
           </div>
 
           {outcome.data.notice && <Notice text={outcome.data.notice} />}
@@ -298,14 +317,17 @@ export default function AskAnswer({ asked, loading, outcome, error, detail = fal
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="flex items-center gap-1 font-label-md text-label-md font-bold text-on-error-container">
               <span className="material-symbols-outlined text-[18px]">gpp_maybe</span>
-              Answer withheld — not grounded
+              {t('Answer withheld — not grounded')}
             </span>
             <Chip>
               <span className="material-symbols-outlined text-[11px] align-middle">location_on</span>{' '}
-              {cityLabel(outcome.data.city)}
+              {t(cityLabel(outcome.data.city))}
             </Chip>
             <Chip>
-              {outcome.data.grounding.matched}/{outcome.data.grounding.total} figures matched
+              {t('{matched}/{total} figures matched', {
+                matched: outcome.data.grounding.matched,
+                total: outcome.data.grounding.total,
+              })}
             </Chip>
           </div>
 
@@ -327,21 +349,21 @@ export default function AskAnswer({ asked, loading, outcome, error, detail = fal
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="flex items-center gap-1 font-label-md text-label-md font-bold text-on-surface-variant">
               <span className="material-symbols-outlined text-[18px]">info</span>
-              No answer
+              {t('No answer')}
             </span>
-            <Chip tone="primary">{outcome.data.intent.replace(/_/g, ' ').toUpperCase()}</Chip>
+            <Chip tone="primary">{t(outcome.data.intent.replace(/_/g, ' ').toUpperCase())}</Chip>
             {/* Only the no_data branch carries a resolved city key. */}
             {outcome.data.city && (
               <Chip>
                 <span className="material-symbols-outlined text-[11px] align-middle">
                   location_on
                 </span>{' '}
-                {cityLabel(outcome.data.city)}
+                {t(cityLabel(outcome.data.city))}
               </Chip>
             )}
             {/* On unsupported_city the rejected name survives only in nlu.city. */}
             {!outcome.data.city && outcome.data.nlu.city && (
-              <Chip>asked about “{outcome.data.nlu.city}”</Chip>
+              <Chip>{t('asked about “{city}”', { city: outcome.data.nlu.city })}</Chip>
             )}
           </div>
 

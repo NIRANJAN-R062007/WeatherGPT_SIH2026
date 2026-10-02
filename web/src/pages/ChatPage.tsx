@@ -13,8 +13,10 @@ import { ActionRow, Icon, InfoBanner, PageHeader, RuleLabel, SectionTitle, Spinn
 import { question, questionTitle } from '../data/personas';
 import { useChat, type ChatTurn } from '../state/ChatContext';
 import { useUiPrefs } from '../state/UiPrefsContext';
+import { useT } from '../lib/i18n';
 
 function Composer() {
+  const t = useT();
   const { ask, loading } = useChat();
   const { personaInfo } = useUiPrefs();
   const [text, setText] = useState('');
@@ -33,16 +35,16 @@ function Composer() {
         <input
           className="flex-1 min-w-0 bg-transparent border-0 outline-none font-body-md text-body-md text-ink placeholder:text-outline py-2"
           onChange={(e) => setText(e.target.value)}
-          placeholder={personaInfo.askHint}
-          aria-label="Ask a question"
+          placeholder={t(personaInfo.askHint)}
+          aria-label={t('Ask a question')}
           type="text"
           value={text}
         />
         <button
           className="shrink-0 w-10 h-10 rounded-xl bg-accent-gradient text-on-primary flex items-center justify-center shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
           disabled={loading || text.trim() === ''}
-          aria-label="Send"
-          title="Send"
+          aria-label={t('Send')}
+          title={t('Send')}
           type="submit"
         >
           {loading ? (
@@ -90,7 +92,8 @@ export default function ChatPage() {
   const { turns, ask } = useChat();
   const { personaInfo: persona, cityInfo } = useUiPrefs();
   const end = useRef<HTMLDivElement>(null);
-  const city = cityInfo.name;
+  const t = useT();
+  const city = t(cityInfo.name);
   const navigate = useNavigate();
 
   // Keep the newest turn in view.
@@ -118,7 +121,7 @@ export default function ChatPage() {
         </div>
         <div className="flex flex-col gap-space-sm">
           {persona.suggestions.map((q) => (
-            <ActionRow key={q.template} icon={q.icon} title={questionTitle(q, city)} onClick={() => ask(question(q, city))} />
+            <ActionRow key={q.template} icon={q.icon} title={questionTitle(q, city, t)} onClick={() => ask(question(q, city, t))} />
           ))}
         </div>
       </PageFrame>
@@ -136,7 +139,7 @@ export default function ChatPage() {
         </div>
       }
     >
-      <h1 className="font-headline-md text-headline-md font-bold text-ink">Chat & Evidence</h1>
+      <h1 className="font-headline-md text-headline-md font-bold text-ink">{t('Chat & Evidence')}</h1>
       <div className="mt-space-sm mb-space-md">
         <RuleLabel icon="bolt" text="Live — answers come from /ask" />
       </div>

@@ -26,6 +26,7 @@ import { istDayMonth, istTime } from '../lib/format';
 import { clearHistory, fetchHistory, HistoryError, matchesFilter, type HistoryFilter, type HistoryRow } from '../lib/history';
 import { useAuth } from '../state/AuthContext';
 import { useChat } from '../state/ChatContext';
+import { useT } from '../lib/i18n';
 
 const FILTERS: { id: HistoryFilter; label: string }[] = [
   { id: 'all', label: 'All queries' },
@@ -36,13 +37,14 @@ const FILTERS: { id: HistoryFilter; label: string }[] = [
 const cityName = (key: string | null) => CITIES.find((c) => c.key === key)?.name ?? key ?? '';
 
 function HistoryCard({ row, onAskAgain }: { row: HistoryRow; onAskAgain: (q: string) => void }) {
+  const t = useT();
   const when = `${istDayMonth(row.created_at)}, ${istTime(row.created_at)}`;
   return (
     <AppCard pad="p-space-lg">
       <div className="flex items-start justify-between gap-2">
         <div className="flex flex-wrap items-center gap-1.5">
-          {row.city && <TagChip icon="location_on">{cityName(row.city)}</TagChip>}
-          {row.intent && <TagChip tone="primary">{row.intent.replace(/_/g, ' ').toUpperCase()}</TagChip>}
+          {row.city && <TagChip icon="location_on">{t(cityName(row.city))}</TagChip>}
+          {row.intent && <TagChip tone="primary">{t(row.intent.replace(/_/g, ' ').toUpperCase())}</TagChip>}
           {row.lang && row.lang !== 'en' && <TagChip>{row.lang.toUpperCase()}</TagChip>}
         </div>
         <span className="shrink-0 font-citation-mono text-citation-mono text-outline">{when}</span>
@@ -52,7 +54,7 @@ function HistoryCard({ row, onAskAgain }: { row: HistoryRow; onAskAgain: (q: str
         {row.response ? (
           <p className="font-body-md text-body-md text-ink">{row.response}</p>
         ) : (
-          <p className="font-body-md text-body-md text-ink-muted">No answer was recorded for this question.</p>
+          <p className="font-body-md text-body-md text-ink-muted">{t('No answer was recorded for this question.')}</p>
         )}
       </div>
       <div className="mt-space-md">
@@ -80,6 +82,7 @@ function GuestHistory() {
 }
 
 function SignedInHistory() {
+  const t = useT();
   const { getAccessToken, signOut } = useAuth();
   const { askInChat } = useChat();
   const [rows, setRows] = useState<HistoryRow[] | null>(null);
@@ -155,7 +158,7 @@ function SignedInHistory() {
         leading={<IconDisc icon="chat" solid />}
         title="No questions yet"
         subtitle="Ask something in Chat and it will show up here."
-        onClick={() => askInChat('What is the weather like today?')}
+        onClick={() => askInChat(t('What is the weather like today?'))}
       />
     );
   } else {
@@ -173,7 +176,7 @@ function SignedInHistory() {
                   filter === f.id ? 'bg-primary text-on-primary' : 'bg-tint text-primary hover:bg-tint-strong'
                 }`}
               >
-                {f.label}
+                {t(f.label)}
               </button>
             ))}
           </div>
@@ -184,13 +187,13 @@ function SignedInHistory() {
               type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search questions, answers, cities"
+              placeholder={t('Search questions, answers, cities')}
               className="w-full pl-10 pr-3 py-2.5 rounded-card bg-card border border-card-border font-body-md text-body-md text-ink placeholder:text-outline outline-none focus:border-primary focus:ring-1 focus:ring-primary"
             />
           </label>
         </div>
         <div className="mt-space-md mb-space-sm">
-          <SectionTitle text={`${shown.length} ${shown.length === 1 ? 'question' : 'questions'}`} />
+          <SectionTitle text={t(shown.length === 1 ? '{n} question' : '{n} questions', { n: shown.length })} />
         </div>
         {shown.length === 0 ? (
           <p className="font-body-md text-body-md text-ink-muted">Nothing matches that filter.</p>
@@ -206,11 +209,11 @@ function SignedInHistory() {
         </div>
         <Sheet open={confirming} onClose={() => !clearing && setConfirming(false)} title="Clear your history?">
           <p className="font-body-md text-body-md text-ink-muted">
-            This permanently erases every saved question and answer from your account. It can't be undone.
+            {t("This permanently erases every saved question and answer from your account. It can't be undone.")}
           </p>
           {clearError && (
             <p role="alert" className="mt-space-sm font-body-md text-body-md text-error">
-              {clearError}
+              {t(clearError)}
             </p>
           )}
           <div className="mt-space-lg flex justify-end gap-2">
@@ -220,7 +223,7 @@ function SignedInHistory() {
               onClick={() => setConfirming(false)}
               className="px-4 py-2 rounded-full font-label-md text-label-md font-semibold text-primary hover:bg-tint disabled:opacity-60"
             >
-              Cancel
+              {t('Cancel')}
             </button>
             <button
               type="button"
@@ -228,7 +231,7 @@ function SignedInHistory() {
               onClick={() => void clear()}
               className="px-4 py-2 rounded-full font-label-md text-label-md font-semibold text-error hover:bg-error-container disabled:opacity-60"
             >
-              {clearing ? 'Clearing…' : 'Clear history'}
+              {t(clearing ? 'Clearing…' : 'Clear history')}
             </button>
           </div>
         </Sheet>

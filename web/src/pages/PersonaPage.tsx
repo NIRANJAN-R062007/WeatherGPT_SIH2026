@@ -12,9 +12,11 @@ import { AppCard, Icon, IconDisc, PageHeader, SectionTitle } from '../components
 import { PERSONAS, type Persona } from '../data/personas';
 import { useUiPrefs } from '../state/UiPrefsContext';
 import { alpha, mix, personaThemeFor } from '../theme/personaTheme';
+import { useT } from '../lib/i18n';
 
 /** One persona, drawn in its own theme whatever the active persona is. */
 function PersonaCard({ persona: p, selected, onPick }: { persona: Persona; selected: boolean; onPick: () => void }) {
+  const tr = useT();
   const { isDark } = useUiPrefs();
   const t = personaThemeFor(p.id, isDark ? 'dark' : 'light');
   return (
@@ -53,10 +55,10 @@ function PersonaCard({ persona: p, selected, onPick }: { persona: Persona; selec
           </span>
           <span className="min-w-0">
             <span className="block font-headline-md text-headline-md font-bold" style={{ color: t.ink }}>
-              {p.label}
+              {tr(p.label)}
             </span>
             <span className="block mt-0.5 font-body-sm text-body-sm" style={{ color: t.inkMuted }}>
-              {p.tagline}
+              {tr(p.tagline)}
             </span>
           </span>
         </div>
@@ -77,7 +79,7 @@ function PersonaCard({ persona: p, selected, onPick }: { persona: Persona; selec
             style={{ background: t.tint, color: t.ink }}
           >
             <Icon name={f.icon} size={18} style={{ color: t.primary }} />
-            {f.label}
+            {tr(f.label)}
           </span>
         ))}
       </div>
@@ -87,22 +89,23 @@ function PersonaCard({ persona: p, selected, onPick }: { persona: Persona; selec
 
 /** "You're viewing the app as …" plus what that persona frames. */
 function YourPersona({ persona }: { persona: Persona }) {
+  const tr = useT();
   return (
     <AppCard wash>
       <div className="flex items-start gap-3">
         <IconDisc icon="verified_user" size={40} className="!bg-card" />
         <p className="font-body-md text-body-md text-ink-muted">
-          You're viewing the app as
+          {tr("You're viewing the app as")}
           <br />
-          <span className="font-headline-sm text-headline-sm font-bold text-ink">{persona.label}</span>
+          <span className="font-headline-sm text-headline-sm font-bold text-ink">{tr(persona.label)}</span>
         </p>
       </div>
-      <div className="mt-3 font-label-md text-label-md font-bold text-ink">What you get</div>
+      <div className="mt-3 font-label-md text-label-md font-bold text-ink">{tr('What you get')}</div>
       <ul className="mt-1.5 flex flex-col gap-1">
         {persona.features.map((f) => (
           <li key={f.label} className="flex items-center gap-2 font-body-md text-body-md text-ink">
             <Icon name="check" size={18} className="text-primary" />
-            {f.label}
+            {tr(f.label)}
           </li>
         ))}
       </ul>

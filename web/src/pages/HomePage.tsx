@@ -17,18 +17,20 @@ import { isNightIst, istHour, istTime, sentenceCase } from '../lib/format';
 import { useChat } from '../state/ChatContext';
 import { useUiPrefs } from '../state/UiPrefsContext';
 import { useWeather } from '../state/WeatherContext';
+import { useT, type T } from '../lib/i18n';
 
 /** "Good afternoon, Farmer!" — the persona's role, per the mockups. */
-function greeting(hour: number, role: string) {
-  const part = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
-  return `Good ${part}, ${role}!`;
+function greeting(t: T, hour: number, role: string) {
+  const text = hour < 12 ? 'Good morning, {role}!' : hour < 17 ? 'Good afternoon, {role}!' : 'Good evening, {role}!';
+  return t(text, { role: t(role) });
 }
 
 function Stat({ icon, label, value }: { icon: string; label: string; value: string }) {
+  const t = useT();
   return (
     <div className="flex items-center gap-1.5 font-body-sm text-body-sm">
       <Icon name={icon} size={15} className="text-ink-muted" />
-      <span className="flex-1 truncate text-ink-muted">{label}</span>
+      <span className="flex-1 truncate text-ink-muted">{t(label)}</span>
       <span className="font-semibold text-ink">{value}</span>
     </div>
   );
@@ -36,6 +38,7 @@ function Stat({ icon, label, value }: { icon: string; label: string; value: stri
 
 /** The big current-conditions card. */
 function NowCard() {
+  const t = useT();
   const weather = useWeather();
   const { cityInfo, toCelsiusLabel } = useUiPrefs();
   const c = weather.current;
@@ -51,11 +54,11 @@ function NowCard() {
       />
     );
   } else if (!c) {
-    body = <LoadingPanel text={`Loading live conditions for ${cityInfo.name}…`} />;
+    body = <LoadingPanel text={t('Loading live conditions for {city}…', { city: t(cityInfo.name) })} />;
   } else if (!c.facts) {
     body = (
       <p className="font-body-md text-body-md text-ink-muted">
-        {c.message ?? 'No current conditions for this city right now.'}
+        {c.message ?? t('No current conditions for this city right now.')}
       </p>
     );
   } else {
@@ -77,7 +80,7 @@ function NowCard() {
               {sentenceCase(c.condition_label)}
             </div>
             {feels !== null && (
-              <div className="font-body-sm text-body-sm text-ink-muted">Feels like {toCelsiusLabel(feels)}</div>
+              <div className="font-body-sm text-body-sm text-ink-muted">{t('Feels like {temp}', { temp: toCelsiusLabel(feels) })}</div>
             )}
           </div>
           <div className="w-px self-stretch my-1 bg-card-border" />
@@ -91,7 +94,7 @@ function NowCard() {
           <LiveBadge live={factIsLive(c)} />
           {issued && (
             <span className="truncate font-citation-mono text-citation-mono text-ink-muted">
-              Updated {istTime(issued)}
+              {t('Updated {time}', { time: istTime(issued) })}
             </span>
           )}
         </div>
@@ -102,12 +105,13 @@ function NowCard() {
 }
 
 function DayCell({ label, result, night = false }: { label: string; result: FactsResult | null; night?: boolean }) {
+  const t = useT();
   const { toCelsiusValue } = useUiPrefs();
   const high = factNumber(result, 'high_c');
   const low = factNumber(result, 'low_c');
   return (
     <div className="flex flex-col items-center gap-2 text-center">
-      <span className="font-label-md text-label-md font-semibold text-ink">{label}</span>
+      <span className="font-label-md text-label-md font-semibold text-ink">{t(label)}</span>
       <WeatherGlyph condition={factCondition(result)} night={night} size={34} />
       {!result?.facts ? (
         <span className="font-body-sm text-body-sm text-ink-muted">—</span>
@@ -115,7 +119,7 @@ function DayCell({ label, result, night = false }: { label: string; result: Fact
         // Tonight's high/low are the whole day's, so only the overnight low.
         <span className="font-body-sm text-body-sm text-ink-muted">
           {!night && high !== null && <span className="font-semibold text-ink">{toCelsiusValue(high)}° </span>}
-          {low !== null && (night ? `Low ${toCelsiusValue(low)}°` : ` ${toCelsiusValue(low)}°`)}
+          {low !== null && (night ? t('Low {temp}°', { temp: toCelsiusValue(low) }) : ` ${toCelsiusValue(low)}°`)}
         </span>
       )}
     </div>
@@ -124,12 +128,13 @@ function DayCell({ label, result, night = false }: { label: string; result: Fact
 
 /** Today / Tonight / Tomorrow in one card, like the mockup's day columns. */
 function OutlookStrip() {
+  const t = useT();
   const weather = useWeather();
   if (weather.error) {
     return (
       <AppCard>
         <p className="font-body-sm text-body-sm text-ink-muted">
-          The outlook will appear once the weather service answers.
+          {t('The outlook will appear once the weather service answers.')}
         </p>
       </AppCard>
     );
@@ -151,7 +156,8 @@ export default function HomePage() {
   const { askInChat } = useChat();
   const { cityInfo, personaInfo: persona } = useUiPrefs();
   const [hour, setHour] = useState(() => istHour());
-  const city = cityInfo.name;
+  const t = useT();
+  const city = t(cityInfo.name);
 
   useEffect(() => {
     const id = window.setInterval(() => setHour(istHour()), 60_000);
@@ -160,7 +166,7 @@ export default function HomePage() {
 
   const tiles: [string, string, () => void][] = [
     ['today', 'Today', () => navigate('/forecast')],
-    ['date_range', '5-Day', () => askInChat(`5-day forecast for ${city}`)],
+    ['date_range', '5-Day', () => askInChat(t('5-day forecast for {city}', { city }))],
     ['warning', 'Alerts', () => navigate('/alerts')],
     ['chat', 'Chat', () => navigate('/chat')],
   ];
@@ -170,8 +176,8 @@ export default function HomePage() {
       <div className="flex items-center gap-3">
         <button
           type="button"
-          title="Change persona"
-          aria-label="Change persona"
+          title={t('Change persona')}
+          aria-label={t('Change persona')}
           onClick={() => navigate('/persona')}
           className="rounded-full transition hover:scale-105"
         >
@@ -179,9 +185,9 @@ export default function HomePage() {
         </button>
         <div className="min-w-0">
           <h1 className="font-headline-sm text-headline-sm md:text-headline-md font-bold text-ink">
-            {greeting(hour, persona.role)}
+            {greeting(t, hour, persona.role)}
           </h1>
-          <p className="font-body-sm text-body-sm md:text-body-md text-ink-muted">{persona.homeLead}</p>
+          <p className="font-body-sm text-body-sm md:text-body-md text-ink-muted">{t(persona.homeLead)}</p>
         </div>
       </div>
 
@@ -193,7 +199,7 @@ export default function HomePage() {
               <AppCard key={label} pad="py-3" onClick={onClick}>
                 <span className="flex flex-col items-center gap-1.5">
                   <Icon name={icon} size={26} fill className="text-primary" />
-                  <span className="truncate font-label-md text-label-md font-semibold text-ink">{label}</span>
+                  <span className="truncate font-label-md text-label-md font-semibold text-ink">{t(label)}</span>
                 </span>
               </AppCard>
             ))}
@@ -215,8 +221,8 @@ export default function HomePage() {
             <ActionRow
               key={q.template}
               icon={q.icon}
-              title={questionTitle(q, city)}
-              onClick={() => askInChat(question(q, city))}
+              title={questionTitle(q, city, t)}
+              onClick={() => askInChat(question(q, city, t))}
             />
           ))}
         </div>

@@ -8,6 +8,7 @@ import '../location.dart';
 import '../state/ui_prefs.dart';
 import '../persona_theme.dart';
 import '../theme.dart';
+import '../i18n.dart';
 
 /// `bg-surface-container-lowest rounded-2xl shadow-sm` — the default card.
 class SurfaceCard extends StatelessWidget {
@@ -70,11 +71,11 @@ class SectionCard extends StatelessWidget {
           Row(children: [
             Icon(icon, size: 20, color: t.primary),
             const SizedBox(width: AppSpace.sm),
-            Expanded(child: Text(title, style: AppText.headlineSm)),
+            Expanded(child: Text(tr(context, title), style: AppText.headlineSm)),
           ]),
           if (subtitle != null) ...[
             const SizedBox(height: AppSpace.xs),
-            Text(subtitle!, style: AppText.bodySm.copyWith(color: t.onSurfaceVariant)),
+            Text(tr(context, subtitle!), style: AppText.bodySm.copyWith(color: t.onSurfaceVariant)),
           ],
           const SizedBox(height: AppSpace.md),
           ...children,
@@ -96,9 +97,9 @@ class PageHeader extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: AppText.headlineLg.copyWith(color: t.ink, fontWeight: FontWeight.w700)),
+        Text(tr(context, title), style: AppText.headlineLg.copyWith(color: t.ink, fontWeight: FontWeight.w700)),
         const SizedBox(height: AppSpace.xs),
-        Text(subtitle, style: AppText.bodyMd.copyWith(color: t.inkMuted)),
+        Text(tr(context, subtitle), style: AppText.bodyMd.copyWith(color: t.inkMuted)),
       ],
     );
   }
@@ -119,7 +120,7 @@ class RuleLabel extends StatelessWidget {
     return Row(children: [
       Icon(icon, size: 14, color: color),
       const SizedBox(width: AppSpace.sm),
-      Text(text.toUpperCase(), style: AppText.citationMono.copyWith(color: color, letterSpacing: 0.9)),
+      Text(tr(context, text).toUpperCase(), style: AppText.citationMono.copyWith(color: color, letterSpacing: 0.9)),
       const SizedBox(width: AppSpace.sm),
       Expanded(child: Container(height: 1, color: t.outlineVariant.withValues(alpha: 0.5))),
     ]);
@@ -134,7 +135,7 @@ class MonoLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Text(
-        text.toUpperCase(),
+        tr(context, text).toUpperCase(),
         style: AppText.citationMono.copyWith(color: color ?? PersonaTheme.of(context).onSurfaceVariant),
       );
 }
@@ -162,7 +163,7 @@ class TagChip extends StatelessWidget {
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         if (icon != null) ...[Icon(icon, size: 11, color: fg), const SizedBox(width: 3)],
         Flexible(
-          child: Text(label, style: AppText.chipMono.copyWith(color: fg), overflow: TextOverflow.ellipsis),
+          child: Text(tr(context, label), style: AppText.chipMono.copyWith(color: fg), overflow: TextOverflow.ellipsis),
         ),
       ]),
     );
@@ -192,7 +193,7 @@ class DisclaimerBanner extends StatelessWidget {
           child: Icon(Icons.science_outlined, size: 14, color: AppColors.onTertiaryFixed),
         ),
         const SizedBox(width: 6),
-        Expanded(child: Text(text, style: AppText.bodySm.copyWith(color: AppColors.onTertiaryFixed))),
+        Expanded(child: Text(tr(context, text), style: AppText.bodySm.copyWith(color: AppColors.onTertiaryFixed))),
       ]),
     );
   }
@@ -223,7 +224,7 @@ class LiveBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
       child: Text(
-        live ? liveText : notLiveText,
+        tr(context, live ? liveText : notLiveText),
         style: AppText.citationMono.copyWith(
           color: live ? AppColors.onSecondaryContainer : t.onSurfaceVariant,
           fontWeight: FontWeight.w600,
@@ -271,7 +272,7 @@ class LoadingPanel extends StatelessWidget {
       child: Row(children: [
         const InlineSpinner(),
         const SizedBox(width: AppSpace.sm),
-        Expanded(child: Text(text, style: AppText.bodyMd.copyWith(color: t.onSurfaceVariant))),
+        Expanded(child: Text(tr(context, text), style: AppText.bodyMd.copyWith(color: t.onSurfaceVariant))),
       ]),
     );
   }
@@ -301,13 +302,13 @@ class ErrorPanel extends StatelessWidget {
             const SizedBox(width: 6),
             Expanded(
               child: Text(
-                title,
+                tr(context, title),
                 style: AppText.labelMd.copyWith(color: AppColors.onErrorContainer, fontWeight: FontWeight.w600),
               ),
             ),
           ]),
           const SizedBox(height: AppSpace.xs),
-          Text(message, style: AppText.bodyMd.copyWith(color: AppColors.onErrorContainer)),
+          Text(tr(context, message), style: AppText.bodyMd.copyWith(color: AppColors.onErrorContainer)),
           if (onRetry != null) ...[
             const SizedBox(height: AppSpace.sm),
             PillButton(icon: Icons.refresh, label: 'Try again', onPressed: onRetry),
@@ -339,7 +340,7 @@ class PillButton extends StatelessWidget {
           child: Row(mainAxisSize: MainAxisSize.min, children: [
             Icon(icon, size: 18, color: t.onPrimaryFixed),
             const SizedBox(width: 6),
-            Text(label, style: AppText.labelMd.copyWith(color: t.onPrimaryFixed)),
+            Text(tr(context, label), style: AppText.labelMd.copyWith(color: t.onPrimaryFixed)),
           ]),
         ),
       ),
@@ -373,7 +374,7 @@ class CityHintRow extends StatelessWidget {
         Row(mainAxisSize: MainAxisSize.min, children: [
           Icon(icon, size: 14, color: t.onSurfaceVariant),
           const SizedBox(width: 6),
-          Text(prefix.toUpperCase(), style: mono),
+          Text(tr(context, prefix).toUpperCase(), style: mono),
         ]),
         Material(
           color: t.surfaceContainerLow,
@@ -384,7 +385,7 @@ class CityHintRow extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
               child: Row(mainAxisSize: MainAxisSize.min, children: [
-                Text(prefs.cityInfo.name, style: AppText.labelMd),
+                Text(tr(context, prefs.cityInfo.name), style: AppText.labelMd),
                 Icon(Icons.expand_more, size: 16, color: t.onSurfaceVariant),
               ]),
             ),
@@ -447,12 +448,12 @@ class _CityPickerSheetState extends State<_CityPickerSheet> {
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 0, 12, AppSpace.sm),
-              child: Text('Choose a city', style: AppText.headlineSm),
+              child: Text(tr(context, 'Choose a city'), style: AppText.headlineSm),
             ),
             _CityRow(
               icon: Icons.my_location,
-              label: 'Use my location',
-              detail: _locateError ?? 'Nearest supported city',
+              label: tr(context, 'Use my location'),
+              detail: tr(context, _locateError ?? 'Nearest supported city'),
               trailing: _locating ? const InlineSpinner() : null,
               onTap: _locating ? null : _useMyLocation,
             ),
@@ -463,7 +464,7 @@ class _CityPickerSheetState extends State<_CityPickerSheet> {
             for (final City c in kCities)
               _CityRow(
                 icon: c.key == prefs.city ? Icons.radio_button_checked : Icons.location_on_outlined,
-                label: '${c.name}, ${c.region}',
+                label: '${tr(context, c.name)}, ${tr(context, c.region)}',
                 active: c.key == prefs.city,
                 onTap: () {
                   prefs.city = c.key;

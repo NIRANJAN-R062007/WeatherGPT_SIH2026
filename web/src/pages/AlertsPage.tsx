@@ -23,19 +23,23 @@ import {
 import { useWarnings, type WarningsUnavailable, type WarningsVerdict } from '../lib/warnings';
 import { COLOUR_HEX, istTimestamp } from '../lib/warningUi';
 import { useUiPrefs } from '../state/UiPrefsContext';
+import { useT } from '../lib/i18n';
 
 function NoVerdict({ data }: { data: WarningsUnavailable }) {
+  const t = useT();
   return (
     <AppCard className="!bg-surface-container-low !border-outline-variant">
       <div className="flex items-center gap-3">
         <IconDisc icon="help" color="rgb(var(--c-on-surface-variant))" />
         <div>
-          <div className="font-label-md text-label-md font-bold text-ink">No warning verdict</div>
-          <div className="font-body-sm text-body-sm text-ink-muted">{data.city_name}</div>
+          <div className="font-label-md text-label-md font-bold text-ink">{t('No warning verdict')}</div>
+          <div className="font-body-sm text-body-sm text-ink-muted">{t(data.city_name)}</div>
         </div>
       </div>
       <p className="mt-space-sm font-body-md text-body-md text-on-surface">
-        Weather warnings aren't available right now for {data.city_name} — this can't be read as an all-clear.
+        {t("Weather warnings aren't available right now for {city} — this can't be read as an all-clear.", {
+          city: t(data.city_name),
+        })}
       </p>
       <div className="mt-space-sm">
         <Legend rows={data.legend} />
@@ -47,10 +51,15 @@ function NoVerdict({ data }: { data: WarningsUnavailable }) {
 /** The featured card: tinted by the feed's own colour, headline up front,
  *  the legend and provenance behind "View details". */
 function Verdict({ data, expanded, onToggle }: { data: WarningsVerdict; expanded: boolean; onToggle: () => void }) {
+  const t = useT();
   const w = data.warning;
   const tone = COLOUR_HEX[w.colour];
   const active = data.status === 'active';
-  const title = active ? (w.category_label ? `${w.category_label} Alert` : `${w.colour_label} warning`) : 'No warnings in force';
+  const title = active
+    ? w.category_label
+      ? t('{category} Alert', { category: w.category_label })
+      : t('{colour} warning', { colour: w.colour_label })
+    : t('No warnings in force');
   return (
     <AppCard
       style={{
@@ -68,8 +77,7 @@ function Verdict({ data, expanded, onToggle }: { data: WarningsVerdict; expanded
             <TagChip icon="location_on">{data.city_name}</TagChip>
             {w.colour_label && (
               <TagChip>
-                {w.colour_label}
-                {active ? ' — in force' : ' — nothing in force'}
+                {w.colour_label} — {t(active ? 'in force' : 'nothing in force')}
               </TagChip>
             )}
           </div>
@@ -88,7 +96,7 @@ function Verdict({ data, expanded, onToggle }: { data: WarningsVerdict; expanded
             aria-expanded={expanded}
             className="mt-space-sm inline-flex items-center gap-1 px-3.5 py-1.5 rounded-full bg-card font-label-md text-label-md font-semibold text-primary hover:bg-tint"
           >
-            {expanded ? 'Hide details' : 'View details'}
+            {t(expanded ? 'Hide details' : 'View details')}
             <Icon name={expanded ? 'expand_less' : 'arrow_forward'} size={16} />
           </button>
         </div>
@@ -102,10 +110,10 @@ function Verdict({ data, expanded, onToggle }: { data: WarningsVerdict; expanded
               <Icon name="campaign" size={12} />
               {w.issued_by}
             </span>
-            <span>
-              Valid {istTimestamp(w.valid_from)} → {istTimestamp(w.valid_to)}
+            <span>{t('Valid {from} → {to}', { from: istTimestamp(w.valid_from), to: istTimestamp(w.valid_to) })}</span>
+            <span className="text-outline">
+              {t('source')}: {w.source}
             </span>
-            <span className="text-outline">source: {w.source}</span>
           </div>
         </div>
       )}
@@ -114,6 +122,7 @@ function Verdict({ data, expanded, onToggle }: { data: WarningsVerdict; expanded
 }
 
 export default function AlertsPage() {
+  const t = useT();
   const { lang, city, cityInfo, personaInfo } = useUiPrefs();
   const { loading, data, error, load } = useWarnings();
   // Details stay open only for the city they were opened on.
@@ -158,7 +167,7 @@ export default function AlertsPage() {
           iconColor={COLOUR_HEX[verdict.warning.colour]}
           title={verdict.warning.category_label || verdict.warning.colour_label}
           subtitle={verdict.city_name}
-          detail={verdict.warning.valid_to ? `Until ${istTimestamp(verdict.warning.valid_to)}` : undefined}
+          detail={verdict.warning.valid_to ? t('Until {time}', { time: istTimestamp(verdict.warning.valid_to) }) : undefined}
           onClick={() => setExpanded(true)}
         />
       ) : (
@@ -167,8 +176,8 @@ export default function AlertsPage() {
             <IconDisc icon="notifications" size={36} />
             <p className="font-body-md text-body-md text-ink-muted">
               {verdict
-                ? `No active alerts for ${cityInfo.name}.`
-                : `Alerts for ${cityInfo.name} will be listed here when the warnings feed has a verdict.`}
+                ? t('No active alerts for {city}.', { city: t(cityInfo.name) })
+                : t('Alerts for {city} will be listed here when the warnings feed has a verdict.', { city: t(cityInfo.name) })}
             </p>
           </div>
         </AppCard>
@@ -185,11 +194,12 @@ export default function AlertsPage() {
         <AppCard>
           <div className="flex items-center gap-2">
             <Icon name="verified" size={18} className="text-primary" />
-            <span className="font-label-md text-label-md font-semibold text-ink">Source</span>
+            <span className="font-label-md text-label-md font-semibold text-ink">{t('Source')}</span>
           </div>
           <p className="mt-space-sm font-body-sm text-body-sm text-on-surface-variant">
-            The colour code and headline are the warning feed's own, shown verbatim — WeatherGPT explains a colour, it
-            never re-grades one. The source line on each verdict names the feed that answered.
+            {t(
+              "The colour code and headline are the warning feed's own, shown verbatim — WeatherGPT explains a colour, it never re-grades one. The source line on each verdict names the feed that answered.",
+            )}
           </p>
         </AppCard>
       </div>

@@ -11,7 +11,6 @@
 // ResetPasswordPage.
 import { useMemo, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { BrandMark } from '../components/Brand';
 import { FormMessage } from '../components/forms';
 import {
   ONB_DARK,
@@ -110,7 +109,24 @@ function BlueButton({
   );
 }
 
-/** "WeatherGPT!" set as text, the "!" in the accent blue. */
+/** The logo mark: the saved pics/ logos (weathergpt-logo-light.svg for
+ *  light, weathergpt-logo-original.svg for dark) without their
+ *  "WeatherGPT" text. */
+function Logo({ size }: { size: number }) {
+  const p = usePalette();
+  return (
+    <img
+      src={`${import.meta.env.BASE_URL}brand/weathergpt-onboarding-${p.isDark ? 'dark' : 'light'}.svg`}
+      alt=""
+      width={size}
+      height={size}
+      className="shrink-0 select-none"
+      draggable={false}
+    />
+  );
+}
+
+/** "WeatherGPT!" set as text, the "!" black on light and white on dark. */
 function Wordmark({ size, suffix = '!' }: { size: number; suffix?: string }) {
   const p = usePalette();
   return (
@@ -119,7 +135,7 @@ function Wordmark({ size, suffix = '!' }: { size: number; suffix?: string }) {
       style={{ fontSize: size, color: p.ink }}
     >
       WeatherGPT
-      {suffix && <span style={{ color: suffix === '!' ? p.accent : p.ink }}>{suffix}</span>}
+      {suffix && <span style={{ color: suffix === '!' ? (p.isDark ? '#FFFFFF' : '#000000') : p.ink }}>{suffix}</span>}
     </span>
   );
 }
@@ -148,7 +164,7 @@ export function LanguagePage() {
       <main className="relative mx-auto max-w-[460px] px-6 pb-[140px]">
         <TopBar s={s} />
         <div className="flex flex-col items-center">
-          <BrandMark size={84} />
+          <Logo size={84} />
           <div className="mt-1.5">
             <Wordmark size={30} />
           </div>
@@ -309,7 +325,7 @@ export function WelcomeLoginPage() {
           <div className="relative px-4">
             <TopBar s={s} onBack={() => navigate('/')} />
             <div className="flex flex-col items-center">
-              <BrandMark size={76} />
+              <Logo size={76} />
               <WelcomeTitle s={s} />
             </div>
           </div>

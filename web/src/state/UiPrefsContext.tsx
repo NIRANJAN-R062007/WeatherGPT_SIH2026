@@ -52,15 +52,18 @@ interface UiPrefs {
 
 const UiPrefsCtx = createContext<UiPrefs | null>(null);
 
-// Persona and appearance survive a reload (a theme that resets on every
-// refresh would flash the wrong colours); per-browser only, and the app
-// works the same when storage is blocked.
+// Persona, appearance and language survive a reload (a theme that resets on
+// every refresh would flash the wrong colours, and the language picked on
+// the Languages page must stay the app's language); per-browser only, and
+// the app works the same when storage is blocked.
 const STORE_KEY = 'weathergpt.prefs';
 
-function readStored(): { persona?: string; appearance?: Appearance } {
+type Stored = { persona?: string; appearance?: Appearance; lang?: LangCode };
+
+function readStored(): Stored {
   try {
     const raw = localStorage.getItem(STORE_KEY);
-    return raw ? (JSON.parse(raw) as { persona?: string; appearance?: Appearance }) : {};
+    return raw ? (JSON.parse(raw) as Stored) : {};
   } catch {
     return {};
   }
@@ -70,11 +73,11 @@ function systemDark() {
   return typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: dark)').matches === true;
 }
 
-// Language, unit and city are in-memory, as before. The persona picks the
-// palette; Appearance picks its light or dark twin.
+// Unit and city are in-memory, as before. The persona picks the palette;
+// Appearance picks its light or dark twin.
 export function UiPrefsProvider({ children }: { children: ReactNode }) {
   const [stored] = useState(readStored);
-  const [lang, setLang] = useState<LangCode>('en');
+  const [lang, setLang] = useState<LangCode>(() => (stored.lang && stored.lang in LANG_LABELS ? stored.lang : 'en'));
   const [unit, setUnit] = useState<Unit>('C');
   const [city, setCity] = useState('chennai');
   const [persona, setPersona] = useState(() => personaById(stored.persona ?? 'general').id);
@@ -91,11 +94,11 @@ export function UiPrefsProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     try {
-      localStorage.setItem(STORE_KEY, JSON.stringify({ persona, appearance }));
+      localStorage.setItem(STORE_KEY, JSON.stringify({ persona, appearance, lang }));
     } catch {
       // Not remembered — the defaults come back next visit.
     }
-  }, [persona, appearance]);
+  }, [persona, appearance, lang]);
 
   const isDark = appearance === 'dark' || (appearance === 'system' && prefersDark);
   const theme = personaThemeFor(persona, isDark ? 'dark' : 'light');

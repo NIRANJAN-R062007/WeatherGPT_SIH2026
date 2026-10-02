@@ -3,6 +3,7 @@
 // mockups). The persona only reframes /ask's narration and picks the
 // app-wide theme (src/theme/personaTheme.ts); the facts never change.
 // Icons are Material Symbols names.
+import type { T } from '../lib/i18n';
 
 /** One of a persona card's four focus chips. */
 export interface PersonaFeature {
@@ -21,9 +22,9 @@ export interface PersonaQuestion {
   label?: string;
 }
 
-export const question = (q: PersonaQuestion, city: string) => q.template.replaceAll('{city}', city);
-export const questionTitle = (q: PersonaQuestion, city: string) =>
-  (q.label ?? q.template).replaceAll('{city}', city);
+/** The question in the app language (`t` from useT), for `city`. */
+export const question = (q: PersonaQuestion, city: string, t: T) => t(q.template, { city });
+export const questionTitle = (q: PersonaQuestion, city: string, t: T) => t(q.label ?? q.template, { city });
 
 export interface Persona {
   id: string;

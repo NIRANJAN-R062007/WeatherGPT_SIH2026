@@ -21,15 +21,16 @@ import '../state/weather_store.dart';
 import '../persona_theme.dart';
 import '../theme.dart';
 import 'persona_page.dart';
+import '../i18n.dart';
 
 /// "Good afternoon, Farmer!" — the persona's role, per the mockups.
-String _greeting(DateTime ist, String role) {
-  final part = ist.hour < 12
-      ? 'morning'
+String _greeting(BuildContext context, DateTime ist, String role) {
+  final greeting = ist.hour < 12
+      ? 'Good morning, {role}!'
       : ist.hour < 17
-      ? 'afternoon'
-      : 'evening';
-  return 'Good $part, $role!';
+      ? 'Good afternoon, {role}!'
+      : 'Good evening, {role}!';
+  return tr(context, greeting, {'role': tr(context, role)});
 }
 
 class HomePage extends StatefulWidget {
@@ -60,21 +61,21 @@ class _HomePageState extends State<HomePage> {
     final weather = WeatherStore.of(context);
     final nav = ShellNav.of(context);
     final prefs = UiPrefs.of(context);
-    final city = prefs.cityInfo.name;
+    final city = tr(context, prefs.cityInfo.name);
     final persona = prefs.personaInfo;
 
     return PageFrame(
       onRefresh: weather.refresh,
       footer: SceneryFooter.none,
       children: [
-        _Greeting(text: _greeting(_now, persona.role), lead: persona.homeLead),
+        _Greeting(text: _greeting(context, _now, persona.role), lead: tr(context, persona.homeLead)),
         const SizedBox(height: AppSpace.md),
         _NowCard(weather: weather),
         const SizedBox(height: 12),
         _QuickTiles(
           tiles: [
             (Icons.today, 'Today', () => nav.go(AppPage.forecast)),
-            (Icons.date_range, '5-Day', () => nav.ask('5-day forecast for $city')),
+            (Icons.date_range, '5-Day', () => nav.ask(tr(context, '5-day forecast for {city}', {'city': city}))),
             (Icons.warning_rounded, 'Alerts', () => nav.go(AppPage.alerts)),
             (Icons.chat_rounded, 'Chat', () => nav.go(AppPage.chat)),
           ],
@@ -89,7 +90,11 @@ class _HomePageState extends State<HomePage> {
         const SectionTitle('Quick Actions'),
         const SizedBox(height: AppSpace.sm),
         for (final q in persona.quickActions) ...[
-          ActionRow(icon: q.icon, title: q.title(city), onTap: () => nav.ask(q.question(city))),
+          ActionRow(
+            icon: q.icon,
+            title: tr(context, q.label ?? q.template, {'city': city}),
+            onTap: () => nav.ask(tr(context, q.template, {'city': city})),
+          ),
           const SizedBox(height: AppSpace.sm),
         ],
       ],
@@ -118,7 +123,7 @@ class _QuickTiles extends StatelessWidget {
                   Icon(icon, size: 26, color: t.primary),
                   const SizedBox(height: 6),
                   Text(
-                    label,
+                    tr(context, label),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: AppText.labelMd.copyWith(color: t.ink, fontWeight: FontWeight.w600),
@@ -171,7 +176,7 @@ class _Greeting extends StatelessWidget {
     return Row(
       children: [
         Tooltip(
-          message: 'Change persona',
+          message: tr(context, 'Change persona'),
           child: InkWell(
             customBorder: const CircleBorder(),
             onTap: () => openPersonaPicker(context),
@@ -216,10 +221,12 @@ class _NowCard extends StatelessWidget {
         onRetry: weather.refresh,
       );
     } else if (c == null) {
-      body = LoadingPanel('Loading live conditions for ${prefs.cityInfo.name}…');
+      body = LoadingPanel(
+        tr(context, 'Loading live conditions for {city}…', {'city': tr(context, prefs.cityInfo.name)}),
+      );
     } else if (!c.hasData) {
       body = Text(
-        c.message ?? 'No current conditions for this city right now.',
+        c.message ?? tr(context, 'No current conditions for this city right now.'),
         style: AppText.bodyMd.copyWith(color: t.inkMuted),
       );
     } else {
@@ -273,7 +280,10 @@ class _NowBody extends StatelessWidget {
                     style: AppText.bodyMd.copyWith(color: t.inkMuted),
                   ),
                   if (feels != null)
-                    Text('Feels like ${prefs.tempLabel(feels)}', style: AppText.bodySm.copyWith(color: t.inkMuted)),
+                    Text(
+                      tr(context, 'Feels like {temp}', {'temp': prefs.tempLabel(feels)}),
+                      style: AppText.bodySm.copyWith(color: t.inkMuted),
+                    ),
                 ],
               ),
             ),
@@ -301,7 +311,7 @@ class _NowBody extends StatelessWidget {
             if (c.issued != null)
               Expanded(
                 child: Text(
-                  'Updated ${istTime(c.issued)}',
+                  tr(context, 'Updated {time}', {'time': istTime(c.issued)}),
                   overflow: TextOverflow.ellipsis,
                   style: AppText.citationMono.copyWith(color: t.inkMuted),
                 ),
@@ -328,7 +338,7 @@ class _Stat extends StatelessWidget {
         const SizedBox(width: 5),
         Expanded(
           child: Text(
-            label,
+            tr(context, label),
             overflow: TextOverflow.ellipsis,
             style: AppText.bodySm.copyWith(color: t.inkMuted),
           ),
@@ -353,7 +363,7 @@ class _OutlookStrip extends StatelessWidget {
     if (weather.error != null) {
       return AppCard(
         child: Text(
-          'The outlook will appear once the weather service answers.',
+          tr(context, 'The outlook will appear once the weather service answers.'),
           style: AppText.bodySm.copyWith(color: t.inkMuted),
         ),
       );
@@ -396,7 +406,7 @@ class _DayCell extends StatelessWidget {
     return Column(
       children: [
         Text(
-          label,
+          tr(context, label),
           style: AppText.labelMd.copyWith(color: t.ink, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 8),
@@ -414,7 +424,8 @@ class _DayCell extends StatelessWidget {
                     text: '${prefs.temp(high)}°  ',
                     style: TextStyle(color: t.ink, fontWeight: FontWeight.w600),
                   ),
-                if (low != null) TextSpan(text: night ? 'Low ${prefs.temp(low)}°' : '${prefs.temp(low)}°'),
+                if (low != null)
+                  TextSpan(text: night ? tr(context, 'Low {temp}°', {'temp': prefs.temp(low)}) : '${prefs.temp(low)}°'),
               ],
             ),
             style: muted,

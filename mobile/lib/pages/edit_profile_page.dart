@@ -11,6 +11,7 @@ import '../components/scenery.dart';
 import '../state/auth_store.dart';
 import '../theme.dart';
 import 'auth_page.dart';
+import '../i18n.dart';
 
 class EditProfilePage extends StatefulWidget {
   final AuthUser user;
@@ -43,6 +44,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     final auth = AuthStore.read(context);
     final navigator = Navigator.of(context);
     final messenger = ScaffoldMessenger.of(context);
+    final saved = tr(context, 'Profile saved.');
     setState(() {
       _busy = true;
       _error = null;
@@ -54,7 +56,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
         occupation: _occupation.text,
       );
       navigator.pop();
-      messenger.showSnackBar(const SnackBar(content: Text('Profile saved.')));
+      messenger.showSnackBar(SnackBar(content: Text(saved)));
     } on AuthError catch (e) {
       if (mounted) setState(() => _error = e.message);
     } finally {

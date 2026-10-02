@@ -13,6 +13,7 @@ import '../persona_theme.dart';
 import '../theme.dart';
 import '../warning_colors.dart';
 import 'common.dart';
+import '../i18n.dart';
 
 class AskAnswer extends StatelessWidget {
   final String? asked;
@@ -60,7 +61,7 @@ class AskAnswer extends StatelessWidget {
             ),
           ]),
         if (loading) const LoadingPanel('Grounding an answer against live weather data…'),
-        if (error != null) _errorPanel(error!),
+        if (error != null) _errorPanel(context, error!),
         if (o != null)
           switch (o.kind) {
             AskKind.success => _Success(o.data, detail: detail, playbackLang: playbackLang),
@@ -73,9 +74,12 @@ class AskAnswer extends StatelessWidget {
     );
   }
 
-  static Widget _errorPanel(AskError e) {
+  static Widget _errorPanel(BuildContext context, AskError e) {
     final (icon, title) = switch (e.kind) {
-      AskErrorKind.http => (Icons.error_outline, 'Weather service error${e.status != null ? ' (HTTP ${e.status})' : ''}'),
+      AskErrorKind.http => (
+          Icons.error_outline,
+          '${tr(context, 'Weather service error')}${e.status != null ? ' (HTTP ${e.status})' : ''}',
+        ),
       AskErrorKind.timeout => (Icons.timer_off_outlined, 'Request timed out'),
       AskErrorKind.malformed => (Icons.report_outlined, 'Unreadable reply'),
       AskErrorKind.network => (Icons.wifi_off, 'Weather service unreachable'),
@@ -149,7 +153,7 @@ class _StatusTitle extends StatelessWidget {
       Icon(icon, size: 18, color: color),
       const SizedBox(width: 4),
       Flexible(
-        child: Text(text, style: AppText.labelMd.copyWith(color: color, fontWeight: FontWeight.w700)),
+        child: Text(tr(context, text), style: AppText.labelMd.copyWith(color: color, fontWeight: FontWeight.w700)),
       ),
     ]);
   }
@@ -193,7 +197,7 @@ class _GroundedBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Tooltip(
-      message: '$matched of $total figures matched the source data',
+      message: tr(context, '{matched} of {total} figures matched the source data', {'matched': matched, 'total': total}),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
         decoration: BoxDecoration(
@@ -204,7 +208,7 @@ class _GroundedBadge extends StatelessWidget {
           const Icon(Icons.verified_user_outlined, size: 12, color: AppColors.onSecondaryContainer),
           const SizedBox(width: 4),
           Text(
-            'GROUNDED $matched/$total',
+            tr(context, 'GROUNDED {matched}/{total}', {'matched': matched, 'total': total}),
             style: AppText.chipMono.copyWith(color: AppColors.onSecondaryContainer, fontWeight: FontWeight.w700),
           ),
         ]),
@@ -265,12 +269,12 @@ class _WeatherProvenance extends StatelessWidget {
     return _Footer([
       _IconText(Icons.storage, _str(p['source'])),
       LiveBadge(live: p['is_live'] == true),
-      if (issued is String && issued.isNotEmpty) Text('Issued ${istTimestamp(issued)}'),
-      if (p['retrieved_at'] is String) Text('Retrieved ${istTimestamp(p['retrieved_at'] as String)}'),
+      if (issued is String && issued.isNotEmpty) Text(tr(context, 'Issued {time}', {'time': istTimestamp(issued)})),
+      if (p['retrieved_at'] is String) Text(tr(context, 'Retrieved {time}', {'time': istTimestamp(p['retrieved_at'] as String)})),
       Text(
         '${_str(g['narration'])} · ${_str(g['provider'])}'
-        '${attempts > 1 ? ' · $attempts attempts' : ''}'
-        '${g['fallback_used'] == true ? ' · fell back to template' : ''}',
+        '${attempts > 1 ? ' · ${tr(context, '{n} attempts', {'n': attempts})}' : ''}'
+        '${g['fallback_used'] == true ? ' · ${tr(context, 'fell back to template')}' : ''}',
         style: TextStyle(color: t.outline),
       ),
     ]);
@@ -291,8 +295,8 @@ class _FigureList extends StatelessWidget {
       for (final f in list)
         Tooltip(
           message: f['matched'] == true
-              ? 'matched ${_str(f['path'])}'
-              : 'no matching value in the source data',
+              ? tr(context, 'matched {path}', {'path': _str(f['path'])})
+              : tr(context, 'no matching value in the source data'),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
             decoration: BoxDecoration(
@@ -434,7 +438,7 @@ class _Warnings extends StatelessWidget {
         chips: [
           _StatusTitle(
             active ? Icons.warning_amber : Icons.check_circle_outline,
-            '${_str(w['colour_label'])}${active ? ' — in force' : ' — nothing in force'}',
+            '${_str(w['colour_label'])} — ${tr(context, active ? 'in force' : 'nothing in force')}',
             warningColor(colour),
           ),
           TagChip(_str(w['district']), icon: Icons.location_on_outlined),
@@ -450,9 +454,11 @@ class _Warnings extends StatelessWidget {
       _Footer([
         _IconText(Icons.campaign_outlined, _str(p['issued_by'] ?? w['issued_by'])),
         LiveBadge(live: p['is_live'] == true, liveText: 'LIVE FEED', notLiveText: 'FIXTURE'),
-        Text('Valid ${istTimestamp(_str(p['valid_from'] ?? w['valid_from']))} → '
-            '${istTimestamp(_str(p['valid_to'] ?? w['valid_to']))}'),
-        Text('verbatim · ${_str(g['provider'])}', style: TextStyle(color: t.outline)),
+        Text(tr(context, 'Valid {from} → {to}', {
+          'from': istTimestamp(_str(p['valid_from'] ?? w['valid_from'])),
+          'to': istTimestamp(_str(p['valid_to'] ?? w['valid_to'])),
+        })),
+        Text('${tr(context, 'verbatim')} · ${_str(g['provider'])}', style: TextStyle(color: t.outline)),
       ]),
     ]);
   }
@@ -471,7 +477,7 @@ class _WarningsUnavailable extends StatelessWidget {
       Wrap(spacing: 6, runSpacing: 6, crossAxisAlignment: WrapCrossAlignment.center, children: [
         _StatusTitle(Icons.help_outline, 'No warning verdict', t.onSurfaceVariant),
         TagChip(cityLabel(data['city'] as String?), icon: Icons.location_on_outlined),
-        TagChip('STATUS: ${_str(data['status'] ?? 'unavailable').toUpperCase()}'),
+        TagChip('${tr(context, 'STATUS')}: ${tr(context, _str(data['status'] ?? 'unavailable')).toUpperCase()}'),
       ]),
       ?_notice(data),
       Text(_str(data['message']), style: AppText.bodyMd.copyWith(color: t.onSurface)),
@@ -492,7 +498,7 @@ class _Ungrounded extends StatelessWidget {
       Wrap(spacing: 6, runSpacing: 6, crossAxisAlignment: WrapCrossAlignment.center, children: [
         const _StatusTitle(Icons.gpp_maybe_outlined, 'Answer withheld — not grounded', AppColors.onErrorContainer),
         TagChip(cityLabel(data['city'] as String?), icon: Icons.location_on_outlined),
-        TagChip('${_int(g['matched'])}/${_int(g['total'])} figures matched'),
+        TagChip(tr(context, '{matched}/{total} figures matched', {'matched': _int(g['matched']), 'total': _int(g['total'])})),
       ]),
       ?_notice(data),
       Text(_str(data['message']), style: AppText.bodyMd.copyWith(color: AppColors.onErrorContainer)),
@@ -529,7 +535,7 @@ class _Fallback extends StatelessWidget {
         if (city != null && city.isNotEmpty)
           TagChip(cityLabel(city), icon: Icons.location_on_outlined)
         else if (nluCity != null && nluCity.isNotEmpty)
-          TagChip('asked about “$nluCity”'),
+          TagChip(tr(context, 'asked about “{city}”', {'city': nluCity})),
       ]),
       ?_notice(data),
       Text(_str(data['message']), style: AppText.bodyMd.copyWith(color: t.onSurface)),

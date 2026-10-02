@@ -6,6 +6,7 @@
 // (tailwind.config.js), so these re-tint with the persona and appearance.
 import { useEffect, type CSSProperties, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { useT } from '../lib/i18n';
 
 export function Icon({
   name,
@@ -76,16 +77,17 @@ export function AppCard({
 
 /** "Quick Actions", "Active Alerts" — with an optional trailing link. */
 export function SectionTitle({ text, action, onAction }: { text: string; action?: string; onAction?: () => void }) {
+  const t = useT();
   return (
     <div className="flex items-center gap-2">
-      <h2 className="flex-1 font-headline-sm text-headline-sm font-bold text-ink">{text}</h2>
+      <h2 className="flex-1 font-headline-sm text-headline-sm font-bold text-ink">{t(text)}</h2>
       {action && (
         <button
           type="button"
           onClick={onAction}
           className="px-1.5 py-1 rounded-lg font-label-md text-label-md font-semibold text-primary hover:bg-tint"
         >
-          {action}
+          {t(action)}
         </button>
       )}
     </div>
@@ -153,6 +155,7 @@ export function ActionRow({
   /** Replaces the chevron; `null` shows nothing. */
   trailing?: ReactNode | null;
 }) {
+  const t = useT();
   const lead =
     leading ??
     (plainIcon ? (
@@ -169,10 +172,10 @@ export function ActionRow({
           {lead}
           <div className="flex-1 min-w-0">
             <div className={`font-label-md text-label-md text-ink ${subtitle ? 'font-semibold' : 'font-medium'}`}>
-              {title}
+              {t(title)}
             </div>
-            {subtitle && <div className="font-body-sm text-body-sm text-ink-muted mt-px">{subtitle}</div>}
-            {detail && <div className="font-body-sm text-body-sm text-ink-muted">{detail}</div>}
+            {subtitle && <div className="font-body-sm text-body-sm text-ink-muted mt-px">{t(subtitle)}</div>}
+            {detail && <div className="font-body-sm text-body-sm text-ink-muted">{t(detail)}</div>}
           </div>
           {trailing === undefined ? <Icon name="chevron_right" size={20} className="text-ink-muted" /> : trailing}
         </div>
@@ -193,12 +196,13 @@ export function InfoBanner({
   body?: string;
   onClick?: () => void;
 }) {
+  const t = useT();
   const inner = (
     <>
       <IconDisc icon={icon} solid size={32} />
       <span className="flex-1 min-w-0 text-left">
-        <span className="block font-label-md text-label-md font-semibold text-ink">{title}</span>
-        {body && <span className="block font-body-sm text-body-sm text-ink-muted">{body}</span>}
+        <span className="block font-label-md text-label-md font-semibold text-ink">{t(title)}</span>
+        {body && <span className="block font-body-sm text-body-sm text-ink-muted">{t(body)}</span>}
       </span>
       {onClick && <Icon name="chevron_right" size={20} className="text-primary" />}
     </>
@@ -215,10 +219,11 @@ export function InfoBanner({
 
 /** The page title + lead line each page's sheet opens with. */
 export function PageHeader({ title, subtitle }: { title: string; subtitle?: string }) {
+  const t = useT();
   return (
     <div>
-      <h1 className="font-headline-lg text-headline-lg-mobile md:text-headline-lg font-bold text-ink">{title}</h1>
-      {subtitle && <p className="mt-space-xs font-body-md text-body-md text-ink-muted">{subtitle}</p>}
+      <h1 className="font-headline-lg text-headline-lg-mobile md:text-headline-lg font-bold text-ink">{t(title)}</h1>
+      {subtitle && <p className="mt-space-xs font-body-md text-body-md text-ink-muted">{t(subtitle)}</p>}
     </div>
   );
 }
@@ -226,10 +231,11 @@ export function PageHeader({ title, subtitle }: { title: string; subtitle?: stri
 /** `font-citation-mono uppercase` label with a trailing rule —
  *  "⚡ LIVE — ANSWERS COME FROM /ASK ────". */
 export function RuleLabel({ icon, text }: { icon: string; text: string }) {
+  const t = useT();
   return (
     <div className="flex items-center gap-2 font-citation-mono text-citation-mono text-primary uppercase tracking-wider">
       <Icon name={icon} size={14} />
-      <span>{text}</span>
+      <span>{t(text)}</span>
       <span className="flex-1 h-px bg-outline-variant/50" />
     </div>
   );
@@ -237,6 +243,7 @@ export function RuleLabel({ icon, text }: { icon: string; text: string }) {
 
 /** AskAnswer.tsx's chip: `px-2 py-0.5 rounded-full font-citation-mono text-[10px]`. */
 export function TagChip({ children, icon, tone = 'neutral' }: { children: ReactNode; icon?: string; tone?: 'neutral' | 'primary' }) {
+  const t = useT();
   return (
     <span
       className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full font-citation-mono text-[10px] font-medium ${
@@ -244,20 +251,21 @@ export function TagChip({ children, icon, tone = 'neutral' }: { children: ReactN
       }`}
     >
       {icon && <Icon name={icon} size={11} />}
-      {children}
+      {typeof children === 'string' ? t(children) : children}
     </span>
   );
 }
 
 /** The LIVE / NOT LIVE provenance badge. */
 export function LiveBadge({ live }: { live: boolean }) {
+  const t = useT();
   return (
     <span
       className={`px-1.5 py-0.5 rounded font-citation-mono text-citation-mono font-semibold ${
         live ? 'bg-secondary-container text-on-secondary-container' : 'bg-surface-container-high text-on-surface-variant'
       }`}
     >
-      {live ? 'LIVE' : 'NOT LIVE'}
+      {t(live ? 'LIVE' : 'NOT LIVE')}
     </span>
   );
 }
@@ -268,10 +276,11 @@ export function Spinner({ className = 'w-4 h-4 border-outline-variant border-t-p
 
 /** `p-space-md rounded-xl bg-surface-container-low` loading line. */
 export function LoadingPanel({ text }: { text: string }) {
+  const t = useT();
   return (
     <div className="flex items-center gap-2 p-space-md rounded-xl bg-surface-container-low font-body-md text-body-md text-on-surface-variant">
       <Spinner />
-      {text}
+      {t(text)}
     </div>
   );
 }
@@ -288,13 +297,14 @@ export function ErrorPanel({
   message: string;
   onRetry?: () => void;
 }) {
+  const t = useT();
   return (
     <div className="flex flex-col gap-1 p-space-md rounded-xl bg-error-container text-on-error-container">
       <div className="flex items-center gap-1.5 font-label-md text-label-md font-semibold">
         <Icon name={icon} size={18} />
-        {title}
+        {t(title)}
       </div>
-      <p className="font-body-md text-body-md">{message}</p>
+      <p className="font-body-md text-body-md">{t(message)}</p>
       {onRetry && (
         <div className="mt-space-sm">
           <PillButton icon="refresh" label="Try again" onClick={onRetry} />
@@ -306,6 +316,7 @@ export function ErrorPanel({
 
 /** `rounded-lg bg-primary-fixed text-on-primary-fixed` small action. */
 export function PillButton({ icon, label, onClick }: { icon: string; label: string; onClick?: () => void }) {
+  const t = useT();
   return (
     <button
       type="button"
@@ -313,7 +324,7 @@ export function PillButton({ icon, label, onClick }: { icon: string; label: stri
       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary-fixed text-on-primary-fixed font-label-md text-label-md hover:brightness-95"
     >
       <Icon name={icon} size={18} />
-      {label}
+      {t(label)}
     </button>
   );
 }
@@ -333,6 +344,7 @@ export function Sheet({
   note?: string;
   children: ReactNode;
 }) {
+  const t = useT();
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
@@ -347,19 +359,19 @@ export function Sheet({
       <div
         role="dialog"
         aria-modal="true"
-        aria-label={title}
+        aria-label={t(title)}
         className="relative w-full sm:max-w-md max-h-[85vh] overflow-y-auto bg-sheet rounded-t-2xl sm:rounded-2xl shadow-xl px-space-md pt-3 pb-space-md pb-safe"
       >
         <div className="mx-auto mb-3 h-1 w-8 rounded-full bg-outline-variant sm:hidden" />
         <div className="flex items-start gap-2 mb-space-md">
           <div className="flex-1">
-            <h2 className="font-headline-sm text-headline-sm text-ink">{title}</h2>
-            {note && <p className="font-body-sm text-body-sm text-ink-muted mt-0.5">{note}</p>}
+            <h2 className="font-headline-sm text-headline-sm text-ink">{t(title)}</h2>
+            {note && <p className="font-body-sm text-body-sm text-ink-muted mt-0.5">{t(note)}</p>}
           </div>
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close"
+            aria-label={t('Close')}
             className="p-1 -mr-1 rounded-full text-ink-muted hover:bg-tint"
           >
             <Icon name="close" size={20} />
@@ -384,6 +396,7 @@ export function OptionTile({
   selected: boolean;
   onClick: () => void;
 }) {
+  const t = useT();
   return (
     <button
       type="button"
@@ -395,9 +408,9 @@ export function OptionTile({
       }`}
     >
       <span className={`flex-1 font-label-md text-label-md text-ink ${selected ? 'font-bold' : 'font-medium'}`}>
-        {label}
+        {t(label)}
       </span>
-      {detail && <span className="font-body-sm text-body-sm text-ink-muted">{detail}</span>}
+      {detail && <span className="font-body-sm text-body-sm text-ink-muted">{t(detail)}</span>}
       {selected && <Icon name="check_circle" size={20} fill className="text-primary" />}
     </button>
   );

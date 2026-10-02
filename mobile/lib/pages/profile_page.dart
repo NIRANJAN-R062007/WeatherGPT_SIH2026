@@ -17,6 +17,7 @@ import '../theme.dart';
 import 'auth_page.dart';
 import 'edit_profile_page.dart';
 import 'persona_page.dart';
+import '../i18n.dart';
 
 Future<void> openProfile(BuildContext context) {
   return Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const ProfilePage()));
@@ -24,10 +25,10 @@ Future<void> openProfile(BuildContext context) {
 
 const _months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-String _memberSince(DateTime? d) {
+String _memberSince(BuildContext context, DateTime? d) {
   if (d == null) return '—';
   final local = d.toLocal();
-  return '${local.day} ${_months[local.month - 1]} ${local.year}';
+  return '${local.day} ${tr(context, _months[local.month - 1])} ${local.year}';
 }
 
 /// "+919876543210" / "9876543210" → "+91 98765 43210" / "98765 43210".
@@ -45,17 +46,17 @@ Future<void> confirmSignOut(BuildContext context) async {
   final ok = await showDialog<bool>(
     context: context,
     builder: (dialogContext) => AlertDialog(
-      title: Text('Sign out?', style: AppText.headlineSm.copyWith(color: t.ink)),
+      title: Text(tr(context, 'Sign out?'), style: AppText.headlineSm.copyWith(color: t.ink)),
       content: Text(
-        "You'll need your email and password to sign in again.",
+        tr(context, "You'll need your email and password to sign in again."),
         style: AppText.bodyMd.copyWith(color: t.inkMuted),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: const Text('Cancel')),
+        TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: Text(tr(context, 'Cancel'))),
         TextButton(
           style: TextButton.styleFrom(foregroundColor: AppColors.error),
           onPressed: () => Navigator.of(dialogContext).pop(true),
-          child: const Text('Sign out'),
+          child: Text(tr(context, 'Sign out')),
         ),
       ],
     ),
@@ -85,7 +86,7 @@ class ProfilePage extends StatelessWidget {
         showCityPill: false,
         children: [
           Text(
-            'Profile',
+            tr(context, 'Profile'),
             style: AppText.headlineLg.copyWith(color: t.ink, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: AppSpace.md),
@@ -96,7 +97,7 @@ class ProfilePage extends StatelessWidget {
           _DetailRow(icon: Icons.mail_outline, label: 'Email', value: user.email),
           _DetailRow(icon: Icons.phone_outlined, label: 'Phone', value: orNone(formatPhone(user.phone))),
           _DetailRow(icon: Icons.work_outline, label: 'Occupation', value: orNone(user.occupation)),
-          _DetailRow(icon: Icons.event_outlined, label: 'Member since', value: _memberSince(user.createdAt)),
+          _DetailRow(icon: Icons.event_outlined, label: 'Member since', value: _memberSince(context, user.createdAt)),
           const SizedBox(height: AppSpace.md),
           const SectionTitle('Persona'),
           const SizedBox(height: AppSpace.sm),
@@ -142,7 +143,7 @@ class _GuestProfile extends StatelessWidget {
         showCityPill: false,
         children: [
           Text(
-            'Profile',
+            tr(context, 'Profile'),
             style: AppText.headlineLg.copyWith(color: t.ink, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: AppSpace.md),
@@ -158,12 +159,12 @@ class _GuestProfile extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Guest',
+                        tr(context, 'Guest'),
                         style: AppText.headlineMd.copyWith(color: t.ink, fontWeight: FontWeight.w700),
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        "You're using WeatherGPT without an account.",
+                        tr(context, "You're using WeatherGPT without an account."),
                         style: AppText.bodySm.copyWith(color: t.inkMuted),
                       ),
                     ],

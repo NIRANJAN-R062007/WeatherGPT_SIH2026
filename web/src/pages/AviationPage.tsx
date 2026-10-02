@@ -11,6 +11,7 @@ import { AppCard, ErrorPanel, Icon, IconDisc, LiveBadge, LoadingPanel, PageHeade
 import { istDayMonth } from '../lib/format';
 import { useAviation, type AviationReport } from '../lib/aviation';
 import { useUiPrefs } from '../state/UiPrefsContext';
+import { useT } from '../lib/i18n';
 
 function ReportCard({
   icon,
@@ -25,6 +26,7 @@ function ReportCard({
   report: AviationReport | null;
   missing: string;
 }) {
+  const t = useT();
   const stamp = report?.decoded.observed ?? report?.decoded.issued;
   return (
     <AppCard pad="p-space-lg">
@@ -32,22 +34,22 @@ function ReportCard({
         <IconDisc icon={icon} solid size={36} />
         <div className="flex-1 min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="font-headline-sm text-headline-sm font-bold text-ink">{title}</h2>
+            <h2 className="font-headline-sm text-headline-sm font-bold text-ink">{t(title)}</h2>
             {report && <LiveBadge live={report.is_live} />}
           </div>
-          <div className="font-body-sm text-body-sm text-ink-muted">{subtitle}</div>
+          <div className="font-body-sm text-body-sm text-ink-muted">{t(subtitle)}</div>
         </div>
       </div>
 
       {report === null ? (
-        <p className="mt-space-md font-body-md text-body-md text-ink-muted">{missing}</p>
+        <p className="mt-space-md font-body-md text-body-md text-ink-muted">{t(missing)}</p>
       ) : (
         <>
           {!report.is_live && (
             <div className="mt-space-md flex items-start gap-1.5 px-2.5 py-1.5 rounded-lg bg-tertiary-fixed text-on-tertiary-fixed font-body-sm text-body-sm">
               <Icon name="history" size={14} className="mt-0.5" />
               <span>
-                Snapshot taken {istDayMonth(report.retrieved_at)} — not a live report.
+                {t('Snapshot taken {time} — not a live report.', { time: istDayMonth(report.retrieved_at) })}
               </span>
             </div>
           )}
@@ -62,14 +64,16 @@ function ReportCard({
           <div className="mt-space-md flex flex-wrap items-center gap-x-3 gap-y-1 pt-space-sm border-t border-outline-variant/40 font-citation-mono text-citation-mono text-on-surface-variant">
             {stamp && (
               <span>
-                {report.decoded.observed ? 'Observed' : 'Issued'} {stamp.time_ist} IST · {stamp.time_utc} UTC
+                {t(report.decoded.observed ? 'Observed' : 'Issued')} {stamp.time_ist} IST · {stamp.time_utc} UTC
               </span>
             )}
-            <span className="text-outline">source: {report.source}</span>
+            <span className="text-outline">
+              {t('source')}: {report.source}
+            </span>
           </div>
           <details className="mt-space-sm">
             <summary className="cursor-pointer font-label-md text-label-md font-semibold text-primary">
-              Show the code as issued
+              {t('Show the code as issued')}
             </summary>
             <code className="mt-space-xs block break-words p-space-sm rounded-lg bg-surface-container-low font-citation-mono text-citation-mono text-on-surface">
               {report.raw}
@@ -82,6 +86,7 @@ function ReportCard({
 }
 
 export default function AviationPage() {
+  const t = useT();
   const { city, cityInfo } = useUiPrefs();
   const { loading, data, error, load } = useAviation();
 
@@ -95,7 +100,7 @@ export default function AviationPage() {
     <PageFrame>
       <PageHeader
         title="Airport weather"
-        subtitle={`The latest METAR and TAF for ${cityInfo.name} airport, decoded into plain language.`}
+        subtitle={t('The latest METAR and TAF for {city} airport, decoded into plain language.', { city: t(cityInfo.name) })}
       />
       <div className="mt-space-lg flex flex-col gap-space-md">
         {loading ? (
@@ -112,12 +117,14 @@ export default function AviationPage() {
             <div className="flex items-center gap-3">
               <IconDisc icon="help" color="rgb(var(--c-on-surface-variant))" />
               <div>
-                <div className="font-label-md text-label-md font-bold text-ink">No airport reports</div>
+                <div className="font-label-md text-label-md font-bold text-ink">{t('No airport reports')}</div>
                 <div className="font-body-sm text-body-sm text-ink-muted">{where}</div>
               </div>
             </div>
             <p className="mt-space-sm font-body-md text-body-md text-on-surface">
-              The airport reports for {cityInfo.name} aren't available right now — this can't be read as fair weather.
+              {t("The airport reports for {city} aren't available right now — this can't be read as fair weather.", {
+                city: t(cityInfo.name),
+              })}
             </p>
           </AppCard>
         ) : data ? (
