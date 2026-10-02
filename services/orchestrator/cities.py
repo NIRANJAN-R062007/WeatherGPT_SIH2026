@@ -5,6 +5,7 @@ GET /cities; data/cities.json is the source both sides track.
 """
 
 import json
+import re
 from dataclasses import dataclass
 
 from config import DATA_DIR
@@ -69,6 +70,34 @@ def resolve(text: str | None) -> str | None:
         if any(name in s for name in _names_for(city)):
             return key
     return None
+
+
+def mentions(text: str | None) -> list[tuple[str, int, int]]:
+    """Every registry city named in `text`, as `(key, start, end)` in reading
+    order. Unlike `resolve()`, which returns the first city it finds, this
+    finds them all — a route names two. Where names overlap the longer wins
+    ("new delhi" over "delhi"). Latin names must stand alone as words;
+    Indic names may carry case suffixes, so they match as substrings."""
+    if not text:
+        return []
+    s = text.lower()
+    spans: list[tuple[int, int, str]] = []
+    for key, city in CITIES.items():
+        for name in set(_names_for(city)):
+            if not name:
+                continue
+            pattern = re.escape(name)
+            if name.isascii():
+                pattern = rf"(?<![a-z]){pattern}(?![a-z])"
+            spans += [(m.start(), m.end(), key) for m in re.finditer(pattern, s)]
+    spans.sort(key=lambda t: (t[0], -(t[1] - t[0])))
+    out: list[tuple[str, int, int]] = []
+    last_end = -1
+    for start, end, key in spans:
+        if start >= last_end:  # not inside the previous (longer or earlier) match
+            out.append((key, start, end))
+            last_end = end
+    return out
 
 
 def display_name(key: str | None, lang: str) -> str:
