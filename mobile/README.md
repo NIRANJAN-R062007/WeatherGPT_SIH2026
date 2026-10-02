@@ -186,11 +186,15 @@ the work sits:
      release builds are signed with the **debug key**, and the upload-key path
      has not been exercised), an Apple signing team, and a Mac for iOS
      builds. Play Store / TestFlight need all of those.
-5. **Android toolchain upgrades.** *(App)* `flutter build apk` warns that
-   support will soon be dropped for the versions in `android/`:
-   - Gradle 8.14.0 → at least 9.1.0 (`gradle/wrapper/gradle-wrapper.properties`)
-   - Android Gradle Plugin 8.11.1 → at least 9.0.1 (`settings.gradle.kts`)
-   - Kotlin 2.2.20 → at least 2.3.20 (`settings.gradle.kts`)
+5. ~~**Android toolchain upgrades.**~~ ✅ Done (2026-10-03): Gradle 9.3.1,
+   Android Gradle Plugin 9.1.0 and Kotlin 2.4.0, the versions Flutter 3.47.2's
+   app template uses. `app/build.gradle.kts` sets the JVM target through
+   `kotlin { compilerOptions }`. The "support will soon be dropped" warnings
+   are gone. Still open: `flutter build` warns that the app, and the
+   `audioplayers_android` and `record_android` plugins, apply the Kotlin Gradle
+   Plugin, and that a future Flutter will need Built-in Kotlin.
+   `gradle.properties` keeps the migrator's `android.builtInKotlin=false` and
+   `android.newDsl=false` until those plugins support it.
 
 ### P1 — backend features the app doesn't use yet
 
