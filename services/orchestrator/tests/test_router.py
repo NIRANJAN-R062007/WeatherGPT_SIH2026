@@ -74,6 +74,24 @@ def test_out_of_scope_returns_none():
     assert data is None
 
 
+def test_best_window_today_and_tomorrow():
+    # WIE-4: route() resolves which weather_data call answers best_window —
+    # the day's decoded hourly facts — never scores the window itself.
+    for tw in ("today", "tomorrow"):
+        data = router.route(_pq(intent="best_window", time_window=tw), "chennai")
+        assert data is not None and "hours" in data
+        assert data["day"] == tw
+
+
+def test_best_window_other_time_windows_fall_back_to_today():
+    # "tonight" / "day_after_tomorrow" / "next_n_days" aren't engine days;
+    # route() normalises anything that isn't "tomorrow" to "today" rather
+    # than asking weather_data.hourly_facts for a day it doesn't support.
+    for tw in ("tonight", "day_after_tomorrow", "next_n_days"):
+        data = router.route(_pq(intent="best_window", time_window=tw), "chennai")
+        assert data is not None and data["day"] == "today"
+
+
 def test_warnings_never_reaches_weather_data(monkeypatch):
     # main.py answers `warnings` from imd_warnings before routing; if it ever
     # got here it must not turn into a weather lookup.

@@ -34,6 +34,15 @@ def legacy_day(pq: ParsedQuery) -> str:
 def route(pq: ParsedQuery, key: str) -> dict | None:
     intent, tw = pq.intent, pq.time_window
 
+    if intent == "best_window":
+        # WIE-4: the day's decoded hourly facts for the Weather Intelligence
+        # Engine to score (weather_intelligence/window_analyzer.py, via
+        # persona_advisor.py) — this only resolves which weather_data call
+        # answers the intent, the same job route() does for every other
+        # intent; the window itself is never scored here.
+        day = "tomorrow" if tw == "tomorrow" else "today"
+        return weather_data.hourly_facts(key, day)
+
     if intent == "rainfall_so_far_today":
         return weather_data.rain_so_far(key)
 

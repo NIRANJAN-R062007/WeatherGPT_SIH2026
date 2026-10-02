@@ -180,6 +180,21 @@ _MESSAGES = {
         "te": "విమానాశ్రయ నివేదికలు ఆంగ్లంలో చూపబడ్డాయి.",  # TODO: native_qa
         "mr": "विमानतळ अहवाल इंग्रजीत दाखवले आहेत.",  # TODO: native_qa
     },
+    # WIE-4: no hourly forecast to score at all (fixtures hold one day; a
+    # fixture-mode "tomorrow" request genuinely has none). English only for
+    # now — the five-language versions of best_window's three answer shapes
+    # (ok / no_suitable_window / unavailable) are WIE-8's job (plan.md §8
+    # Phase 9); _msg() falls back to this "en" entry for every other
+    # language until then, same as any key missing a language row.
+    "best_window_unavailable": {
+        "en": "No hourly forecast is available to find a suitable window right now.",
+    },
+    # best_window's sentence is a deterministic template built straight from
+    # the engine's result (never free LLM narration — see main.py's
+    # best_window branch), so it is English-only like aviation's reports.
+    "best_window_english_only": {
+        "en": "The best-time answer is shown in English.",
+    },
     "language_unsupported": {
         "en": "I couldn't recognise that language yet — answering in English.",
         "ta": "அந்த மொழியை இன்னும் அடையாளம் காண முடியவில்லை — ஆங்கிலத்தில் பதிலளிக்கிறேன்.",
@@ -711,6 +726,33 @@ def intelligence_advisory(req: AdvisoryRequest):
     }
 
 
+def _best_window_text(city_name: str, day: str, window: dict) -> str:
+    """WIE-4: the best_window intent's deterministic English sentence, built
+    straight from the engine's structured result (window_analyzer via
+    persona_advisor.advise()) — never from free LLM narration. The numeric
+    guardrail doesn't check clock times yet (WIE-5), so a window's start/end
+    times must never come from anything the guardrail can't verify; every
+    word and figure here is the engine's own, the same choice as warnings'
+    verbatim headline and aviation's METAR/TAF templates."""
+    day_phrase = "tomorrow" if day == "tomorrow" else "today"
+    return (
+        f"{city_name}: the most suitable window to be outdoors {day_phrase} is "
+        f"{window['start_local']}–{window['end_local']} "
+        f"(around {window['avg_temp_c']}°C, up to {window['max_rain_probability_pct']}% "
+        f"chance of rain, winds up to {window['max_wind_kmh']} km/h)."
+    )
+
+
+def _no_suitable_window_text(city_name: str, day: str) -> str:
+    """WIE-4: "no suitable window" is a valid, honest answer (R17) — never
+    replaced by the least-bad hour."""
+    day_phrase = "tomorrow" if day == "tomorrow" else "today"
+    return (
+        f"{city_name}: no suitable window to be outdoors {day_phrase} — every hour had "
+        f"too much rain, heat, cold or wind."
+    )
+
+
 def _persona_fields(persona, occ: "occupation_module.Resolved | None") -> dict:
     """What an answer echoes about who it was framed for: nothing for the
     default with no occupation given (so existing response shapes don't
@@ -860,6 +902,67 @@ def ask(text: str, lang: str = "en", city: str | None = None, persona: str = per
                                 lang=lang, response=candidate)
             except Exception:
                 pass  # best-effort, as below
+
+        return resp
+
+    if pq.intent == "best_window":
+        # WIE-4: deterministic only, like warnings/aviation above — no free
+        # LLM narration of the window, since the numeric guardrail doesn't
+        # check clock times yet (WIE-5). fisherman/aviation personas get no
+        # window verdict at all (R17), reusing WIE-7's persona_advisor
+        # exactly as GET /intelligence/advisory does — not duplicated here.
+        hourly = router.route(pq, key)
+        if hourly is None:
+            resp = {"intent": pq.intent, "city": key,
+                    "message": _msg("best_window_unavailable", lang),
+                    "status": "unavailable", "nlu": pq.as_dict()}
+            if notice:
+                resp["notice"] = notice
+            return resp
+
+        persona_key = persona_module.key(persona)
+        advisory = advise(hourly["hours"], persona_key)
+        name = cities.display_name(key, "en")
+        if wants_window(persona_key):
+            window = advisory["window"]
+            status = "ok" if window else "no_suitable_window"
+            candidate = (
+                _best_window_text(name, hourly["day"], window) if window
+                else _no_suitable_window_text(name, hourly["day"])
+            )
+        else:
+            window = None
+            status = "ok"
+            candidate = advisory["caveat"]
+
+        grounding = {**asdict(guardrail.Report(ok=True, matched=0, total=0)),
+                     "fallback_used": False, "narration": "verbatim", "attempts": 0,
+                     "provider": "feed"}
+        metrics.observe_ask(intent=pq.intent, lang=lang, provider="feed", narration="verbatim",
+                            fallback_used=False, no_llm=True)
+        resp = {
+            "intent": pq.intent,
+            "city": key,
+            "response": candidate,
+            "status": status,
+            "label": advisory["label"],
+            "window": window,
+            "provenance": _provenance(hourly),
+            "grounding": grounding,
+            "nlu": pq.as_dict(),
+        }
+        if notice:
+            resp["notice"] = notice
+        elif lang != "en":
+            resp["notice"] = _msg("best_window_english_only", lang)
+        resp.update(_persona_fields(persona, occ))
+
+        if token is not None:
+            try:
+                history.record(token, query=text, intent=pq.intent, city=key,
+                                lang=lang, response=candidate)
+            except Exception:
+                pass  # best-effort, as above
 
         return resp
 
