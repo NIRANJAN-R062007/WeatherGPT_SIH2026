@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -156,6 +157,36 @@ void main() {
     expect(find.text('Change Persona'), findsOneWidget);
     await _tab(tester, 'Home');
     expect(find.text('Quick Actions'), findsOneWidget);
+  });
+
+  testWidgets('bottom bar labels stay on one line in every language', (tester) async {
+    _phone(tester);
+    await tester.pumpWidget(WeatherGptApp(auth: await _signedIn(), prefsStore: MemoryPrefsStore()));
+    await _settle(tester);
+
+    final prefs = UiPrefs.of(tester.element(find.byType(BottomNav)));
+    final tabWidth = tester.getSize(find.byType(BottomNav)).width / kNavItems.length;
+    for (final lang in ['en', 'hi', 'ta', 'te', 'mr']) {
+      prefs.lang = lang;
+      await _settle(tester);
+      final labels = find.descendant(of: find.byType(BottomNav), matching: find.byType(Text));
+      expect(labels, findsNWidgets(kNavItems.length));
+      for (final label in labels.evaluate()) {
+        final text = (label.widget as Text).data;
+        final paragraph = label.renderObject! as RenderParagraph;
+        final oneLine = TextPainter(
+          text: paragraph.text,
+          textDirection: paragraph.textDirection,
+          textScaler: paragraph.textScaler,
+          maxLines: 1,
+        )..layout();
+        // "முன்னறிவிப்பு" used to break mid-word onto a second line.
+        expect(paragraph.size.height, lessThanOrEqualTo(oneLine.height + 0.5), reason: '$lang: $text');
+        oneLine.dispose();
+        expect(tester.getRect(find.byElementPredicate((e) => e == label)).width, lessThanOrEqualTo(tabWidth),
+            reason: '$lang: $text');
+      }
+    }
   });
 
   testWidgets('a Home quick question is asked in Chat', (tester) async {

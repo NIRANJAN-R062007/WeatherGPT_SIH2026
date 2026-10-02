@@ -273,13 +273,23 @@ class _BottomTab extends StatelessWidget {
           children: [
             Icon(active ? item.activeIcon : item.icon, size: 25, color: fg),
             const SizedBox(height: 3),
-            Text(
-              tr(context, item.shortLabel),
-              style: AppText.bodySm.copyWith(
-                fontSize: 11,
-                height: 1.2,
-                color: fg,
-                fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+            // One line, shrunk to the tab's width if it must be: a long label
+            // ("முன்னறிவிப்பு") would otherwise break mid-word onto two lines.
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  tr(context, item.shortLabel),
+                  maxLines: 1,
+                  softWrap: false,
+                  style: AppText.bodySm.copyWith(
+                    fontSize: 11,
+                    height: 1.2,
+                    color: fg,
+                    fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                  ),
+                ),
               ),
             ),
           ],
