@@ -31,7 +31,7 @@ BY_ID = {r["id"]: r for r in ROWS}
 
 
 def test_the_set_has_the_size_and_spread_the_plan_asks_for():
-    assert 30 <= len(ROWS) <= 50
+    assert 30 <= len(ROWS) <= 80
     assert len({r["id"] for r in ROWS}) == len(ROWS)
     assert {r["kind"] for r in ROWS} == {"travel", "farming"}
     assert {r["type"] for r in ROWS} == {"answer", "ask_back"}
@@ -39,6 +39,29 @@ def test_the_set_has_the_size_and_spread_the_plan_asks_for():
     assert {"en", "hi", "ta", "te", "mr", "hi-latn"} <= langs
     verdicts = collections.Counter(v for r in ANSWERS for v in r["expected"]["verdict"])
     assert {"go", "caution", "avoid", "not_available", "suitable", "not_suitable"} <= set(verdicts)
+
+
+_VERDICT_CLASSES = {
+    "travel": ("go", "caution", "avoid", "not_available"),
+    "farming": ("suitable", "not_suitable", "not_available"),
+}
+
+
+@pytest.mark.parametrize("lang", ["hi", "ta", "te", "mr"])
+def test_each_indic_language_has_enough_rows_to_score_on(lang):
+    """One row is 12% of a language's score at 8 rows, 25% at 4: keep it readable."""
+    answers = [r for r in ANSWERS if r["lang"] == lang]
+    assert len(answers) >= 8
+    for kind, verdicts in _VERDICT_CLASSES.items():
+        seen = {v for r in answers if r["kind"] == kind for v in r["expected"]["verdict"]}
+        assert set(verdicts) <= seen, (lang, kind, set(verdicts) - seen)
+    assert any(r["expected"]["window"] for r in answers)
+    assert sum(r["type"] == "ask_back" for r in ROWS if r["lang"] == lang) >= 1
+
+
+def test_non_english_rows_are_flagged_as_not_native_reviewed():
+    """Same convention as ml/nlu/eval_set.jsonl: author-written, no native QA yet."""
+    assert {r["native_qa"] for r in ROWS if r["lang"] != "en"} == {False}
 
 
 @pytest.mark.parametrize("row", ROWS, ids=[r["id"] for r in ROWS])
@@ -202,8 +225,8 @@ def test_the_slot_stage_has_no_unexpected_failures():
 
 def test_known_gaps_are_the_rows_that_say_so():
     gaps = {r["id"] for r in ROWS if r.get("known_gap")}
-    assert gaps == {"trv-en-08", "trv-hi-02", "trv-hl-01", "trv-hl-02", "trv-ask-04",
-                    "frm-ask-02"}
+    assert gaps == {"trv-en-08", "trv-hi-02", "trv-hl-01", "trv-hl-02", "trv-hl-03",
+                    "trv-ask-04", "frm-ask-02", "frm-mr-03"}
     for row_id in gaps:
         assert run_eval.slot_stage(BY_ID[row_id])["status"] == "known_gap"
 
