@@ -323,6 +323,8 @@ class _AuthPageState extends State<AuthPage> {
       if (_notice != null) ...[const SizedBox(height: AppSpace.md), FormMessage(text: _notice!)],
       const SizedBox(height: AppSpace.lg),
       GradientButton(label: signUp ? 'Create account' : 'Sign in', loading: _busy, onPressed: _submit),
+      const SizedBox(height: 12),
+      GoogleSignInButton(enabled: !_busy),
       const SizedBox(height: AppSpace.md),
       Center(
         child: Wrap(
@@ -376,6 +378,13 @@ class _AuthPageState extends State<AuthPage> {
         ),
         textAlign: TextAlign.center,
         style: AppText.bodyMd.copyWith(color: t.inkMuted),
+      ),
+      const SizedBox(height: AppSpace.sm),
+      Text(
+        "Can't find it? Check Spam and Promotions. Some school and work email systems block our mail — "
+        'if nothing arrives in a few minutes, sign up with a personal email instead.',
+        textAlign: TextAlign.center,
+        style: AppText.bodySm.copyWith(color: t.inkMuted),
       ),
       if (_error != null) ...[const SizedBox(height: AppSpace.md), FormMessage(text: _error!, error: true)],
       if (_notice != null) ...[const SizedBox(height: AppSpace.md), FormMessage(text: _notice!)],

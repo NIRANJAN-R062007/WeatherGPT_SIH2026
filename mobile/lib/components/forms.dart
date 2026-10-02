@@ -1,9 +1,10 @@
 // Form pieces for the landing, sign-in and profile pages, in the active
 // persona's colours: the sky-backed sub-page scaffold, the rounded text
-// field, the two button styles (accent gradient, outlined) and the
-// "Continue as guest" link.
+// field, the two button styles (accent gradient, outlined), the "Continue
+// with Google" button and the "Continue as guest" link.
 import 'package:flutter/material.dart';
 
+import '../auth_client.dart';
 import '../persona_theme.dart';
 import '../state/auth_store.dart';
 import '../theme.dart';
@@ -269,4 +270,41 @@ class GuestButton extends StatelessWidget {
       ),
     );
   }
+}
+
+/// "Continue with Google": signs in (or creates the account) in the system
+/// browser, then returns to the root route like a password sign-in. A failure
+/// shows as a snackbar; backing out of the browser shows nothing.
+class GoogleSignInButton extends StatefulWidget {
+  final bool enabled;
+  const GoogleSignInButton({super.key, this.enabled = true});
+
+  @override
+  State<GoogleSignInButton> createState() => _GoogleSignInButtonState();
+}
+
+class _GoogleSignInButtonState extends State<GoogleSignInButton> {
+  bool _busy = false;
+
+  Future<void> _signIn() async {
+    final auth = AuthStore.read(context);
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _busy = true);
+    try {
+      await auth.signInWithGoogle();
+      navigator.popUntil((r) => r.isFirst);
+    } on AuthError catch (e) {
+      if (e.code != 'google_cancelled') messenger.showSnackBar(SnackBar(content: Text(e.message)));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => OutlineActionButton(
+    label: _busy ? 'Waiting for Google…' : 'Continue with Google',
+    icon: Icons.g_mobiledata,
+    onPressed: widget.enabled && !_busy ? _signIn : null,
+  );
 }
