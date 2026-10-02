@@ -294,3 +294,166 @@ def test_unmarked_number_still_grounds_to_a_count_field():
     report = guardrail.check("Chennai: 0.24 mm of rain over 16 hours.", raw)
     assert report.ok is True
     assert report.figures[1]["path"] == "hours_counted"
+
+
+# --- WIE-5: clock times and time ranges ------------------------------------
+# Synthetic hours shaped like weather_data.hourly_facts()'s `hours`, so the
+# window (and every boundary around it) is exact.
+
+
+def _hour(local_time, *, rain=10, temp=26, wind=10):
+    return {"time_iso": f"2026-10-01T{local_time}:00Z", "local_time": local_time,
+            "rain_probability_pct": rain, "temp_c": temp, "wind_kmh": wind}
+
+
+def _window_raw():
+    """Engine result for a day with exactly one suitable run, 08:00-11:00."""
+    from weather_intelligence.window_analyzer import find_best_window
+
+    hours = [_hour("06:00", rain=70), _hour("07:00", rain=60),
+             _hour("08:00"), _hour("09:00"), _hour("10:00"), _hour("11:00"),
+             _hour("12:00", rain=50), _hour("13:00", rain=80)]
+    window = find_best_window(hours)
+    assert (window["start_local"], window["end_local"]) == ("08:00", "11:00")
+    return {"window": window, "hours": hours}
+
+
+def test_window_the_engine_produced_passes_in_every_time_notation():
+    raw = _window_raw()
+    for answer in (
+        "The best window is 8 AM–11 AM.",
+        "The best window is 8 AM-11 AM.",
+        "The best window is 8:00 AM to 11:00 AM.",
+        "The best window is 08:00–11:00.",
+        "Go between 8 AM and 11 AM.",
+        "Go from 8am until 11am.",
+        "Go from 8 a.m. to 11 a.m.",
+        "The best window is 8–11 AM.",
+    ):
+        report = guardrail.check(answer, raw)
+        assert report.ok and report.matched == report.total == 1, answer
+        assert report.figures[0]["unit"] == "clock_range", answer
+        assert report.figures[0]["value"] == 8 * 60
+        assert report.figures[0]["end_value"] == 11 * 60
+
+
+def test_window_the_engine_did_not_produce_fails():
+    # The done-when for WIE-5: 8 AM and 10 AM are both real hours in the
+    # result, but 08:00-10:00 is not the window the engine returned.
+    raw = _window_raw()
+    for answer in (
+        "The best window is 8 AM–10 AM.",   # real hours, wrong pair
+        "The best window is 9 AM–11 AM.",
+        "The best window is 8 AM–12 PM.",   # end of the last hour, not the engine's end
+        "The best window is 2 PM–5 PM.",    # no such hours at all
+        "The best window is 14:00–17:00.",
+        "The best window is 11 AM–8 AM.",   # reversed
+        "The best window is 8–10 AM.",
+    ):
+        report = guardrail.check(answer, raw)
+        assert not report.ok, answer
+        assert report.figures[0]["path"] is None, answer
+
+
+def test_window_quoted_when_the_engine_found_none_fails():
+    # "No suitable window" must not be quietly overwritten by a narration that
+    # names one anyway (plan.md R17).
+    hours = [_hour("08:00", rain=60), _hour("09:00", rain=70)]
+    raw = {"window": None, "hours": hours}
+    report = guardrail.check("The best window is 8 AM–9 AM.", raw)
+    assert not report.ok
+
+
+def test_a_single_time_must_be_a_time_in_the_result():
+    raw = _window_raw()
+    assert guardrail.check("It starts to clear around 9 AM.", raw).ok
+    assert guardrail.check("It starts to clear at 09:00.", raw).ok
+    assert guardrail.check("It starts to clear at 12 PM.", raw).ok      # 12:00 is an hour
+    assert not guardrail.check("It starts to clear at 4 PM.", raw).ok   # 16:00 isn't
+    assert not guardrail.check("It starts to clear at 9:30 AM.", raw).ok
+
+
+def test_and_only_joins_a_range_after_between():
+    raw = _window_raw()
+    # Two real, separate hours — not a window. Without "between" they are two
+    # lone times, each grounded on its own.
+    report = guardrail.check("Showers at 8 AM and 11 AM.", raw)
+    assert report.ok and report.total == 2
+    assert [f["unit"] for f in report.figures] == ["clock", "clock"]
+    # With "between" the same pair is a claimed window, and 8-11 is the engine's.
+    assert guardrail.check("Between 8 AM and 11 AM.", raw).ok
+    assert not guardrail.check("Between 8 AM and 10 AM.", raw).ok
+
+
+def test_meridiem_is_read_correctly_around_noon_and_midnight():
+    raw = {"hours": [_hour("00:00"), _hour("12:00"), _hour("13:00")]}
+    assert guardrail.check("12 AM", raw).ok       # midnight
+    assert guardrail.check("12 PM", raw).ok       # noon
+    assert guardrail.check("1 PM", raw).ok
+    assert not guardrail.check("12 AM", {"hours": [_hour("12:00")]}).ok
+    assert not guardrail.check("1 AM", raw).ok
+
+
+def test_shared_meridiem_range_across_noon():
+    raw = {"window": {"start_local": "11:00", "end_local": "13:00"}}
+    assert guardrail.check("Go 11–1 PM.", raw).ok  # 11 AM–1 PM
+    assert not guardrail.check("Go 11–1 AM.", raw).ok
+
+
+def test_time_digits_are_not_also_read_as_figures():
+    # "8 AM–11 AM" must not leave 8 and 11 behind as unit-less numbers that
+    # could ground to a count field by coincidence.
+    raw = {"window": {"start_local": "08:00", "end_local": "11:00"}, "hours_counted": 11}
+    report = guardrail.check("Best window 8 AM–11 AM.", raw)
+    assert report.ok and report.total == 1
+
+
+def test_a_clock_time_cannot_ground_to_a_number_or_vice_versa():
+    # 8 is a unit-less count here; "8 AM" is a time and must not borrow it.
+    assert not guardrail.check("It clears by 8 AM.", {"hours_counted": 8}).ok
+    # ...and a bare "8" is still a number, not a time.
+    raw = {"window": {"start_local": "08:00", "end_local": "11:00"}}
+    assert not guardrail.check("Over 8 hours.", raw).ok
+
+
+def test_invalid_times_are_not_waved_through():
+    raw = _window_raw()
+    for answer in ("Clears at 25:00.", "Clears at 13 PM.", "Clears at 8:75 AM."):
+        assert not guardrail.check(answer, raw).ok, answer
+
+
+def test_iso_timestamps_and_decimals_are_not_clock_times():
+    raw = {"temp_c": 31.5}
+    report = guardrail.check("Chennai: 31.5°C.", raw)
+    assert report.ok and report.total == 1 and report.figures[0]["unit"] == "celsius"
+
+
+def test_numbers_beside_a_window_still_ground_independently():
+    raw = _window_raw()
+    ok = "8 AM–11 AM: around 26.0°C, up to 10% chance of rain, winds up to 10.0 km/h."
+    assert guardrail.check(ok, raw).ok
+    bad = "8 AM–11 AM: around 26.0°C, up to 40% chance of rain, winds up to 10.0 km/h."
+    report = guardrail.check(bad, raw)
+    assert not report.ok and report.matched == report.total - 1
+
+
+def test_the_engines_own_best_window_sentence_passes_the_guardrail():
+    # WIE-4's deterministic /ask sentence is the shape an LLM narration of the
+    # same window would take; it must ground fully, aggregates included.
+    from main import _best_window_text, _no_suitable_window_text
+
+    raw = _window_raw()
+    text = _best_window_text("Chennai", "tomorrow", raw["window"])
+    report = guardrail.check(text, raw)
+    assert report.ok and report.matched == report.total == 4
+    assert [f["unit"] for f in report.figures] == ["celsius", "percent", "speed_kmh", "clock_range"]
+    # ...and a "no suitable window" sentence has no figures to ground.
+    assert guardrail.check(_no_suitable_window_text("Chennai", "tomorrow"), raw).total == 0
+
+
+def test_translated_answers_with_native_digits_ground_the_same_way():
+    raw = _window_raw()
+    # Devanagari digits, as Bhashini may emit them; the AM/PM markers are the
+    # Latin ones an English template passes through.
+    assert guardrail.check("८ AM–११ AM", raw).ok
+    assert not guardrail.check("८ AM–१० AM", raw).ok

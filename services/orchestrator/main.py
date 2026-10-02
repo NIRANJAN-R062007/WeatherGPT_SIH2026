@@ -729,11 +729,12 @@ def intelligence_advisory(req: AdvisoryRequest):
 def _best_window_text(city_name: str, day: str, window: dict) -> str:
     """WIE-4: the best_window intent's deterministic English sentence, built
     straight from the engine's structured result (window_analyzer via
-    persona_advisor.advise()) — never from free LLM narration. The numeric
-    guardrail doesn't check clock times yet (WIE-5), so a window's start/end
-    times must never come from anything the guardrail can't verify; every
-    word and figure here is the engine's own, the same choice as warnings'
-    verbatim headline and aviation's METAR/TAF templates."""
+    persona_advisor.advise()) — never from free LLM narration. The guardrail
+    does now ground clock times and ranges (WIE-5), and this very sentence
+    passes it (tests/test_guardrail.py), but an LLM-worded window waits on the
+    five-language templates (WIE-8) and WIE-16's live check; every word and
+    figure here is the engine's own, the same choice as warnings' verbatim
+    headline and aviation's METAR/TAF templates."""
     day_phrase = "tomorrow" if day == "tomorrow" else "today"
     return (
         f"{city_name}: the most suitable window to be outdoors {day_phrase} is "
@@ -907,8 +908,9 @@ def ask(text: str, lang: str = "en", city: str | None = None, persona: str = per
 
     if pq.intent == "best_window":
         # WIE-4: deterministic only, like warnings/aviation above — no free
-        # LLM narration of the window, since the numeric guardrail doesn't
-        # check clock times yet (WIE-5). fisherman/aviation personas get no
+        # LLM narration of the window yet; if one is added it must pass
+        # guardrail.check(), which grounds clock times and ranges (WIE-5)
+        # against `window`. fisherman/aviation personas get no
         # window verdict at all (R17), reusing WIE-7's persona_advisor
         # exactly as GET /intelligence/advisory does — not duplicated here.
         hourly = router.route(pq, key)
