@@ -9,6 +9,7 @@ exact hint text, the wording tests at the end check its rules.
 import config
 import main
 import narrate
+import occupation
 import persona
 import pytest
 from fastapi.testclient import TestClient
@@ -38,6 +39,15 @@ def test_is_valid():
     assert persona.is_valid("general") is True
     assert persona.is_valid("astronaut") is False
     assert persona.is_valid(None) is False
+
+
+def test_traveller_is_a_vetted_persona_but_not_an_occupation():
+    # WIE-7: traveller is reachable directly via persona=traveller, never
+    # through occupation.py's free-text classifier — "traveller" isn't a
+    # job title, so it stays out of occupation.VETTED on purpose.
+    assert persona.is_valid("traveller") is True
+    assert "traveller" in persona.PERSONAS
+    assert "traveller" not in occupation.VETTED
 
 
 def test_hint_general_is_empty():
@@ -158,6 +168,12 @@ def test_aviation_hint_rules_out_aerodrome_figures():
 def test_city_official_hint_is_operational():
     h = persona.hint("city_official")
     assert "waterlogging" in h and "outdoor workers" in h
+
+
+def test_traveller_hint_frames_travel():
+    h = persona.hint("traveller")
+    assert "going out now or waiting" in h and "better one to travel" in h
+    assert "Never name a destination" in h
 
 
 def test_personas_get_a_bigger_word_cap():

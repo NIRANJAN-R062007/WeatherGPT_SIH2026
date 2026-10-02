@@ -50,6 +50,7 @@ from narrate import is_configured as llm_configured
 from narrate import narrate
 from pydantic import BaseModel, Field
 from weather_data import get_weather, hourly_facts
+from weather_intelligence.persona_advisor import CAVEATS, advise, wants_window
 from weather_intelligence.scenario_analyzer import compare_scenario
 from weather_intelligence.window_analyzer import find_best_window
 
@@ -644,6 +645,68 @@ def intelligence_scenario(req: ScenarioRequest):
         "activity": req.activity,
         "status": "ok",
         **result,
+        "provenance": {"source": hourly["source"], "is_live": hourly["is_live"]},
+    }
+
+
+class AdvisoryRequest(BaseModel):
+    city: str
+    persona: str = persona_module.DEFAULT
+    day: str = "tomorrow"
+
+
+@app.post("/intelligence/advisory")
+def intelligence_advisory(req: AdvisoryRequest):
+    """WIE-7: persona-aware framing over the same best-window computation
+    (WIE-3) — deterministic rules only, nothing narrated by an LLM, same as
+    /intelligence/best-window. farmer, traveller, general and city_official
+    get a window verdict (identical numbers across all of them for the same
+    facts — only `label` differs, plan.md's WIE-7 done-when); fisherman and
+    aviation get the plain hourly forecast and a static caveat instead, no
+    window verdict at all (R17: a city forecast has no sea state or
+    aerodrome data to back one for either). `status`: "ok" (a window exists,
+    or — for fisherman/aviation — the plain forecast exists),
+    "no_suitable_window" (every hour was checked and none passed), or
+    "unavailable" (no hourly forecast to check at all)."""
+    if req.day not in ("today", "tomorrow"):
+        raise HTTPException(status_code=422, detail="day must be today or tomorrow")
+    if not persona_module.is_valid(req.persona):
+        raise HTTPException(
+            status_code=422,
+            detail=f"persona must be one of {sorted(persona_module.PERSONAS)}",
+        )
+    key = cities.resolve(req.city)
+    if key is None:
+        raise HTTPException(status_code=404, detail="unknown city")
+    hourly = hourly_facts(key, req.day)
+    if hourly is None:
+        return {
+            "city": key,
+            "city_name": cities.display_name(key, "en"),
+            "day": req.day,
+            "persona": req.persona,
+            "status": "unavailable",
+            "label": None,
+            "window": None,
+            "hours": None,
+            "caveat": CAVEATS.get(req.persona),
+            "provenance": None,
+        }
+    advisory = advise(hourly["hours"], req.persona)
+    if wants_window(req.persona):
+        status = "ok" if advisory["window"] else "no_suitable_window"
+    else:
+        status = "ok"
+    return {
+        "city": key,
+        "city_name": cities.display_name(key, "en"),
+        "day": hourly["day"],
+        "persona": req.persona,
+        "status": status,
+        "label": advisory["label"],
+        "window": advisory["window"],
+        "hours": hourly["hours"] if advisory["label"] is None else None,
+        "caveat": advisory["caveat"],
         "provenance": {"source": hourly["source"], "is_live": hourly["is_live"]},
     }
 
