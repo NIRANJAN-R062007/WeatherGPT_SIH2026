@@ -8,10 +8,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:weathergpt/aviation_client.dart';
+import 'package:weathergpt/components/app_shell.dart';
 import 'package:weathergpt/main.dart';
 import 'package:weathergpt/pages/aviation_page.dart';
 import 'package:weathergpt/persona_theme.dart';
 import 'package:weathergpt/state/auth_store.dart';
+import 'package:weathergpt/state/prefs_store.dart';
 import 'package:weathergpt/state/ui_prefs.dart';
 import 'package:weathergpt/theme.dart';
 
@@ -275,13 +277,54 @@ void main() {
     expect(find.textContaining('METAR VOMM 292130Z 22005KT'), findsOneWidget);
   });
 
+  testWidgets('only the Aviation persona sees Airport weather in the drawer', (tester) async {
+    _phone(tester);
+    final auth = AuthStore(storage: MemorySessionStorage({'guest': true}));
+    await auth.restore();
+    await tester.pumpWidget(WeatherGptApp(auth: auth, prefsStore: MemoryPrefsStore()));
+    await _settle(tester);
+
+    final prefs = UiPrefs.of(tester.element(find.byType(Scaffold).first));
+    for (final id in ['general', 'farmer', 'fisherman', 'city_official']) {
+      prefs.persona = id;
+      await _settle(tester);
+      await tester.tap(find.byTooltip('Menu'));
+      await _settle(tester);
+      expect(find.descendant(of: find.byType(Drawer), matching: find.text('Airport weather')), findsNothing, reason: id);
+      await tester.tapAt(const Offset(380, 400));
+      await _settle(tester);
+    }
+  });
+
+  testWidgets('the wide sidebar shows Airport weather only for the Aviation persona', (tester) async {
+    tester.view.physicalSize = const Size(1280, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final auth = AuthStore(storage: MemorySessionStorage({'guest': true}));
+    await auth.restore();
+    await tester.pumpWidget(WeatherGptApp(auth: auth, prefsStore: MemoryPrefsStore()));
+    await _settle(tester);
+
+    final prefs = UiPrefs.of(tester.element(find.byType(Scaffold).first));
+    for (final id in ['general', 'farmer', 'fisherman', 'city_official']) {
+      prefs.persona = id;
+      await _settle(tester);
+      expect(find.descendant(of: find.byType(Sidebar), matching: find.text('Airport weather')), findsNothing, reason: id);
+    }
+    prefs.persona = 'aviation';
+    await _settle(tester);
+    expect(find.descendant(of: find.byType(Sidebar), matching: find.text('Airport weather')), findsOneWidget);
+  });
+
   testWidgets('the drawer opens Airport weather (no server: the error state)', (tester) async {
     _phone(tester);
     final auth = AuthStore(storage: MemorySessionStorage({'guest': true}));
     await auth.restore();
-    await tester.pumpWidget(WeatherGptApp(auth: auth));
+    await tester.pumpWidget(WeatherGptApp(auth: auth, prefsStore: MemoryPrefsStore()));
     await _settle(tester);
 
+    UiPrefs.of(tester.element(find.byType(Scaffold).first)).persona = 'aviation';
+    await _settle(tester);
     await tester.tap(find.byTooltip('Menu'));
     await _settle(tester);
     await tester.tap(find.descendant(of: find.byType(Drawer), matching: find.text('Airport weather')));
