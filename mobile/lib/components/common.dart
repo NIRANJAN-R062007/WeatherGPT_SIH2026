@@ -120,7 +120,13 @@ class RuleLabel extends StatelessWidget {
     return Row(children: [
       Icon(icon, size: 14, color: color),
       const SizedBox(width: AppSpace.sm),
-      Text(tr(context, text).toUpperCase(), style: AppText.citationMono.copyWith(color: color, letterSpacing: 0.9)),
+      // Wraps rather than overflows when a translation is longer than the row.
+      Flexible(
+        child: Text(
+          tr(context, text).toUpperCase(),
+          style: AppText.citationMono.copyWith(color: color, letterSpacing: 0.9),
+        ),
+      ),
       const SizedBox(width: AppSpace.sm),
       Expanded(child: Container(height: 1, color: t.outlineVariant.withValues(alpha: 0.5))),
     ]);

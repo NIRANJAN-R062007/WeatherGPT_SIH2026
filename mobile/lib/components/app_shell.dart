@@ -12,6 +12,7 @@ import 'package:flutter/services.dart';
 import '../auth_client.dart';
 import '../pages/aviation_page.dart';
 import '../pages/best_window_page.dart';
+import '../pages/history_page.dart';
 import '../pages/profile_page.dart';
 import '../persona_theme.dart';
 import '../state/auth_store.dart';
@@ -29,9 +30,9 @@ class NavItem {
   const NavItem(this.page, this.label, this.icon, this.shortLabel, this.activeIcon);
 }
 
-/// Sidebar.tsx's NAV_ITEMS, minus History: GET /history only answers with a
-/// Supabase bearer token, and this app has no sign-in flow to get one. The
-/// short label and filled icon are the bottom bar's.
+/// Sidebar.tsx's NAV_ITEMS, minus History, which isn't one of the five tabs:
+/// the drawer opens it as a page on top, like Profile. The short label and
+/// filled icon are the bottom bar's.
 const List<NavItem> kNavItems = [
   NavItem(AppPage.home, 'Home', Icons.home_outlined, 'Home', Icons.home_rounded),
   NavItem(AppPage.chat, 'Chat & Evidence', Icons.chat_bubble_outline, 'Chat', Icons.chat_bubble),
@@ -93,6 +94,12 @@ class _AppShellState extends State<AppShell> {
       _current = page;
       _visited.add(page);
     });
+  }
+
+  /// ShellNav.ask, for pages pushed on top of the shell (History's "Ask again").
+  void _askInChat(String question) {
+    _pendingAsk.value = question;
+    _go(AppPage.chat);
   }
 
   @override
@@ -169,6 +176,10 @@ class _AppShellState extends State<AppShell> {
                             Navigator.of(context).pop();
                             openBestWindow(context);
                           },
+                          onHistory: () {
+                            Navigator.of(context).pop();
+                            openHistory(context, onAskAgain: _askInChat);
+                          },
                         ),
                       ),
                 bottomNavigationBar: wide ? null : BottomNav(current: _current, onSelect: _go),
@@ -184,6 +195,7 @@ class _AppShellState extends State<AppShell> {
                               onProfile: () => openProfile(context),
                               onAviation: () => openAviation(context),
                               onBestWindow: () => openBestWindow(context),
+                              onHistory: () => openHistory(context, onAskAgain: _askInChat),
                             ),
                           ),
                           Expanded(child: main),
@@ -307,6 +319,10 @@ class Sidebar extends StatelessWidget {
   /// Opens the Best Time & What-if page — also pushed on top, like Profile
   /// and Airport weather.
   final VoidCallback? onBestWindow;
+
+  /// Opens Query history (pushed on top too); a guest sees an invitation to
+  /// sign in there.
+  final VoidCallback? onHistory;
   const Sidebar({
     super.key,
     required this.current,
@@ -314,6 +330,7 @@ class Sidebar extends StatelessWidget {
     this.onProfile,
     this.onAviation,
     this.onBestWindow,
+    this.onHistory,
   });
 
   @override
@@ -364,6 +381,11 @@ class Sidebar extends StatelessWidget {
                         active: item.page == current,
                         onTap: () => onSelect(item.page),
                       ),
+                    ),
+                  if (onHistory != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: _NavTile(icon: Icons.history, label: 'History', active: false, onTap: onHistory!),
                     ),
                   if (onAviation != null)
                     Padding(
