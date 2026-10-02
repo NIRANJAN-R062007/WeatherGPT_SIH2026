@@ -59,7 +59,7 @@ class SettingsPage extends StatelessWidget {
         plainIcon: true,
         icon: Icons.location_on_outlined,
         title: 'Location',
-        subtitle: '${tr(context, city.name)}, ${tr(context, city.region)}',
+        subtitle: cityAndRegion(context, city),
         onTap: () => showCityPicker(context),
       ),
       ActionRow(

@@ -462,6 +462,8 @@ export const UI_STRINGS: Partial<Record<string, Record<string, string>>> = {
     "Check weather impact on the city": "शहर पर मौसम का असर देखें",
     "View active alerts & advisories": "सक्रिय अलर्ट और सलाह देखें",
     "Rainfall so far today": "आज अब तक की बारिश",
+    "Using {city}, about {km} km from you.": "{city} का उपयोग हो रहा है, आपसे लगभग {km} किमी दूर।",
+    "{city} is the nearest city WeatherGPT covers, about {km} km from you. Answers are for {city}, not your exact location.": "WeatherGPT जिन शहरों को कवर करता है, उनमें {city} सबसे नज़दीक है, आपसे लगभग {km} किमी दूर। जवाब {city} के लिए होंगे, आपके सटीक स्थान के लिए नहीं।",
   },
   ta: {
     "Home": "முகப்பு",
@@ -925,6 +927,8 @@ export const UI_STRINGS: Partial<Record<string, Record<string, string>>> = {
     "Check weather impact on the city": "நகரத்தின் மீதான வானிலைத் தாக்கத்தைச் சரிபார்க்கவும்",
     "View active alerts & advisories": "செயலில் உள்ள எச்சரிக்கைகள் & அறிவுரைகளைக் காண்க",
     "Rainfall so far today": "இன்று இதுவரை மழைப்பொழிவு",
+    "Using {city}, about {km} km from you.": "{city} பயன்படுத்தப்படுகிறது, உங்களிடமிருந்து சுமார் {km} கி.மீ.",
+    "{city} is the nearest city WeatherGPT covers, about {km} km from you. Answers are for {city}, not your exact location.": "WeatherGPT உள்ளடக்கும் நகரங்களில் {city} மிக அருகில் உள்ளது, உங்களிடமிருந்து சுமார் {km} கி.மீ. பதில்கள் {city}-க்கானவை, உங்கள் சரியான இருப்பிடத்திற்கானவை அல்ல.",
   },
   te: {
     "Home": "హోమ్",
@@ -1388,6 +1392,8 @@ export const UI_STRINGS: Partial<Record<string, Record<string, string>>> = {
     "Check weather impact on the city": "నగరంపై వాతావరణ ప్రభావాన్ని తనిఖీ చేయండి",
     "View active alerts & advisories": "సక్రియ హెచ్చరికలు & సలహాలు చూడండి",
     "Rainfall so far today": "ఈరోజు ఇప్పటివరకు వర్షపాతం",
+    "Using {city}, about {km} km from you.": "{city} ఉపయోగిస్తున్నాం, మీ నుండి సుమారు {km} కి.మీ.",
+    "{city} is the nearest city WeatherGPT covers, about {km} km from you. Answers are for {city}, not your exact location.": "WeatherGPT కవర్ చేసే నగరాల్లో {city} మీకు అత్యంత దగ్గరగా ఉంది, సుమారు {km} కి.మీ. దూరంలో. సమాధానాలు {city} కోసం, మీ ఖచ్చితమైన స్థానం కోసం కాదు.",
   },
   mr: {
     "Home": "होम",
@@ -1851,5 +1857,7 @@ export const UI_STRINGS: Partial<Record<string, Record<string, string>>> = {
     "Check weather impact on the city": "शहरावरील हवामानाचा परिणाम तपासा",
     "View active alerts & advisories": "सक्रिय सूचना आणि सल्ले पहा",
     "Rainfall so far today": "आज आतापर्यंतचा पाऊस",
+    "Using {city}, about {km} km from you.": "{city} वापरत आहोत, तुमच्यापासून सुमारे {km} किमी.",
+    "{city} is the nearest city WeatherGPT covers, about {km} km from you. Answers are for {city}, not your exact location.": "WeatherGPT ज्या शहरांचा समावेश करते, त्यात {city} सर्वात जवळ आहे, तुमच्यापासून सुमारे {km} किमी. उत्तरे {city} साठी असतील, तुमच्या नेमक्या ठिकाणासाठी नाहीत.",
   },
 };

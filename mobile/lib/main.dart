@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'cities_client.dart';
 import 'components/app_shell.dart';
 import 'config.dart';
 import 'pages/alerts_page.dart';
@@ -52,7 +53,10 @@ class WeatherGptApp extends StatefulWidget {
 
   /// Where the settings are remembered; tests pass one in memory.
   final PrefsStore? prefsStore;
-  const WeatherGptApp({super.key, this.auth, this.prefsStore});
+
+  /// Where the city list comes from (GET /cities); tests pass a stub.
+  final CitiesFetcher citiesFetcher;
+  const WeatherGptApp({super.key, this.auth, this.prefsStore, this.citiesFetcher = fetchCities});
 
   @override
   State<WeatherGptApp> createState() => _WeatherGptAppState();
@@ -77,6 +81,11 @@ class _WeatherGptAppState extends State<WeatherGptApp> {
     _weather.load(_prefs.city, _prefs.lang);
     _prefs.addListener(_onPrefsChanged);
     _restorePrefs();
+    // The cities this server answers for; the bundled list until it answers,
+    // or for good if it can't be reached.
+    widget.citiesFetcher().then((cities) {
+      if (cities != null && mounted) _prefs.cities = cities;
+    });
   }
 
   /// The settings from an earlier launch, except any the user has already

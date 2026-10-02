@@ -288,18 +288,31 @@ class UiPrefs extends ChangeNotifier {
   String _city = 'chennai';
   String _persona = 'general';
   Appearance _appearance = Appearance.light;
+  List<City> _cities = kCities;
+
+  /// A saved city the current list doesn't have yet — one the server added
+  /// after this build's bundled list. It is selected if the server's list
+  /// (set [cities]) has it, and saved meanwhile so it isn't forgotten.
+  String? _wantedCity;
 
   String get lang => _lang;
   TempUnit get unit => _unit;
   String get city => _city;
   String get persona => _persona;
   Appearance get appearance => _appearance;
-  City get cityInfo => cityByKey(_city);
+  City get cityInfo => cityByKey(_city, _cities);
+
+  /// The cities to offer: the server's (GET /cities) once it has answered,
+  /// the bundled list until then or if it never does.
+  List<City> get cities => _cities;
   Persona get personaInfo => personaById(_persona);
 
   set lang(String v) => _set(() => _lang = v, _lang != v);
   set unit(TempUnit v) => _set(() => _unit = v, _unit != v);
-  set city(String v) => _set(() => _city = v, _city != v);
+  set city(String v) => _set(() {
+    _city = v;
+    _wantedCity = null;
+  }, _city != v || _wantedCity != null);
   set persona(String v) => _set(() => _persona = v, _persona != v);
   set appearance(Appearance v) => _set(() => _appearance = v, _appearance != v);
 
@@ -308,6 +321,22 @@ class UiPrefs extends ChangeNotifier {
     Appearance.dark => ThemeMode.dark,
     Appearance.system => ThemeMode.system,
   };
+
+  /// Takes the server's city list. A city it doesn't serve can't stay
+  /// selected — /ask and /warnings would refuse it — so the selection moves
+  /// to the list's first city; a saved city the bundled list lacked is
+  /// selected if the server has it.
+  set cities(List<City> v) {
+    if (v.isEmpty) return;
+    final before = (_city, [for (final c in _cities) c.key]);
+    _cities = List.unmodifiable(v);
+    bool served(String? key) => key != null && v.any((c) => c.key == key);
+    if (served(_wantedCity)) _city = _wantedCity!;
+    _wantedCity = null;
+    if (!served(_city)) _city = v.first.key;
+    final after = (_city, [for (final c in _cities) c.key]);
+    if (before.$1 != after.$1 || !listEquals(before.$2, after.$2)) notifyListeners();
+  }
 
   void _set(VoidCallback apply, bool changed) {
     if (!changed) return;
@@ -319,15 +348,16 @@ class UiPrefs extends ChangeNotifier {
   Map<String, String> toSaved() => {
     'lang': _lang,
     'unit': _unit.name,
-    'city': _city,
+    'city': _wantedCity ?? _city,
     'persona': _persona,
     'appearance': _appearance.name,
   };
 
   /// Takes the settings from an earlier launch, except the [keep] keys (ones
   /// the user has changed since this launch began). A value this build
-  /// doesn't know — a city or persona since removed, a hand-edited file — is
-  /// skipped and that setting keeps its default. One notification at most.
+  /// doesn't know — a persona since removed, a hand-edited file — is skipped
+  /// and that setting keeps its default; a city not in the current list waits
+  /// for the server's list (see [cities]). One notification at most.
   void applySaved(Map<String, String> saved, {Set<String> keep = const {}}) {
     String? take(String key, bool Function(String) valid) {
       final v = saved[key];
@@ -336,13 +366,18 @@ class UiPrefs extends ChangeNotifier {
 
     final lang = take('lang', kLanguageLabels.containsKey);
     final unit = take('unit', (v) => TempUnit.values.any((u) => u.name == v));
-    final city = take('city', (v) => kCities.any((c) => c.key == v));
+    final city = take('city', (v) => v.isNotEmpty);
     final persona = take('persona', (v) => kPersonas.any((p) => p.id == v));
     final appearance = take('appearance', (v) => Appearance.values.any((a) => a.name == v));
     final before = toSaved();
     if (lang != null) _lang = lang;
     if (unit != null) _unit = TempUnit.values.byName(unit);
-    if (city != null) _city = city;
+    if (city != null && _cities.any((c) => c.key == city)) {
+      _city = city;
+      _wantedCity = null;
+    } else if (city != null) {
+      _wantedCity = city;
+    }
     if (persona != null) _persona = persona;
     if (appearance != null) _appearance = Appearance.values.byName(appearance);
     if (!mapEquals(before, toSaved())) notifyListeners();

@@ -1,7 +1,10 @@
-// Mirrors data/cities.json (repo root) — the shared source of truth also
-// consumed by services/orchestrator/cities.py and web/src/data/cities.ts.
-// Only the fields the app needs (key, coords, display name, region) are
-// copied here; keep in sync until the app fetches a live GET /cities.
+// The bundled copy of data/cities.json (repo root) — the shared source of
+// truth also consumed by services/orchestrator/cities.py and
+// web/src/data/cities.ts. Only the fields the app needs (key, coords, display
+// name, region) are copied here. At start-up the app asks the backend for its
+// list (GET /cities, cities_client.dart) and uses that instead, so a city the
+// server adds needs no app update and one it doesn't serve isn't offered;
+// this list is the fallback when the server can't be reached.
 import 'dart:math' as math;
 
 class City {
@@ -18,6 +21,27 @@ class City {
     required this.name,
     required this.region,
   });
+
+  /// One entry of GET /cities (`names` / `region` keyed by language; the
+  /// English ones are used, as the app translates them itself). Null for an
+  /// entry without a key, coordinates or English name.
+  static City? fromJson(Object? json) {
+    if (json is! Map<String, dynamic>) return null;
+    final key = json['key'];
+    final lat = json['lat'];
+    final lon = json['lon'];
+    final names = json['names'];
+    final region = json['region'];
+    final name = names is Map ? names['en'] : null;
+    if (key is! String || key.isEmpty || lat is! num || lon is! num || name is! String) return null;
+    return City(
+      key: key,
+      lat: lat.toDouble(),
+      lon: lon.toDouble(),
+      name: name,
+      region: region is Map && region['en'] is String ? region['en'] as String : '',
+    );
+  }
 }
 
 const List<City> kCities = [
@@ -37,26 +61,27 @@ const List<City> kCities = [
   ),
 ];
 
-City cityByKey(String key) => kCities.firstWhere(
+City cityByKey(String key, [List<City> cities = kCities]) => cities.firstWhere(
       (c) => c.key == key,
-      orElse: () => kCities.first,
+      orElse: () => cities.first,
     );
 
-/// /ask and /warnings only know the 8 registered demo cities and take a
-/// city name, not lat/lon (services/orchestrator/main.py has no lat/lon
-/// param) — so "use my location" means finding the nearest of these 8
-/// points on-device, not a real reverse-geocode.
-City nearestCity(double lat, double lon) {
-  City best = kCities.first;
+/// /ask and /warnings only know the registered demo cities and take a city
+/// name, not lat/lon (services/orchestrator/main.py has no lat/lon param) —
+/// so "use my location" means finding the nearest of [cities] on-device, not
+/// a real reverse-geocode. [km] is how far that city is, so the app can say
+/// when it is far from the user.
+({City city, double km}) nearestCity(double lat, double lon, [List<City> cities = kCities]) {
+  City best = cities.first;
   double bestDist = double.infinity;
-  for (final c in kCities) {
+  for (final c in cities) {
     final d = _haversineKm(lat, lon, c.lat, c.lon);
     if (d < bestDist) {
       bestDist = d;
       best = c;
     }
   }
-  return best;
+  return (city: best, km: bestDist);
 }
 
 double _haversineKm(double lat1, double lon1, double lat2, double lon2) {

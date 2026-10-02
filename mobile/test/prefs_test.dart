@@ -112,9 +112,14 @@ void main() {
     });
 
     test('unknown values are skipped and keep their defaults', () {
-      final prefs = UiPrefs()
-        ..applySaved({'lang': 'fr', 'unit': 'kelvin', 'city': 'atlantis', 'persona': 'pirate', 'appearance': 'sepia'});
+      final prefs = UiPrefs()..applySaved({'lang': 'fr', 'unit': 'kelvin', 'persona': 'pirate', 'appearance': 'sepia'});
       expect(prefs.toSaved(), UiPrefs().toSaved());
+    });
+
+    test("a city the bundled list lacks waits for the server's list, and is kept meanwhile", () {
+      final prefs = UiPrefs()..applySaved({'city': 'pune'});
+      expect(prefs.city, 'chennai'); // nothing to answer for Pune yet
+      expect(prefs.toSaved()['city'], 'pune'); // but not forgotten
     });
 
     test('settings in `keep` are left as they are', () {

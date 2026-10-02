@@ -21,7 +21,6 @@ import '../persona_theme.dart';
 import '../state/ui_prefs.dart';
 import '../theme.dart';
 import 'common.dart';
-import '../i18n.dart';
 
 /// Deterministic pseudo-random stream, so the artwork is the same on every
 /// frame and every launch.
@@ -983,7 +982,7 @@ class CityPill extends StatelessWidget {
                 ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 220),
                   child: Text(
-                    '${tr(context, city.name)}, ${tr(context, city.region)}',
+                    cityAndRegion(context, city),
                     overflow: TextOverflow.ellipsis,
                     style: AppText.labelMd.copyWith(color: t.ink, fontWeight: FontWeight.w600),
                   ),

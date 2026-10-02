@@ -41,7 +41,8 @@ flutter build apk --release --dart-define=API_BASE_URL=https://3-108-52-61.sslip
 The shell is `lib/components/app_shell.dart`: on phones the Sidebar is a
 drawer behind the Topbar's menu button; at ≥ 1000 px it is the permanent
 256 px sidebar, like web/. The Topbar's city pill sets the city every page
-uses and offers "Use my location" (nearest supported city). The bell opens
+uses and offers "Use my location" (nearest supported city, with a note saying
+which city and how far away, and a warning beyond 50 km). The bell opens
 Alerts. Android back returns to Home before leaving the app.
 
 Only data some endpoint actually serves is shown. The web pages' static design
@@ -74,7 +75,8 @@ lib/
   voice_client.dart         POST /asr, POST /tts
   voice_recorder.dart       16 kHz mono WAV capture (record plugin)
   play_button.dart          TTS playback (audioplayers)
-  location.dart, cities.dart  GPS -> nearest of the registered cities
+  location.dart, cities.dart  GPS -> nearest of the registered cities (+ distance)
+  cities_client.dart        GET /cities at start-up; bundled list as fallback
   warning_colors.dart       IMD band colours (same values as web's imd-* tokens)
 assets/fonts/               static TTF weights of web/public/fonts/*.woff2 (Inter,
                             Plus Jakarta Sans, JetBrains Mono)
@@ -142,10 +144,12 @@ the work sits:
      unsubscribing on opt-out, behind a Settings → Notifications toggle.
    - Backend: FCM HTTP v1 dispatch with a service account, and
      `ALERT_ENGINE_ENABLED` turned on.
-8. **Live city list.** *(App)* `lib/cities.dart` hard-codes the 8 registered
-   cities. `GET /cities` serves them (names, region, lat/lon). Fetch at start-up
-   and keep the bundled list as fallback, so new cities don't need an app
-   release.
+8. ~~**Live city list.**~~ ✅ Done (2026-10-03). The app fetches `GET /cities`
+   at start-up and offers exactly the cities that server answers for; the
+   bundled list in `lib/cities.dart` is the fallback when it can't be reached.
+   A selected city the server doesn't serve moves to its first city. City names
+   are still translated by the app's own string table, so a city the server
+   adds shows in English until `ui-strings/ui_strings.json` has it.
 9. **Localized glossary.** *(App)* `GET /glossary?lang=` returns the warning
    colour words and category labels per language, with `native_qa` flags. Use
    it for the legend and labels, and mark translations that haven't had native
@@ -171,7 +175,8 @@ the work sits:
     cyclone tracks / CAP warning polygons. `imd_warnings.py` is a per-city
     fixture with no geometry yet.
 14. **Real location queries.** *(Backend, then App)* The backend only accepts a
-    city, so "Use my location" snaps to the nearest registered city. Google
+    city, so "Use my location" snaps to the nearest registered city (it now
+    says which and how far, and warns beyond 50 km). Google
     Weather is lat/lon-based, so `/ask` and `/facts` could take `lat`/`lon`
     directly.
 

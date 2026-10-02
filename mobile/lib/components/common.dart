@@ -403,19 +403,45 @@ class CityHintRow extends StatelessWidget {
   }
 }
 
-/// Topbar.tsx's city dropdown as a bottom sheet, plus a "use my location"
-/// row (location.dart: nearest of the registered cities — /ask and
-/// /warnings take a city, not coordinates).
-Future<void> showCityPicker(BuildContext context) {
+/// Beyond this, "Use my location" warns that answers are for the city, not
+/// where the user is: the demo cities are metros, so 50 km covers their
+/// suburbs but not the next town.
+const double kNearCityKm = 50;
+
+/// Topbar.tsx's city dropdown as a bottom sheet, listing the cities the
+/// server answers for (UiPrefs.cities), plus a "use my location" row: the
+/// nearest of those cities — /ask and /warnings take a city, not
+/// coordinates. A note says which city was picked and how far it is from
+/// the user. [locate] is for tests.
+Future<void> showCityPicker(BuildContext context, {Locator locate = currentPosition}) {
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
-    builder: (_) => const _CityPickerSheet(),
+    builder: (_) => _CityPickerSheet(locate: locate),
   );
 }
 
+/// "Madurai, Tamil Nadu" in the app language; just the name when the
+/// server's entry has no region.
+String cityAndRegion(BuildContext context, City city) =>
+    city.region.isEmpty ? tr(context, city.name) : '${tr(context, city.name)}, ${tr(context, city.region)}';
+
+/// What "Use my location" tells the user about the city it picked.
+String nearestCityNote(BuildContext context, City city, double km) {
+  final args = {'city': tr(context, city.name), 'km': km < 1 ? '1' : km.round().toString()};
+  return km <= kNearCityKm
+      ? tr(context, 'Using {city}, about {km} km from you.', args)
+      : tr(
+          context,
+          '{city} is the nearest city WeatherGPT covers, about {km} km from you. '
+          'Answers are for {city}, not your exact location.',
+          args,
+        );
+}
+
 class _CityPickerSheet extends StatefulWidget {
-  const _CityPickerSheet();
+  final Locator locate;
+  const _CityPickerSheet({required this.locate});
 
   @override
   State<_CityPickerSheet> createState() => _CityPickerSheetState();
@@ -431,10 +457,23 @@ class _CityPickerSheetState extends State<_CityPickerSheet> {
       _locateError = null;
     });
     try {
-      final city = await locateNearestCity();
+      final here = await widget.locate();
       if (!mounted) return;
-      UiPrefs.read(context).city = city.key;
+      final prefs = UiPrefs.read(context);
+      final (:city, :km) = nearestCity(here.lat, here.lon, prefs.cities);
+      prefs.city = city.key;
+      final note = nearestCityNote(context, city, km);
+      final messenger = ScaffoldMessenger.of(context);
       Navigator.of(context).pop();
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text(note),
+            duration: Duration(seconds: km <= kNearCityKm ? 4 : 10),
+            showCloseIcon: true,
+          ),
+        );
     } catch (e) {
       if (mounted) setState(() => _locateError = '$e');
     } finally {
@@ -467,10 +506,10 @@ class _CityPickerSheetState extends State<_CityPickerSheet> {
               padding: EdgeInsets.symmetric(vertical: AppSpace.xs, horizontal: 12),
               child: Divider(),
             ),
-            for (final City c in kCities)
+            for (final City c in prefs.cities)
               _CityRow(
                 icon: c.key == prefs.city ? Icons.radio_button_checked : Icons.location_on_outlined,
-                label: '${tr(context, c.name)}, ${tr(context, c.region)}',
+                label: cityAndRegion(context, c),
                 active: c.key == prefs.city,
                 onTap: () {
                   prefs.city = c.key;
