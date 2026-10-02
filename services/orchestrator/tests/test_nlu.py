@@ -508,3 +508,96 @@ def test_llm_aviation_with_an_unknown_city_is_a_refusal():
         '"parameter":"general","language":"en","confidence":0.9}'
     )
     assert pq.intent == "unsupported_city"
+
+
+# --- best_window (WIE-4) ------------------------------------------------------
+# "Best time/window" questions are answered by the Weather Intelligence
+# Engine's best-window computation, not the plain forecast — the best_window
+# word decides on its own, like a warning or aviation word.
+
+@pytest.mark.parametrize("text,city", [
+    ("when is the best time to go outside tomorrow in Chennai", "chennai"),
+    ("best time to go outside in Madurai", "madurai"),
+    ("best window to travel today in Coimbatore", "coimbatore"),
+    ("what's the ideal time to go out in Chennai", "chennai"),
+    ("good time to go out in Mumbai", "mumbai"),
+    ("சென்னையில் நாளை வெளியே செல்ல சிறந்த நேரம் எது?", "chennai"),
+])
+def test_rules_best_window_query_is_best_window(text, city):
+    pq = nlu.parse(text)
+    assert (pq.intent, resolve_city(pq.city), pq.source, pq.confidence) == \
+        ("best_window", city, "rules", 0.9)
+
+
+def test_rules_best_window_hit_needs_no_city():
+    pq = nlu.parse("what's the best time to go out tomorrow?")
+    assert (pq.intent, pq.city, pq.source) == ("best_window", None, "rules")
+
+
+def test_best_window_falls_back_to_the_selected_city():
+    pq = nlu.parse("best time to go outside today", city_hint="madurai")
+    assert (pq.intent, pq.city) == ("best_window", "madurai")
+
+
+def test_rules_best_window_hit_never_calls_the_llm(monkeypatch):
+    monkeypatch.setattr(config, "GEMINI_API_KEY", "k")
+    monkeypatch.setattr(config, "GROQ_API_KEY", "k")
+
+    def _boom(*a, **k):
+        raise AssertionError("generate() was called")
+
+    monkeypatch.setattr(narrate, "generate", _boom)
+    monkeypatch.setattr(narrate, "generate_groq", _boom)
+    pq = nlu.parse("best time to go outside tomorrow in Chennai")
+    assert pq.intent == "best_window" and pq.source == "rules"
+
+
+@pytest.mark.parametrize("text,intent", [
+    ("will it rain tomorrow in Chennai?", "will_it_rain"),  # no "best" phrase
+    ("best weather in Chennai", "current_weather"),  # "best" alone, not best time/window
+    ("is there any warning for Chennai?", "warnings"),
+    ("what's the weather in Chennai", "current_weather"),
+])
+def test_best_window_does_not_swallow_other_intents(text, intent):
+    assert nlu.parse(text).intent == intent
+
+
+def test_best_window_word_with_an_unsupported_city_still_needs_a_supported_one():
+    # "for Kolkata" (unlike "in Kolkata") doesn't match CITY_PATTERN's "in
+    # <city>" capture, and "Kolkata" isn't a registered city either, so
+    # intent.py's base parse is "unrecognized" with no city at all — the
+    # best_window word still decides on its own, same as "metar for Kolkata".
+    pq = nlu.parse("best time to go outside for Kolkata")
+    assert pq.intent == "best_window" and pq.city is None  # /ask then asks which city
+
+
+def test_best_window_with_an_explicitly_unsupported_city_is_a_refusal():
+    # "in Kolkata" DOES match CITY_PATTERN, so intent.py's base parse is
+    # "unsupported_city" (a known-bad place, not just "no city named") —
+    # that refusal takes priority over the best_window word, same rule as
+    # warnings ("warning in Kolkata" -> unsupported_city, test_nlu.py above).
+    pq = nlu.parse("best time to go outside in Kolkata")
+    assert pq.intent == "unsupported_city"
+
+
+def test_best_window_is_in_the_llm_schema_and_prompt():
+    assert "best_window" in nlu.INTENTS
+    assert "best_window" in nlu._NLU_SCHEMA["properties"]["intent"]["enum"]
+    assert "best_window" in nlu._NLU_PROMPT
+
+
+def test_llm_best_window_answer_is_accepted():
+    pq = nlu._validate_llm_json(
+        '{"intent":"best_window","city":"chennai","time_window":"tomorrow","days":null,'
+        '"parameter":"general","language":"hi","confidence":0.9}'
+    )
+    assert (pq.intent, pq.city, pq.language, pq.source) == \
+        ("best_window", "chennai", "hi", "llm")
+
+
+def test_llm_best_window_with_an_unknown_city_is_a_refusal():
+    pq = nlu._validate_llm_json(
+        '{"intent":"best_window","city":"Kolkata","time_window":"today","days":null,'
+        '"parameter":"general","language":"en","confidence":0.9}'
+    )
+    assert pq.intent == "unsupported_city"
