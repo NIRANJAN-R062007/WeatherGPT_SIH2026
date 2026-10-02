@@ -6,14 +6,18 @@
 // the full app, no account, no profile. The choice is remembered like a
 // session, and signing in from guest mode replaces it.
 //
-// The session is kept in a small JSON file in the app's private support
-// directory, so a user stays signed in across restarts; on launch an expired
-// access token is swapped for a fresh one with the refresh token, and a
-// refresh the server rejects signs the user out.
+// The session is kept in the platform's secure store (Android Keystore,
+// iOS Keychain) so a user stays signed in across restarts; on launch an
+// expired access token is swapped for a fresh one with the refresh token, and
+// a refresh the server rejects signs the user out. It is never written to a
+// plain file and stays out of device backups (SEC-N19, plan.md F11): the
+// Keychain item is this-device-only, and android/app/src/main's manifest
+// turns off backup and device transfer.
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../auth_client.dart';
@@ -28,24 +32,51 @@ abstract class SessionStorage {
   Future<void> clear();
 }
 
-class FileSessionStorage implements SessionStorage {
-  Future<File> _file() async => File('${(await getApplicationSupportDirectory()).path}/auth_session.json');
+class SecureSessionStorage implements SessionStorage {
+  static const _key = 'auth_session';
+
+  final FlutterSecureStorage _store;
+
+  /// The app support directory, where builds before SEC-N19 kept the session
+  /// as plaintext `auth_session.json`; tests point it at a temp directory.
+  final Future<Directory> Function() _legacyDir;
+
+  SecureSessionStorage({FlutterSecureStorage? store, Future<Directory> Function()? legacyDir})
+    : _store =
+          store ??
+          const FlutterSecureStorage(
+            // Readable after the first unlock (a background token refresh
+            // works), never restored onto another device.
+            iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock_this_device),
+          ),
+      _legacyDir = legacyDir ?? getApplicationSupportDirectory;
 
   @override
   Future<Map<String, dynamic>?> read() async {
-    final f = await _file();
-    if (!await f.exists()) return null;
-    return jsonDecode(await f.readAsString()) as Map<String, dynamic>;
+    var json = await _store.read(key: _key);
+    // One-time move of a session an older build left in a plain file: into
+    // the secure store, then the file is deleted.
+    final legacy = File('${(await _legacyDir()).path}/auth_session.json');
+    if (await legacy.exists()) {
+      if (json == null) {
+        try {
+          json = await legacy.readAsString();
+          jsonDecode(json);
+          await _store.write(key: _key, value: json);
+        } catch (_) {
+          json = null; // unreadable — start signed out
+        }
+      }
+      await legacy.delete();
+    }
+    return json == null ? null : jsonDecode(json) as Map<String, dynamic>;
   }
 
   @override
-  Future<void> write(Map<String, dynamic> session) async => (await _file()).writeAsString(jsonEncode(session));
+  Future<void> write(Map<String, dynamic> session) => _store.write(key: _key, value: jsonEncode(session));
 
   @override
-  Future<void> clear() async {
-    final f = await _file();
-    if (await f.exists()) await f.delete();
-  }
+  Future<void> clear() => _store.delete(key: _key);
 }
 
 /// Keeps nothing — widget tests and previews.
@@ -70,7 +101,7 @@ class AuthStore extends ChangeNotifier {
 
   AuthStore({AuthClient? client, SessionStorage? storage, GoogleSignInFlow Function(AuthClient)? googleFlow})
     : client = client ?? AuthClient(),
-      storage = storage ?? FileSessionStorage(),
+      storage = storage ?? SecureSessionStorage(),
       googleFlow = googleFlow ?? GoogleSignInFlow.platform;
 
   AuthStatus _status = AuthStatus.restoring;
@@ -81,7 +112,7 @@ class AuthStore extends ChangeNotifier {
   AuthUser? get user => _session?.user;
   bool get isGuest => _status == AuthStatus.guest;
 
-  /// What the storage file holds while browsing as a guest.
+  /// What the session storage holds while browsing as a guest.
   static const _guestMarker = {'guest': true};
 
   /// Loads a saved session, refreshing it if it has expired.

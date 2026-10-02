@@ -4,10 +4,16 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
+    <!-- No backup or device transfer: the session's Keystore key can't be
+         restored, and the session itself stays on this device (SEC-N19).
+         allowBackup covers Android 11 and older and cloud backup; the
+         extraction rules cover device-to-device transfer on Android 12+. -->
     <application
         android:label="weathergpt"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules">
         <activity
             android:name=".MainActivity"
             android:exported="true"
