@@ -213,6 +213,19 @@ class AuthStore extends ChangeNotifier {
     return fresh;
   }
 
+  /// A working access token for the backend (refreshed first if it has
+  /// expired), or null for a guest, a signed-out user or a failed refresh —
+  /// web/'s getAccessToken(). Never throws: a question asked without a token
+  /// is still answered, just not recorded to History.
+  Future<String?> accessToken() async {
+    if (_session == null) return null;
+    try {
+      return (await _freshSession()).accessToken;
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Use the app without an account.
   Future<void> continueAsGuest() async {
     _session = null;
@@ -270,6 +283,9 @@ class AuthStore extends ChangeNotifier {
 
   /// For event handlers — no rebuild subscription.
   static AuthStore read(BuildContext context) => context.getInheritedWidgetOfExactType<AuthScope>()!.notifier!;
+
+  /// Like [read], but null outside an AuthScope.
+  static AuthStore? maybeRead(BuildContext context) => context.getInheritedWidgetOfExactType<AuthScope>()?.notifier;
 }
 
 class AuthScope extends InheritedNotifier<AuthStore> {

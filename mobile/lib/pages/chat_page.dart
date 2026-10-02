@@ -4,7 +4,8 @@
 // bubbles, every answer through AskAnswer with its evidence detail on) with
 // the ask bar docked at the bottom. The ask bar carries voice input (POST
 // /asr). Questions handed over by other pages (ShellNav.ask) are asked on
-// arrival. Session-only, like web/: nothing here is persisted.
+// arrival. The transcript is session-only, like web/; a signed-in user's
+// questions are also recorded server-side, for the History page.
 import 'package:flutter/material.dart';
 
 import '../api_client.dart';
@@ -15,6 +16,7 @@ import '../components/composer.dart';
 import '../components/scenery.dart';
 import '../components/surfaces.dart';
 import '../format.dart';
+import '../state/auth_store.dart';
 import '../state/ui_prefs.dart';
 import '../persona_theme.dart';
 import '../theme.dart';
@@ -75,6 +77,7 @@ class _ChatPageState extends State<ChatPage> {
     final question = text.trim();
     if (question.isEmpty || _loading) return;
     final prefs = UiPrefs.read(context);
+    final auth = AuthStore.maybeRead(context);
     final turn = _Turn(question, prefs.lang, istTime(DateTime.now().toUtc().toIso8601String()));
     setState(() {
       _turns.add(turn);
@@ -83,7 +86,16 @@ class _ChatPageState extends State<ChatPage> {
     _scrollToEnd();
 
     try {
-      turn.outcome = await askWeather(text: question, lang: prefs.lang, city: prefs.city, persona: prefs.persona);
+      // A signed-in user's token makes the backend record the question to
+      // their History (best-effort); a guest has none and isn't recorded.
+      final token = await auth?.accessToken();
+      turn.outcome = await askWeather(
+        text: question,
+        lang: prefs.lang,
+        city: prefs.city,
+        persona: prefs.persona,
+        token: token,
+      );
     } catch (e) {
       turn.error = e is AskError
           ? e

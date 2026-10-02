@@ -36,7 +36,7 @@ flutter build apk --release --dart-define=API_BASE_URL=https://3-108-52-61.sslip
 | `ForecastPage.tsx` | **Forecast** — Today / Tonight / Tomorrow accordion, provenance card, forecast ask box ("5-day forecast for …") | `GET /facts`, `GET /ask` |
 | `AlertsPage.tsx` | **Alerts & Warnings** — the IMD colour verdict with its legend; "no verdict" is always neutral, never green | `GET /warnings` |
 | `SettingsPage.tsx` | **Settings** — language, °C/°F, persona (sent to `/ask`) | — |
-| `HistoryPage.tsx` | *not included* — see "Sign-in and History" below | — |
+| `HistoryPage.tsx` | **History** (drawer) — the signed-in user's past questions and answers; All / Alerts / Rain filters, search, "Ask again", "Clear history"; a guest is invited to sign in | `GET /history`, `DELETE /history` |
 
 The shell is `lib/components/app_shell.dart`: on phones the Sidebar is a
 drawer behind the Topbar's menu button; at ≥ 1000 px it is the permanent
@@ -69,6 +69,7 @@ lib/
   api_client.dart           GET /ask + classifyAsk (web api.ts)
   facts_client.dart         GET /facts
   warnings_client.dart      GET /warnings
+  history_client.dart       GET / DELETE /history (bearer token)
   voice_client.dart         POST /asr, POST /tts
   voice_recorder.dart       16 kHz mono WAV capture (record plugin)
   play_button.dart          TTS playback (audioplayers)
@@ -128,15 +129,10 @@ the work sits:
 
 ### P1 — backend features the app doesn't use yet
 
-6. **Sign-in and History.** *(App + Accounts)* `GET /history`,
-   `DELETE /history` and `GET /me` all require a Supabase bearer token. The
-   Supabase project already exists (see `prototype/frontend/auth.js`, Google
-   OAuth). Needs:
-   - `supabase_flutter` plus deep-link redirect setup on Android and iOS.
-   - Sending `Authorization: Bearer <token>` on `/ask` — `askWeather(token:)`
-     already supports it, and it makes the backend record history.
-   - A History page (list + "Clear history") and a Settings → Account card,
-     as on web/.
+6. ~~**Sign-in and History.**~~ ✅ Done. Email and Google sign-in, the
+   Profile page, Chat sending `Authorization: Bearer <token>` on `/ask` (so
+   the backend records a signed-in user's questions) and the History page
+   (2026-10-03). Not yet checked on a device against the live Supabase project.
 7. **Push alerts.** *(App + Backend + Accounts)* `POST /alerts/subscribe`
    accepts `channel: "fcm"` with a `city_key` or `lat`/`lon`/`radius_km`, but
    `alert_engine._dispatch_fcm` is still a logged no-op. Needs:

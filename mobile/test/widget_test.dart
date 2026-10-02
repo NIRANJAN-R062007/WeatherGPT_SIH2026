@@ -118,7 +118,7 @@ void main() {
     expect(find.text('Live conditions unavailable'), findsOneWidget);
   });
 
-  testWidgets('drawer mirrors web Sidebar nav, without History', (tester) async {
+  testWidgets('drawer mirrors web Sidebar nav, with History', (tester) async {
     await tester.pumpWidget(WeatherGptApp(auth: await _signedIn()));
     await _settle(tester);
     await tester.tap(find.byTooltip('Menu'));
@@ -132,7 +132,7 @@ void main() {
         reason: label,
       );
     }
-    expect(find.descendant(of: drawer, matching: find.text('History')), findsNothing);
+    expect(find.descendant(of: drawer, matching: find.text('History')), findsOneWidget);
     expect(find.descendant(of: drawer, matching: find.text('Profile')), findsOneWidget);
     expect(find.descendant(of: drawer, matching: find.text('chelsea@example.com')), findsOneWidget);
   });
