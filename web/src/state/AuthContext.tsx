@@ -1,5 +1,5 @@
 // The signed-in account, app-wide (mobile/lib/state/auth_store.dart). App.tsx
-// shows the landing page while signed out and the app once signed in or
+// shows onboarding while signed out and the app once signed in or
 // browsing as a guest; the Profile page reads the user and signs out here.
 //
 // Guest mode is local only (the Supabase project has anonymous sign-ins
@@ -12,6 +12,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   AuthError,
+  finishGoogleSignIn,
   isStale,
   refreshSession,
   resendConfirmation,
@@ -19,6 +20,7 @@ import {
   signIn as apiSignIn,
   signOutRemote,
   signUp as apiSignUp,
+  startGoogleSignIn,
   updatePassword,
   updateProfile as apiUpdateProfile,
   verifyRecoveryCode,
@@ -64,6 +66,10 @@ interface AuthCtx {
   user: AuthUser | null;
   isGuest: boolean;
   signIn: (email: string, password: string) => Promise<void>;
+  /** Leaves for Google; the app reloads signed in when it comes back. */
+  signInWithGoogle: () => Promise<void>;
+  /** Why the last Google sign-in failed, once it has come back. */
+  googleError: string | null;
   /** Creates the account; the result says whether a confirmation mail must
    *  be opened first. */
   signUp: (details: {
@@ -84,15 +90,31 @@ interface AuthCtx {
   resetPassword: (details: { email: string; code: string; newPassword: string }) => Promise<void>;
   /** Use the app without an account. */
   continueAsGuest: () => void;
-  /** Signs out, or leaves guest mode; either way back to the landing page. */
+  /** Signs out, or leaves guest mode; either way back to onboarding. */
   signOut: () => Promise<void>;
 }
 
 const Ctx = createContext<AuthCtx | null>(null);
 
+// Back from Google: the code is traded for a session once per page load —
+// StrictMode runs the restore effect twice, and the code is single-use — and
+// dropped from the address bar either way.
+let googleReturn: Promise<AuthSession | null> | null = null;
+function takeGoogleReturn() {
+  if (!googleReturn) {
+    const here = new URL(window.location.href);
+    const isReturn =
+      here.searchParams.has('code') || here.searchParams.has('error_description') || here.hash.includes('error_description');
+    if (isReturn) window.history.replaceState(null, '', here.pathname);
+    googleReturn = isReturn ? finishGoogleSignIn(here) : Promise.resolve(null);
+  }
+  return googleReturn;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>('restoring');
   const [session, setSession] = useState<AuthSession | null>(null);
+  const [googleError, setGoogleError] = useState<string | null>(null);
 
   const adopt = useCallback((s: AuthSession) => {
     setSession(s);
@@ -104,6 +126,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      try {
+        const google = await takeGoogleReturn();
+        if (cancelled) return;
+        if (google) {
+          adopt(google);
+          return;
+        }
+      } catch (err) {
+        if (cancelled) return;
+        setGoogleError(err instanceof AuthError ? err.message : 'Google sign-in failed. Please try again.');
+      }
       const stored = readStored();
       if (stored && 'guest' in stored && stored.guest === true) {
         setStatus('guest');
@@ -130,7 +163,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [adopt]);
 
   const value = useMemo<AuthCtx>(
     () => ({
@@ -139,6 +172,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user: session?.user ?? null,
       isGuest: status === 'guest',
       signIn: async (email, password) => adopt(await apiSignIn(email.trim(), password)),
+      signInWithGoogle: async () => {
+        setGoogleError(null);
+        // Back to the welcome page, which shows a failure.
+        await startGoogleSignIn(`${window.location.origin}${import.meta.env.BASE_URL}welcome`);
+      },
+      googleError,
       signUp: async (d) => {
         const result = await apiSignUp({
           email: d.email.trim(),
@@ -202,7 +241,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       },
     }),
-    [status, session, adopt],
+    [status, session, adopt, googleError],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

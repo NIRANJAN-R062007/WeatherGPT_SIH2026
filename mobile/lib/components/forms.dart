@@ -1,4 +1,4 @@
-// Form pieces for the landing, sign-in and profile pages, in the active
+// Form pieces for the sign-in and profile pages, in the active
 // persona's colours: the sky-backed sub-page scaffold, the rounded text
 // field, the two button styles (accent gradient, outlined), the "Continue
 // with Google" button and the "Continue as guest" link.
@@ -277,7 +277,11 @@ class GuestButton extends StatelessWidget {
 /// shows as a snackbar; backing out of the browser shows nothing.
 class GoogleSignInButton extends StatefulWidget {
   final bool enabled;
-  const GoogleSignInButton({super.key, this.enabled = true});
+
+  /// Draws the button instead of the default outlined one; `onPressed` is
+  /// null while disabled or waiting for Google.
+  final Widget Function(BuildContext context, VoidCallback? onPressed, bool busy)? builder;
+  const GoogleSignInButton({super.key, this.enabled = true, this.builder});
 
   @override
   State<GoogleSignInButton> createState() => _GoogleSignInButtonState();
@@ -302,9 +306,13 @@ class _GoogleSignInButtonState extends State<GoogleSignInButton> {
   }
 
   @override
-  Widget build(BuildContext context) => OutlineActionButton(
-    label: _busy ? 'Waiting for Google…' : 'Continue with Google',
-    icon: Icons.g_mobiledata,
-    onPressed: widget.enabled && !_busy ? _signIn : null,
-  );
+  Widget build(BuildContext context) {
+    final onPressed = widget.enabled && !_busy ? _signIn : null;
+    return widget.builder?.call(context, onPressed, _busy) ??
+        OutlineActionButton(
+          label: _busy ? 'Waiting for Google…' : 'Continue with Google',
+          icon: Icons.g_mobiledata,
+          onPressed: onPressed,
+        );
+  }
 }

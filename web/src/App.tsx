@@ -10,7 +10,7 @@ import EditProfilePage from './pages/EditProfilePage';
 import ForecastPage from './pages/ForecastPage';
 import HistoryPage from './pages/HistoryPage';
 import HomePage from './pages/HomePage';
-import LandingPage from './pages/LandingPage';
+import { LanguagePage, WelcomeLoginPage } from './pages/OnboardingPages';
 import PersonaPage from './pages/PersonaPage';
 import ProfilePage from './pages/ProfilePage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
@@ -20,9 +20,9 @@ import { ChatProvider } from './state/ChatContext';
 import { UiPrefsProvider } from './state/UiPrefsContext';
 import { WeatherProvider } from './state/WeatherContext';
 
-/** Signed out → the landing page (sign in / create account / guest);
- *  signed in or guest → the app. Signing out (or leaving guest mode) from
- *  Profile lands back on the landing page. */
+/** Signed out → onboarding: the language page, then welcome + log in
+ *  (create account / Google / guest); signed in or guest → the app. Signing
+ *  out (or leaving guest mode) from Profile lands back on the language page. */
 function Gate() {
   const { status } = useAuth();
 
@@ -38,7 +38,8 @@ function Gate() {
   if (status === 'signedOut') {
     return (
       <Routes>
-        <Route index element={<LandingPage />} />
+        <Route index element={<LanguagePage />} />
+        <Route path="welcome" element={<WelcomeLoginPage />} />
         <Route path="signin" element={<AuthPage initialMode="signIn" />} />
         <Route path="signup" element={<AuthPage initialMode="signUp" />} />
         <Route path="reset-password" element={<ResetPasswordPage />} />

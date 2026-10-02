@@ -934,7 +934,7 @@ class PersonaScenery extends StatelessWidget {
 enum SceneryFooter { none, landscape, soft }
 
 /// The strip under the top bar: the city pill over the persona's scene.
-/// Pages outside the signed-in app (landing, sign-in, profile) leave the
+/// Pages outside the signed-in app (sign-in, profile) leave the
 /// pill out.
 class SceneryHeader extends StatelessWidget {
   static const double height = 112;
