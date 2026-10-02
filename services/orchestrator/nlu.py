@@ -21,7 +21,7 @@ from intent import parse_intent
 
 INTENTS = (
     "current_weather", "forecast", "will_it_rain", "rainfall_so_far_today", "warnings",
-    "aviation", "out_of_scope",
+    "aviation", "best_window", "out_of_scope",
 )
 TIME_WINDOWS = ("today", "tonight", "tomorrow", "day_after_tomorrow", "next_n_days")
 PARAMETERS = ("general", "temperature", "rain", "humidity", "wind", "uv")
@@ -55,6 +55,15 @@ _HAZARD_RE = re.compile(r"\bcyclon\w*|\bflood\w*|புயல்|சூறாவ
 # (aviation.py), not the city forecast, so they are `aviation`.
 # TODO: native_qa — the Tamil phrase ("airport") is a first draft.
 _AVIATION_RE = re.compile(r"\b(?:metar|taf|aviation|airport|runway)\b|விமான\s*நிலைய", re.IGNORECASE)
+# WIE-4: "best time/window/hours [to go outside]", not just "the weather" —
+# answered by the Weather Intelligence Engine's best-window computation
+# (weather_intelligence/window_analyzer.py), so they are `best_window`.
+# TODO: native_qa — the Tamil phrase ("best time") is a first draft.
+_BEST_WINDOW_RE = re.compile(
+    r"\bbest\s+(?:time|window|hours?)\b|\bideal\s+time\b|\bgood\s+time\s+to\s+go\s+out\b"
+    r"|சிறந்த\s*நேரம்",
+    re.IGNORECASE,
+)
 _RAIN_SO_FAR_RE = re.compile(
     r"(how much|amount of)\s+rain|rain(?:fall)?\s+(?:so far|till now|until now|today so far)"
     r"|has it rained|இதுவரை.*மழை|எவ்வளவு மழை",
@@ -90,6 +99,8 @@ _NLU_PROMPT = (
     "is in force for a place, for any hazard (rain, thunderstorm, cyclone, flood, heat). "
     "aviation = an airport's METAR (current observation) or TAF (airport forecast), or "
     "weather for pilots / flights / runways. "
+    "best_window = asking for the best / ideal time or window to go outside, travel, or do "
+    "an outdoor activity on a given day — a suitable time range, not just the forecast. "
     "out_of_scope = greetings, chit-chat, non-weather, or products we do not have: a "
     "cyclone's track or landfall, whether a place will flood, tsunami, earthquake, marine / "
     "fishermen bulletins, air quality, past days.\n"
@@ -120,6 +131,9 @@ _NLU_PROMPT = (
     '"time_window":"today","days":null,"parameter":"general","language":"en","confidence":0.95}}\n'
     '"METAR for Chennai airport" -> {{"intent":"aviation","city":"chennai","time_window":"today",'
     '"days":null,"parameter":"general","language":"en","confidence":0.95}}\n'
+    '"when is the best time to go outside tomorrow in Chennai" -> {{"intent":"best_window",'
+    '"city":"chennai","time_window":"tomorrow","days":null,"parameter":"general","language":"en",'
+    '"confidence":0.95}}\n'
     '"weather in Mumbai" -> {{"intent":"current_weather","city":"Mumbai","time_window":"today",'
     '"days":null,"parameter":"general","language":"en","confidence":0.9}}\n'
     "Message: {text}"
@@ -206,6 +220,7 @@ def parse_rules(text: str, script: str) -> ParsedQuery:
     is_rain_so_far = bool(_RAIN_SO_FAR_RE.search(text))
     is_warnings = bool(_WARNINGS_RE.search(text))
     is_aviation = bool(_AVIATION_RE.search(text))
+    is_best_window = bool(_BEST_WINDOW_RE.search(text))
     is_out_of_scope = bool(_OUT_OF_SCOPE_RE.search(text)) or (
         bool(_HAZARD_RE.search(text)) and not is_warnings
     )
@@ -224,6 +239,8 @@ def parse_rules(text: str, script: str) -> ParsedQuery:
         final_intent = "warnings"
     elif is_aviation and base_intent != "unsupported_city":  # "metar for Kolkata" too
         final_intent, time_window = "aviation", "today"
+    elif is_best_window and base_intent != "unsupported_city":  # "best time in Kolkata" too
+        final_intent = "best_window"
     elif is_rain_so_far and base_intent != "unsupported_city":  # "rain so far in Mumbai" too
         final_intent, time_window, parameter = "rainfall_so_far_today", "today", "rain"
     elif (next_n_match or is_day_after) and base_intent != "unsupported_city":  # ditto
@@ -241,7 +258,8 @@ def parse_rules(text: str, script: str) -> ParsedQuery:
 def _rule_accepted(pq: ParsedQuery, keyword_hit: bool) -> bool:
     # A warning word or an unsupported product decides on its own — no city or
     # weather keyword needed, and no LLM round trip to confirm it.
-    if pq.intent in ("out_of_scope", "warnings", "aviation") and pq.language in ("en", "ta"):
+    no_city_needed = ("out_of_scope", "warnings", "aviation", "best_window")
+    if pq.intent in no_city_needed and pq.language in ("en", "ta"):
         return True
     return (
         pq.intent in _P0_INTENTS
@@ -322,7 +340,7 @@ def parse(text: str, lang_hint: str | None = None, city_hint: str | None = None)
     # is clearly weather-shaped: fall back to the UI's currently selected city
     # rather than paying for a full LLM round trip just to learn there's no
     # city to disambiguate.
-    if pq.city is None and (pq.intent in _P0_INTENTS or pq.intent == "aviation"):
+    if pq.city is None and (pq.intent in _P0_INTENTS or pq.intent in ("aviation", "best_window")):
         resolved_hint = cities.resolve(city_hint)
         if resolved_hint is not None:
             pq.city = resolved_hint
