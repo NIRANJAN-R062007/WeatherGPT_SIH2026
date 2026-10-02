@@ -63,7 +63,8 @@ lib/
     common.dart             cards, chips, badges, loading/error panels, city picker sheet
   pages/                    home, chat, forecast, alerts, settings
   state/
-    ui_prefs.dart           language, unit, city, persona (web UiPrefsContext.tsx)
+    ui_prefs.dart           language, unit, city, persona, appearance (web UiPrefsContext.tsx)
+    prefs_store.dart        remembers ui_prefs across launches (app_prefs.json)
     weather_store.dart      shared /facts load for Home + Forecast
     ask_controller.dart     single-answer /ask state (web useAsk.ts)
   api_client.dart           GET /ask + classifyAsk (web api.ts)
@@ -157,8 +158,10 @@ the work sits:
     - Cache the last-known `/facts`, `/warnings` and recent answers on device.
     - Show "cached at HH:MM IST" when offline, with connectivity detection.
     - Packages: e.g. `shared_preferences` or `hive`, plus `connectivity_plus`.
-11. **Persist preferences.** *(App)* Language, unit, city and persona reset on
-    every launch. Store them with `shared_preferences`.
+11. ~~**Persist preferences.**~~ ✅ Done (2026-10-03). Language, °C / °F, city,
+    persona and Light / Dark / System are saved to a small JSON file in the app
+    support directory (`lib/state/prefs_store.dart`) and restored at launch;
+    the older language-only file is migrated. No new package was needed.
 12. **Localize the app's own UI.** *(App)* Answers come back localized from the
     backend, but the app's labels, buttons and headings are English only. Add
     `flutter_localizations` with ARB files for hi / ta / te / mr (native review

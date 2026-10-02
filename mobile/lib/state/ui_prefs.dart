@@ -4,10 +4,13 @@
 // /warnings calls stay in sync. Adds the persona flag, which web/'s Settings
 // page shows but doesn't wire; here it reaches /ask's `persona` param and is
 // the app-wide theme selector (main.dart builds the theme from it), plus the
-// Light / Dark appearance. In-memory only, like web/.
+// Light / Dark appearance. Unlike web/, all five are remembered across
+// launches (prefs_store.dart; main.dart loads and saves them).
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../cities.dart';
+import '../config.dart';
 import '../persona_theme.dart';
 
 enum TempUnit { celsius, fahrenheit }
@@ -310,6 +313,39 @@ class UiPrefs extends ChangeNotifier {
     if (!changed) return;
     apply();
     notifyListeners();
+  }
+
+  /// What prefs_store.dart saves.
+  Map<String, String> toSaved() => {
+    'lang': _lang,
+    'unit': _unit.name,
+    'city': _city,
+    'persona': _persona,
+    'appearance': _appearance.name,
+  };
+
+  /// Takes the settings from an earlier launch, except the [keep] keys (ones
+  /// the user has changed since this launch began). A value this build
+  /// doesn't know — a city or persona since removed, a hand-edited file — is
+  /// skipped and that setting keeps its default. One notification at most.
+  void applySaved(Map<String, String> saved, {Set<String> keep = const {}}) {
+    String? take(String key, bool Function(String) valid) {
+      final v = saved[key];
+      return v != null && !keep.contains(key) && valid(v) ? v : null;
+    }
+
+    final lang = take('lang', kLanguageLabels.containsKey);
+    final unit = take('unit', (v) => TempUnit.values.any((u) => u.name == v));
+    final city = take('city', (v) => kCities.any((c) => c.key == v));
+    final persona = take('persona', (v) => kPersonas.any((p) => p.id == v));
+    final appearance = take('appearance', (v) => Appearance.values.any((a) => a.name == v));
+    final before = toSaved();
+    if (lang != null) _lang = lang;
+    if (unit != null) _unit = TempUnit.values.byName(unit);
+    if (city != null) _city = city;
+    if (persona != null) _persona = persona;
+    if (appearance != null) _appearance = Appearance.values.byName(appearance);
+    if (!mapEquals(before, toSaved())) notifyListeners();
   }
 
   String get unitSymbol => _unit == TempUnit.celsius ? 'C' : 'F';

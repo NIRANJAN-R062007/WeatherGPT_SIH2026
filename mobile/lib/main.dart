@@ -2,6 +2,7 @@
 // web/src/ (lib/components/app_shell.dart); the look follows the selected
 // persona (lib/persona_theme.dart). Every page reads live orchestrator data:
 // /facts, /ask, /asr, /tts and /warnings.
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -15,7 +16,7 @@ import 'pages/onboarding_pages.dart';
 import 'pages/settings_page.dart';
 import 'persona_theme.dart';
 import 'state/auth_store.dart';
-import 'state/lang_store.dart';
+import 'state/prefs_store.dart';
 import 'state/ui_prefs.dart';
 import 'state/weather_store.dart';
 import 'theme.dart';
@@ -49,9 +50,9 @@ class WeatherGptApp extends StatefulWidget {
   /// The account store; tests pass one with a preset session.
   final AuthStore? auth;
 
-  /// Where the app language is remembered; tests pass one in memory.
-  final LangStore? langStore;
-  const WeatherGptApp({super.key, this.auth, this.langStore});
+  /// Where the settings are remembered; tests pass one in memory.
+  final PrefsStore? prefsStore;
+  const WeatherGptApp({super.key, this.auth, this.prefsStore});
 
   @override
   State<WeatherGptApp> createState() => _WeatherGptAppState();
@@ -61,8 +62,11 @@ class _WeatherGptAppState extends State<WeatherGptApp> {
   final UiPrefs _prefs = UiPrefs();
   final WeatherStore _weather = WeatherStore();
   late final AuthStore _auth = widget.auth ?? AuthStore();
-  late final LangStore _langStore = widget.langStore ?? LangStore();
-  late String _savedLang;
+  late final PrefsStore _prefsStore = widget.prefsStore ?? FilePrefsStore();
+
+  /// What was last written; null until the saved settings have been read, so
+  /// nothing overwrites them before they are applied.
+  Map<String, String>? _saved;
 
   @override
   void initState() {
@@ -71,25 +75,39 @@ class _WeatherGptAppState extends State<WeatherGptApp> {
     // The hero and Forecast share one /facts load, redone on a city or
     // language change (condition labels come back localized).
     _weather.load(_prefs.city, _prefs.lang);
-    _savedLang = _prefs.lang;
-    _prefs.addListener(_syncWeather);
-    // The language picked on an earlier launch, unless one was picked since.
-    _langStore.read().then((lang) {
-      if (lang != null && kLanguageLabels.containsKey(lang) && _prefs.lang == 'en') _prefs.lang = lang;
-    });
+    _prefs.addListener(_onPrefsChanged);
+    _restorePrefs();
   }
 
-  void _syncWeather() {
+  /// The settings from an earlier launch, except any the user has already
+  /// changed in the moments since this launch began.
+  Future<void> _restorePrefs() async {
+    final atLaunch = _prefs.toSaved();
+    final saved = await _prefsStore.read();
+    if (!mounted) return;
+    final now = _prefs.toSaved();
+    _saved = saved ?? const {};
+    _prefs.applySaved(saved ?? const {}, keep: {for (final k in now.keys) if (now[k] != atLaunch[k]) k});
+    _save();
+  }
+
+  void _onPrefsChanged() {
     _weather.ensureLoaded(_prefs.city, _prefs.lang);
-    if (_prefs.lang != _savedLang) {
-      _savedLang = _prefs.lang;
-      _langStore.write(_savedLang);
-    }
+    _save();
+  }
+
+  void _save() {
+    final saved = _saved;
+    if (saved == null) return; // not read yet
+    final now = _prefs.toSaved();
+    if (mapEquals(saved, now)) return;
+    _saved = now;
+    _prefsStore.write(now);
   }
 
   @override
   void dispose() {
-    _prefs.removeListener(_syncWeather);
+    _prefs.removeListener(_onPrefsChanged);
     _prefs.dispose();
     _weather.dispose();
     if (widget.auth == null) _auth.dispose();

@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -11,7 +10,7 @@ import 'package:weathergpt/auth_client.dart';
 import 'package:weathergpt/components/forms.dart';
 import 'package:weathergpt/main.dart';
 import 'package:weathergpt/state/auth_store.dart';
-import 'package:weathergpt/state/lang_store.dart';
+import 'package:weathergpt/state/prefs_store.dart';
 import 'package:weathergpt/pages/onboarding_pages.dart';
 import 'package:weathergpt/persona_theme.dart';
 import 'package:weathergpt/state/ui_prefs.dart';
@@ -86,15 +85,6 @@ Future<void> _tapVisible(WidgetTester tester, Finder finder) async {
   await tester.pump();
   await tester.tap(finder);
   await _settle(tester);
-}
-
-/// Lets file IO started by the app finish: real time passes, then the
-/// test's fake-async zone runs the callbacks.
-Future<void> _realIo(WidgetTester tester) async {
-  for (var i = 0; i < 5; i++) {
-    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 20)));
-    await tester.pump();
-  }
 }
 
 /// Languages page → Continue (English stays selected) → Welcome + log in.
@@ -649,25 +639,23 @@ void main() {
   });
 
   testWidgets('the language is remembered across launches', (tester) async {
+    // The file-backed store has its own tests (prefs_test.dart); here the
+    // settings stay in memory.
     _phone(tester);
-    final dir = await tester.runAsync(() => Directory.systemTemp.createTemp('lang'));
-    addTearDown(() => dir!.deleteSync(recursive: true));
-    final store = LangStore(dir: () async => dir!);
+    final store = MemoryPrefsStore();
 
     // First launch: pick Telugu before signing in.
     await tester.pumpWidget(
-      WeatherGptApp(auth: await _signedOut((_) async => http.Response('{}', 500)), langStore: store),
+      WeatherGptApp(auth: await _signedOut((_) async => http.Response('{}', 500)), prefsStore: store),
     );
     await _settle(tester);
     await _tapVisible(tester, find.text('తెలుగు'));
     await _tapVisible(tester, find.text('కొనసాగించండి'));
-    await _realIo(tester);
-    expect(await tester.runAsync(store.read), 'te');
+    expect(store.saved?['lang'], 'te');
 
     // Next launch, already signed in: the app opens in Telugu.
     await tester.pumpWidget(const SizedBox());
-    await tester.pumpWidget(WeatherGptApp(auth: await _signedIn(), langStore: store));
-    await _realIo(tester);
+    await tester.pumpWidget(WeatherGptApp(auth: await _signedIn(), prefsStore: store));
     await _settle(tester);
     expect(find.text('త్వరిత చర్యలు'), findsOneWidget); // Quick Actions
   });
