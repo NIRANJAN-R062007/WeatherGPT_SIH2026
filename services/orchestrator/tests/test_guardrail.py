@@ -457,3 +457,13 @@ def test_translated_answers_with_native_digits_ground_the_same_way():
     # Latin ones an English template passes through.
     assert guardrail.check("८ AM–११ AM", raw).ok
     assert not guardrail.check("८ AM–१० AM", raw).ok
+
+
+def test_a_utc_time_in_a_report_cannot_ground_a_local_time():
+    # A TAF/METAR "HH:MM" is UTC; an answer's times are city-local. Only the
+    # engine's own local-time keys count, so 10:00 here grounds nothing.
+    raw = {"taf": {"changes": [{"to": {"time_utc": "10:00"}}]}}
+    assert not guardrail.check("Clear at 10:00.", raw).ok
+    assert guardrail.check("Clear at 10:00.", {"hours": [{"local_time": "10:00"}]}).ok
+    assert guardrail.check("Window 8 AM–11 AM.",
+                           {"w": {"start_local": "08:00", "end_local": "11:00"}}).ok

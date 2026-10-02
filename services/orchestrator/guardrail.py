@@ -199,6 +199,100 @@ def check(answer: str, raw: dict) -> Report:
     return Report(ok=(matched == total), matched=matched, total=total, figures=reports)
 
 
+@dataclass
+class AdvisoryReport:
+    """Outcome of `check_advisory`. `ok` only if the output has the right shape
+    and nothing in it is ungrounded; `problems` says why not, one line each.
+    `grounding` is the figure-level report over every pros/cons sentence, each
+    figure labelled with its `field` ("pros[0]")."""
+
+    ok: bool
+    problems: list[str] = field(default_factory=list)
+    grounding: Report | None = None
+
+
+def check_advisory(output, facts) -> AdvisoryReport:
+    """Validate a travel/farming answer (TFA-5) against its `AdvisoryFacts`.
+
+    Fails if the output isn't the strict `advisory.schema` shape, if a figure
+    or clock time in `pros`/`cons` doesn't ground in `facts.raw()` (`check`,
+    sentence by sentence, so clock times and ranges are covered), if `window`
+    isn't a window the facts carry, or if a `cites` path isn't in the facts. A
+    window or figure the engine didn't supply is rejected the same as one the
+    model made up — the facts are the only source (plan.md §11.6). `output` may
+    be the model's raw reply; a reply that isn't JSON fails.
+
+    This does not judge whether the verdict is *right* for the facts (that is
+    the rule table's job, TFA-7/11) — only that nothing in the answer is
+    outside them. A caller falls back to the rule-based answer on `ok` False.
+    """
+    from advisory import schema  # local: guardrail stays importable on its own
+
+    if isinstance(output, str):
+        parsed = schema.parse(output)
+        if parsed is None:
+            return AdvisoryReport(False, ["output is not valid JSON"])
+        output = parsed
+    problems = schema.validate(output, facts.kind)
+    if problems:
+        return AdvisoryReport(False, problems)
+
+    raw = facts.raw()
+    _, windows = _index_times(raw)
+    figures: list[dict] = []
+    matched = 0
+    for key in ("pros", "cons"):
+        for i, sentence in enumerate(output[key]):
+            report = check(sentence, raw)
+            matched += report.matched
+            for fig in report.figures:
+                figures.append({**fig, "field": f"{key}[{i}]"})
+                if not fig["matched"]:
+                    problems.append(f"{key}[{i}]: {fig['reading']!r} is not in the facts")
+
+    window = output.get("window")
+    if window is not None:
+        bounds = schema.window_bounds(window)
+        if bounds not in windows:
+            problems.append(
+                f"window {window['start_local']}–{window['end_local']} is not a window in the facts"
+            )
+
+    for path in output.get("cites", []):
+        if not _has_path(raw, path):
+            problems.append(f"cites {path!r}, which is not in the facts")
+
+    grounding = Report(ok=not any(not f["matched"] for f in figures), matched=matched,
+                       total=len(figures), figures=figures)
+    return AdvisoryReport(ok=not problems, problems=problems, grounding=grounding)
+
+
+_PATH_TOKEN_RE = re.compile(r"[^.\[\]]+|\[\d+\]")
+
+
+def _has_path(raw, path: str) -> bool:
+    """Whether a dotted/indexed path ("origin.current.temp_c",
+    "origin.hourly.hours[0].temp_c" — the same spelling `_index` produces)
+    leads to a present, non-null value in `raw`."""
+    node = raw
+    tokens = _PATH_TOKEN_RE.findall(path)
+    if not tokens or ".." in path or path.startswith(".") or path.endswith("."):
+        return False
+    if "".join(tokens) != path.replace(".", ""):
+        return False  # stray characters the tokeniser skipped
+    for token in tokens:
+        if token.startswith("["):
+            i = int(token[1:-1])
+            if not isinstance(node, list) or i >= len(node):
+                return False
+            node = node[i]
+        else:
+            if not isinstance(node, dict) or token not in node:
+                return False
+            node = node[token]
+    return node is not None
+
+
 def _index(raw, prefix: str = "") -> dict[str, float]:
     """Flatten nested dict/list structures to dotted-path -> numeric leaf.
 
@@ -378,12 +472,16 @@ def _extract_clock(text: str) -> tuple[list[tuple[str, int, int | None]], str]:
 def _index_times(raw) -> tuple[dict[int, str], dict[tuple[int, int], str]]:
     """Index the structured result's clock times, like `_index` does numbers.
 
-    Returns `(times, windows)`: every "HH:MM" string leaf (an hour's
-    `local_time`, a window's `start_local`/`end_local`) as minutes-since-midnight
-    -> dotted path, and every dict carrying both `start_local` and `end_local`
-    (window_analyzer's result) as `(start, end)` -> path. A range only grounds
-    against `windows`, so two real hours can't be stitched into a window the
-    engine didn't return.
+    Returns `(times, windows)`: every "HH:MM" string leaf under a local-time
+    key (an hour's `local_time`, a window's `start_local`/`end_local`) as
+    minutes-since-midnight -> dotted path, and every dict carrying both
+    `start_local` and `end_local` (window_analyzer's result) as `(start, end)`
+    -> path. A range only grounds against `windows`, so two real hours can't be
+    stitched into a window the engine didn't return.
+
+    Only local-time keys count: an answer's times are city-local, and an
+    "HH:MM" under another key — a METAR/TAF `time_utc` — is a different clock
+    that must not ground a local time by coincidence.
     """
     times: dict[int, str] = {}
     windows: dict[tuple[int, int], str] = {}
@@ -394,17 +492,20 @@ def _index_times(raw) -> tuple[dict[int, str], dict[tuple[int, int], str]]:
         hour, minute = value.split(":")
         return _clock_minutes(int(hour), int(minute), None)
 
-    def walk(node, prefix: str) -> None:
+    def is_local_key(key: str) -> bool:
+        return key == "local_time" or key.endswith("_local")
+
+    def walk(node, prefix: str, key: str = "") -> None:
         if isinstance(node, dict):
             start, end = minutes_of(node.get("start_local")), minutes_of(node.get("end_local"))
             if start is not None and end is not None:
                 windows.setdefault((start, end), prefix or "<root>")
-            for key, value in node.items():
-                walk(value, f"{prefix}.{key}" if prefix else key)
+            for name, value in node.items():
+                walk(value, f"{prefix}.{name}" if prefix else name, name)
         elif isinstance(node, list):
             for i, value in enumerate(node):
-                walk(value, f"{prefix}[{i}]")
-        else:
+                walk(value, f"{prefix}[{i}]", key)
+        elif is_local_key(key):
             minutes = minutes_of(node)
             if minutes is not None:
                 times.setdefault(minutes, prefix)
