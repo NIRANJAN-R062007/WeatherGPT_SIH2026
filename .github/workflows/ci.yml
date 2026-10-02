@@ -100,6 +100,39 @@ jobs:
       - name: Vite build
         run: npx vite build
 
+  mobile:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      # android/app/build.gradle.kts targets Java 17; the runner's Android SDK
+      # is preinstalled.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: "3.47.2"
+          cache: true
+
+      - name: Install Flutter deps
+        run: flutter pub get
+
+      - name: Flutter analyze
+        run: flutter analyze
+
+      - name: Flutter tests
+        run: flutter test
+
+      - name: Debug APK build
+        run: flutter build apk --debug
+
   publish-images:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: [lint-and-syntax, compose-build, k8s-validate]
