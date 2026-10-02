@@ -186,7 +186,11 @@ def warnings(role: str, city: str) -> FactSection:
 # TFA-9 plugs the sourced crop file in here: (crop, region) -> the entry, or
 # None when the crop/region isn't covered. Until then no crop is, and the
 # section says so rather than letting a model fill the gap from memory.
-crop_lookup: Callable[[str, str], dict | None] = lambda crop, region: None
+def _no_crop_file(crop: str, region: str) -> dict | None:
+    return None
+
+
+crop_lookup: Callable[[str, str], dict | None] = _no_crop_file
 
 
 def crop_entry(crop: str, region: str) -> FactSection:
