@@ -4,6 +4,12 @@ plan.md §14 calls this "non-negotiable, even in minimal form": every numeric
 token the narration emits must trace back to a raw field the weather source
 actually returned, under a unit-aware match. See plan.md §4 for the pipeline
 this gate sits in (narrate -> validate -> fall back to template on failure).
+
+Clock times ("8 AM", "08:00") and time ranges ("8 AM–11 AM") are checked the
+same way (WIE-5, plan.md §8 Phase 9): a time must be one the structured result
+carries, and a range must be a start/end pair a window in the result actually
+has — an answer can't stitch two real times into a window the engine never
+produced. See `_extract_clock`.
 """
 
 from __future__ import annotations
@@ -35,6 +41,11 @@ FIELD_UNITS: dict[str, str] = {
     "rain_so_far_mm": "millimetres",
     "rain_last_24h_mm": "millimetres",
     "precipitation.qpf.quantity": "millimetres",
+    # window_analyzer.find_best_window()'s aggregates (WIE-3/5): the figures a
+    # narrated best window quotes besides its start/end times
+    "avg_temp_c": "celsius",
+    "max_rain_probability_pct": "percent",
+    "max_wind_kmh": "speed_kmh",
 }
 
 # Unit markers checked (after optional whitespace) right after each number
@@ -139,11 +150,18 @@ def check(answer: str, raw: dict) -> Report:
     20, and a bare "65" cannot pass by matching humidity_pct. An answer with
     numbers but no matching raw data never passes vacuously. Never call this
     on the provenance footer — its timestamps aren't weather facts.
+
+    Clock times and ranges are checked too (WIE-5): they are pulled out of the
+    answer first, so their digits never reach the numeric matcher, and each
+    must ground against the "HH:MM" strings / `start_local`+`end_local` pairs
+    in `raw` — see `_extract_clock` and `_index_times`.
     """
     index = _index(raw)
+    clock, remainder = _extract_clock(_normalize_digits(answer))
+    times, windows = _index_times(raw)
 
-    figures = _extract(answer)
-    total = len(figures)
+    figures = _extract(remainder)
+    total = len(figures) + len(clock)
     reports = []
     matched = 0
     for reading, value, unit, decimals in figures:
@@ -159,6 +177,24 @@ def check(answer: str, raw: dict) -> Report:
                 "matched": path is not None,
             }
         )
+
+    for reading, start, end in clock:
+        if end is None:
+            path, unit = times.get(start), "clock"
+        else:
+            path, unit = windows.get((start, end)), "clock_range"
+        if path is not None:
+            matched += 1
+        report = {
+            "reading": reading,
+            "value": start,  # minutes since midnight, city-local
+            "unit": unit,
+            "path": path,
+            "matched": path is not None,
+        }
+        if end is not None:
+            report["end_value"] = end
+        reports.append(report)
 
     return Report(ok=(matched == total), matched=matched, total=total, figures=reports)
 
@@ -231,6 +267,150 @@ def _extract(answer: str) -> list[tuple[str, float, str | None, int]]:
 
         figures.append((normalized[m.start() : end], value, unit, decimals))
     return figures
+
+
+# A clock time is "H:MM" / "HH:MM" (24-hour unless am/pm follows) or "H am/pm"
+# ("8 AM", "8pm", "8 a.m."). A bare "8" is deliberately not a time — it stays a
+# number for the numeric matcher. The lookarounds keep "31.5", ISO timestamps
+# ("T08:00:00") and "10:30:15" from being read as a time; a colon that
+# merely follows one ("8 AM–11 AM: dry") is fine.
+_CLOCK_RE = re.compile(
+    r"""(?<![\d:.])
+        (?: (?P<h1>\d{1,2}):(?P<m1>\d{2}) (?:\s*(?P<mer1>[ap])\.?m\b\.?)?
+          | (?P<h2>\d{1,2}) \s*(?P<mer2>[ap])\.?m\b\.?
+        )
+        (?!\d|:\d)""",
+    re.IGNORECASE | re.VERBOSE,
+)
+
+# "8–11 AM": one meridiem written for both ends, so the first end is not a
+# clock time on its own and `_CLOCK_RE` would miss it.
+_SHARED_MERIDIEM_RE = re.compile(
+    r"""(?<![\d:.])
+        (?P<h1>\d{1,2})(?::(?P<m1>\d{2}))?
+        \s*(?:[-–—]|to|until|till)\s*
+        (?P<h2>\d{1,2})(?::(?P<m2>\d{2}))?
+        \s*(?P<mer>[ap])\.?m\b\.?
+        (?!\d|:\d)""",
+    re.IGNORECASE | re.VERBOSE,
+)
+
+# What may sit between two clock times for them to read as one range. "and"
+# only counts after "between" ("between 8 AM and 11 AM"), so "at 8 AM and 11 AM
+# it rains" stays two separate times.
+_RANGE_GAP_RE = re.compile(r"\s*(?:[-–—]|to|until|till)\s*", re.IGNORECASE)
+_AND_GAP_RE = re.compile(r"\s*and\s*", re.IGNORECASE)
+_BETWEEN_RE = re.compile(r"between\s*$", re.IGNORECASE)
+
+_HHMM_RE = re.compile(r"\d{1,2}:\d{2}")
+
+
+def _clock_minutes(hour: int, minute: int, meridiem: str | None) -> int | None:
+    """Minutes since midnight, or None if it isn't a valid time."""
+    if minute > 59:
+        return None
+    if meridiem is None:  # 24-hour clock, as the engine writes it
+        return hour * 60 + minute if hour <= 23 else None
+    if not 1 <= hour <= 12:
+        return None
+    return (hour % 12 + (12 if meridiem.lower() == "p" else 0)) * 60 + minute
+
+
+def _extract_clock(text: str) -> tuple[list[tuple[str, int, int | None]], str]:
+    """Pull every clock time / range out of `text` (digits already ASCII).
+
+    Returns `([(reading, start, end)], remainder)`: minutes since midnight,
+    `end` None for a lone time, and `text` with those spans blanked out so the
+    numeric extractor doesn't re-read their digits as unit-less numbers.
+    A time that isn't valid ("25:00", "13 PM") is left in the remainder, where
+    it fails numeric grounding rather than being waved through.
+    """
+    found: list[tuple[int, int, int, int | None, str]] = []  # (pos, end_pos, start, end, reading)
+    blanked = text
+
+    def blank(m: re.Match) -> None:
+        nonlocal blanked
+        blanked = blanked[: m.start()] + " " * (m.end() - m.start()) + blanked[m.end():]
+
+    for m in _SHARED_MERIDIEM_RE.finditer(text):
+        mer = m["mer"]
+        h1, m1 = int(m["h1"]), int(m["m1"] or 0)
+        start = _clock_minutes(h1, m1, mer)
+        end = _clock_minutes(int(m["h2"]), int(m["m2"] or 0), mer)
+        if start is not None and end is not None and start >= end:
+            # "11–1 PM" is 11 AM–1 PM: the first end can't be after the second
+            start = _clock_minutes(h1, m1, "a" if mer.lower() == "p" else "p")
+        if start is None or end is None or start >= end:
+            continue
+        found.append((m.start(), m.end(), start, end, m.group()))
+        blank(m)
+
+    singles = []
+    for m in _CLOCK_RE.finditer(blanked):
+        minutes = _clock_minutes(
+            int(m["h1"] or m["h2"]), int(m["m1"] or 0), m["mer1"] or m["mer2"],
+        )
+        if minutes is None:
+            continue
+        singles.append((m.start(), m.end(), minutes, m.group()))
+        blank(m)
+
+    # Join neighbouring lone times into a range when the text between them says so.
+    i = 0
+    while i < len(singles):
+        pos, stop, minutes, reading = singles[i]
+        if i + 1 < len(singles):
+            n_pos, n_stop, n_minutes, _ = singles[i + 1]
+            gap = text[stop:n_pos]
+            if _RANGE_GAP_RE.fullmatch(gap) or (
+                _AND_GAP_RE.fullmatch(gap) and _BETWEEN_RE.search(text[:pos])
+            ):
+                found.append((pos, n_stop, minutes, n_minutes, text[pos:n_stop]))
+                i += 2
+                continue
+        found.append((pos, stop, minutes, None, reading))
+        i += 1
+
+    found.sort()
+    return [(reading, start, end) for _, _, start, end, reading in found], blanked
+
+
+def _index_times(raw) -> tuple[dict[int, str], dict[tuple[int, int], str]]:
+    """Index the structured result's clock times, like `_index` does numbers.
+
+    Returns `(times, windows)`: every "HH:MM" string leaf (an hour's
+    `local_time`, a window's `start_local`/`end_local`) as minutes-since-midnight
+    -> dotted path, and every dict carrying both `start_local` and `end_local`
+    (window_analyzer's result) as `(start, end)` -> path. A range only grounds
+    against `windows`, so two real hours can't be stitched into a window the
+    engine didn't return.
+    """
+    times: dict[int, str] = {}
+    windows: dict[tuple[int, int], str] = {}
+
+    def minutes_of(value) -> int | None:
+        if not isinstance(value, str) or not _HHMM_RE.fullmatch(value):
+            return None
+        hour, minute = value.split(":")
+        return _clock_minutes(int(hour), int(minute), None)
+
+    def walk(node, prefix: str) -> None:
+        if isinstance(node, dict):
+            start, end = minutes_of(node.get("start_local")), minutes_of(node.get("end_local"))
+            if start is not None and end is not None:
+                windows.setdefault((start, end), prefix or "<root>")
+            for key, value in node.items():
+                walk(value, f"{prefix}.{key}" if prefix else key)
+        elif isinstance(node, list):
+            for i, value in enumerate(node):
+                walk(value, f"{prefix}[{i}]")
+        else:
+            minutes = minutes_of(node)
+            if minutes is not None:
+                times.setdefault(minutes, prefix)
+
+    walk(raw, "")
+    return times, windows
 
 
 def _unit_for(path: str) -> str | None:
