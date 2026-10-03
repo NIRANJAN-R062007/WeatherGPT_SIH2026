@@ -38,12 +38,14 @@ def test_grounded_llm_answer_is_used(monkeypatch):
     assert body["grounding"]["fallback_used"] is False
 
 
+@pytest.mark.xfail(strict=True, reason="step 6: provenance footer + place")
 def test_hallucinated_llm_answer_falls_back_to_template(monkeypatch):
     monkeypatch.setattr(main, "narrate", lambda *a, **k: "Chennai: 99°C and 4 inches of rain.")
     body = _ask("what's the weather in Chennai")
     assert "99" not in body["response"] and "4 inches" not in body["response"]
     assert body["response"] == ("Chennai: cloudy, 28°C right now, feels like 32.5°C, "
-                                "humidity 81%, UV index 0.")
+                                "humidity 81%, UV index 0.\n"
+                                "Forecast for Chennai (13.10°N, 80.25°E).")
     assert body["grounding"]["narration"] == "template"
     assert body["grounding"]["fallback_used"] is True
     assert body["grounding"]["ok"] is True
@@ -57,6 +59,7 @@ def test_llm_unavailable_uses_template_without_flagging_fallback(monkeypatch):
     assert body["grounding"]["attempts"] == 1  # nothing to regenerate from
 
 
+@pytest.mark.xfail(strict=True, reason="step 6: provenance footer + place")
 @pytest.mark.parametrize("lang", ["ta", "hi", "te", "mr"])
 def test_non_english_uses_bhashini_translation_of_grounded_english(monkeypatch, lang):
     monkeypatch.setattr(main, "narrate",
@@ -70,7 +73,8 @@ def test_non_english_uses_bhashini_translation_of_grounded_english(monkeypatch, 
 
     monkeypatch.setattr(main.bhashini, "translate", _translate)
     body = _ask("what's the weather in Chennai", lang=lang)
-    assert body["response"] == f"[{lang}] Chennai: 28°C, 81%."
+    # The answer, then the provenance footer (added after the guardrail).
+    assert body["response"].startswith(f"[{lang}] Chennai: 28°C, 81%.\n")
     assert seen == [lang]  # translate() is called with the requested target language
     assert body["grounding"]["narration"] == "llm+bhashini"
     assert body["grounding"]["fallback_used"] is False
@@ -122,10 +126,11 @@ def test_all_combos_ground_with_llm_stub(monkeypatch, key, lang, intent_text):
     assert g["ok"] is True and g["matched"] == g["total"] >= 1
 
 
+@pytest.mark.xfail(strict=True, reason="step 6: provenance footer + place")
 def test_provenance_and_health_shape(monkeypatch):
     monkeypatch.setattr(main, "narrate", lambda *a, **k: None)
     body = _ask("what's the weather in Chennai")
-    assert set(body["provenance"]) == {"source", "issued", "is_live", "retrieved_at"}
+    assert set(body["provenance"]) == {"source", "issued", "is_live", "retrieved_at", "place"}
     health = client.get("/health").json()
     assert health["weather_source"] in {"fixtures", "google-weather-api"}
     assert "weather_cache" in health and "narration" in health
@@ -205,13 +210,14 @@ def test_mocked_live_data_marks_is_live(monkeypatch):
     assert body["grounding"]["ok"] is True
 
 
+@pytest.mark.xfail(strict=True, reason="step 6: provenance footer + place")
 def test_rainfall_so_far_end_to_end_template_path(monkeypatch):
     monkeypatch.setattr(main, "narrate", lambda *a, **k: None)
     body = _ask("how much rain has Chennai had so far today?")
     assert body["intent"] == "rainfall_so_far_today"
     assert body["nlu"]["intent"] == "rainfall_so_far_today"
     assert body["grounding"]["narration"] == "template"
-    assert set(body["provenance"]) == {"source", "issued", "is_live", "retrieved_at"}
+    assert set(body["provenance"]) == {"source", "issued", "is_live", "retrieved_at", "place"}
 
 
 def test_next_n_days_caps_and_grounds(monkeypatch):
@@ -261,13 +267,14 @@ def test_next_n_days_tamil_template_grounds_with_malformed_display_date(
         assert i18n.DAY_LABELS["ta"][label] in body["response"]
 
 
+@pytest.mark.xfail(strict=True, reason="step 6: provenance footer + place")
 def test_day_after_tomorrow_resolves(monkeypatch):
     # With FORECAST_DAYS raised to 5, day_after_tomorrow (offset 2) is within the
     # fixture range and now answers instead of refusing.
     monkeypatch.setattr(main, "narrate", lambda *a, **k: None)
     body = _ask("day after tomorrow weather in Chennai")
     assert "response" in body
-    assert set(body["provenance"]) == {"source", "issued", "is_live", "retrieved_at"}
+    assert set(body["provenance"]) == {"source", "issued", "is_live", "retrieved_at", "place"}
 
 
 def test_out_of_scope_cyclone_returns_message_no_response():
