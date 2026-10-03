@@ -79,7 +79,8 @@ ALERTS_WRITE_RATE_LIMIT_PER_MINUTE: int = int(_float_env("ALERTS_WRITE_RATE_LIMI
 # the endpoint is discovered. 0 disables. Independent of RATE_LIMIT_PER_MINUTE.
 IVR_GLOBAL_RATE_PER_MIN: int = int(_float_env("IVR_GLOBAL_RATE_PER_MIN", 120))
 # Cheap reads the frontends fire on every page load and city switch (/me,
-# /history, /facts, /warnings, /cities, /glossary — three or more per view):
+# /history, /facts, /warnings, /cities, /glossary, /forecast/daily,
+# /forecast/hourly, /hotlines — three or more per view):
 # per client per minute, in their own bucket so browsing never eats the /ask
 # budget. Higher than RATE_LIMIT_PER_MINUTE because a venue or campus NAT puts
 # many real users behind one key. RATE_LIMIT_PER_MINUTE=0 disables this too.

@@ -64,7 +64,8 @@ LIMITED_PATHS = frozenset({"/ask", "/asr", "/tts"})
 READ_PATHS = frozenset({"/alerts/subscriptions", "/metar/decode"})
 # The cheap reads every page view makes, several per load: a roomier per-client
 # bucket (BROWSE_RATE_LIMIT_PER_MINUTE) of their own (plan.md SEC-N6).
-BROWSE_PATHS = frozenset({"/me", "/history", "/facts", "/warnings", "/cities", "/glossary"})
+BROWSE_PATHS = frozenset({"/me", "/history", "/facts", "/warnings", "/cities", "/glossary",
+                          "/forecast/daily", "/forecast/hourly", "/hotlines"})
 # Subscription writes create rows (and later trigger outbound messages), so
 # they are stricter: ALERTS_WRITE_RATE_LIMIT_PER_MINUTE (config.py). Matched by
 # prefix because DELETE /alerts/subscribe/{sub_id} is parameterised.

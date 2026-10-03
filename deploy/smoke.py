@@ -17,8 +17,9 @@ Three groups of checks:
             English fallback does not pass as a translation.
   current   Routes and data that only a build of `main` has: all 8 demo cities,
             /warnings with a `status`, /aviation, /intelligence/best-window,
-            /glossary. A backend that passes `health` and `ask` but fails here
-            is a stale deploy.
+            /glossary, /forecast/daily with sunrise, /forecast/hourly, /facts'
+            `rain_so_far` and /hotlines. A backend that passes `health` and
+            `ask` but fails here is a stale deploy.
 
 Exit code 0 only when every check passes. A template answer in place of an LLM
 answer is reported as INFO, not a failure: the template path is a valid,
@@ -195,6 +196,28 @@ def check_current(base: str, rep: Report) -> None:
     status, body, _ = fetch(base, "/glossary", {"lang": "hi"})
     ok = status == 200 and isinstance(body, dict) and bool(body.get("entries"))
     rep.add("current", "/glossary?lang=hi has entries", PASS if ok else FAIL,
+            "" if ok else f"HTTP {status}")
+
+    status, body, _ = fetch(base, "/forecast/daily", {"city": "chennai"})
+    days = body.get("days") if isinstance(body, dict) else None
+    ok = status == 200 and bool(days) and "sunrise" in days[0]
+    rep.add("current", "/forecast/daily has days with sunrise", PASS if ok else FAIL,
+            "" if ok else f"HTTP {status}")
+
+    status, body, _ = fetch(base, "/forecast/hourly", {"city": "chennai"})
+    ok = status == 200 and isinstance(body, dict) and bool(body.get("hours"))
+    rep.add("current", "/forecast/hourly has hours", PASS if ok else FAIL,
+            "" if ok else f"HTTP {status}")
+
+    status, body, _ = fetch(base, "/facts", {"city": "chennai"})
+    ok = status == 200 and isinstance(body, dict) and "rain_so_far" in body
+    rep.add("current", "/facts has `rain_so_far`", PASS if ok else FAIL,
+            "" if ok else f"HTTP {status}" if status != 200 else "no `rain_so_far` (old shape)")
+
+    status, body, _ = fetch(base, "/hotlines", {"city": "chennai"})
+    lines = body.get("hotlines") if isinstance(body, dict) else None
+    ok = status == 200 and bool(lines) and lines[0].get("dial") == "112"
+    rep.add("current", "/hotlines starts with 112", PASS if ok else FAIL,
             "" if ok else f"HTTP {status}")
 
 

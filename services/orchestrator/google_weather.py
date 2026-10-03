@@ -55,7 +55,13 @@ def ttl_seconds(kind: str) -> int:
     }[kind]
 
 
+# The span a forecast question with no day count covers (router.py), and how
+# many days the committed fixtures hold.
 FORECAST_DAYS = 5
+# What a live daily-forecast call fetches: Google's maximum, in one page
+# (`pageSize` defaults to 5, so it is sent as well). GET /forecast/daily
+# serves up to this many; fixture mode serves what was snapshotted.
+FORECAST_DAYS_FETCHED = 10
 FORECAST_HOURS = 24
 HISTORY_HOURS = 24
 TIMEOUT = 10.0
@@ -106,7 +112,8 @@ def _params(kind: str, city_key: str) -> dict:
         "key": key,
     }
     if kind == "forecast_days":
-        params["days"] = FORECAST_DAYS
+        params["days"] = FORECAST_DAYS_FETCHED
+        params["pageSize"] = FORECAST_DAYS_FETCHED
     if kind == "forecast_hours":
         params["hours"] = FORECAST_HOURS
     if kind == "history_hours":

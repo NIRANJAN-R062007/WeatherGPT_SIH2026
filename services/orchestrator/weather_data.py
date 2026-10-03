@@ -8,6 +8,9 @@ and the offline fixture fallback live in google_weather.
 - current_weather + future -> that day's forecast (asked & answered: "weather
   tomorrow" should not return today's numbers)
 - will_it_rain             -> that day's forecast
+
+daily_forecast() and hourly_forecast() serve the apps' day list and hourly
+strip (GET /forecast/daily, /forecast/hourly) as figures, never narrated.
 """
 
 import re
@@ -170,6 +173,129 @@ def multi_day_facts(key: str, days_requested: int) -> dict | None:
         "days_requested": days_requested,
         "days_counted": counted,
         "days": out_days,
+    }
+
+
+def _entry_date(key: str, entry: dict) -> str | None:
+    """A forecast day's city-local date, "YYYY-MM-DD"."""
+    d = entry.get("displayDate")
+    if d:
+        try:
+            return datetime(d["year"], d["month"], d["day"]).date().isoformat()
+        except (KeyError, ValueError, TypeError):
+            pass
+    start = _dig(entry, "interval.startTime")
+    if start:
+        try:
+            return _parse_ts(start).astimezone(_city_timezone(key)).date().isoformat()
+        except (ValueError, TypeError):
+            pass
+    return None
+
+
+def _period_figures(day: dict, period: dict, prefix: str = "") -> None:
+    """One daytime / nighttime period's condition and rain chance into `day`."""
+    raw_type = _dig(period, "weatherCondition.type")
+    _put(day, f"{prefix}condition", google_weather.decode_condition(raw_type) if raw_type else None)
+    _put(day, f"{prefix}rain_probability_pct", _dig(period, "precipitation.probability.percent"))
+
+
+def daily_forecast(key: str, days: int) -> dict | None:
+    """Up to `days` days of the daily forecast as figures, for a day list
+    (GET /forecast/daily) rather than a narrated answer. Each day has `label`
+    (the canonical day key, as multi_day_facts) and, where the feed has them:
+    `date` (city-local, YYYY-MM-DD), the daytime `condition` and
+    `rain_probability_pct`, the night's `night_condition` and
+    `night_rain_probability_pct`, `high_c`, `low_c`, `rain_mm` (day plus
+    night), the daytime `wind_kmh`, `wind_dir`, `humidity_pct` and
+    `uv_index`, and `sunrise` / `sunset` (RFC 3339, UTC)."""
+    snap = google_weather.snapshot("forecast_days", key)
+    if snap is None:
+        return None
+    entries = (_dig(snap.payload, "forecastDays") or [])[:days]
+    if not entries:
+        return None
+
+    out_days = []
+    for i, entry in enumerate(entries):
+        daytime = entry.get("daytimeForecast") or {}
+        nighttime = entry.get("nighttimeForecast") or {}
+        day: dict = {"label": _day_label(key, i, entry)}
+        _put(day, "date", _entry_date(key, entry))
+        _period_figures(day, daytime)
+        _period_figures(day, nighttime, "night_")
+        _put(day, "high_c", _dig(entry, "maxTemperature.degrees"))
+        _put(day, "low_c", _dig(entry, "minTemperature.degrees"))
+        qpf = [q for q in (_dig(daytime, "precipitation.qpf.quantity"),
+                           _dig(nighttime, "precipitation.qpf.quantity")) if q is not None]
+        _put(day, "rain_mm", round(sum(qpf), 2) if qpf else None)
+        _put(day, "wind_kmh", _dig(daytime, "wind.speed.value"))
+        _put(day, "wind_dir",
+             google_weather.decode_cardinal(_dig(daytime, "wind.direction.cardinal")) or None)
+        _put(day, "humidity_pct", _dig(daytime, "relativeHumidity"))
+        _put(day, "uv_index", _dig(daytime, "uvIndex"))
+        _put(day, "sunrise", _dig(entry, "sunEvents.sunriseTime"))
+        _put(day, "sunset", _dig(entry, "sunEvents.sunsetTime"))
+        out_days.append(day)
+
+    return {
+        "source": snap.source,
+        "is_live": snap.is_live,
+        "issued": _dig(entries[0], "interval.startTime"),
+        "days": out_days,
+    }
+
+
+def hourly_forecast(key: str, hours: int, *, now: datetime | None = None) -> dict | None:
+    """The next `hours` hours of the hourly forecast, for an hourly strip
+    (GET /forecast/hourly). Unlike hourly_facts() (one calendar day, for the
+    Weather Intelligence Engine) the series runs on past midnight. A live
+    series drops the hours that have already ended, since a cached reply can
+    be up to TTL_FORECAST_HOURS old; a fixture keeps its first hour, the same
+    positional convention as hourly_facts(). Each hour: `time_iso`,
+    `local_time` ("HH:MM", city-local), `date` (city-local) and, where
+    present, `temp_c`, `feels_like_c`, `rain_probability_pct`, `rain_mm`,
+    `wind_kmh`, `condition`, `uv_index` and `is_daytime`."""
+    snap = google_weather.snapshot("forecast_hours", key)
+    if snap is None:
+        return None
+    tz = _city_timezone(key)
+    now = now or datetime.now(timezone.utc)
+
+    out: list[dict] = []
+    for h in _dig(snap.payload, "forecastHours") or []:
+        start = _dig(h, "interval.startTime")
+        if not start:
+            continue
+        try:
+            local = _parse_ts(start).astimezone(tz)
+            end = _dig(h, "interval.endTime")
+            if snap.is_live and end and _parse_ts(end) <= now:
+                continue
+        except (ValueError, TypeError):
+            continue
+        hour: dict = {"time_iso": start, "local_time": local.strftime("%H:%M"),
+                      "date": local.date().isoformat()}
+        _put(hour, "temp_c", _dig(h, "temperature.degrees"))
+        _put(hour, "feels_like_c", _dig(h, "feelsLikeTemperature.degrees"))
+        _put(hour, "rain_probability_pct", _dig(h, "precipitation.probability.percent"))
+        _put(hour, "rain_mm", _dig(h, "precipitation.qpf.quantity"))
+        _put(hour, "wind_kmh", _dig(h, "wind.speed.value"))
+        raw_type = _dig(h, "weatherCondition.type")
+        _put(hour, "condition", google_weather.decode_condition(raw_type) if raw_type else None)
+        _put(hour, "uv_index", _dig(h, "uvIndex"))
+        _put(hour, "is_daytime", h.get("isDaytime"))
+        out.append(hour)
+        if len(out) >= hours:
+            break
+    if not out:
+        return None
+
+    return {
+        "source": snap.source,
+        "is_live": snap.is_live,
+        "issued": out[0]["time_iso"],
+        "hours": out,
     }
 
 

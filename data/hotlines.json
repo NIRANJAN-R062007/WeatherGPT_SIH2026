@@ -1,0 +1,123 @@
+{
+  "version": 1,
+  "checked": "2026-10-03",
+  "note": "Emergency numbers served by GET /hotlines. A number is listed only if the official government page in source_url showed it, and source_quote is that page's wording, copied verbatim on the `checked` date. Numbers that only news sites gave (Chennai's 1913, NDMA's 1078, Kerala's 1077) are left out. Re-check every entry, and the date, before a release. `regions` keys are data/cities.json region names; `cities` keys are its city keys. `name` and `note` are English keys into ui-strings/ui_strings.json.",
+  "national": [
+    {
+      "number": "112",
+      "name": "Emergency",
+      "note": "Any emergency, anywhere in India",
+      "scope": "national",
+      "source_url": "https://www.mha.gov.in/en/commoncontent/emergency-response-support-system-erss",
+      "source_quote": "a nationwide, unified emergency response system with a single emergency number ‘112’, for reporting and addressing all kinds of emergencies from across the country."
+    }
+  ],
+  "regions": {
+    "Tamil Nadu": [
+      {
+        "number": "1070",
+        "name": "State disaster helpline",
+        "note": "Floods, cyclones and other disasters",
+        "scope": "state",
+        "source_url": "https://labour.tn.gov.in/disaster_contact_numbers.php",
+        "source_quote": "The Government has created toll-free help lines 1070 and 1077 for the purpose of seeking assistance during the time of flood and natural calamities."
+      },
+      {
+        "number": "1077",
+        "name": "District disaster helpline",
+        "note": "Your district's disaster control room",
+        "scope": "district",
+        "source_url": "https://labour.tn.gov.in/disaster_contact_numbers.php",
+        "source_quote": "The Government has created toll-free help lines 1070 and 1077 for the purpose of seeking assistance during the time of flood and natural calamities."
+      }
+    ],
+    "Karnataka": [
+      {
+        "number": "1070",
+        "name": "State disaster helpline",
+        "note": "Floods, cyclones and other disasters",
+        "scope": "state",
+        "source_url": "https://ksdma.karnataka.gov.in/",
+        "source_quote": "ಉಚಿತ ಸಹಾಯವಾಣಿ-1070"
+      }
+    ],
+    "Telangana": [
+      {
+        "number": "1070",
+        "name": "State disaster helpline",
+        "note": "Floods, cyclones and other disasters",
+        "scope": "state",
+        "source_url": "https://hyderabad.telangana.gov.in/helpline/",
+        "source_quote": "State Control Room : 1070"
+      }
+    ],
+    "Kerala": [
+      {
+        "number": "1070",
+        "name": "State disaster helpline",
+        "note": "Floods, cyclones and other disasters",
+        "scope": "state",
+        "source_url": "https://sdma.kerala.gov.in/contact/",
+        "source_quote": "KERALA STATE EMERGENCY OPERATIONS CENTRE (KSEOC) Observatory Hills, Vikas Bhavan P.O Thiruvananthapuram, Keralam – 695033 Phone: 1070/1079/0471-2778800"
+      }
+    ]
+  },
+  "cities": {
+    "bengaluru": [
+      {
+        "number": "1077",
+        "name": "District disaster helpline",
+        "note": "Your district's disaster control room",
+        "scope": "district",
+        "source_url": "https://bengaluruurban.nic.in/en/disaster-management/",
+        "source_quote": "Disaster Management Cell DC Office Phone no : 080 -22967200 Toll Free : 1077"
+      }
+    ],
+    "hyderabad": [
+      {
+        "number": "1077",
+        "name": "District disaster helpline",
+        "note": "Your district's disaster control room",
+        "scope": "district",
+        "source_url": "https://hyderabad.telangana.gov.in/helpline/",
+        "source_quote": "Disaster Help Line : 1077"
+      },
+      {
+        "number": "040 2111 1111",
+        "name": "GHMC helpline",
+        "note": "Greater Hyderabad Municipal Corporation",
+        "scope": "city",
+        "source_url": "https://www.ghmc.gov.in/KeyContacts.aspx",
+        "source_quote": "Website: www.ghmc.gov.in, Helpline:21111111, Phone No.040-23225397"
+      }
+    ],
+    "mumbai": [
+      {
+        "number": "1077",
+        "name": "District disaster helpline",
+        "note": "Your district's disaster control room",
+        "scope": "district",
+        "source_url": "https://mumbaicity.gov.in/disaster-management/",
+        "source_quote": "District Mumbai City, Maharashtra Control Room – Toll Free – 1077"
+      },
+      {
+        "number": "1916",
+        "name": "BMC emergency operation centre",
+        "note": "Municipal Corporation of Greater Mumbai",
+        "scope": "city",
+        "source_url": "https://mumbaisuburban.gov.in/disaster-management/",
+        "source_quote": "Municipal Corporation of Greater Mumbai Emergency Operation Centre (Disaster Management Unit) 1916, 022-22694725, 022-22694727"
+      }
+    ],
+    "delhi": [
+      {
+        "number": "1077",
+        "name": "District disaster helpline",
+        "note": "Your district's disaster control room",
+        "scope": "district",
+        "source_url": "https://dmouternorth.delhi.gov.in/disaster-management/",
+        "source_quote": "CALL 1077 DISASTER HELPLINE NUMBER (24X7)"
+      }
+    ]
+  }
+}
