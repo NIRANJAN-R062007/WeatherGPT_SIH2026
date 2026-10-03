@@ -18,8 +18,14 @@ String langOf(BuildContext context) =>
     context.dependOnInheritedWidgetOfExactType<UiPrefsScope>()?.notifier?.lang ?? 'en';
 
 /// [en] in [lang] — for code without a BuildContext.
-String trIn(String lang, String en, [Map<String, Object?> args = const {}]) {
-  var s = kUiStrings[lang]?[en] ?? en;
+String trIn(String lang, String en, [Map<String, Object?> args = const {}]) =>
+    fillPlaceholders(kUiStrings[lang]?[en] ?? en, args);
+
+/// [s] with each `{name}` replaced by args[name]. Errors built away from a
+/// BuildContext (the API and sign-in clients) keep their message as a table
+/// key and the values in `args`, so the screen can show them in the app
+/// language; their toString() fills the English.
+String fillPlaceholders(String s, Map<String, Object?> args) {
   args.forEach((k, v) => s = s.replaceAll('{$k}', '${v ?? ''}'));
   return s;
 }

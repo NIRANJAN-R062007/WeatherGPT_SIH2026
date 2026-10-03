@@ -13,6 +13,7 @@ import 'package:flutter/widgets.dart' show StringCharacters;
 import 'package:http/http.dart' as http;
 
 import 'config.dart';
+import 'i18n.dart';
 
 const Duration kAuthTimeout = Duration(seconds: 15);
 
@@ -22,12 +23,15 @@ class AuthError implements Exception {
   /// GoTrue's `error_code` ("invalid_credentials", "email_not_confirmed", …)
   /// when it sent one.
   final String? code;
-  AuthError(this.message, {this.code});
+
+  /// Values for the `{name}` placeholders in [message], a ui_strings.json key.
+  final Map<String, Object?> args;
+  AuthError(this.message, {this.code, this.args = const {}});
 
   bool get emailNotConfirmed => code == 'email_not_confirmed';
 
   @override
-  String toString() => message;
+  String toString() => fillPlaceholders(message, args);
 }
 
 /// The signed-in account, as Supabase returns it.
@@ -195,9 +199,9 @@ class AuthClient {
       _ =>
         status == 429
             ? 'Too many attempts. Please wait a minute and try again.'
-            : (raw ?? 'Sign-in failed (HTTP $status). Please try again.'),
+            : (raw ?? 'Sign-in failed (HTTP {status}). Please try again.'),
     };
-    return AuthError(message, code: code);
+    return AuthError(message, code: code, args: {'status': status});
   }
 
   Future<AuthSession> signIn({required String email, required String password}) async {

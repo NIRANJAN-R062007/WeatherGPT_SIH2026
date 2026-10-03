@@ -68,14 +68,22 @@ class _MicButtonState extends State<MicButton> {
         return;
       }
       String? notice;
-      final text = await transcribeAudio(audioBase64: audio, lang: widget.lang, onNotice: (m) => notice = m);
+      var noticeArgs = const <String, Object?>{};
+      final text = await transcribeAudio(
+        audioBase64: audio,
+        lang: widget.lang,
+        onNotice: (m, [args = const {}]) {
+          notice = m;
+          noticeArgs = args;
+        },
+      );
       if (!mounted) return;
       setState(() => _voice = _Voice.idle);
       if (text != null) {
         widget.onNotice(null);
         widget.onTranscript(text);
       } else {
-        widget.onNotice(tr(context, notice ?? "Didn't catch that — try again."));
+        widget.onNotice(tr(context, notice ?? "Didn't catch that — try again.", noticeArgs));
       }
       return;
     }

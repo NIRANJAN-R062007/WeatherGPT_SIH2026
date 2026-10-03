@@ -84,7 +84,7 @@ class AskAnswer extends StatelessWidget {
       AskErrorKind.malformed => (Icons.report_outlined, 'Unreadable reply'),
       AskErrorKind.network => (Icons.wifi_off, 'Weather service unreachable'),
     };
-    return ErrorPanel(icon: icon, title: title, message: e.message);
+    return ErrorPanel(icon: icon, title: title, message: e.message, messageArgs: e.args);
   }
 }
 

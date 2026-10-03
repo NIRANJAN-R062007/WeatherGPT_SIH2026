@@ -105,12 +105,13 @@ class _AviationPageState extends State<AviationPage> {
               icon: Icons.wifi_off,
               title: 'Airport weather unavailable',
               message: _error!.message,
+              messageArgs: _error!.args,
               onRetry: _reload,
             )
           else if (data != null && data.unavailable)
             _Unavailable(data, city)
           else if (data != null) ...[
-            Wrap(spacing: 6, runSpacing: 6, children: [TagChip(data.where, icon: Icons.flight)]),
+            Wrap(spacing: 6, runSpacing: 6, children: [TagChip(tr(context, data.whereKey, data.whereArgs), icon: Icons.flight)]),
             const SizedBox(height: AppSpace.md),
             const SectionTitle('Current observation'),
             const SizedBox(height: AppSpace.sm),
@@ -179,7 +180,7 @@ class _Unavailable extends StatelessWidget {
                       tr(context, 'No airport reports'),
                       style: AppText.labelMd.copyWith(color: t.ink, fontWeight: FontWeight.w700),
                     ),
-                    Text(data.where, style: AppText.bodySm.copyWith(color: t.inkMuted)),
+                    Text(tr(context, data.whereKey, data.whereArgs), style: AppText.bodySm.copyWith(color: t.inkMuted)),
                   ],
                 ),
               ),

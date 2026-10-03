@@ -72,6 +72,7 @@ class _ForecastPageState extends State<ForecastPage> {
           icon: Icons.wifi_off,
           title: 'Forecast unavailable',
           message: weather.error!.message,
+          messageArgs: weather.error!.args,
           onRetry: weather.refresh,
         ),
         const SizedBox(height: AppSpace.sm),

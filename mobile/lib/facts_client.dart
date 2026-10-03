@@ -17,6 +17,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import 'config.dart';
+import 'i18n.dart';
 
 /// Fixture/cache lookup with no LLM work — same budget as /warnings.
 const Duration kFactsTimeout = Duration(seconds: 10);
@@ -27,9 +28,11 @@ class FactsError implements Exception {
   final FactsErrorKind kind;
   final String message;
   final int? status;
-  FactsError(this.kind, this.message, {this.status});
+  /// Values for the `{name}` placeholders in [message], a ui_strings.json key.
+  final Map<String, Object?> args;
+  FactsError(this.kind, this.message, {this.status, this.args = const {}});
   @override
-  String toString() => message;
+  String toString() => fillPlaceholders(message, args);
 }
 
 /// One /facts reply. An unsupported city or a missing snapshot is a 200
@@ -86,20 +89,23 @@ Future<FactsResult> fetchFacts({
   } on TimeoutException {
     throw FactsError(
       FactsErrorKind.timeout,
-      'No answer within ${kFactsTimeout.inSeconds}s — the weather service timed out.',
+      'No answer within {seconds}s — the weather service timed out.',
+      args: {'seconds': kFactsTimeout.inSeconds},
     );
   } catch (_) {
     throw FactsError(
       FactsErrorKind.network,
-      "Couldn't reach the weather service at $kApiBaseUrl. Is the orchestrator running?",
+      "Couldn't reach the weather service at {url}. Is the orchestrator running?",
+      args: {'url': kApiBaseUrl},
     );
   }
 
   if (res.statusCode < 200 || res.statusCode >= 300) {
     throw FactsError(
       FactsErrorKind.http,
-      'The weather service replied HTTP ${res.statusCode}.',
+      'The weather service replied HTTP {status}.',
       status: res.statusCode,
+      args: {'status': res.statusCode},
     );
   }
 

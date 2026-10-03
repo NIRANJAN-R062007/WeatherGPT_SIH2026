@@ -109,6 +109,7 @@ class _AlertsPageState extends State<AlertsPage> {
             icon: Icons.wifi_off,
             title: 'Warnings service unreachable',
             message: _error!.message,
+            messageArgs: _error!.args,
             onRetry: _reload,
           )
         else if (warning != null)

@@ -18,6 +18,7 @@ import '../components/common.dart';
 import '../components/forms.dart';
 import '../components/onboarding_scene.dart';
 import '../config.dart';
+import '../i18n.dart';
 import '../onboarding_strings.dart';
 import '../state/auth_store.dart';
 import '../state/ui_prefs.dart';
@@ -379,7 +380,7 @@ class _WelcomeLoginPageState extends State<WelcomeLoginPage> {
     } on AuthError catch (e) {
       if (mounted) {
         setState(() {
-          _error = e.message;
+          _error = tr(context, e.message, e.args);
           _offerResend = e.emailNotConfirmed;
         });
       }
@@ -397,7 +398,7 @@ class _WelcomeLoginPageState extends State<WelcomeLoginPage> {
       await AuthStore.read(context).resendConfirmation(_id.text.trim());
       if (mounted) setState(() => _notice = s.confirmationResent);
     } on AuthError catch (e) {
-      if (mounted) setState(() => _error = e.message);
+      if (mounted) setState(() => _error = tr(context, e.message, e.args));
     } finally {
       if (mounted) setState(() => _busy = false);
     }

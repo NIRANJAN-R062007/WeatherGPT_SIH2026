@@ -54,7 +54,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
     try {
       await action();
     } on AuthError catch (e) {
-      if (mounted) setState(() => _error = e.message);
+      if (mounted) setState(() => _error = tr(context, e.message, e.args));
     } finally {
       if (mounted) setState(() => _busy = false);
     }

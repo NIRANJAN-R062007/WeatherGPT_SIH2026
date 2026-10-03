@@ -307,7 +307,7 @@ class _GoogleSignInButtonState extends State<GoogleSignInButton> {
       await auth.signInWithGoogle();
       navigator.popUntil((r) => r.isFirst);
     } on AuthError catch (e) {
-      if (e.code != 'google_cancelled') messenger.showSnackBar(SnackBar(content: Text(trIn(lang, e.message))));
+      if (e.code != 'google_cancelled') messenger.showSnackBar(SnackBar(content: Text(trIn(lang, e.message, e.args))));
     } finally {
       if (mounted) setState(() => _busy = false);
     }

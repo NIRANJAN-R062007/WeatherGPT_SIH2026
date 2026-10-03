@@ -182,6 +182,7 @@ class _BestWindowPageState extends State<BestWindowPage> {
         icon: Icons.wifi_off,
         title: 'Best window unavailable',
         message: _windowError!.message,
+        messageArgs: _windowError!.args,
         onRetry: () => _loadWindow(_city ?? city, _day),
       );
     }
@@ -500,7 +501,13 @@ class _WhatIfView extends StatelessWidget {
         const SizedBox(height: AppSpace.sm),
         if (loading) const LoadingPanel('Comparing…'),
         if (error != null)
-          ErrorPanel(icon: Icons.wifi_off, title: 'Comparison unavailable', message: error!.message, onRetry: onCompare),
+          ErrorPanel(
+            icon: Icons.wifi_off,
+            title: 'Comparison unavailable',
+            message: error!.message,
+            messageArgs: error!.args,
+            onRetry: onCompare,
+          ),
         if (status == 'unavailable')
           _NeutralCard(
             icon: Icons.help_outline,

@@ -139,7 +139,7 @@ class _AuthPageState extends State<AuthPage> {
     } on AuthError catch (e) {
       if (mounted) {
         setState(() {
-          _error = e.message;
+          _error = tr(context, e.message, e.args);
           _offerResend = e.emailNotConfirmed;
         });
       }
@@ -158,7 +158,7 @@ class _AuthPageState extends State<AuthPage> {
       await AuthStore.read(context).resendConfirmation(email);
       if (mounted) setState(() => _notice = tr(context, 'Confirmation email sent again to {email}.', {'email': email}));
     } on AuthError catch (e) {
-      if (mounted) setState(() => _error = e.message);
+      if (mounted) setState(() => _error = tr(context, e.message, e.args));
     } finally {
       if (mounted) setState(() => _busy = false);
     }

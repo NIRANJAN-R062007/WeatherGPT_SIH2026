@@ -11,6 +11,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import 'config.dart';
+import 'i18n.dart';
 
 const Duration kIntelligenceTimeout = Duration(seconds: 15);
 
@@ -19,9 +20,11 @@ enum IntelligenceErrorKind { http, network, timeout, malformed }
 class IntelligenceError implements Exception {
   final IntelligenceErrorKind kind;
   final String message;
-  IntelligenceError(this.kind, this.message);
+  /// Values for the `{name}` placeholders in [message], a ui_strings.json key.
+  final Map<String, Object?> args;
+  IntelligenceError(this.kind, this.message, {this.args = const {}});
   @override
-  String toString() => message;
+  String toString() => fillPlaceholders(message, args);
 }
 
 Future<Map<String, dynamic>> _getJson(String path, Map<String, String> params) async {
@@ -46,17 +49,21 @@ Future<Map<String, dynamic>> _send(Future<http.Response> Function() call) async 
   } catch (_) {
     throw IntelligenceError(
       IntelligenceErrorKind.network,
-      "Couldn't reach the weather intelligence service at $kApiBaseUrl. Is the orchestrator running?",
+      "Couldn't reach the weather intelligence service at {url}. Is the orchestrator running?",
+      args: {'url': kApiBaseUrl},
     );
   }
 
   if (res.statusCode < 200 || res.statusCode >= 300) {
-    final detail = res.statusCode == 404
-        ? 'Unknown city.'
-        : res.statusCode == 422
-            ? 'Bad request.'
-            : 'HTTP ${res.statusCode}.';
-    throw IntelligenceError(IntelligenceErrorKind.http, 'The weather intelligence service replied $detail');
+    throw IntelligenceError(
+      IntelligenceErrorKind.http,
+      switch (res.statusCode) {
+        404 => "The weather intelligence service doesn't know that city.",
+        422 => "The weather intelligence service couldn't read the request.",
+        _ => 'The weather intelligence service replied HTTP {status}.',
+      },
+      args: {'status': res.statusCode},
+    );
   }
   try {
     return jsonDecode(res.body) as Map<String, dynamic>;

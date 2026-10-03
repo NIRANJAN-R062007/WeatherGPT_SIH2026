@@ -218,6 +218,7 @@ class _NowCard extends StatelessWidget {
         icon: Icons.wifi_off,
         title: 'Live conditions unavailable',
         message: weather.error!.message,
+        messageArgs: weather.error!.args,
         onRetry: weather.refresh,
       );
     } else if (c == null) {

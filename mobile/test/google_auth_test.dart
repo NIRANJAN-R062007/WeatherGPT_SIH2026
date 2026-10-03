@@ -88,7 +88,7 @@ void main() {
     test('other errors keep their description', () {
       expect(
         () => codeFromRedirect(Uri.parse('$kGoogleRedirect?error=server_error&error_description=Boom')),
-        throwsA(isA<AuthError>().having((e) => e.message, 'message', contains('Boom'))),
+        throwsA(isA<AuthError>().having((e) => e.toString(), 'toString()', contains('Boom'))),
       );
     });
 

@@ -24,7 +24,9 @@ Future<String?> transcribeAudio({
   required String audioBase64,
   required String lang,
   int samplingRate = 16000,
-  void Function(String message)? onNotice,
+  /// The reason, as a ui_strings.json key plus values for its `{name}`
+  /// placeholders.
+  void Function(String message, [Map<String, Object?> args])? onNotice,
 }) async {
   final uri = Uri.parse('$kApiBaseUrl/asr');
   http.Response res;
@@ -45,7 +47,7 @@ Future<String?> transcribeAudio({
     return null;
   }
   if (res.statusCode < 200 || res.statusCode >= 300) {
-    onNotice?.call('The voice service replied HTTP ${res.statusCode}.');
+    onNotice?.call('The voice service replied HTTP {status}.', {'status': res.statusCode});
     return null;
   }
   Map<String, dynamic> payload;

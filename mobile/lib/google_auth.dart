@@ -60,8 +60,9 @@ String codeFromRedirect(Uri uri) {
   }
   final reason = params['error_description'] ?? error;
   throw AuthError(
-    reason == null ? 'Google sign-in failed. Please try again.' : 'Google sign-in failed: $reason',
+    reason == null ? 'Google sign-in failed. Please try again.' : 'Google sign-in failed: {reason}',
     code: error ?? 'google_failed',
+    args: {'reason': reason},
   );
 }
 

@@ -58,7 +58,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
       navigator.pop();
       messenger.showSnackBar(SnackBar(content: Text(saved)));
     } on AuthError catch (e) {
-      if (mounted) setState(() => _error = e.message);
+      if (mounted) setState(() => _error = tr(context, e.message, e.args));
     } finally {
       if (mounted) setState(() => _busy = false);
     }

@@ -177,6 +177,7 @@ class _SignedInHistoryState extends State<_SignedInHistory> {
       _clearing = true;
       _clearError = null;
     });
+    final lang = langOf(context);
     String? error;
     try {
       final token = await auth.accessToken();
@@ -185,7 +186,7 @@ class _SignedInHistoryState extends State<_SignedInHistory> {
       }
       await widget.clearer(token);
     } catch (e) {
-      error = e is HistoryError ? e.message : 'Something went wrong clearing your history.';
+      error = e is HistoryError ? trIn(lang, e.message, e.args) : 'Something went wrong clearing your history.';
     }
     if (!mounted) return;
     setState(() {
@@ -220,6 +221,7 @@ class _SignedInHistoryState extends State<_SignedInHistory> {
               icon: error.kind == HistoryErrorKind.auth ? Icons.lock_outline : Icons.cloud_off,
               title: error.kind == HistoryErrorKind.auth ? 'Sign in again' : 'History unavailable',
               message: error.message,
+              messageArgs: error.args,
               onRetry: error.kind == HistoryErrorKind.auth ? null : _reload,
             ),
             if (error.kind == HistoryErrorKind.auth) ...[

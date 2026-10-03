@@ -166,7 +166,7 @@ void main() {
       expect(unconfigured.message, 'History is not set up on this server.');
       final other = await failure(() => fetchHistory('t'), http.Response('', 502));
       expect(other.kind, HistoryErrorKind.http);
-      expect(other.message, contains('HTTP 502'));
+      expect(other.toString(), contains('HTTP 502'));
       expect((await failure(() => fetchHistory('t'), http.Response('<html>', 200))).kind, HistoryErrorKind.malformed);
       expect(
         (await failure(() => fetchHistory('t'), http.Response('{"rows": []}', 200))).kind,

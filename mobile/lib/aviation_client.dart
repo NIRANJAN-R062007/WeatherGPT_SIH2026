@@ -11,6 +11,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import 'config.dart';
+import 'i18n.dart';
 
 /// A live fetch plus decoding, cached server-side; well under /ask's 30 s.
 const Duration kAviationTimeout = Duration(seconds: 15);
@@ -21,9 +22,11 @@ class AviationError implements Exception {
   final AviationErrorKind kind;
   final String message;
   final int? status;
-  AviationError(this.kind, this.message, {this.status});
+  /// Values for the `{name}` placeholders in [message], a ui_strings.json key.
+  final Map<String, Object?> args;
+  AviationError(this.kind, this.message, {this.status, this.args = const {}});
   @override
-  String toString() => message;
+  String toString() => fillPlaceholders(message, args);
 }
 
 /// One METAR or TAF as /aviation returns it.
@@ -101,7 +104,11 @@ class AviationData {
   bool get unavailable => status == 'unavailable';
 
   /// "Chennai airport (VOMM)".
-  String get where => stationName != null ? '$stationName airport ($station)' : 'Station $station';
+  String get where => fillPlaceholders(whereKey, whereArgs);
+
+  /// [where] as a ui_strings.json key and its values, for tr().
+  String get whereKey => stationName != null ? '{name} airport ({code})' : 'Station {code}';
+  Map<String, Object?> get whereArgs => {'name': stationName, 'code': station};
 }
 
 typedef AviationFetcher = Future<AviationData> Function(String city);
@@ -117,13 +124,20 @@ Future<AviationData> fetchAviation(String city) async {
   } catch (_) {
     throw AviationError(
       AviationErrorKind.network,
-      "Couldn't reach the airport weather service at $kApiBaseUrl. Is the orchestrator running?",
+      "Couldn't reach the airport weather service at {url}. Is the orchestrator running?",
+      args: {'url': kApiBaseUrl},
     );
   }
 
   if (res.statusCode < 200 || res.statusCode >= 300) {
-    final detail = res.statusCode == 404 ? 'No airport for that city.' : 'HTTP ${res.statusCode}.';
-    throw AviationError(AviationErrorKind.http, 'The airport weather service replied $detail', status: res.statusCode);
+    throw AviationError(
+      AviationErrorKind.http,
+      res.statusCode == 404
+          ? 'The airport weather service has no airport for that city.'
+          : 'The airport weather service replied HTTP {status}.',
+      status: res.statusCode,
+      args: {'status': res.statusCode},
+    );
   }
 
   final Object? body;

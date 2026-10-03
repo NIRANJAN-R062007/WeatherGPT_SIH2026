@@ -8,6 +8,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import 'config.dart';
+import 'i18n.dart';
 
 /// /warnings does no LLM/narration work — fixture/cache lookup only — so a
 /// shorter timeout than /ask's 30s is appropriate (web/src/lib/warnings.ts
@@ -20,9 +21,11 @@ class WarningsError implements Exception {
   final WarningsErrorKind kind;
   final String message;
   final int? status;
-  WarningsError(this.kind, this.message, {this.status});
+  /// Values for the `{name}` placeholders in [message], a ui_strings.json key.
+  final Map<String, Object?> args;
+  WarningsError(this.kind, this.message, {this.status, this.args = const {}});
   @override
-  String toString() => message;
+  String toString() => fillPlaceholders(message, args);
 }
 
 /// Raw imd_warnings.public() JSON. `status` is 'unavailable' | 'clear' |
@@ -39,21 +42,25 @@ Future<Map<String, dynamic>> fetchWarnings({required String city, String? lang})
   } on TimeoutException {
     throw WarningsError(
       WarningsErrorKind.timeout,
-      'No answer within ${kWarningsTimeout.inSeconds}s — the warnings service timed out.',
+      'No answer within {seconds}s — the warnings service timed out.',
+      args: {'seconds': kWarningsTimeout.inSeconds},
     );
   } catch (_) {
     throw WarningsError(
       WarningsErrorKind.network,
-      "Couldn't reach the warnings service at $kApiBaseUrl. Is the orchestrator running?",
+      "Couldn't reach the warnings service at {url}. Is the orchestrator running?",
+      args: {'url': kApiBaseUrl},
     );
   }
 
   if (res.statusCode < 200 || res.statusCode >= 300) {
-    final detail = res.statusCode == 404 ? 'Unknown city.' : 'HTTP ${res.statusCode}.';
     throw WarningsError(
       WarningsErrorKind.http,
-      'The warnings service replied $detail',
+      res.statusCode == 404
+          ? "The warnings service doesn't know that city."
+          : 'The warnings service replied HTTP {status}.',
       status: res.statusCode,
+      args: {'status': res.statusCode},
     );
   }
 

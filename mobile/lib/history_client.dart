@@ -10,6 +10,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import 'config.dart';
+import 'i18n.dart';
 
 const Duration kHistoryTimeout = Duration(seconds: 15);
 
@@ -18,9 +19,11 @@ enum HistoryErrorKind { auth, unavailable, http, network, timeout, malformed }
 class HistoryError implements Exception {
   final HistoryErrorKind kind;
   final String message;
-  HistoryError(this.kind, this.message);
+  /// Values for the `{name}` placeholders in [message], a ui_strings.json key.
+  final Map<String, Object?> args;
+  HistoryError(this.kind, this.message, {this.args = const {}});
   @override
-  String toString() => message;
+  String toString() => fillPlaceholders(message, args);
 }
 
 /// One row of `public.history` (services/orchestrator/sql/supabase_schema.sql).
@@ -82,7 +85,8 @@ Future<Object?> _call({required bool delete, required String token}) async {
   } catch (_) {
     throw HistoryError(
       HistoryErrorKind.network,
-      "Couldn't reach the server at $kApiBaseUrl. Is the orchestrator running?",
+      "Couldn't reach the server at {url}. Is the orchestrator running?",
+      args: {'url': kApiBaseUrl},
     );
   }
 
@@ -93,7 +97,11 @@ Future<Object?> _call({required bool delete, required String token}) async {
     throw HistoryError(HistoryErrorKind.unavailable, 'History is not set up on this server.');
   }
   if (res.statusCode < 200 || res.statusCode >= 300) {
-    throw HistoryError(HistoryErrorKind.http, 'The history service replied HTTP ${res.statusCode}.');
+    throw HistoryError(
+      HistoryErrorKind.http,
+      'The history service replied HTTP {status}.',
+      args: {'status': res.statusCode},
+    );
   }
   try {
     return jsonDecode(res.body);

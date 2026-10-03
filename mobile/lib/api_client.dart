@@ -11,6 +11,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import 'config.dart';
+import 'i18n.dart';
 
 /// /ask is synchronous over the whole NLU + weather + narration chain.
 /// web/src/lib/api.ts uses the same 30s budget for the same reason: the
@@ -23,9 +24,11 @@ class AskError implements Exception {
   final AskErrorKind kind;
   final String message;
   final int? status;
-  AskError(this.kind, this.message, {this.status});
+  /// Values for the `{name}` placeholders in [message], a ui_strings.json key.
+  final Map<String, Object?> args;
+  AskError(this.kind, this.message, {this.status, this.args = const {}});
   @override
-  String toString() => message;
+  String toString() => fillPlaceholders(message, args);
 }
 
 enum AskKind { success, warnings, warningsUnavailable, ungrounded, fallback }
@@ -81,20 +84,23 @@ Future<AskOutcome> askWeather({
   } on TimeoutException {
     throw AskError(
       AskErrorKind.timeout,
-      'No answer within ${kAskTimeout.inSeconds}s — the weather service timed out.',
+      'No answer within {seconds}s — the weather service timed out.',
+      args: {'seconds': kAskTimeout.inSeconds},
     );
   } catch (_) {
     throw AskError(
       AskErrorKind.network,
-      "Couldn't reach the weather service at $kApiBaseUrl. Is the orchestrator running?",
+      "Couldn't reach the weather service at {url}. Is the orchestrator running?",
+      args: {'url': kApiBaseUrl},
     );
   }
 
   if (res.statusCode < 200 || res.statusCode >= 300) {
     throw AskError(
       AskErrorKind.http,
-      'The weather service replied HTTP ${res.statusCode}.',
+      'The weather service replied HTTP {status}.',
       status: res.statusCode,
+      args: {'status': res.statusCode},
     );
   }
 

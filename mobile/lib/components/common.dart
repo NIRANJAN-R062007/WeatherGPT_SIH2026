@@ -289,8 +289,18 @@ class ErrorPanel extends StatelessWidget {
   final IconData icon;
   final String title;
   final String message;
+
+  /// Values for the `{name}` placeholders in [message] (an error's `args`).
+  final Map<String, Object?> messageArgs;
   final VoidCallback? onRetry;
-  const ErrorPanel({super.key, required this.icon, required this.title, required this.message, this.onRetry});
+  const ErrorPanel({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.message,
+    this.messageArgs = const {},
+    this.onRetry,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -314,7 +324,7 @@ class ErrorPanel extends StatelessWidget {
             ),
           ]),
           const SizedBox(height: AppSpace.xs),
-          Text(tr(context, message), style: AppText.bodyMd.copyWith(color: AppColors.onErrorContainer)),
+          Text(tr(context, message, messageArgs), style: AppText.bodyMd.copyWith(color: AppColors.onErrorContainer)),
           if (onRetry != null) ...[
             const SizedBox(height: AppSpace.sm),
             PillButton(icon: Icons.refresh, label: 'Try again', onPressed: onRetry),
