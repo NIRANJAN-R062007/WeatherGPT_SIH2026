@@ -28,6 +28,13 @@ class AskAnswer extends StatelessWidget {
   /// button that speaks in this language.
   final String? playbackLang;
 
+  /// A place tapped from a "which one?" or "not found" reply: re-ask with
+  /// its place ID. No buttons are shown without it.
+  final void Function(String placeId, String label)? onPickPlace;
+
+  /// "Which place?" replies offer Use my location when this is set.
+  final VoidCallback? onUseLocation;
+
   const AskAnswer({
     super.key,
     this.asked,
@@ -36,6 +43,8 @@ class AskAnswer extends StatelessWidget {
     this.error,
     this.detail = false,
     this.playbackLang,
+    this.onPickPlace,
+    this.onUseLocation,
   });
 
   @override
@@ -68,7 +77,7 @@ class AskAnswer extends StatelessWidget {
             AskKind.warnings => _Warnings(o.data, detail: detail, playbackLang: playbackLang),
             AskKind.warningsUnavailable => _WarningsUnavailable(o.data, detail: detail),
             AskKind.ungrounded => _Ungrounded(o.data),
-            AskKind.fallback => _Fallback(o.data),
+            AskKind.fallback => _Fallback(o.data, onPickPlace: onPickPlace, onUseLocation: onUseLocation),
           },
       ]),
     );
@@ -100,6 +109,13 @@ String _str(Object? v) => v is String ? v : '';
 int _int(Object? v) => v is num ? v.toInt() : 0;
 
 String _intentLabel(Object? intent) => _str(intent).replaceAll('_', ' ').toUpperCase();
+
+/// Where an answer is for: the resolved place ("Ooty, Tamil Nadu", "your
+/// location (near Chetput)") when /ask sent one, else the demo city's name.
+String _placeLabel(Map<String, dynamic> data) {
+  final label = _str(_map(data['location'])['label']);
+  return label.isNotEmpty ? label : cityLabel(data['city'] as String?);
+}
 
 class _Panel extends StatelessWidget {
   final Color color;
@@ -405,7 +421,7 @@ class _Success extends StatelessWidget {
         chips: [
           _GroundedBadge(_int(g['matched']), _int(g['total'])),
           TagChip(_intentLabel(data['intent']), tone: ChipTone.primary),
-          TagChip(cityLabel(data['city'] as String?), icon: Icons.location_on_outlined),
+          TagChip(_placeLabel(data), icon: Icons.location_on_outlined),
           TagChip(dayLabel(data['day'])),
         ],
       ),
@@ -500,7 +516,7 @@ class _Ungrounded extends StatelessWidget {
     return _Panel(color: AppColors.errorContainer, children: [
       Wrap(spacing: 6, runSpacing: 6, crossAxisAlignment: WrapCrossAlignment.center, children: [
         const _StatusTitle(Icons.gpp_maybe_outlined, 'Answer withheld — not grounded', AppColors.onErrorContainer),
-        TagChip(cityLabel(data['city'] as String?), icon: Icons.location_on_outlined),
+        TagChip(_placeLabel(data), icon: Icons.location_on_outlined),
         TagChip(tr(context, '{matched}/{total} figures matched', {'matched': _int(g['matched']), 'total': _int(g['total'])})),
       ]),
       ?_notice(data),
@@ -520,18 +536,39 @@ class _Ungrounded extends StatelessWidget {
   }
 }
 
+/// The no-answer branch, and the location replies: places to tap
+/// (`ambiguous`), the nearest known place (`not_found` + `nearest`), or a
+/// request for a location (`needs_location`), each with its button when
+/// the parent passes the matching callback.
 class _Fallback extends StatelessWidget {
   final Map<String, dynamic> data;
-  const _Fallback(this.data);
+  final void Function(String placeId, String label)? onPickPlace;
+  final VoidCallback? onUseLocation;
+  const _Fallback(this.data, {this.onPickPlace, this.onUseLocation});
 
   @override
   Widget build(BuildContext context) {
     final t = PersonaTheme.of(context);
     final city = data['city'] as String?;
     final nluCity = _map(data['nlu'])['city'] as String?;
+    final candidates = [
+      for (final c in data['ambiguous'] is List ? data['ambiguous'] as List : const [])
+        if (_str(_map(c)['place_id']).isNotEmpty) _map(c),
+    ];
+    final nearest = _map(data['nearest']);
+    final title = candidates.isNotEmpty || data['needs_location'] == true
+        ? 'Which place?'
+        : data['not_found'] == true
+        ? 'Place not found'
+        : 'No answer';
+    Widget pick(Map<String, dynamic> place, String label) => PillButton(
+      icon: Icons.place_outlined,
+      label: label,
+      onPressed: () => onPickPlace!(_str(place['place_id']), _str(place['label'])),
+    );
     return _Panel(color: t.surfaceContainer, children: [
       Wrap(spacing: 6, runSpacing: 6, crossAxisAlignment: WrapCrossAlignment.center, children: [
-        _StatusTitle(Icons.info_outline, 'No answer', t.onSurfaceVariant),
+        _StatusTitle(Icons.info_outline, title, t.onSurfaceVariant),
         TagChip(_intentLabel(data['intent']), tone: ChipTone.primary),
         // Only the no_data branch carries a resolved city key; on
         // unsupported_city the rejected name survives only in nlu.city.
@@ -542,6 +579,25 @@ class _Fallback extends StatelessWidget {
       ]),
       ?_notice(data),
       Text(_str(data['message']), style: AppText.bodyMd.copyWith(color: t.onSurface)),
+      if (onPickPlace != null && candidates.isNotEmpty)
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final c in candidates)
+              pick(c, [_str(c['label']), _str(c['district'])].where((s) => s.isNotEmpty).join(' · ')),
+          ],
+        ),
+      if (onPickPlace != null && candidates.isEmpty && _str(nearest['place_id']).isNotEmpty)
+        Align(
+          alignment: Alignment.centerLeft,
+          child: pick(nearest, tr(context, 'Use {place}', {'place': _str(nearest['label'])})),
+        ),
+      if (onUseLocation != null && data['needs_location'] == true)
+        Align(
+          alignment: Alignment.centerLeft,
+          child: PillButton(icon: Icons.my_location, label: 'Use my location', onPressed: onUseLocation),
+        ),
     ]);
   }
 }
