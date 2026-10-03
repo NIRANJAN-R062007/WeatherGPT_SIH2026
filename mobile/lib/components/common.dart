@@ -455,7 +455,12 @@ class CityHintRow extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
               child: Row(mainAxisSize: MainAxisSize.min, children: [
-                Text(tr(context, prefs.cityInfo.name), style: AppText.labelMd),
+                Text(
+                  prefs.here != null
+                      ? tr(context, 'Your location (near {city})', {'city': tr(context, prefs.cityInfo.name)})
+                      : tr(context, prefs.cityInfo.name),
+                  style: AppText.labelMd,
+                ),
                 Icon(Icons.expand_more, size: 16, color: t.onSurfaceVariant),
               ]),
             ),
@@ -474,9 +479,9 @@ const double kNearCityKm = 50;
 
 /// Topbar.tsx's city dropdown as a bottom sheet, listing the cities the
 /// server answers for (UiPrefs.cities), plus a "use my location" row: the
-/// nearest of those cities — /ask and /warnings take a city, not
-/// coordinates. A note says which city was picked and how far it is from
-/// the user. [locate] is for tests.
+/// nearest of those cities for the pages that take a city, and the fix
+/// itself for Chat (UiPrefs.useLocation). A note says which city was picked
+/// and how far it is from the user. [locate] is for tests.
 Future<void> showCityPicker(BuildContext context, {Locator locate = currentPosition}) {
   return showModalBottomSheet<void>(
     context: context,
@@ -525,7 +530,7 @@ class _CityPickerSheetState extends State<_CityPickerSheet> {
       if (!mounted) return;
       final prefs = UiPrefs.read(context);
       final (:city, :km) = nearestCity(here.lat, here.lon, prefs.cities);
-      prefs.city = city.key;
+      prefs.useLocation(here.lat, here.lon, city.key);
       final note = nearestCityNote(context, city, km);
       final messenger = ScaffoldMessenger.of(context);
       Navigator.of(context).pop();
