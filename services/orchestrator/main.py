@@ -23,6 +23,7 @@ import config
 import glossary
 import guardrail
 import history
+import hotlines
 import httpx
 import imd_warnings as warnings_module
 import ivr
@@ -44,12 +45,12 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
-from google_weather import cache_stats
+from google_weather import FORECAST_DAYS_FETCHED, FORECAST_HOURS, cache_stats
 from i18n import SUPPORTED_LANGUAGES, condition_table, render
 from narrate import is_configured as llm_configured
 from narrate import narrate
 from pydantic import BaseModel, Field
-from weather_data import get_weather, hourly_facts
+from weather_data import daily_forecast, get_weather, hourly_facts, hourly_forecast
 from weather_intelligence.persona_advisor import CAVEATS, advise, wants_window
 from weather_intelligence.scenario_analyzer import compare_scenario
 from weather_intelligence.window_analyzer import find_best_window
@@ -492,7 +493,12 @@ def tts(req: TTSRequest):
 @app.get("/facts")
 def facts(city: str, intent: str = "current_weather", day: str = "today", lang: str = "en"):
     """The raw facts dict behind an answer — for UI surfaces (the hero card) that
-    need individual fields rather than the narrated sentence."""
+    need individual fields rather than the narrated sentence. Current
+    conditions (current_weather + today) also carry `rain_so_far`: the
+    rainfall since local midnight (`rain_so_far_mm`, `since`), or, with no
+    hourly history to sum, the last 24 hours' total (`rain_last_24h_mm`),
+    each with its IMD `rain_category` and its own provenance. It sits beside
+    `facts`, not in it: /ask's guardrail grounds against `facts` alone."""
     _require_lang(lang)
     if intent not in ("current_weather", "will_it_rain") \
             or day not in ("today", "tonight", "tomorrow"):
@@ -504,12 +510,94 @@ def facts(city: str, intent: str = "current_weather", day: str = "today", lang: 
     if data is None:
         return {"city": key, "message": _msg("no_data", lang)}
     table = condition_table(lang)
-    return {
+    body = {
         "city": key,
         "city_name": cities.display_name(key, lang),
         "condition_label": table.get(data.get("condition"), data.get("condition")),
         "facts": data,
     }
+    if intent == "current_weather" and day == "today":
+        try:
+            rain = weather_data.rain_so_far(key)
+        except (KeyError, ValueError, TypeError):  # a malformed history series
+            rain = None
+        if rain is not None:
+            body["rain_so_far"] = rain
+    return body
+
+
+def _series_provenance(data: dict) -> dict:
+    return {"source": data["source"], "is_live": data["is_live"], "issued": data["issued"]}
+
+
+def _known_city(city: str, lang: str) -> str:
+    _require_lang(lang)
+    key = cities.resolve(city)
+    if key is None:
+        raise HTTPException(status_code=404, detail="unknown city")
+    return key
+
+
+@app.get("/forecast/daily")
+def forecast_daily(city: str, days: int = FORECAST_DAYS_FETCHED, lang: str = "en"):
+    """Up to `days` (1–10) days of the daily forecast as figures, for a day
+    list: weather_data.daily_forecast()'s fields plus `condition_label` /
+    `night_condition_label` in `lang`. Sunrise and sunset ride on each day.
+    `status` is "unavailable" (with `days: []`) when there's no forecast to
+    serve. Fixture mode serves the days that were snapshotted (5)."""
+    key = _known_city(city, lang)
+    if not 1 <= days <= FORECAST_DAYS_FETCHED:
+        raise HTTPException(status_code=422, detail=f"days must be 1 to {FORECAST_DAYS_FETCHED}")
+    data = daily_forecast(key, days)
+    base = {"city": key, "city_name": cities.display_name(key, lang)}
+    if data is None:
+        return {**base, "status": "unavailable", "days": [], "provenance": None}
+    table = condition_table(lang)
+    for day in data["days"]:
+        for field in ("condition", "night_condition"):
+            if field in day:
+                day[f"{field}_label"] = table.get(day[field], day[field])
+    return {
+        **base,
+        "status": "ok",
+        "days": data["days"],
+        "provenance": _series_provenance(data),
+    }
+
+
+@app.get("/forecast/hourly")
+def forecast_hourly(city: str, hours: int = FORECAST_HOURS, lang: str = "en"):
+    """The next `hours` (1–24) hours of the hourly forecast, for an hourly
+    strip: weather_data.hourly_forecast()'s fields plus `condition_label` in
+    `lang`. `status` is "unavailable" (with `hours: []`) when there's no
+    series to serve."""
+    key = _known_city(city, lang)
+    if not 1 <= hours <= FORECAST_HOURS:
+        raise HTTPException(status_code=422, detail=f"hours must be 1 to {FORECAST_HOURS}")
+    data = hourly_forecast(key, hours)
+    base = {"city": key, "city_name": cities.display_name(key, lang)}
+    if data is None:
+        return {**base, "status": "unavailable", "hours": [], "provenance": None}
+    table = condition_table(lang)
+    for hour in data["hours"]:
+        if "condition" in hour:
+            hour["condition_label"] = table.get(hour["condition"], hour["condition"])
+    return {
+        **base,
+        "status": "ok",
+        "hours": data["hours"],
+        "provenance": _series_provenance(data),
+    }
+
+
+@app.get("/hotlines")
+def hotlines_route(city: str, lang: str = "en"):
+    """Emergency numbers for a city (hotlines.py): 112, then the state's,
+    district's and city's own lines, each read off an official page
+    (`source_url`) on the `checked` date. Names and notes are English keys
+    the apps translate. Unknown city: 404, as /warnings."""
+    key = _known_city(city, lang)
+    return {"city": key, "city_name": cities.display_name(key, lang), **hotlines.public(key)}
 
 
 @app.get("/warnings")

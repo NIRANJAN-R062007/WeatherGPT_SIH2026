@@ -73,6 +73,7 @@ def snapshot(city_key: str, cities: dict, *, days: int, units: str,
         extra = {"unitsSystem": units}
         if name == "forecast_days":
             extra["days"] = days
+            extra["pageSize"] = days  # the API pages at 5 days by default
         if name == "forecast_hours":
             extra["hours"] = FORECAST_HOURS
         if name == "history_hours":

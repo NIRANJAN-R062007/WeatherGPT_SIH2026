@@ -19,7 +19,9 @@ Baseline on 2026-10-02: the five `/ask` languages and `/health` pass; six checks
 under `[current]` fail (`/cities` lists 3 of 8 cities, `/facts?city=mumbai` is
 refused, `/warnings` has no `status`, `/aviation`, `/intelligence/best-window` and
 `/glossary` are 404). The box runs an old build (`WeatherGPT /ask prototype 0.0.1`,
-before the gateway and the `services/orchestrator` rename).
+before the gateway and the `services/orchestrator` rename). Since 2026-10-03 the
+script also checks `/forecast/daily`, `/forecast/hourly`, `/facts`' `rain_so_far`
+and `/hotlines` (10 checks under `[current]`; all fail on the old build).
 
 ## 2. Look at what is running (on the box, read-only)
 

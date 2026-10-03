@@ -1,10 +1,11 @@
 // Home — the pics/ persona mockups' Home: a persona greeting ("Good
-// morning, Farmer!"), the current-conditions card, four shortcut tiles, the
-// outlook strip, the persona's illustrated panel and its Quick Actions. Every
-// figure is live from GET /facts (WeatherStore). /facts serves today,
-// tonight and tomorrow only, so the strip shows those three rather than the
-// mockup's five days; longer ranges are one tap away as a Quick Question,
-// which Chat answers through /ask.
+// morning, Farmer!"), the current-conditions card, today's rain so far and
+// daylight, four shortcut tiles, the outlook strip, the persona's
+// illustrated panel and its Quick Actions. Every figure is live from the
+// backend (WeatherStore): /facts for the card and the rain, /forecast/daily
+// for the sun times and the strip's five days. A backend without
+// /forecast/daily gets today / tonight / tomorrow from /facts in the strip,
+// and the 5-Day tile asks Chat instead.
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -71,11 +72,18 @@ class _HomePageState extends State<HomePage> {
         _Greeting(text: _greeting(context, _now, persona.role), lead: tr(context, persona.homeLead)),
         const SizedBox(height: AppSpace.md),
         _NowCard(weather: weather),
+        _TodayCards(weather: weather, now: _now),
         const SizedBox(height: 12),
         _QuickTiles(
           tiles: [
             (Icons.today, 'Today', () => nav.go(AppPage.forecast)),
-            (Icons.date_range, '5-Day', () => nav.ask(tr(context, '5-day forecast for {city}', {'city': city}))),
+            (
+              Icons.date_range,
+              '5-Day',
+              weather.hasDaily
+                  ? () => nav.go(AppPage.forecast)
+                  : () => nav.ask(tr(context, '5-day forecast for {city}', {'city': city})),
+            ),
             (Icons.warning_rounded, 'Alerts', () => nav.go(AppPage.alerts)),
             (Icons.chat_rounded, 'Chat', () => nav.go(AppPage.chat)),
           ],
@@ -353,7 +361,170 @@ class _Stat extends StatelessWidget {
   }
 }
 
-/// Today / Tonight / Tomorrow in one card, like the mockup's day columns.
+/// Rain so far today (/facts' `rain_so_far`) and today's daylight
+/// (/forecast/daily's first day), side by side; either alone fills the row.
+class _TodayCards extends StatelessWidget {
+  final WeatherStore weather;
+  final DateTime now;
+  const _TodayCards({required this.weather, required this.now});
+
+  @override
+  Widget build(BuildContext context) {
+    final rain = weather.error == null ? weather.current?.rainSoFar : null;
+    final today = weather.hasDaily ? weather.daily!.entries.first : null;
+    final rise = istMinuteOfDay(today?.sunrise);
+    final set = istMinuteOfDay(today?.sunset);
+    final cards = [
+      if (rain != null) _RainCard(rain),
+      if (rise != null && set != null && set > rise)
+        _DaylightCard(sunrise: today!.sunrise!, sunset: today.sunset!, rise: rise, set: set, now: now),
+    ];
+    if (cards.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (final (i, card) in cards.indexed) ...[
+              if (i > 0) const SizedBox(width: 10),
+              Expanded(child: card),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A small card's icon + title row.
+class _CardTitle extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final Widget? trailing;
+  const _CardTitle(this.icon, this.title, {this.trailing});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: t.primary),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            tr(context, title),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppText.labelMd.copyWith(color: t.ink, fontWeight: FontWeight.w600),
+          ),
+        ),
+        ?trailing,
+      ],
+    );
+  }
+}
+
+/// Millimetres since local midnight with the IMD category, or the last 24
+/// hours' total when the backend had no hourly history to sum.
+class _RainCard extends StatelessWidget {
+  final Figures rain;
+  const _RainCard(this.rain);
+
+  @override
+  Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
+    final sinceMidnight = rain.number('rain_so_far_mm');
+    final mm = sinceMidnight ?? rain.number('rain_last_24h_mm');
+    final category = rainCategoryLabel(rain.text('rain_category'));
+    final muted = AppText.bodySm.copyWith(color: t.inkMuted);
+    return AppCard(
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _CardTitle(
+            Icons.water_drop_outlined,
+            'Rain so far',
+            trailing: rain.isLive ? null : const LiveBadge(live: false),
+          ),
+          const SizedBox(height: 8),
+          Text(mm == null ? '—' : millimetres(mm), style: AppText.headlineSm.copyWith(color: t.ink)),
+          if (category != null) Text(tr(context, category), style: muted),
+          Text(tr(context, sinceMidnight != null ? 'Since midnight' : 'In the last 24 hours'), style: muted),
+        ],
+      ),
+    );
+  }
+}
+
+/// Day length with a bar for how much of it has passed, and the sunrise and
+/// sunset times. The bar reads [now]'s IST clock time against the two.
+class _DaylightCard extends StatelessWidget {
+  final String sunrise;
+  final String sunset;
+  final int rise;
+  final int set;
+  final DateTime now;
+  const _DaylightCard({
+    required this.sunrise,
+    required this.sunset,
+    required this.rise,
+    required this.set,
+    required this.now,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
+    final minute = now.hour * 60 + now.minute;
+    final passed = ((minute - rise) / (set - rise)).clamp(0.0, 1.0);
+    final muted = AppText.bodySm.copyWith(color: t.inkMuted);
+    Widget time(IconData icon, String label, String iso) => Semantics(
+      label: '${tr(context, label)} ${istClock(iso)}',
+      excludeSemantics: true,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: t.primary),
+          const SizedBox(width: 2),
+          Text(istClock(iso), style: muted),
+        ],
+      ),
+    );
+
+    return AppCard(
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _CardTitle(Icons.wb_twilight, 'Daylight'),
+          const SizedBox(height: 8),
+          Text(
+            hoursMinutes(Duration(minutes: set - rise), langOf(context)),
+            style: AppText.headlineSm.copyWith(color: t.ink),
+          ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: LinearProgressIndicator(value: passed, minHeight: 6, color: t.primary, backgroundColor: t.tint),
+          ),
+          const SizedBox(height: 6),
+          // Sunset drops to its own line rather than overflow a narrow card.
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            spacing: 8,
+            runSpacing: 2,
+            children: [time(Icons.arrow_upward, 'Sunrise', sunrise), time(Icons.arrow_downward, 'Sunset', sunset)],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Five days from /forecast/daily in one card, like the mockup's day
+/// columns; today / tonight / tomorrow from /facts on an older backend.
 class _OutlookStrip extends StatelessWidget {
   final WeatherStore weather;
   const _OutlookStrip({required this.weather});
@@ -361,6 +532,18 @@ class _OutlookStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = PersonaTheme.of(context);
+    if (weather.hasDaily) {
+      return AppCard(
+        wash: true,
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: AppSpace.sm),
+        child: Row(
+          children: [
+            for (final day in weather.daily!.entries.take(5)) Expanded(child: _DailyCell(day: day)),
+          ],
+        ),
+      );
+    }
+    if (weather.dailyPending) return const LoadingPanel('Loading the outlook…');
     if (weather.error != null) {
       return AppCard(
         child: Text(
@@ -386,6 +569,51 @@ class _OutlookStrip extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _DailyCell extends StatelessWidget {
+  final ForecastDay day;
+  const _DailyCell({required this.day});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
+    final prefs = UiPrefs.of(context);
+    final high = day.number('high_c');
+    final low = day.number('low_c');
+    return Column(
+      children: [
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            forecastDayName(day.label, day.date, langOf(context)),
+            maxLines: 1,
+            style: AppText.labelMd.copyWith(color: t.ink, fontWeight: FontWeight.w600),
+          ),
+        ),
+        const SizedBox(height: 8),
+        WeatherGlyph(day.condition, size: 30),
+        const SizedBox(height: 8),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text.rich(
+            TextSpan(
+              children: [
+                if (high != null)
+                  TextSpan(
+                    text: '${prefs.temp(high)}° ',
+                    style: TextStyle(color: t.ink, fontWeight: FontWeight.w600),
+                  ),
+                if (low != null) TextSpan(text: '${prefs.temp(low)}°'),
+              ],
+            ),
+            maxLines: 1,
+            style: AppText.bodySm.copyWith(color: t.inkMuted),
+          ),
+        ),
+      ],
     );
   }
 }

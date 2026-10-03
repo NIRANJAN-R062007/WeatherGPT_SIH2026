@@ -329,6 +329,7 @@ def test_ivr_global_cap_zero_disables_it(monkeypatch):
 BROWSE_ROUTES = [
     ("GET", "/me"), ("GET", "/history"), ("DELETE", "/history"),
     ("GET", "/facts"), ("GET", "/warnings"), ("GET", "/cities"), ("GET", "/glossary"),
+    ("GET", "/forecast/daily"), ("GET", "/forecast/hourly"), ("GET", "/hotlines"),
 ]
 
 

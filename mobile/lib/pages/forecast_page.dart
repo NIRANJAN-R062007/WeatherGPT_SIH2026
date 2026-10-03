@@ -1,9 +1,10 @@
-// Forecast — the pics/ mockup's Forecast: a two-way switch over a list of
-// day rows. GET /facts serves today, tonight and tomorrow (no hourly series,
-// no structured 5-day breakdown), so the switch is "Days" (the rows) and
-// "Details" (each period's figures plus provenance) rather than the
-// mockup's "5 Days" / "Hourly"; the banner at the foot hands a 5-day
-// question to Chat, where /ask narrates it.
+// Forecast — the pics/ mockup's Forecast: a "Days | Hourly" pill switch.
+// Days is GET /forecast/daily's list (up to 10 days; tap a day for its rain,
+// wind, humidity, UV and sun times), Hourly is /forecast/hourly's next 24
+// hours as a strip under a temperature curve. Every figure is the feed's
+// own, never generated. A backend from before those routes (404) gets the
+// /facts rows (today, tonight, tomorrow) and the banner that hands a 5-day
+// question to Chat, as before.
 import 'package:flutter/material.dart';
 
 import '../components/app_shell.dart';
@@ -20,7 +21,7 @@ import '../theme.dart';
 import 'best_window_page.dart';
 import '../i18n.dart';
 
-enum _View { days, details }
+enum _View { days, hourly }
 
 class ForecastPage extends StatefulWidget {
   const ForecastPage({super.key});
@@ -31,6 +32,9 @@ class ForecastPage extends StatefulWidget {
 
 class _ForecastPageState extends State<ForecastPage> {
   _View _view = _View.days;
+
+  /// The day list's expanded row.
+  int? _open;
 
   @override
   Widget build(BuildContext context) {
@@ -46,15 +50,17 @@ class _ForecastPageState extends State<ForecastPage> {
         const SizedBox(height: AppSpace.md),
         _Switch(value: _view, onChanged: (v) => setState(() => _view = v)),
         const SizedBox(height: AppSpace.md),
-        ..._body(weather),
+        ...(_view == _View.days ? _days(weather) : _hours(weather, city)),
         const SizedBox(height: AppSpace.sm),
-        InfoBanner(
-          icon: prefs.personaInfo.icon,
-          title: 'Need more days?',
-          body: tr(context, 'Ask for a 5-day forecast for {city} in Chat.', {'city': city}),
-          onTap: () => nav.ask(tr(context, '5-day forecast for {city}', {'city': city})),
-        ),
-        const SizedBox(height: AppSpace.sm),
+        if (!weather.hasDaily && !weather.dailyPending) ...[
+          InfoBanner(
+            icon: prefs.personaInfo.icon,
+            title: 'Need more days?',
+            body: tr(context, 'Ask for a 5-day forecast for {city} in Chat.', {'city': city}),
+            onTap: () => nav.ask(tr(context, '5-day forecast for {city}', {'city': city})),
+          ),
+          const SizedBox(height: AppSpace.sm),
+        ],
         InfoBanner(
           icon: Icons.schedule,
           title: "When's the best time to go outside?",
@@ -65,7 +71,27 @@ class _ForecastPageState extends State<ForecastPage> {
     );
   }
 
-  List<Widget> _body(WeatherStore weather) {
+  List<Widget> _days(WeatherStore weather) {
+    if (weather.hasDaily) {
+      final daily = weather.daily!;
+      return [
+        for (final (i, day) in daily.entries.indexed) ...[
+          _DayTile(day: day, expanded: _open == i, onTap: () => setState(() => _open = _open == i ? null : i)),
+          const SizedBox(height: 10),
+        ],
+        _ProvenanceCard(source: daily.source),
+        const SizedBox(height: 10),
+      ];
+    }
+    if (weather.dailyPending) {
+      return [const LoadingPanel('Loading the forecast…'), const SizedBox(height: AppSpace.sm)];
+    }
+    return _factsRows(weather);
+  }
+
+  /// Today / tonight / tomorrow from /facts, for a backend without
+  /// /forecast/daily.
+  List<Widget> _factsRows(WeatherStore weather) {
     if (weather.error != null) {
       return [
         ErrorPanel(
@@ -81,7 +107,6 @@ class _ForecastPageState extends State<ForecastPage> {
     if (weather.today == null) {
       return [const LoadingPanel('Loading the forecast…'), const SizedBox(height: AppSpace.sm)];
     }
-
     final rows = [
       ('Today', weather.today, 0, false),
       ('Tonight', weather.tonight, 0, true),
@@ -89,12 +114,48 @@ class _ForecastPageState extends State<ForecastPage> {
     ];
     return [
       for (final (label, result, offset, night) in rows) ...[
-        _view == _View.days
-            ? _DayRow(label: label, result: result, dayOffset: offset, night: night)
-            : _DetailCard(label: label, result: result, dayOffset: offset, night: night),
+        _DayRow(label: label, result: result, dayOffset: offset, night: night),
         const SizedBox(height: 10),
       ],
-      if (_view == _View.details) ...[_ProvenanceCard(weather: weather), const SizedBox(height: 10)],
+    ];
+  }
+
+  List<Widget> _hours(WeatherStore weather, String city) {
+    final t = PersonaTheme.of(context);
+    if (weather.hasHourly) {
+      return [
+        _HourlyStrip(hourly: weather.hourly!),
+        const SizedBox(height: 10),
+        _ProvenanceCard(source: weather.hourly!.source),
+        const SizedBox(height: 10),
+      ];
+    }
+    if (weather.hourlyPending) {
+      return [const LoadingPanel('Loading the hourly forecast…'), const SizedBox(height: AppSpace.sm)];
+    }
+    final error = weather.hourlyError;
+    if (error != null && error.status != 404) {
+      return [
+        ErrorPanel(
+          icon: Icons.wifi_off,
+          title: 'Hourly forecast unavailable',
+          message: error.message,
+          messageArgs: error.args,
+          onRetry: weather.refresh,
+        ),
+        const SizedBox(height: AppSpace.sm),
+      ];
+    }
+    return [
+      AppCard(
+        child: Text(
+          error != null
+              ? tr(context, "This weather service doesn't serve an hourly forecast yet.")
+              : tr(context, 'No hourly forecast for {city} right now.', {'city': city}),
+          style: AppText.bodyMd.copyWith(color: t.inkMuted),
+        ),
+      ),
+      const SizedBox(height: AppSpace.sm),
     ];
   }
 }
@@ -146,12 +207,324 @@ class _Switch extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(color: t.tint, borderRadius: BorderRadius.circular(999)),
-      child: Row(children: [tab(_View.days, 'Days'), const SizedBox(width: 4), tab(_View.details, 'Details')]),
+      child: Row(children: [tab(_View.days, 'Days'), const SizedBox(width: 4), tab(_View.hourly, 'Hourly')]),
     );
   }
 }
 
-/// Label + date | glyph | high / low + condition.
+/// One /forecast/daily day: name + date | glyph | high / low + condition |
+/// rain chance; tapped, the rest of its figures.
+class _DayTile extends StatelessWidget {
+  final ForecastDay day;
+  final bool expanded;
+  final VoidCallback onTap;
+  const _DayTile({required this.day, required this.expanded, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
+    final prefs = UiPrefs.of(context);
+    final lang = langOf(context);
+    final high = day.number('high_c');
+    final low = day.number('low_c');
+    final rain = day.number('rain_probability_pct');
+    final date = day.date;
+
+    return AppCard(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpace.md, vertical: 12),
+      onTap: onTap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                flex: 4,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      forecastDayName(day.label, date, lang),
+                      style: AppText.labelMd.copyWith(color: t.ink, fontWeight: FontWeight.w700),
+                    ),
+                    if (date != null) Text(dayMonth(date, lang), style: AppText.bodySm.copyWith(color: t.inkMuted)),
+                  ],
+                ),
+              ),
+              WeatherGlyph(day.condition, size: 36),
+              const SizedBox(width: 12),
+              Expanded(
+                flex: 5,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${high == null ? '—' : prefs.temp(high)}° / ${low == null ? '—' : prefs.temp(low)}°',
+                      style: AppText.labelMd.copyWith(color: t.ink, fontWeight: FontWeight.w600),
+                    ),
+                    Text(
+                      sentenceCase(day.conditionLabel),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppText.bodySm.copyWith(color: t.inkMuted),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppSpace.sm),
+              Icon(Icons.water_drop_outlined, size: 14, color: t.primary),
+              const SizedBox(width: 2),
+              Text(
+                rain == null ? '—' : '${rain.round()}%',
+                style: AppText.bodySm.copyWith(color: t.ink, fontWeight: FontWeight.w600),
+              ),
+              Icon(expanded ? Icons.expand_less : Icons.expand_more, size: 20, color: t.inkMuted),
+            ],
+          ),
+          if (expanded) ...[
+            const SizedBox(height: 12),
+            Divider(height: 1, color: t.cardBorder),
+            const SizedBox(height: 12),
+            _DayFigures(day: day),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// An expanded day's figures, three to a row, then its night.
+class _DayFigures extends StatelessWidget {
+  final ForecastDay day;
+  const _DayFigures({required this.day});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
+    final lang = langOf(context);
+    String pct(String key) {
+      final v = day.number(key);
+      return v == null ? '—' : '${v.round()}%';
+    }
+
+    final rainMm = day.number('rain_mm');
+    final wind = day.number('wind_kmh');
+    final uv = day.number('uv_index');
+    final sunrise = DateTime.tryParse(day.sunrise ?? '');
+    final sunset = DateTime.tryParse(day.sunset ?? '');
+    final figures = [
+      _Figure(Icons.umbrella_outlined, 'Rain chance', pct('rain_probability_pct')),
+      _Figure(Icons.water_drop_outlined, 'Rainfall', rainMm == null ? '—' : millimetres(rainMm)),
+      _Figure(Icons.air, 'Wind', wind == null ? '—' : '${wind.round()} km/h'),
+      _Figure(Icons.opacity, 'Humidity', pct('humidity_pct')),
+      _Figure(Icons.wb_sunny_outlined, 'UV index', uv == null ? '—' : '${uv.round()}'),
+      _Figure(
+        Icons.timelapse,
+        'Daylight',
+        sunrise == null || sunset == null ? '—' : hoursMinutes(sunset.difference(sunrise), lang),
+      ),
+      _Figure(Icons.wb_twilight, 'Sunrise', day.sunrise == null ? '—' : istClock(day.sunrise)),
+      _Figure(Icons.nights_stay_outlined, 'Sunset', day.sunset == null ? '—' : istClock(day.sunset)),
+      _Figure(Icons.umbrella_outlined, 'Rain at night', pct('night_rain_probability_pct')),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (var i = 0; i < figures.length; i += 3) ...[
+          if (i > 0) const SizedBox(height: 12),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (final figure in figures.sublist(i, i + 3 > figures.length ? figures.length : i + 3))
+                Expanded(child: figure),
+            ],
+          ),
+        ],
+        if (day.nightConditionLabel != null) ...[
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              WeatherGlyph(day.nightCondition, night: true, size: 22),
+              const SizedBox(width: AppSpace.sm),
+              Expanded(
+                child: Text(
+                  tr(context, 'Night: {condition}', {'condition': day.nightConditionLabel}),
+                  style: AppText.bodySm.copyWith(color: t.inkMuted),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// The next 24 hours: a temperature curve over a row of hour columns
+/// (time, glyph, rain chance), scrolled sideways together. A caption marks
+/// the first hour ("Now") and each new day.
+class _HourlyStrip extends StatelessWidget {
+  final HourlyForecast hourly;
+  const _HourlyStrip({required this.hourly});
+
+  static const double _column = 58;
+  static const double _curve = 64;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
+    final prefs = UiPrefs.of(context);
+    final lang = langOf(context);
+    final hours = hourly.entries;
+    final first = DateTime.tryParse(hours.first.date ?? '');
+    final caption = AppText.bodySm.copyWith(color: t.primary, fontWeight: FontWeight.w700, fontSize: 11);
+
+    String? captionFor(int i) {
+      if (i == 0) return tr(context, 'Now');
+      if (hours[i].date == hours[i - 1].date) return null;
+      final date = DateTime.tryParse(hours[i].date ?? '');
+      final label = first != null && date != null && date.difference(first).inDays == 1 ? 'tomorrow' : '';
+      return forecastDayName(label, date, lang);
+    }
+
+    return AppCard(
+      wash: true,
+      padding: const EdgeInsets.symmetric(vertical: 14),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: AppSpace.sm),
+        child: SizedBox(
+          width: hours.length * _column,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  for (var i = 0; i < hours.length; i++)
+                    SizedBox(
+                      width: _column,
+                      child: switch (captionFor(i)) {
+                        null => const SizedBox.shrink(),
+                        // Shrunk rather than cut: "இப்போது" is wider than a column.
+                        final text => FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(text, maxLines: 1, style: caption),
+                        ),
+                      },
+                    ),
+                ],
+              ),
+              CustomPaint(
+                size: Size(hours.length * _column, _curve),
+                painter: _TempCurve(
+                  temps: [for (final h in hours) h.number('temp_c')],
+                  label: (c) => '${prefs.temp(c)}°',
+                  color: t.primary,
+                  textStyle: AppText.labelMd.copyWith(color: t.ink, fontWeight: FontWeight.w600, fontSize: 13),
+                ),
+              ),
+              Row(
+                children: [
+                  for (final h in hours)
+                    SizedBox(
+                      width: _column,
+                      child: Column(
+                        children: [
+                          WeatherGlyph(h.condition, night: h.isNight, size: 28),
+                          const SizedBox(height: 4),
+                          Text(h.localTime, style: AppText.bodySm.copyWith(color: t.ink)),
+                          const SizedBox(height: 2),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.water_drop_outlined, size: 11, color: t.primary),
+                              Text(
+                                h.number('rain_probability_pct') == null
+                                    ? '—'
+                                    : '${h.number('rain_probability_pct')!.round()}%',
+                                style: AppText.bodySm.copyWith(color: t.inkMuted, fontSize: 11),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A smooth line through each hour's temperature, centred in its column,
+/// with the value above the point. Missing hours break the line.
+class _TempCurve extends CustomPainter {
+  final List<num?> temps;
+  final String Function(num celsius) label;
+  final Color color;
+  final TextStyle textStyle;
+  _TempCurve({required this.temps, required this.label, required this.color, required this.textStyle});
+
+  static const double _labelSpace = 20;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final known = temps.whereType<num>();
+    if (known.isEmpty) return;
+    final lo = known.reduce((a, b) => a < b ? a : b).toDouble();
+    final hi = known.reduce((a, b) => a > b ? a : b).toDouble();
+    final column = size.width / temps.length;
+    final top = _labelSpace + 4;
+    final bottom = size.height - 6;
+    Offset? at(int i) {
+      final c = temps[i];
+      if (c == null) return null;
+      final y = hi == lo ? (top + bottom) / 2 : bottom - (c - lo) / (hi - lo) * (bottom - top);
+      return Offset(column * (i + 0.5), y);
+    }
+
+    final line = Paint()
+      ..color = color
+      ..strokeWidth = 2
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+    final dot = Paint()..color = color;
+    Path? path;
+    Offset? prev;
+    for (var i = 0; i < temps.length; i++) {
+      final p = at(i);
+      if (p == null) {
+        if (path != null) canvas.drawPath(path, line);
+        path = prev = null;
+        continue;
+      }
+      if (path == null || prev == null) {
+        path = Path()..moveTo(p.dx, p.dy);
+      } else {
+        final mid = (prev.dx + p.dx) / 2;
+        path.cubicTo(mid, prev.dy, mid, p.dy, p.dx, p.dy);
+      }
+      prev = p;
+      canvas.drawCircle(p, 3, dot);
+      final text = TextPainter(
+        text: TextSpan(text: label(temps[i]!), style: textStyle),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      text.paint(canvas, Offset(p.dx - text.width / 2, p.dy - text.height - 4));
+    }
+    if (path != null) canvas.drawPath(path, line);
+  }
+
+  @override
+  bool shouldRepaint(_TempCurve old) => old.temps != temps || old.color != color || old.textStyle != textStyle;
+}
+
+/// Label + date | glyph | high / low + condition — a /facts period, for a
+/// backend without /forecast/daily.
 class _DayRow extends StatelessWidget {
   final String label;
   final FactsResult? result;
@@ -225,71 +598,6 @@ class _DayRow extends StatelessWidget {
   }
 }
 
-/// One period's figures, as served.
-class _DetailCard extends StatelessWidget {
-  final String label;
-  final FactsResult? result;
-  final int dayOffset;
-  final bool night;
-  const _DetailCard({required this.label, required this.result, required this.dayOffset, required this.night});
-
-  @override
-  Widget build(BuildContext context) {
-    final t = PersonaTheme.of(context);
-    final prefs = UiPrefs.of(context);
-    final r = result;
-    final hasData = r?.hasData == true;
-    final high = r?.number('high_c');
-    final low = r?.number('low_c');
-    final rain = r?.number('rain_probability_pct');
-
-    return AppCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              WeatherGlyph(r?.condition, night: night, size: 32),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  '${tr(context, label)}, ${istDayMonth(r?.issued, fallbackOffsetDays: dayOffset, lang: langOf(context))}',
-                  style: AppText.labelMd.copyWith(color: t.ink, fontWeight: FontWeight.w700),
-                ),
-              ),
-              if (hasData) LiveBadge(live: r!.isLive),
-            ],
-          ),
-          const SizedBox(height: 12),
-          if (!hasData)
-            Text(
-              r?.message ?? tr(context, 'No forecast for this period.'),
-              style: AppText.bodySm.copyWith(color: t.inkMuted),
-            )
-          else
-            Row(
-              children: [
-                Expanded(
-                  child: _Figure(Icons.umbrella_outlined, 'Rain chance', rain == null ? '—' : '${rain.round()}%'),
-                ),
-                Expanded(
-                  child: night
-                      ? _Figure(Icons.nights_stay_outlined, 'Overnight low', low == null ? '—' : prefs.tempLabel(low))
-                      : _Figure(Icons.thermostat, 'High', high == null ? '—' : prefs.tempLabel(high)),
-                ),
-                Expanded(
-                  child: night
-                      ? _Figure(Icons.cloud_outlined, 'Sky', sentenceCase(r!.conditionLabel))
-                      : _Figure(Icons.thermostat_auto_outlined, 'Low', low == null ? '—' : prefs.tempLabel(low)),
-                ),
-              ],
-            ),
-        ],
-      ),
-    );
-  }
-}
-
 class _Figure extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -323,13 +631,12 @@ class _Figure extends StatelessWidget {
 }
 
 class _ProvenanceCard extends StatelessWidget {
-  final WeatherStore weather;
-  const _ProvenanceCard({required this.weather});
+  final String? source;
+  const _ProvenanceCard({required this.source});
 
   @override
   Widget build(BuildContext context) {
     final t = PersonaTheme.of(context);
-    final source = weather.today?.source;
     return AppCard(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
