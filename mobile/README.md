@@ -79,7 +79,7 @@ you actually want.
 | web/ page | Mobile page | Backend calls |
 |---|---|---|
 | `HomePage.tsx` | **Home** — current-conditions hero (condition/time-of-day gradient), humidity / wind / rain-chance / UV tiles, Today · Tonight · Tomorrow strip, feature tiles, WeatherGPT Copilot ask box | `GET /facts` ×4, `GET /ask` |
-| `ChatPage.tsx` | **Chat & Evidence** — a real transcript; answers show the grounding badge, per-figure evidence and provenance; voice input and a Listen button | `GET /ask`, `POST /asr`, `POST /tts` |
+| `ChatPage.tsx` | **Chat & Evidence** — a real transcript; answers show the grounding badge, per-figure evidence and provenance; voice input (the transcript fills the ask box, and Send asks it) and a Listen button | `GET /ask`, `POST /asr`, `POST /tts` |
 | `ForecastPage.tsx` | **Forecast** — Today / Tonight / Tomorrow accordion, provenance card, forecast ask box ("5-day forecast for …") | `GET /facts`, `GET /ask` |
 | `AlertsPage.tsx` | **Alerts & Warnings** — the IMD colour verdict with its legend; "no verdict" is always neutral, never green | `GET /warnings` |
 | `SettingsPage.tsx` | **Settings** — language, °C/°F, persona (sent to `/ask`) | — |

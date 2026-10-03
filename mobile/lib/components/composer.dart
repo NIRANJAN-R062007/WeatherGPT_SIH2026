@@ -24,6 +24,10 @@ class MicButton extends StatefulWidget {
   final bool inset;
   final ValueChanged<String> onTranscript;
 
+  /// The recorder and POST /asr; tests pass stubs.
+  final VoiceRecorder Function() newRecorder;
+  final Transcriber transcribe;
+
   /// A user-facing reason the last attempt produced no text; null clears it.
   final ValueChanged<String?> onNotice;
 
@@ -34,6 +38,8 @@ class MicButton extends StatefulWidget {
     required this.onNotice,
     this.enabled = true,
     this.inset = false,
+    this.newRecorder = VoiceRecorder.new,
+    this.transcribe = transcribeAudio,
   });
 
   @override
@@ -56,7 +62,7 @@ class _MicButtonState extends State<MicButton> {
 
   Future<void> _toggle() async {
     if (_voice == _Voice.transcribing) return;
-    final recorder = _recorder ??= VoiceRecorder();
+    final recorder = _recorder ??= widget.newRecorder();
 
     if (_voice == _Voice.listening) {
       setState(() => _voice = _Voice.transcribing);
@@ -69,7 +75,7 @@ class _MicButtonState extends State<MicButton> {
       }
       String? notice;
       var noticeArgs = const <String, Object?>{};
-      final text = await transcribeAudio(
+      final text = await widget.transcribe(
         audioBase64: audio,
         lang: widget.lang,
         onNotice: (m, [args = const {}]) {
@@ -109,7 +115,7 @@ class _MicButtonState extends State<MicButton> {
     final Color fg = listening ? AppColors.onError : t.onSurfaceVariant;
     final radius = BorderRadius.circular(AppRadius.lg);
     return Tooltip(
-      message: tr(context, listening ? 'Stop and ask' : 'Ask by voice'),
+      message: tr(context, listening ? 'Stop recording' : 'Ask by voice'),
       child: Material(
         color: bg,
         borderRadius: radius,
@@ -138,6 +144,10 @@ class AskComposer extends StatefulWidget {
   final bool clearOnSubmit;
   final TextEditingController? controller;
 
+  /// Passed to the [MicButton]; tests pass stubs.
+  final VoiceRecorder Function() newRecorder;
+  final Transcriber transcribe;
+
   const AskComposer({
     super.key,
     required this.loading,
@@ -148,6 +158,8 @@ class AskComposer extends StatefulWidget {
     this.inset = false,
     this.clearOnSubmit = false,
     this.controller,
+    this.newRecorder = VoiceRecorder.new,
+    this.transcribe = transcribeAudio,
   });
 
   @override
@@ -166,16 +178,20 @@ class _AskComposerState extends State<AskComposer> {
     super.dispose();
   }
 
-  void _submit([String? text]) {
-    final q = (text ?? _controller.text).trim();
+  void _submit() {
+    final q = _controller.text.trim();
     if (q.isEmpty || widget.loading) return;
     FocusScope.of(context).unfocus();
-    if (widget.clearOnSubmit) {
-      _controller.clear();
-    } else if (text != null) {
-      _controller.text = text;
-    }
+    if (_micNotice != null) setState(() => _micNotice = null);
+    if (widget.clearOnSubmit) _controller.clear();
     widget.onSubmit(q);
+  }
+
+  /// A transcript goes into the field rather than straight to /ask: /asr can
+  /// turn background noise into words, so the asker checks it and taps Send.
+  void _fillFromVoice(String text) {
+    _controller.value = TextEditingValue(text: text, selection: TextSelection.collapsed(offset: text.length));
+    setState(() => _micNotice = tr(context, 'Check the question, then tap Send.'));
   }
 
   @override
@@ -186,8 +202,10 @@ class _AskComposerState extends State<AskComposer> {
             lang: widget.lang,
             inset: widget.inset,
             enabled: !widget.loading,
-            onTranscript: _submit,
+            onTranscript: _fillFromVoice,
             onNotice: (m) => setState(() => _micNotice = m),
+            newRecorder: widget.newRecorder,
+            transcribe: widget.transcribe,
           )
         : null;
 

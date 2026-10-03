@@ -16,6 +16,15 @@ const int kMaxTtsChars = 500;
 
 const Duration kVoiceTimeout = Duration(seconds: 20);
 
+/// [transcribeAudio]'s shape; tests pass a stub to the mic.
+typedef Transcriber =
+    Future<String?> Function({
+      required String audioBase64,
+      required String lang,
+      int samplingRate,
+      void Function(String message, [Map<String, Object?> args])? onNotice,
+    });
+
 /// Transcribes [audioBase64] (mono 16-bit PCM WAV) via POST /asr.
 /// Returns the recognized text, or null with [onNotice] called for a
 /// user-facing reason (no speech, service unavailable) — mirrors the web
