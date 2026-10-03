@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { CITIES } from '../data/cities';
+import { cityLabel } from '../data/cities';
 import type {
   AskError,
   AskOutcome,
@@ -10,15 +10,6 @@ import type {
 } from '../lib/api';
 import { COLOUR_BAR, COLOUR_TEXT, istTimestamp } from '../lib/warningUi';
 import { useT } from '../lib/i18n';
-
-/** Resolved city keys come back lowercase ("chennai"); data/cities.ts already
- *  mirrors data/cities.json, so use its English display name and only fall
- *  back to capitalising the key for a city this bundle doesn't list yet. */
-function cityLabel(key: string) {
-  const match = CITIES.find((c) => c.key === key);
-  if (match) return match.name;
-  return key.charAt(0).toUpperCase() + key.slice(1);
-}
 
 /** Where an answer is for. A demo city: its English name (the caller
  *  translates it). Any other place: the backend's `location.label`, already
