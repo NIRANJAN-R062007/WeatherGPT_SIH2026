@@ -420,7 +420,8 @@ class _HourlyStrip extends StatelessWidget {
     final textScaler = MediaQuery.textScalerOf(context);
     final grow = (textScaler.scale(12) / 12).clamp(1.0, 3.0);
     final column = _column * grow;
-    final caption = AppText.bodySm.copyWith(color: t.primary, fontWeight: FontWeight.w700, fontSize: 11);
+    // Ink, not the accent: 11 px on the card's tint needs the contrast (WCAG AA).
+    final caption = AppText.bodySm.copyWith(color: t.ink, fontWeight: FontWeight.w700, fontSize: 11);
 
     String? captionFor(int i) {
       if (i == 0) return tr(context, 'Now');

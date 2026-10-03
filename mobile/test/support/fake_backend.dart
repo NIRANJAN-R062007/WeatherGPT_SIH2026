@@ -50,10 +50,10 @@ Map<String, dynamic> dailyReply() => {
   'provenance': {'source': kFakeSource, 'is_live': true, 'issued': '${_date(todayIst())}T01:30:00Z'},
 };
 
-/// GET /forecast/hourly: the 24 hours from the current one.
+/// GET /forecast/hourly: 24 hours from 21:00 IST today, so the strip's
+/// day change is always on screen, whatever time the tests run.
 Map<String, dynamic> hourlyReply() {
-  final now = DateTime.now().toUtc();
-  final start = DateTime.utc(now.year, now.month, now.day, now.hour);
+  final start = todayIst().add(const Duration(hours: 21)).subtract(_ist);
   return {
     'city': 'chennai',
     'city_name': 'Chennai',
@@ -197,6 +197,60 @@ Map<String, dynamic> askReply() => {
   },
 };
 
+/// GET /ask about "Puttur": two places share the name.
+const kPutturReply = {
+  'intent': 'current_weather',
+  'message': 'There is more than one place with that name. Which one did you mean?',
+  'ambiguous': [
+    {'place_id': 'gn:1259123', 'label': 'Puttūr, Andhra Pradesh', 'district': 'Tirupati', 'state': 'Andhra Pradesh'},
+    {'place_id': 'gn:1259124', 'label': 'Puttūr, Karnataka', 'district': 'Dakshina Kannada', 'state': 'Karnataka'},
+  ],
+};
+
+/// GET /ask for a place outside the demo cities: `city` null, `location` set.
+Map<String, dynamic> placeAnswerReply(String label) => {
+  ...askReply(),
+  'city': null,
+  'location': {'label': label, 'source': 'gazetteer', 'lat': 13.44, 'lon': 79.55, 'place_id': 'gn:1259123'},
+  'response': 'It is 31°C in $label with 70% humidity.\nForecast for $label (13.45°N, 79.55°E).',
+};
+
+/// POST /advisory/travel or /advisory/sowing, answered.
+Map<String, dynamic> advisoryReply(String kind) => {
+  'kind': kind == 'sowing' ? 'farming' : 'travel',
+  'status': 'ok',
+  'slots': kind == 'sowing'
+      ? {'district': 'madurai', 'crop': 'groundnut'}
+      : {'origin': 'chennai', 'destination': 'madurai', 'day': 'tomorrow', 'mode': 'train'},
+  'assumed': [],
+  'answer': {
+    'verdict': kind == 'sowing' ? 'not_available' : 'caution',
+    'pros': ['Rain chance at the origin is 15%.', 'Wind at the destination is 8 km/h.'],
+    'cons': ['The IMD warning for the destination is not available.'],
+    'window': {'start_local': '09:00', 'end_local': '11:00'},
+    'cites': [],
+  },
+  'missing': [],
+  'provenance': [
+    {'section': 'origin.forecast', 'source': kFakeSource, 'is_live': true},
+  ],
+  'path': 'template',
+  'disclaimer': kind == 'sowing'
+      ? 'Check with your local KVK or agriculture office before you sow.'
+      : 'Awareness only. Check the airline, railway or official source before you travel.',
+};
+
+/// GET /glossary: the colour legend; reviewed only in English.
+Map<String, dynamic> glossaryReply(String lang) => {
+  'lang': lang,
+  'entries': {
+    for (final (c, word) in [('green', 'Green'), ('yellow', 'Yellow'), ('orange', 'Orange'), ('red', 'Red')]) ...{
+      'colour_word_$c': {'text': lang == 'en' ? word : '$word ($lang)', 'native_qa': lang == 'en'},
+      'colour_$c': {'text': '$word means something ($lang)', 'native_qa': lang == 'en'},
+    },
+  },
+};
+
 /// GET /aviation: Chennai airport with both reports.
 Map<String, dynamic> aviationReply() => {
   'station': 'VOMM',
@@ -262,6 +316,11 @@ class FakeBackend {
     if (!online) throw http.ClientException('Network is unreachable', req.url);
     final q = req.url.queryParameters;
     final Object? body = switch (req.url.path) {
+      '/ask' when (q['text'] ?? '').contains('Puttur') && q['place_id'] == null => kPutturReply,
+      '/ask' when q['place_id'] != null => placeAnswerReply('Puttūr, Andhra Pradesh'),
+      '/advisory/travel' => advisoryReply('travel'),
+      '/advisory/sowing' => advisoryReply('sowing'),
+      '/glossary' => glossaryReply(q['lang'] ?? 'en'),
       '/facts' => factsReply(q['intent'] ?? 'current_weather', q['day'] ?? 'today'),
       '/forecast/daily' => dailyReply(),
       '/forecast/hourly' => hourlyReply(),

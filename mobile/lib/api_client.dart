@@ -1,5 +1,10 @@
 // Client for the orchestrator's GET /ask endpoint.
 //
+// Since the location resolver (PR #44) an answer may be for any place in
+// India: `city` is then null and `location` names it; a fallback may offer
+// places to tap (`ambiguous`), the nearest one (`not_found` + `nearest`), or
+// ask where (`needs_location`). AskAnswer renders those.
+//
 // Mirrors web/src/lib/api.ts's classifyAsk() exactly — same five branches,
 // same discrimination order (services/orchestrator/main.py's ask() is the
 // source of truth for both). Kept as a loosely-typed Map here rather than
@@ -68,11 +73,24 @@ Future<AskOutcome> askWeather({
   /// framing only, never the facts. Omitted for the backend's own default,
   /// "general", so default requests stay byte-identical to before.
   String? persona,
+
+  /// The user's location, already snapped to the 0.05° grid: used when the
+  /// question names no place or says "here". It wins over [city].
+  ({double lat, double lon})? here,
+
+  /// A place the user tapped from an `ambiguous` reply (`gn:<digits>`):
+  /// wins over everything else.
+  String? placeId,
 }) async {
   final params = <String, String>{'text': text};
   if (lang != null) params['lang'] = lang;
   if (city != null) params['city'] = city;
   if (persona != null && persona != 'general') params['persona'] = persona;
+  if (here != null) {
+    params['lat'] = '${here.lat}';
+    params['lon'] = '${here.lon}';
+  }
+  if (placeId != null) params['place_id'] = placeId;
   final uri = Uri.parse('$kApiBaseUrl/ask').replace(queryParameters: params);
 
   final headers = <String, String>{};

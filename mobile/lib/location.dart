@@ -1,8 +1,8 @@
-// GPS position for "Use my location". /ask and /warnings have no lat/lon
-// param (services/orchestrator/main.py), so this is as far as "location"
-// goes: the city picker finds the nearest registered city (cities.dart's
-// nearestCity) and selects it, exactly like picking it from the list would,
-// and says how far away it is.
+// GPS position for "Use my location". The city picker finds the nearest
+// registered city (cities.dart's nearestCity) for the pages that take a
+// city (/facts, /warnings) and says how far away it is; Chat also sends the
+// fix itself to /ask (lat/lon), snapped to [snapToGrid] first so the raw
+// position never leaves the phone.
 import 'dart:async';
 
 import 'package:geolocator/geolocator.dart';
@@ -13,6 +13,11 @@ class LocationDenied implements Exception {
   @override
   String toString() => message;
 }
+
+/// [degrees] on the 0.05° grid (about 5 km), the same grid the backend
+/// fetches and caches weather on: near enough for weather, too coarse to
+/// pin down a home.
+double snapToGrid(double degrees) => double.parse(((degrees / 0.05).round() * 0.05).toStringAsFixed(2));
 
 /// Where the device is; tests pass a stub to the city picker.
 typedef Locator = Future<({double lat, double lon})> Function();

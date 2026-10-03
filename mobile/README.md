@@ -79,10 +79,11 @@ you actually want.
 | web/ page | Mobile page | Backend calls |
 |---|---|---|
 | `HomePage.tsx` | **Home** — current-conditions hero (condition/time-of-day gradient), humidity / wind / rain-chance tiles, rain so far today and daylight (sunrise, sunset, how much of the day has passed) cards, five-day strip, feature tiles, Quick Actions | `GET /facts` ×4, `GET /forecast/daily`, `GET /ask` |
-| `ChatPage.tsx` | **Chat & Evidence** — a real transcript; answers show the grounding badge, per-figure evidence and provenance; voice input (the transcript fills the ask box, and Send asks it) and a Listen button | `GET /ask`, `POST /asr`, `POST /tts` |
+| `ChatPage.tsx` | **Chat & Evidence** — a real transcript; answers show the grounding badge, per-figure evidence and provenance; voice input (the transcript fills the ask box, and Send asks it) and a Listen button; answers for any place in India, sent with the "Use my location" fix (snapped to 0.05°) when the question names no place; a "which place?" reply offers its places to tap, the nearest place, or Use my location | `GET /ask`, `POST /asr`, `POST /tts` |
 | `ForecastPage.tsx` | **Forecast** — Days: up to 10 days (5 from fixtures), tap a day for its rain chance and millimetres, wind, humidity, UV, daylight, sunrise / sunset and night; Hourly: the next 24 hours under a temperature curve; provenance card. Against a backend without `/forecast/*` it falls back to Today / Tonight / Tomorrow from `/facts` and a "5-day forecast" question for Chat | `GET /forecast/daily`, `GET /forecast/hourly`, `GET /facts`, `GET /ask` |
-| `AlertsPage.tsx` | **Alerts & Warnings** — the IMD colour verdict with its legend; "no verdict" is always neutral, never green; the city's emergency numbers (112 first), tap to open the dialer, with the date they were checked; 112 alone when the list can't be had | `GET /warnings`, `GET /hotlines` |
+| `AlertsPage.tsx` | **Alerts & Warnings** — the IMD colour verdict with its legend; "no verdict" is always neutral, never green; the city's emergency numbers (112 first), tap to open the dialer, with the date they were checked; 112 alone when the list can't be had; the colour legend from `/glossary`, marked when a translation awaits native review | `GET /warnings`, `GET /hotlines`, `GET /glossary` |
 | `SettingsPage.tsx` | **Settings** — language, °C/°F, persona (sent to `/ask`) | — |
+| — | **Travel advice** (drawer, everyone) and **Sowing advice** (drawer, Farmer persona) — a short conversation: the backend asks for what it still needs, then gives a verdict (go / caution / avoid; suitable / not suitable; not available) with its reasons, best window, sources and disclaimer; the reasons are English only, and the page says so | `POST /advisory/travel`, `POST /advisory/sowing` |
 | `HistoryPage.tsx` | **History** (drawer) — the signed-in user's past questions and answers; All / Alerts / Rain filters, search, "Ask again", "Clear history"; a guest is invited to sign in | `GET /history`, `DELETE /history` |
 
 The shell is `lib/components/app_shell.dart`: on phones the Sidebar is a
@@ -120,6 +121,8 @@ lib/
   response_cache.dart       saved replies for offline use (one JSON file each)
   warnings_client.dart      GET /warnings
   hotlines_client.dart      GET /hotlines (112 as the fallback)
+  advisory_client.dart      POST /advisory/travel, /advisory/sowing
+  glossary_client.dart      GET /glossary (the Alerts colour legend)
   history_client.dart       GET / DELETE /history (bearer token)
   voice_client.dart         POST /asr, POST /tts
   voice_recorder.dart       16 kHz mono WAV capture (record plugin)
@@ -242,11 +245,10 @@ the work sits:
    adds shows in English until `ui-strings/ui_strings.json` has it. "Use my
    location" says which city it picked and how far away it is, and warns beyond
    50 km.
-9. **Localized glossary.** *(App)* `GET /glossary?lang=` returns the warning
-   colour words and category labels per language, with `native_qa` flags. The
-   app doesn't call it yet; the Alerts legend comes from `/warnings`' `legend`.
-   Use it for the legend and labels, and mark translations that haven't had
-   native review. (The deployed host 404s on it until item 1.)
+9. ~~**Localized glossary.**~~ ✅ Done (2026-10-03). Alerts builds its colour
+   legend from `GET /glossary?lang=` (saved for offline use), and says when a
+   translation hasn't had native review; `/warnings`' own legend stands in
+   when the glossary can't be had (the deployed host 404s on it until item 1).
 
 ### P2 — plan.md commitments not yet in the app
 
@@ -271,7 +273,7 @@ the work sits:
 12. **Localize the app's own UI.** *(App)* Done, apart from native review.
     Labels, buttons, headings and validators go through `tr()`
     (`lib/i18n.dart`), looked up in `lib/ui_strings.dart`, generated from
-    `ui-strings/ui_strings.json` (541 strings with hi / ta / te / mr, shared
+    `ui-strings/ui_strings.json` (577 strings with hi / ta / te / mr, shared
     with web/). Every literal passed to `tr()` has an entry. Errors that carry
     a value (the server URL, an HTTP status) keep it in `args` and fill it in
     after translating (2026-10-03). Flutter's own text (the text-selection
@@ -286,11 +288,18 @@ the work sits:
     (`flutter_map` with OSM tiles, or `google_maps_flutter`) and a source of
     cyclone tracks / CAP warning polygons. `imd_warnings.py` is a per-city
     fixture with no geometry yet.
-14. **Real location queries.** *(Backend, then App)* The backend only accepts a
-    city, so "Use my location" snaps to the nearest registered city (it now
-    says which and how far, and warns beyond 50 km). Google
-    Weather is lat/lon-based, so `/ask` and `/facts` could take `lat`/`lon`
-    directly.
+14. ~~**Real location queries.**~~ ✅ Done for Chat (2026-10-03), on the
+    backend's location resolver (PR #44). "Use my location" keeps the fix,
+    snapped on the phone to the 0.05° grid (about 5 km) and never saved, and
+    Chat sends it with a question that names no place, so the answer is for
+    "your location (near …)". Answers for places outside the demo cities name
+    the place; "which place?" replies offer their places to tap (re-asked by
+    `place_id`), the nearest place, or Use my location. Home, Forecast and
+    Alerts still use the nearest of the demo cities, since `/facts`,
+    `/forecast/*` and `/warnings` take a city.
+    - **Travel and Sowing advice (plan.md TFA-13)** are in the drawer, on
+      `POST /advisory/*` (PR #42). Sowing answers "not available" for every
+      crop until the sourced crop file (TFA-9) exists, and says so.
 
 ### P3 — web design sections that need new endpoints first
 

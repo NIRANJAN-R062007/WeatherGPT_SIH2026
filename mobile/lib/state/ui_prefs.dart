@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 
 import '../cities.dart';
 import '../config.dart';
+import '../location.dart';
 import '../persona_theme.dart';
 
 enum TempUnit { celsius, fahrenheit }
@@ -295,9 +296,16 @@ class UiPrefs extends ChangeNotifier {
   /// (set [cities]) has it, and saved meanwhile so it isn't forgotten.
   String? _wantedCity;
 
+  /// The fix from "Use my location", snapped to the 0.05° grid on the phone.
+  /// Chat sends it with a question that names no place (/ask's lat/lon);
+  /// the pages that take a city use the nearest one. Session only, never
+  /// saved; choosing a city by hand clears it.
+  ({double lat, double lon})? _here;
+
   String get lang => _lang;
   TempUnit get unit => _unit;
   String get city => _city;
+  ({double lat, double lon})? get here => _here;
   String get persona => _persona;
   Appearance get appearance => _appearance;
   City get cityInfo => cityByKey(_city, _cities);
@@ -312,7 +320,16 @@ class UiPrefs extends ChangeNotifier {
   set city(String v) => _set(() {
     _city = v;
     _wantedCity = null;
-  }, _city != v || _wantedCity != null);
+    _here = null;
+  }, _city != v || _wantedCity != null || _here != null);
+
+  /// "Use my location": [nearestCity] for the pages that take a city, and
+  /// the fix (snapped to the grid here, before it's kept) for Chat.
+  void useLocation(double lat, double lon, String nearestCity) => _set(() {
+    _here = (lat: snapToGrid(lat), lon: snapToGrid(lon));
+    _city = nearestCity;
+    _wantedCity = null;
+  }, true);
   set persona(String v) => _set(() => _persona = v, _persona != v);
   set appearance(Appearance v) => _set(() => _appearance = v, _appearance != v);
 

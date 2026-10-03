@@ -6,9 +6,15 @@
 // /asr). Questions handed over by other pages (ShellNav.ask) are asked on
 // arrival. The transcript is session-only, like web/; a signed-in user's
 // questions are also recorded server-side, for the History page.
+//
+// Questions go out with the "Use my location" fix when there is one, so a
+// question that names no place is answered for where the user is. A reply
+// that asks "which place?" offers its places to tap, or Use my location;
+// either re-asks the same question as a new turn.
 import 'package:flutter/material.dart';
 
 import '../api_client.dart';
+import '../cities.dart';
 import '../components/app_shell.dart';
 import '../components/ask_answer.dart';
 import '../components/common.dart';
@@ -16,6 +22,7 @@ import '../components/composer.dart';
 import '../components/scenery.dart';
 import '../components/surfaces.dart';
 import '../format.dart';
+import '../location.dart';
 import '../state/auth_store.dart';
 import '../state/ui_prefs.dart';
 import '../persona_theme.dart';
@@ -27,9 +34,12 @@ class _Turn {
   final String question;
   final String lang;
   final String askedAt; // IST, "13:49 IST"
+
+  /// The place tapped (or "your location") when this turn re-asks.
+  final String? place;
   AskOutcome? outcome;
   AskError? error;
-  _Turn(this.question, this.lang, this.askedAt);
+  _Turn(this.question, this.lang, this.askedAt, {this.place});
   bool get pending => outcome == null && error == null;
 }
 
@@ -73,12 +83,13 @@ class _ChatPageState extends State<ChatPage> {
     super.dispose();
   }
 
-  Future<void> _ask(String text) async {
+  /// [placeId] / [place]: a place tapped from a reply, asked for by ID.
+  Future<void> _ask(String text, {String? placeId, String? place}) async {
     final question = text.trim();
     if (question.isEmpty || _loading) return;
     final prefs = UiPrefs.read(context);
     final auth = AuthStore.maybeRead(context);
-    final turn = _Turn(question, prefs.lang, istTime(DateTime.now().toUtc().toIso8601String()));
+    final turn = _Turn(question, prefs.lang, istTime(DateTime.now().toUtc().toIso8601String()), place: place);
     setState(() {
       _turns.add(turn);
       _loading = true;
@@ -95,6 +106,8 @@ class _ChatPageState extends State<ChatPage> {
         city: prefs.city,
         persona: prefs.persona,
         token: token,
+        here: prefs.here,
+        placeId: placeId,
       );
     } catch (e) {
       turn.error = e is AskError
@@ -104,6 +117,22 @@ class _ChatPageState extends State<ChatPage> {
     if (!mounted) return;
     setState(() => _loading = false);
     _scrollToEnd();
+  }
+
+  /// "Use my location" from a "which place?" reply: take a fix, keep it
+  /// (and the nearest city, for the other pages), and ask [question] again.
+  Future<void> _useLocationAndAsk(String question) async {
+    final prefs = UiPrefs.read(context);
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    final lang = prefs.lang;
+    try {
+      final here = await currentPosition();
+      if (!mounted) return;
+      prefs.useLocation(here.lat, here.lon, nearestCity(here.lat, here.lon, prefs.cities).city.key);
+      await _ask(question, place: trIn(lang, 'Your location'));
+    } on LocationDenied catch (e) {
+      messenger?.showSnackBar(SnackBar(content: Text(trIn(lang, e.message))));
+    }
   }
 
   void _scrollToEnd() {
@@ -175,7 +204,11 @@ class _ChatPageState extends State<ChatPage> {
         for (final turn in _turns) ...[
           _UserBubble(turn),
           const SizedBox(height: AppSpace.sm),
-          _AnswerBubble(turn),
+          _AnswerBubble(
+            turn,
+            onPickPlace: (id, label) => _ask(turn.question, placeId: id, place: label),
+            onUseLocation: () => _useLocationAndAsk(turn.question),
+          ),
           const SizedBox(height: AppSpace.lg),
         ],
       ],
@@ -219,6 +252,19 @@ class _UserBubble extends StatelessWidget {
                 turn.question,
                 style: AppText.bodyLg.copyWith(color: t.onPrimary, fontWeight: FontWeight.w500),
               ),
+              if (turn.place case final place?) ...[
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.place_outlined, size: 14, color: t.primaryFixed),
+                    const SizedBox(width: 4),
+                    Flexible(
+                      child: Text(place, style: AppText.bodySm.copyWith(color: t.primaryFixed)),
+                    ),
+                  ],
+                ),
+              ],
             ],
           ),
         ),
@@ -230,7 +276,9 @@ class _UserBubble extends StatelessWidget {
 /// ChatPage.tsx's answer card: white, square bottom-left corner.
 class _AnswerBubble extends StatelessWidget {
   final _Turn turn;
-  const _AnswerBubble(this.turn);
+  final void Function(String placeId, String label) onPickPlace;
+  final VoidCallback onUseLocation;
+  const _AnswerBubble(this.turn, {required this.onPickPlace, required this.onUseLocation});
 
   @override
   Widget build(BuildContext context) {
@@ -254,6 +302,8 @@ class _AnswerBubble extends StatelessWidget {
         error: turn.error,
         detail: true,
         playbackLang: turn.lang,
+        onPickPlace: onPickPlace,
+        onUseLocation: onUseLocation,
       ),
     );
   }
