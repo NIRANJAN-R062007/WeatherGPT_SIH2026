@@ -112,10 +112,12 @@ lib/
   state/
     ui_prefs.dart           language, unit, city, persona, appearance (web UiPrefsContext.tsx)
     prefs_store.dart        remembers ui_prefs across launches (app_prefs.json)
-    weather_store.dart      shared /facts + /forecast/daily + /forecast/hourly load for Home + Forecast
+    weather_store.dart      shared /facts + /forecast/daily + /forecast/hourly load for Home + Forecast;
+                            saved copies when offline, retried every minute
     ask_controller.dart     single-answer /ask state (web useAsk.ts)
   api_client.dart           GET /ask + classifyAsk (web api.ts)
   facts_client.dart         GET /facts, /forecast/daily, /forecast/hourly
+  response_cache.dart       saved replies for offline use (one JSON file each)
   warnings_client.dart      GET /warnings
   hotlines_client.dart      GET /hotlines (112 as the fallback)
   history_client.dart       GET / DELETE /history (bearer token)
@@ -248,11 +250,20 @@ the work sits:
 
 ### P2 — plan.md commitments not yet in the app
 
-10. **Offline-degradable** (plan.md §2 principle 5). *(App)* Every screen
-    currently needs the network. Needs:
-    - Cache the last-known `/facts`, `/warnings` and recent answers on device.
-    - Show "cached at HH:MM IST" when offline, with connectivity detection.
-    - Packages: e.g. `shared_preferences` or `hive`, plus `connectivity_plus`.
+10. ~~**Offline-degradable**~~ (plan.md §2 principle 5). ✅ Done (2026-10-03),
+    `lib/response_cache.dart`, no new package. Each `/facts`,
+    `/forecast/daily`, `/forecast/hourly`, `/warnings` and `/hotlines` reply is
+    saved as a small JSON file on the phone. When the backend can't be reached
+    (no connection, a timeout or a 5xx, never a 4xx), the saved copy shows
+    under a "Showing saved data … saved at 14:20 IST" banner, and LIVE becomes
+    SAVED. Saved copies keep only what still holds: ended hours and past days
+    are dropped, Today / Tomorrow are worked out from the dates, and an earlier
+    day's rain so far and today / tonight / tomorrow are not shown. A saved
+    warning is shown as saved, and a saved "nothing in force" as no verdict,
+    never an all-clear. Copies older than 7 days aren't used. The app retries
+    every minute, and on returning to the foreground, until the backend
+    answers. Not saved: `/ask` answers, History (personal), Airport weather
+    and Best Time, which still need the network.
 11. ~~**Persist preferences.**~~ ✅ Done (2026-10-03). Language, °C / °F, city,
     persona and Light / Dark / System are saved to a small JSON file in the app
     support directory (`lib/state/prefs_store.dart`) and restored at launch;
@@ -260,7 +271,7 @@ the work sits:
 12. **Localize the app's own UI.** *(App)* Done, apart from native review.
     Labels, buttons, headings and validators go through `tr()`
     (`lib/i18n.dart`), looked up in `lib/ui_strings.dart`, generated from
-    `ui-strings/ui_strings.json` (534 strings with hi / ta / te / mr, shared
+    `ui-strings/ui_strings.json` (539 strings with hi / ta / te / mr, shared
     with web/). Every literal passed to `tr()` has an entry. Errors that carry
     a value (the server URL, an HTTP status) keep it in `args` and fill it in
     after translating (2026-10-03). Flutter's own text (the text-selection

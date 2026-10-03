@@ -56,6 +56,16 @@ String istDayMonth(String? iso, {int fallbackOffsetDays = 0, String lang = 'en'}
   return '${d.day} ${trIn(lang, _months[d.month - 1])}';
 }
 
+/// When a saved reply was saved: "14:20 IST" if today (IST), else
+/// "2 Oct, 14:20 IST", the month in [lang].
+String savedTimeLabel(DateTime savedAt, String lang) {
+  final iso = savedAt.toUtc().toIso8601String();
+  final ist = savedAt.toUtc().add(_istOffset);
+  final now = nowIst();
+  final today = ist.year == now.year && ist.month == now.month && ist.day == now.day;
+  return today ? istTime(iso) : '${istDayMonth(iso, lang: lang)}, ${istTime(iso)}';
+}
+
 /// "27 Sep" for a calendar [date], the month in [lang].
 String dayMonth(DateTime date, String lang) => '${date.day} ${trIn(lang, _months[date.month - 1])}';
 
