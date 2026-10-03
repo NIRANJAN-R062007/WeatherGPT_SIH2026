@@ -19,7 +19,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 version: 1.0.0+1
 
 environment:
-  sdk: ^3.11.1
+  sdk: ^3.12.0
 
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
@@ -39,8 +39,8 @@ dependencies:
   cupertino_icons: ^1.0.8
   http: ^1.2.2
   geolocator: ^13.0.2
-  record: ^6.1.1
-  audioplayers: ^6.1.0
+  record: ^7.1.1
+  audioplayers: ^6.8.1
   path_provider: ^2.1.4
   # Google sign-in (lib/google_auth.dart): the system browser, the redirect
   # link back into the app, and the PKCE SHA-256.

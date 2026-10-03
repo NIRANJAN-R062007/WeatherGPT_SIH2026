@@ -2,8 +2,11 @@ import java.util.Properties
 
 plugins {
     id("com.android.application")
-    id("kotlin-android")
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
+    // No kotlin-android here, as in Flutter 3.47's app template: the build
+    // script mustn't apply KGP itself (future Flutter fails on it). While
+    // gradle.properties has android.builtInKotlin=false, the Flutter Gradle
+    // Plugin applies it, from the version in settings.gradle.kts.
+    // The Flutter Gradle Plugin must be applied after the Android Gradle plugin.
     id("dev.flutter.flutter-gradle-plugin")
 }
 

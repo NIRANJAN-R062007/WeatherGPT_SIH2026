@@ -8,7 +8,7 @@ screen is a static sample.
 
 ## Running it
 
-Requires Flutter 3.47.x (Dart ≥ 3.11).
+Requires Flutter 3.47.x (Dart ≥ 3.12; `record` 7 needs it).
 
 ```bash
 cd mobile
@@ -203,11 +203,13 @@ the work sits:
    Android Gradle Plugin 9.1.0 and Kotlin 2.4.0, the versions Flutter 3.47.2's
    app template uses. `app/build.gradle.kts` sets the JVM target through
    `kotlin { compilerOptions }`. The "support will soon be dropped" warnings
-   are gone. Still open: `flutter build` warns that the app, and the
-   `audioplayers_android` and `record_android` plugins, apply the Kotlin Gradle
-   Plugin, and that a future Flutter will need Built-in Kotlin.
-   `gradle.properties` keeps the migrator's `android.builtInKotlin=false` and
-   `android.newDsl=false` until those plugins support it.
+   are gone. The Kotlin Gradle Plugin warnings are gone too: the app's build
+   script no longer applies `kotlin-android` (as in the 3.47 template), and
+   `audioplayers` 6.8.1 / `record` 7.1.1 ship Android plugins that don't
+   either. `gradle.properties` keeps `android.builtInKotlin=false` and
+   `android.newDsl=false`, like Flutter 3.47's own template; with that flag
+   the Flutter Gradle Plugin applies Kotlin itself. AGP notes the flag is
+   deprecated, so drop it when Flutter's template does.
 
 ### P1 — backend features the app doesn't use yet
 
