@@ -122,11 +122,16 @@ class _MicButtonState extends State<MicButton> {
         child: InkWell(
           borderRadius: radius,
           onTap: widget.enabled && !busy ? _toggle : null,
-          child: Padding(
-            padding: EdgeInsets.all(widget.inset ? 6 : 8),
-            child: busy
-                ? const InlineSpinner(size: 20)
-                : Icon(listening ? Icons.stop : Icons.mic_none, size: 22, color: fg),
+          // 48 × 48 dp: Android's minimum touch target.
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minWidth: kMinInteractiveDimension, minHeight: kMinInteractiveDimension),
+            child: Center(
+              widthFactor: 1,
+              heightFactor: 1,
+              child: busy
+                  ? const InlineSpinner(size: 20)
+                  : Icon(listening ? Icons.stop : Icons.mic_none, size: 22, color: fg),
+            ),
           ),
         ),
       ),
@@ -219,7 +224,7 @@ class _AskComposerState extends State<AskComposer> {
       decoration: InputDecoration(
         hintText: tr(context, widget.hint),
         hintMaxLines: 1,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 14), // 48 dp tall
       ),
     );
 

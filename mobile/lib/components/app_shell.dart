@@ -515,7 +515,7 @@ class _NavTile extends StatelessWidget {
           hoverColor: t.surfaceContainerHigh,
           onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpace.md, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpace.md, vertical: 14), // 48 dp rows
             child: Row(
               children: [
                 Icon(icon, size: 20, color: fg),

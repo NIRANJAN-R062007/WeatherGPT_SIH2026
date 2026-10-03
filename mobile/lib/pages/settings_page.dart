@@ -157,11 +157,17 @@ class _ProfileCard extends StatelessWidget {
               child: InkWell(
                 borderRadius: BorderRadius.circular(AppRadius.lg),
                 onTap: () => openPersonaPicker(context),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  child: Text(
-                    tr(context, 'Change Persona'),
-                    style: AppText.labelMd.copyWith(color: t.primary, fontWeight: FontWeight.w600),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: kMinInteractiveDimension),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    child: Center(
+                      widthFactor: 1,
+                      child: Text(
+                        tr(context, 'Change Persona'),
+                        style: AppText.labelMd.copyWith(color: t.primary, fontWeight: FontWeight.w600),
+                      ),
+                    ),
                   ),
                 ),
               ),

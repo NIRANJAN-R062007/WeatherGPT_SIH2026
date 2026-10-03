@@ -294,6 +294,22 @@ void main() {
     }, _backend);
   });
 
+  testWidgets('a screen reader hears what the droplet means: the chance of rain', (tester) async {
+    _phone(tester);
+    final semantics = tester.ensureSemantics();
+    await http.runWithClient(() async {
+      await _boot(tester, _backend());
+      await _tab(tester, 'Forecast');
+      await _reveal(tester, find.text('5 Oct'));
+      expect(find.bySemanticsLabel('Mon, 5 Oct: thunderstorm, high 32°, low 27°, 70% chance of rain'), findsOneWidget);
+      await _reveal(tester, find.text('Hourly'));
+      await tester.tap(find.text('Hourly'));
+      await _settle(tester);
+      expect(find.bySemanticsLabel('08:00: 26°C, clear, 10% chance of rain'), findsOneWidget);
+    }, _backend);
+    semantics.dispose();
+  });
+
   testWidgets('an older backend: the /facts rows, the Chat banner, and no hourly strip', (tester) async {
     _phone(tester);
     await http.runWithClient(() async {

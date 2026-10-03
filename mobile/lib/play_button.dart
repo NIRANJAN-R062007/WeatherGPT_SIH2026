@@ -23,27 +23,26 @@ class PlayButton extends StatefulWidget {
 }
 
 class _PlayButtonState extends State<PlayButton> {
-  final AudioPlayer _player = AudioPlayer();
+  /// Made on the first Listen rather than with every answer: each holds a
+  /// native player, and most answers are never played.
+  AudioPlayer? _player;
   _PlayState _state = _PlayState.idle;
 
-  @override
-  void initState() {
-    super.initState();
-    _player.onPlayerComplete.listen((_) {
+  AudioPlayer get _audio => _player ??= AudioPlayer()
+    ..onPlayerComplete.listen((_) {
       if (mounted) setState(() => _state = _PlayState.idle);
     });
-  }
 
   @override
   void dispose() {
-    _player.dispose();
+    _player?.dispose();
     super.dispose();
   }
 
   Future<void> _toggle() async {
     if (_state == _PlayState.loading) return;
     if (_state == _PlayState.playing) {
-      await _player.stop();
+      await _player?.stop();
       if (mounted) setState(() => _state = _PlayState.idle);
       return;
     }
@@ -55,7 +54,7 @@ class _PlayButtonState extends State<PlayButton> {
       return;
     }
     try {
-      await _player.play(BytesSource(Uint8List.fromList(bytes)));
+      await _audio.play(BytesSource(Uint8List.fromList(bytes)));
       if (mounted) setState(() => _state = _PlayState.playing);
     } catch (_) {
       if (mounted) setState(() => _state = _PlayState.error);

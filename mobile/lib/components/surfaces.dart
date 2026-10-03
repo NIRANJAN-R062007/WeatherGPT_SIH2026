@@ -72,23 +72,32 @@ class SectionTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = PersonaTheme.of(context);
-    return Row(
+    // Side by side when both fit; otherwise the action drops to its own line
+    // rather than squeezing the title (a long translation at large text).
+    return Wrap(
+      alignment: WrapAlignment.spaceBetween,
+      crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        Expanded(
-          child: Text(
-            tr(context, text),
-            style: AppText.headlineSm.copyWith(color: t.ink, fontWeight: FontWeight.w700),
-          ),
+        Text(
+          tr(context, text),
+          style: AppText.headlineSm.copyWith(color: t.ink, fontWeight: FontWeight.w700),
         ),
         if (action != null)
           InkWell(
             borderRadius: BorderRadius.circular(AppRadius.lg),
             onTap: onAction,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-              child: Text(
-                tr(context, action!),
-                style: AppText.labelMd.copyWith(color: t.primary, fontWeight: FontWeight.w600),
+            // 48 dp tall: Android's minimum touch target.
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: kMinInteractiveDimension),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                child: Center(
+                  widthFactor: 1,
+                  child: Text(
+                    tr(context, action!),
+                    style: AppText.labelMd.copyWith(color: t.primary, fontWeight: FontWeight.w600),
+                  ),
+                ),
               ),
             ),
           ),
@@ -141,6 +150,10 @@ class ActionRow extends StatelessWidget {
   final bool enabled;
   final Widget? trailing;
 
+  /// Under the texts, for a row whose [trailing] needs room at large text
+  /// sizes (an emergency number).
+  final Widget? below;
+
   const ActionRow({
     super.key,
     this.icon,
@@ -153,6 +166,7 @@ class ActionRow extends StatelessWidget {
     this.onTap,
     this.enabled = true,
     this.trailing,
+    this.below,
   });
 
   @override
@@ -191,6 +205,7 @@ class ActionRow extends StatelessWidget {
                     Text(tr(context, subtitle!), style: AppText.bodySm.copyWith(color: t.inkMuted)),
                   ],
                   if (detail != null) Text(tr(context, detail!), style: AppText.bodySm.copyWith(color: t.inkMuted)),
+                  ?below,
                 ],
               ),
             ),

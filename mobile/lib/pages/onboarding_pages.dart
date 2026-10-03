@@ -192,7 +192,10 @@ class _LanguagePageState extends State<LanguagePage> {
                         const _OnbTopBar(),
                         const _Logo(size: 84),
                         const SizedBox(height: 6),
-                        Center(child: _Wordmark(p: p, size: 30)),
+                        // Shrinks to fit rather than overflow at large system text sizes.
+                        Center(
+                          child: FittedBox(fit: BoxFit.scaleDown, child: _Wordmark(p: p, size: 30)),
+                        ),
                         const SizedBox(height: 26),
                         Text(
                           s.languagesTitle,
@@ -423,25 +426,30 @@ class _WelcomeLoginPageState extends State<WelcomeLoginPage> {
       backgroundColor: p.sheet,
       body: LayoutBuilder(
         builder: (context, constraints) => SingleChildScrollView(
-          child: Stack(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                height: heroHeight + 4,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(gradient: p.background),
-                  child: CustomPaint(painter: OnboardingScenePainter(p)),
-                ),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+              // The scene sits behind the hero and runs on under the sheet's
+              // rounded top. The hero is at least heroHeight - overlap and
+              // grows with its title at large system text sizes; the scene
+              // grows with it.
+              Stack(
+                clipBehavior: Clip.none,
                 children: [
-                  SizedBox(
-                    height: heroHeight - overlap,
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: -(overlap + 4),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(gradient: p.background),
+                      child: CustomPaint(painter: OnboardingScenePainter(p)),
+                    ),
+                  ),
+                  ConstrainedBox(
+                    constraints: BoxConstraints(minHeight: heroHeight - overlap),
                     child: Padding(
-                      padding: EdgeInsets.only(top: mq.padding.top, left: 4, right: 4),
+                      padding: EdgeInsets.only(top: mq.padding.top, left: 4, right: 4, bottom: 8),
                       child: Column(
                         children: [
                           const _OnbTopBar(showBack: true),
@@ -452,33 +460,33 @@ class _WelcomeLoginPageState extends State<WelcomeLoginPage> {
                       ),
                     ),
                   ),
-                  ConstrainedBox(
-                    constraints: BoxConstraints(minHeight: math.max(0, constraints.maxHeight - heroHeight + overlap)),
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: p.sheet,
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
-                        border: Border(top: BorderSide(color: p.sheetBorder, width: 1.2)),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: p.isDark ? 0.3 : 0.06),
-                            blurRadius: 18,
-                            offset: const Offset(0, -4),
-                          ),
-                        ],
+                ],
+              ),
+              ConstrainedBox(
+                constraints: BoxConstraints(minHeight: math.max(0, constraints.maxHeight - heroHeight + overlap)),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: p.sheet,
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+                    border: Border(top: BorderSide(color: p.sheetBorder, width: 1.2)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: p.isDark ? 0.3 : 0.06),
+                        blurRadius: 18,
+                        offset: const Offset(0, -4),
                       ),
-                      child: Center(
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: _maxWidth),
-                          child: Padding(
-                            padding: EdgeInsets.fromLTRB(22, 26, 22, 20 + mq.padding.bottom),
-                            child: _loginForm(s, p),
-                          ),
-                        ),
+                    ],
+                  ),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: _maxWidth),
+                      child: Padding(
+                        padding: EdgeInsets.fromLTRB(22, 26, 22, 20 + mq.padding.bottom),
+                        child: _loginForm(s, p),
                       ),
                     ),
                   ),
-                ],
+                ),
               ),
             ],
           ),

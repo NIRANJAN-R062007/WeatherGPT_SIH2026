@@ -246,7 +246,7 @@ class _AuthPageState extends State<AuthPage> {
                 gap(8),
                 Wrap(
                   spacing: 6,
-                  runSpacing: 6,
+                  runSpacing: 0, // the chips' own tap padding spaces the rows
                   children: [
                     for (final o in _occupations.map((o) => tr(context, o)))
                       _SuggestionChip(
@@ -338,11 +338,17 @@ class _AuthPageState extends State<AuthPage> {
             InkWell(
               borderRadius: BorderRadius.circular(AppRadius.lg),
               onTap: _busy ? null : () => _switchMode(signUp ? AuthMode.signIn : AuthMode.signUp),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-                child: Text(
-                  tr(context, signUp ? 'Sign in' : 'Create an account'),
-                  style: AppText.labelMd.copyWith(color: t.primary, fontWeight: FontWeight.w700, fontSize: 14),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: kMinInteractiveDimension),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Center(
+                    widthFactor: 1,
+                    child: Text(
+                      tr(context, signUp ? 'Sign in' : 'Create an account'),
+                      style: AppText.labelMd.copyWith(color: t.primary, fontWeight: FontWeight.w700, fontSize: 14),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -426,17 +432,36 @@ class _SuggestionChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = PersonaTheme.of(context);
-    return Material(
-      color: selected ? t.primary : t.tint,
-      borderRadius: BorderRadius.circular(999),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(999),
+    // A 30 dp pill inside a 48 dp tap target (Android's minimum), the way
+    // Material's own chips pad theirs: a tap just above or below still counts.
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: label,
+      onTap: onTap,
+      excludeSemantics: true,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          child: Text(
-            label,
-            style: AppText.labelMd.copyWith(color: selected ? t.onPrimary : t.primary, fontWeight: FontWeight.w600),
+          padding: const EdgeInsets.symmetric(vertical: 9),
+          child: Material(
+            color: selected ? t.primary : t.tint,
+            borderRadius: BorderRadius.circular(999),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(999),
+              onTap: onTap,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                child: Text(
+                  label,
+                  style: AppText.labelMd.copyWith(
+                    color: selected ? t.onPrimary : t.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
           ),
         ),
       ),

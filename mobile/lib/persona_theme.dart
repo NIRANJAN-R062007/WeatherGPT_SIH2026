@@ -83,6 +83,8 @@ class PersonaTheme extends ThemeExtension<PersonaTheme> {
 
   /// Bottom navigation.
   final Color navBar;
+  /// Idle bottom-bar icons and labels. The labels are 11 px, so this keeps
+  /// at least 4.5:1 (WCAG AA) against [navBar]; the light palettes are 4.8:1.
   final Color navIdle;
 
   /// Painted scenery: far and near silhouettes, lit windows / highlights,
@@ -301,7 +303,7 @@ const Map<String, PersonaTheme> personaThemes = {
     surfaceContainerLow: Color(0xFFF0F5FE),
     surfaceContainer: Color(0xFFE6EEFC),
     surfaceContainerHigh: Color(0xFFDCE7FA),
-    navIdle: Color(0xFF6B7A93),
+    navIdle: Color(0xFF65738A),
     skylineFar: Color(0xFFB3D0F3),
     skylineNear: Color(0xFF5E9BE6),
     skylineWindow: Color(0xFFE3EEFC),
@@ -339,7 +341,7 @@ const Map<String, PersonaTheme> personaThemes = {
     surfaceContainerLow: Color(0xFFEFF7EC),
     surfaceContainer: Color(0xFFE3F1DE),
     surfaceContainerHigh: Color(0xFFD7EBD1),
-    navIdle: Color(0xFF6A8270),
+    navIdle: Color(0xFF617766),
     skylineFar: Color(0xFFB5DBA3),
     skylineNear: Color(0xFF8CC152),
     skylineWindow: Color(0xFFE6F3B4),
@@ -377,7 +379,7 @@ const Map<String, PersonaTheme> personaThemes = {
     surfaceContainerLow: Color(0xFFEDF5FC),
     surfaceContainer: Color(0xFFE0EDF9),
     surfaceContainerHigh: Color(0xFFD5E6F6),
-    navIdle: Color(0xFF667C93),
+    navIdle: Color(0xFF60748A),
     skylineFar: Color(0xFFA9CDEB),
     skylineNear: Color(0xFF7FB2DE),
     skylineWindow: Color(0xFFFFFFFF),
@@ -416,7 +418,7 @@ const Map<String, PersonaTheme> personaThemes = {
     surfaceContainerLow: Color(0xFFF5F0FE),
     surfaceContainer: Color(0xFFEDE6FC),
     surfaceContainerHigh: Color(0xFFE4DBF9),
-    navIdle: Color(0xFF79739A),
+    navIdle: Color(0xFF736D96),
     skylineFar: Color(0xFFD1C1F0),
     skylineNear: Color(0xFF9A82DC),
     skylineWindow: Color(0xFFF5EEFF),
@@ -454,7 +456,7 @@ const Map<String, PersonaTheme> personaThemes = {
     surfaceContainerLow: Color(0xFFECF7F7),
     surfaceContainer: Color(0xFFDFF1F1),
     surfaceContainerHigh: Color(0xFFD3EBEB),
-    navIdle: Color(0xFF65807F),
+    navIdle: Color(0xFF5D7675),
     skylineFar: Color(0xFFADD6DD),
     skylineNear: Color(0xFF5AA6B8),
     skylineWindow: Color(0xFFE1F4F6),

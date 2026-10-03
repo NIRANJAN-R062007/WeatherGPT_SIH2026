@@ -195,14 +195,16 @@ class _Switch extends StatelessWidget {
               child: InkWell(
                 borderRadius: BorderRadius.circular(999),
                 onTap: () => onChanged(v),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  child: Text(
-                    tr(context, label),
-                    textAlign: TextAlign.center,
-                    style: AppText.labelMd.copyWith(
-                      color: selected ? t.onPrimary : t.ink,
-                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: kMinInteractiveDimension),
+                  child: Center(
+                    child: Text(
+                      tr(context, label),
+                      textAlign: TextAlign.center,
+                      style: AppText.labelMd.copyWith(
+                        color: selected ? t.onPrimary : t.ink,
+                        fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                      ),
                     ),
                   ),
                 ),
@@ -238,6 +240,24 @@ class _DayTile extends StatelessWidget {
     final low = day.number('low_c');
     final rain = day.number('rain_probability_pct');
     final date = day.date;
+    final name = Text(
+      forecastDayName(day.label, date, lang),
+      style: AppText.labelMd.copyWith(color: t.ink, fontWeight: FontWeight.w700),
+    );
+    final dateText = date == null ? null : Text(dayMonth(date, lang), style: AppText.bodySm.copyWith(color: t.inkMuted));
+    // At large text sizes the day's name gets its own line, so it isn't
+    // broken mid-word in a narrow column.
+    final large = isLargeText(context);
+    // Read out as a sentence: on screen the rain chance is a droplet and a
+    // number, which a screen reader would read as a bare "15%".
+    final spoken = tr(context, '{day}, {date}: {condition}, high {high}, low {low}, {rain}% chance of rain', {
+      'day': forecastDayName(day.label, date, lang),
+      'date': date == null ? '' : dayMonth(date, lang),
+      'condition': day.conditionLabel ?? '',
+      'high': high == null ? '—' : '${prefs.temp(high)}°',
+      'low': low == null ? '—' : '${prefs.temp(low)}°',
+      'rain': rain?.round() ?? '—',
+    });
 
     return AppCard(
       padding: const EdgeInsets.symmetric(horizontal: AppSpace.md, vertical: 12),
@@ -245,50 +265,55 @@ class _DayTile extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            children: [
-              Expanded(
-                flex: 4,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          Semantics(
+            label: spoken,
+            excludeSemantics: true,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (large) ...[
+                  Wrap(spacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [name, ?dateText]),
+                  const SizedBox(height: 4),
+                ],
+                Row(
                   children: [
-                    Text(
-                      forecastDayName(day.label, date, lang),
-                      style: AppText.labelMd.copyWith(color: t.ink, fontWeight: FontWeight.w700),
+                    if (!large)
+                      Expanded(
+                        flex: 4,
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [name, ?dateText]),
+                      ),
+                    WeatherGlyph(day.condition, size: 36),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      flex: 5,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${high == null ? '—' : prefs.temp(high)}° / ${low == null ? '—' : prefs.temp(low)}°',
+                            style: AppText.labelMd.copyWith(color: t.ink, fontWeight: FontWeight.w600),
+                          ),
+                          Text(
+                            sentenceCase(day.conditionLabel),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppText.bodySm.copyWith(color: t.inkMuted),
+                          ),
+                        ],
+                      ),
                     ),
-                    if (date != null) Text(dayMonth(date, lang), style: AppText.bodySm.copyWith(color: t.inkMuted)),
+                    const SizedBox(width: AppSpace.sm),
+                    Icon(Icons.water_drop_outlined, size: 14, color: t.primary),
+                    const SizedBox(width: 2),
+                    Text(
+                      rain == null ? '—' : '${rain.round()}%',
+                      style: AppText.bodySm.copyWith(color: t.ink, fontWeight: FontWeight.w600),
+                    ),
+                    Icon(expanded ? Icons.expand_less : Icons.expand_more, size: 20, color: t.inkMuted),
                   ],
                 ),
-              ),
-              WeatherGlyph(day.condition, size: 36),
-              const SizedBox(width: 12),
-              Expanded(
-                flex: 5,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${high == null ? '—' : prefs.temp(high)}° / ${low == null ? '—' : prefs.temp(low)}°',
-                      style: AppText.labelMd.copyWith(color: t.ink, fontWeight: FontWeight.w600),
-                    ),
-                    Text(
-                      sentenceCase(day.conditionLabel),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppText.bodySm.copyWith(color: t.inkMuted),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: AppSpace.sm),
-              Icon(Icons.water_drop_outlined, size: 14, color: t.primary),
-              const SizedBox(width: 2),
-              Text(
-                rain == null ? '—' : '${rain.round()}%',
-                style: AppText.bodySm.copyWith(color: t.ink, fontWeight: FontWeight.w600),
-              ),
-              Icon(expanded ? Icons.expand_less : Icons.expand_more, size: 20, color: t.inkMuted),
-            ],
+              ],
+            ),
           ),
           if (expanded) ...[
             const SizedBox(height: 12),
@@ -337,16 +362,20 @@ class _DayFigures extends StatelessWidget {
       _Figure(Icons.umbrella_outlined, 'Rain at night', pct('night_rain_probability_pct')),
     ];
 
+    // Two to a row at large text sizes, so the labels keep their words.
+    final perRow = isLargeText(context) ? 2 : 3;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        for (var i = 0; i < figures.length; i += 3) ...[
+        for (var i = 0; i < figures.length; i += perRow) ...[
           if (i > 0) const SizedBox(height: 12),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              for (final figure in figures.sublist(i, i + 3 > figures.length ? figures.length : i + 3))
+              for (final figure in figures.sublist(i, i + perRow > figures.length ? figures.length : i + perRow))
                 Expanded(child: figure),
+              // A short last row keeps the columns lined up.
+              for (var pad = figures.length; pad < i + perRow; pad++) const Expanded(child: SizedBox()),
             ],
           ),
         ],
@@ -372,7 +401,8 @@ class _DayFigures extends StatelessWidget {
 
 /// The next 24 hours: a temperature curve over a row of hour columns
 /// (time, glyph, rain chance), scrolled sideways together. A caption marks
-/// the first hour ("Now") and each new day.
+/// the first hour ("Now") and each new day. Columns and curve grow with the
+/// system text size, so larger text still fits; the strip just scrolls more.
 class _HourlyStrip extends StatelessWidget {
   final HourlyForecast hourly;
   const _HourlyStrip({required this.hourly});
@@ -387,6 +417,9 @@ class _HourlyStrip extends StatelessWidget {
     final lang = langOf(context);
     final hours = hourly.entries;
     final first = DateTime.tryParse(hours.first.date ?? '');
+    final textScaler = MediaQuery.textScalerOf(context);
+    final grow = (textScaler.scale(12) / 12).clamp(1.0, 3.0);
+    final column = _column * grow;
     final caption = AppText.bodySm.copyWith(color: t.primary, fontWeight: FontWeight.w700, fontSize: 11);
 
     String? captionFor(int i) {
@@ -404,7 +437,7 @@ class _HourlyStrip extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: AppSpace.sm),
         child: SizedBox(
-          width: hours.length * _column,
+          width: hours.length * column,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -412,7 +445,7 @@ class _HourlyStrip extends StatelessWidget {
                 children: [
                   for (var i = 0; i < hours.length; i++)
                     SizedBox(
-                      width: _column,
+                      width: column,
                       child: switch (captionFor(i)) {
                         null => const SizedBox.shrink(),
                         // Shrunk rather than cut: "இப்போது" is wider than a column.
@@ -425,38 +458,48 @@ class _HourlyStrip extends StatelessWidget {
                 ],
               ),
               CustomPaint(
-                size: Size(hours.length * _column, _curve),
+                size: Size(hours.length * column, _curve * grow),
                 painter: _TempCurve(
                   temps: [for (final h in hours) h.number('temp_c')],
                   label: (c) => '${prefs.temp(c)}°',
                   color: t.primary,
                   textStyle: AppText.labelMd.copyWith(color: t.ink, fontWeight: FontWeight.w600, fontSize: 13),
+                  textScaler: textScaler,
                 ),
               ),
               Row(
                 children: [
                   for (final h in hours)
-                    SizedBox(
-                      width: _column,
-                      child: Column(
-                        children: [
-                          WeatherGlyph(h.condition, night: h.isNight, size: 28),
-                          const SizedBox(height: 4),
-                          Text(h.localTime, style: AppText.bodySm.copyWith(color: t.ink)),
-                          const SizedBox(height: 2),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.water_drop_outlined, size: 11, color: t.primary),
-                              Text(
-                                h.number('rain_probability_pct') == null
-                                    ? '—'
-                                    : '${h.number('rain_probability_pct')!.round()}%',
-                                style: AppText.bodySm.copyWith(color: t.inkMuted, fontSize: 11),
-                              ),
-                            ],
-                          ),
-                        ],
+                    Semantics(
+                      label: tr(context, '{time}: {temp}, {condition}, {rain}% chance of rain', {
+                        'time': h.localTime,
+                        'temp': h.number('temp_c') == null ? '—' : prefs.tempLabel(h.number('temp_c')!),
+                        'condition': h.conditionLabel ?? '',
+                        'rain': h.number('rain_probability_pct')?.round() ?? '—',
+                      }),
+                      excludeSemantics: true,
+                      child: SizedBox(
+                        width: column,
+                        child: Column(
+                          children: [
+                            WeatherGlyph(h.condition, night: h.isNight, size: 28),
+                            const SizedBox(height: 4),
+                            Text(h.localTime, style: AppText.bodySm.copyWith(color: t.ink)),
+                            const SizedBox(height: 2),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.water_drop_outlined, size: 11, color: t.primary),
+                                Text(
+                                  h.number('rain_probability_pct') == null
+                                      ? '—'
+                                      : '${h.number('rain_probability_pct')!.round()}%',
+                                  style: AppText.bodySm.copyWith(color: t.inkMuted, fontSize: 11),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                 ],
@@ -470,15 +513,21 @@ class _HourlyStrip extends StatelessWidget {
 }
 
 /// A smooth line through each hour's temperature, centred in its column,
-/// with the value above the point. Missing hours break the line.
+/// with the value above the point, at the system text size. Missing hours
+/// break the line.
 class _TempCurve extends CustomPainter {
   final List<num?> temps;
   final String Function(num celsius) label;
   final Color color;
   final TextStyle textStyle;
-  _TempCurve({required this.temps, required this.label, required this.color, required this.textStyle});
-
-  static const double _labelSpace = 20;
+  final TextScaler textScaler;
+  _TempCurve({
+    required this.temps,
+    required this.label,
+    required this.color,
+    required this.textStyle,
+    required this.textScaler,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -487,7 +536,7 @@ class _TempCurve extends CustomPainter {
     final lo = known.reduce((a, b) => a < b ? a : b).toDouble();
     final hi = known.reduce((a, b) => a > b ? a : b).toDouble();
     final column = size.width / temps.length;
-    final top = _labelSpace + 4;
+    final top = textScaler.scale(20) + 4; // room for a label over the highest point
     final bottom = size.height - 6;
     Offset? at(int i) {
       final c = temps[i];
@@ -522,6 +571,7 @@ class _TempCurve extends CustomPainter {
       final text = TextPainter(
         text: TextSpan(text: label(temps[i]!), style: textStyle),
         textDirection: TextDirection.ltr,
+        textScaler: textScaler,
       )..layout();
       text.paint(canvas, Offset(p.dx - text.width / 2, p.dy - text.height - 4));
     }
@@ -529,7 +579,8 @@ class _TempCurve extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_TempCurve old) => old.temps != temps || old.color != color || old.textStyle != textStyle;
+  bool shouldRepaint(_TempCurve old) =>
+      old.temps != temps || old.color != color || old.textStyle != textStyle || old.textScaler != textScaler;
 }
 
 /// Label + date | glyph | high / low + condition — a /facts period, for a
@@ -624,11 +675,8 @@ class _Figure extends StatelessWidget {
             Icon(icon, size: 14, color: t.primary),
             const SizedBox(width: 4),
             Flexible(
-              child: Text(
-                tr(context, label),
-                overflow: TextOverflow.ellipsis,
-                style: AppText.bodySm.copyWith(color: t.inkMuted),
-              ),
+              // Wraps rather than cuts a long translation short.
+              child: Text(tr(context, label), style: AppText.bodySm.copyWith(color: t.inkMuted)),
             ),
           ],
         ),

@@ -207,9 +207,12 @@ class _GroundedBadge extends StatelessWidget {
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           const Icon(Icons.verified_user_outlined, size: 12, color: AppColors.onSecondaryContainer),
           const SizedBox(width: 4),
-          Text(
-            tr(context, 'GROUNDED {matched}/{total}', {'matched': matched, 'total': total}),
-            style: AppText.chipMono.copyWith(color: AppColors.onSecondaryContainer, fontWeight: FontWeight.w700),
+          // Wraps rather than overflow: the Tamil label is long at large text sizes.
+          Flexible(
+            child: Text(
+              tr(context, 'GROUNDED {matched}/{total}', {'matched': matched, 'total': total}),
+              style: AppText.chipMono.copyWith(color: AppColors.onSecondaryContainer, fontWeight: FontWeight.w700),
+            ),
           ),
         ]),
       ),

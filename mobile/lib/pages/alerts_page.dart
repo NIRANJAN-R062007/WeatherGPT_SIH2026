@@ -343,14 +343,17 @@ class _Verdict extends StatelessWidget {
                 child: InkWell(
                   borderRadius: BorderRadius.circular(999),
                   onTap: onToggle,
-                  child: Padding(
+                  child: Container(
+                    constraints: const BoxConstraints(minHeight: kMinInteractiveDimension),
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(
-                          tr(context, expanded ? 'Hide details' : 'View details'),
-                          style: AppText.labelMd.copyWith(color: t.primary, fontWeight: FontWeight.w600),
+                        Flexible(
+                          child: Text(
+                            tr(context, expanded ? 'Hide details' : 'View details'),
+                            style: AppText.labelMd.copyWith(color: t.primary, fontWeight: FontWeight.w600),
+                          ),
                         ),
                         const SizedBox(width: 4),
                         Icon(expanded ? Icons.expand_less : Icons.arrow_forward, size: 16, color: t.primary),
@@ -453,6 +456,35 @@ class _Hotlines extends StatelessWidget {
     }
   }
 
+  /// One number: a row that opens the dialer, read out as "Call …, …".
+  Widget _line(BuildContext context, Hotline line) {
+    final t = PersonaTheme.of(context);
+    final number = Text(
+      line.number,
+      style: AppText.labelMd.copyWith(color: t.primary, fontWeight: FontWeight.w700, fontSize: 15),
+    );
+    final call = Icon(Icons.call, size: 18, color: t.primary);
+    // At large text sizes the number goes under the name, so a long one
+    // (040 2111 1111) doesn't squeeze the name into a sliver.
+    final large = isLargeText(context);
+    return Semantics(
+      button: true,
+      label: tr(context, 'Call {name}, {number}', {'name': tr(context, line.name), 'number': line.number}),
+      excludeSemantics: true,
+      child: ActionRow(
+        icon: line.dial == '112' ? Icons.emergency_outlined : Icons.support_agent,
+        iconColor: line.dial == '112' ? Theme.of(context).colorScheme.error : null,
+        title: line.name,
+        subtitle: line.note.isEmpty ? null : line.note,
+        onTap: () => _dial(context, line),
+        below: large ? number : null,
+        trailing: large
+            ? call
+            : Row(mainAxisSize: MainAxisSize.min, children: [number, const SizedBox(width: 6), call]),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = PersonaTheme.of(context);
@@ -470,32 +502,7 @@ class _Hotlines extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        for (final line in lines) ...[
-          Semantics(
-            button: true,
-            label: tr(context, 'Call {name}, {number}', {'name': tr(context, line.name), 'number': line.number}),
-            excludeSemantics: true,
-            child: ActionRow(
-              icon: line.dial == '112' ? Icons.emergency_outlined : Icons.support_agent,
-              iconColor: line.dial == '112' ? Theme.of(context).colorScheme.error : null,
-              title: line.name,
-              subtitle: line.note.isEmpty ? null : line.note,
-              onTap: () => _dial(context, line),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    line.number,
-                    style: AppText.labelMd.copyWith(color: t.primary, fontWeight: FontWeight.w700, fontSize: 15),
-                  ),
-                  const SizedBox(width: 6),
-                  Icon(Icons.call, size: 18, color: t.primary),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: AppSpace.sm),
-        ],
+        for (final line in lines) ...[_line(context, line), const SizedBox(height: AppSpace.sm)],
         if (footnote != null) Text(footnote, style: AppText.bodySm.copyWith(color: t.inkMuted)),
       ],
     );

@@ -540,6 +540,8 @@ const Map<String, Map<String, String>> kUiStrings = {
     'Couldn\'t reach the warnings service. This was saved at {time}; newer warnings can\'t be checked now.': 'चेतावनी सेवा तक नहीं पहुँच सके। सहेजने का समय: {time}; नई चेतावनियाँ अभी जाँची नहीं जा सकतीं।',
     'SAVED': 'सहेजा गया',
     'Saved on this phone at {time}.': 'इस फ़ोन पर सहेजने का समय: {time}।',
+    '{day}, {date}: {condition}, high {high}, low {low}, {rain}% chance of rain': '{day}, {date}: {condition}, अधिकतम {high}, न्यूनतम {low}, बारिश की संभावना {rain}%',
+    '{time}: {temp}, {condition}, {rain}% chance of rain': '{time}: {temp}, {condition}, बारिश की संभावना {rain}%',
   },
   'ta': {
     'Home': 'முகப்பு',
@@ -1081,6 +1083,8 @@ const Map<String, Map<String, String>> kUiStrings = {
     'Couldn\'t reach the warnings service. This was saved at {time}; newer warnings can\'t be checked now.': 'எச்சரிக்கை சேவையை அணுக முடியவில்லை. சேமிக்கப்பட்ட நேரம்: {time}; புதிய எச்சரிக்கைகளை இப்போது சரிபார்க்க முடியாது.',
     'SAVED': 'சேமித்தது',
     'Saved on this phone at {time}.': 'இந்த தொலைபேசியில் சேமித்த நேரம்: {time}.',
+    '{day}, {date}: {condition}, high {high}, low {low}, {rain}% chance of rain': '{day}, {date}: {condition}, அதிகபட்சம் {high}, குறைந்தபட்சம் {low}, மழை வாய்ப்பு {rain}%',
+    '{time}: {temp}, {condition}, {rain}% chance of rain': '{time}: {temp}, {condition}, மழை வாய்ப்பு {rain}%',
   },
   'te': {
     'Home': 'హోమ్',
@@ -1622,6 +1626,8 @@ const Map<String, Map<String, String>> kUiStrings = {
     'Couldn\'t reach the warnings service. This was saved at {time}; newer warnings can\'t be checked now.': 'హెచ్చరికల సేవను చేరుకోలేకపోయాం. సేవ్ చేసిన సమయం: {time}; కొత్త హెచ్చరికలను ఇప్పుడు తనిఖీ చేయలేం.',
     'SAVED': 'సేవ్ చేసినది',
     'Saved on this phone at {time}.': 'ఈ ఫోన్‌లో సేవ్ చేసిన సమయం: {time}.',
+    '{day}, {date}: {condition}, high {high}, low {low}, {rain}% chance of rain': '{day}, {date}: {condition}, గరిష్ఠం {high}, కనిష్ఠం {low}, వర్షం అవకాశం {rain}%',
+    '{time}: {temp}, {condition}, {rain}% chance of rain': '{time}: {temp}, {condition}, వర్షం అవకాశం {rain}%',
   },
   'mr': {
     'Home': 'होम',
@@ -2163,5 +2169,7 @@ const Map<String, Map<String, String>> kUiStrings = {
     'Couldn\'t reach the warnings service. This was saved at {time}; newer warnings can\'t be checked now.': 'इशारा सेवेशी संपर्क होऊ शकला नाही. जतन केल्याची वेळ: {time}; नवीन इशारे आता तपासता येत नाहीत.',
     'SAVED': 'जतन केलेले',
     'Saved on this phone at {time}.': 'या फोनवर जतन केल्याची वेळ: {time}.',
+    '{day}, {date}: {condition}, high {high}, low {low}, {rain}% chance of rain': '{day}, {date}: {condition}, कमाल {high}, किमान {low}, पावसाची शक्यता {rain}%',
+    '{time}: {temp}, {condition}, {rain}% chance of rain': '{time}: {temp}, {condition}, पावसाची शक्यता {rain}%',
   },
 };
