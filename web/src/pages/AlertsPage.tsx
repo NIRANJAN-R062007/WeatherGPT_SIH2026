@@ -4,7 +4,11 @@
 // / "no verdict" (neutral, never green — no verdict is not an all-clear) /
 // the IMD colour verdict, tinted by the feed's own colour, with its legend
 // and provenance under "View details". The feed carries one warning per
-// city, so the list holds at most that one.
+// city, so the list holds at most that one. The colour legend comes from
+// GET /glossary (the one shared wording) when it answers, marked when a
+// translation hasn't had native review; /warnings' own legend otherwise.
+// Emergency numbers (GET /hotlines) follow, each a tel: link; 112 shows even
+// when the list can't be fetched.
 import { useEffect, useState } from 'react';
 import { Legend } from '../components/AskAnswer';
 import PageFrame from '../components/PageFrame';
@@ -20,12 +24,41 @@ import {
   SectionTitle,
   TagChip,
 } from '../components/ui';
+import type { LegendRow, WarningColour } from '../lib/api';
+import { calendarDate, dayMonth } from '../lib/format';
+import { fetchGlossary, glossaryLegend, legendReviewed, type Glossary } from '../lib/glossary';
+import { EMERGENCY_HOTLINE, fetchHotlines, type Hotline, type HotlineList } from '../lib/hotlines';
 import { useWarnings, type WarningsUnavailable, type WarningsVerdict } from '../lib/warnings';
 import { COLOUR_HEX, istTimestamp } from '../lib/warningUi';
 import { useUiPrefs } from '../state/UiPrefsContext';
 import { useT } from '../lib/i18n';
 
-function NoVerdict({ data }: { data: WarningsUnavailable }) {
+/** The colour legend from the glossary when it answered, else /warnings'
+ *  own; a translation no native speaker has checked yet says so. */
+function AlertsLegend({
+  rows,
+  glossary,
+  highlight,
+}: {
+  rows: LegendRow[];
+  glossary: Glossary | null;
+  highlight?: WarningColour;
+}) {
+  const t = useT();
+  const fromGlossary = glossaryLegend(glossary);
+  return (
+    <div className="flex flex-col gap-1">
+      <Legend rows={fromGlossary ?? rows} highlight={highlight} />
+      {fromGlossary && glossary && !legendReviewed(glossary) && (
+        <p className="font-body-sm text-body-sm text-ink-muted">
+          {t('These translations have not been reviewed by a native speaker yet.')}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function NoVerdict({ data, glossary }: { data: WarningsUnavailable; glossary: Glossary | null }) {
   const t = useT();
   return (
     <AppCard className="!bg-surface-container-low !border-outline-variant">
@@ -42,7 +75,7 @@ function NoVerdict({ data }: { data: WarningsUnavailable }) {
         })}
       </p>
       <div className="mt-space-sm">
-        <Legend rows={data.legend} />
+        <AlertsLegend rows={data.legend} glossary={glossary} />
       </div>
     </AppCard>
   );
@@ -50,7 +83,17 @@ function NoVerdict({ data }: { data: WarningsUnavailable }) {
 
 /** The featured card: tinted by the feed's own colour, headline up front,
  *  the legend and provenance behind "View details". */
-function Verdict({ data, expanded, onToggle }: { data: WarningsVerdict; expanded: boolean; onToggle: () => void }) {
+function Verdict({
+  data,
+  glossary,
+  expanded,
+  onToggle,
+}: {
+  data: WarningsVerdict;
+  glossary: Glossary | null;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
   const t = useT();
   const w = data.warning;
   const tone = COLOUR_HEX[w.colour];
@@ -104,7 +147,7 @@ function Verdict({ data, expanded, onToggle }: { data: WarningsVerdict; expanded
       {expanded && (
         <div className="mt-space-md flex flex-col gap-space-sm">
           {w.advice && <p className="font-body-md text-body-md text-ink-muted">{w.advice}</p>}
-          <Legend rows={data.legend} highlight={w.colour} />
+          <AlertsLegend rows={data.legend} glossary={glossary} highlight={w.colour} />
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-space-xs border-t border-outline-variant/40 font-citation-mono text-citation-mono text-on-surface-variant">
             <span className="flex items-center gap-1">
               <Icon name="campaign" size={12} />
@@ -121,6 +164,53 @@ function Verdict({ data, expanded, onToggle }: { data: WarningsVerdict; expanded
   );
 }
 
+/** One number: a card that opens the dialer, read out as "Call …, …". */
+function HotlineRow({ line }: { line: Hotline }) {
+  const t = useT();
+  const emergency = line.dial === '112';
+  return (
+    <a
+      href={`tel:${line.dial}`}
+      aria-label={t('Call {name}, {number}', { name: t(line.name), number: line.number })}
+      className="block rounded-card border border-card-border bg-card shadow-card px-3 py-2.5 transition hover:border-primary/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+    >
+      <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <IconDisc icon={emergency ? 'emergency' : 'support_agent'} color={emergency ? 'rgb(var(--c-error))' : undefined} />
+        <span className="flex-1 min-w-[8rem]">
+          <span className="block font-label-md text-label-md font-semibold text-ink">{t(line.name)}</span>
+          {line.note && <span className="block font-body-sm text-body-sm text-ink-muted">{t(line.note)}</span>}
+        </span>
+        <span className="ml-auto flex items-center gap-1.5 font-label-md text-[15px] font-bold text-primary">
+          {line.number}
+          <Icon name="call" size={18} />
+        </span>
+      </span>
+    </a>
+  );
+}
+
+/** The city's emergency numbers; 112 alone (with a note saying why) until
+ *  or unless the list arrives. */
+function Hotlines({ list, failed }: { list: HotlineList | null; failed: boolean }) {
+  const t = useT();
+  const checked = calendarDate(list?.checked);
+  const footnote = failed
+    ? t("Couldn't load the local numbers. 112 works anywhere in India.")
+    : checked
+      ? t('Checked against official government pages on {date}.', {
+          date: `${dayMonth(t, checked)} ${checked.getUTCFullYear()}`,
+        })
+      : null;
+  return (
+    <div className="flex flex-col gap-space-sm">
+      {(list?.lines ?? [EMERGENCY_HOTLINE]).map((line) => (
+        <HotlineRow key={`${line.dial}-${line.name}`} line={line} />
+      ))}
+      {footnote && <p className="font-body-sm text-body-sm text-ink-muted">{footnote}</p>}
+    </div>
+  );
+}
+
 export default function AlertsPage() {
   const t = useT();
   const { lang, city, cityInfo, personaInfo } = useUiPrefs();
@@ -129,11 +219,27 @@ export default function AlertsPage() {
   const [expandedFor, setExpandedFor] = useState<string | null>(null);
   const expanded = expandedFor === city;
   const setExpanded = (open: boolean) => setExpandedFor(open ? city : null);
+  // Each reply is kept with the city + language it answers, so one for a
+  // city or language no longer shown is never displayed.
+  const key = `${city}|${lang}`;
+  const [hotlines, setHotlines] = useState<{ key: string; list: HotlineList | null } | null>(null);
+  const [glossary, setGlossary] = useState<{ lang: string; glossary: Glossary | null } | null>(null);
 
   // Fetch on mount and whenever the selected city or language changes.
   useEffect(() => {
     void load(city, lang);
+    const key = `${city}|${lang}`;
+    fetchHotlines({ city, lang }).then(
+      (list) => setHotlines({ key, list }),
+      () => setHotlines({ key, list: null }),
+    );
+    fetchGlossary({ lang }).then(
+      (g) => setGlossary({ lang, glossary: g }),
+      () => setGlossary({ lang, glossary: null }),
+    );
   }, [city, lang, load]);
+  const shownHotlines = hotlines?.key === key ? hotlines : null;
+  const shownGlossary = glossary?.lang === lang ? glossary.glossary : null;
 
   const verdict = data && data.status !== 'unavailable' ? data : null;
   const active = verdict?.status === 'active';
@@ -152,9 +258,9 @@ export default function AlertsPage() {
             onRetry={() => void load(city, lang)}
           />
         ) : verdict ? (
-          <Verdict data={verdict} expanded={expanded} onToggle={() => setExpanded(!expanded)} />
+          <Verdict data={verdict} glossary={shownGlossary} expanded={expanded} onToggle={() => setExpanded(!expanded)} />
         ) : data ? (
-          <NoVerdict data={data as WarningsUnavailable} />
+          <NoVerdict data={data as WarningsUnavailable} glossary={shownGlossary} />
         ) : null}
       </div>
 
@@ -182,6 +288,11 @@ export default function AlertsPage() {
           </div>
         </AppCard>
       )}
+
+      <div className="mt-space-lg mb-space-sm">
+        <SectionTitle text="Emergency numbers" />
+      </div>
+      <Hotlines list={shownHotlines?.list ?? null} failed={shownHotlines !== null && shownHotlines.list === null} />
 
       <div className="mt-space-lg">
         <InfoBanner

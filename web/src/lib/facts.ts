@@ -138,7 +138,10 @@ export async function fetchHourlyForecast({ city, lang }: { city: string; lang?:
   return series(await getJson('/forecast/hourly', params), 'hours');
 }
 
-async function getJson(path: string, params: Record<string, string>): Promise<Record<string, unknown>> {
+/** GET `path` with `params` from the orchestrator as a JSON object, with
+ *  FactsError for every failure. Also used by lib/hotlines.ts and
+ *  lib/glossary.ts. */
+export async function getJson(path: string, params: Record<string, string>): Promise<Record<string, unknown>> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FACTS_TIMEOUT_MS);
   try {
