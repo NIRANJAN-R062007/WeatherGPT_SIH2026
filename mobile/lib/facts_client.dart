@@ -18,12 +18,17 @@
 // hourly strip) come through the same helper and errors. A backend from
 // before those routes answers 404; [FactsError.status] says so, and the
 // pages fall back to the /facts rows.
+//
+// Given a [ResponseCache], each reply is saved, and when the backend can't
+// be reached (no connection, a timeout, a 5xx) the saved copy comes back
+// instead, with its `savedAt` set (lib/response_cache.dart).
 import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import 'config.dart';
 import 'i18n.dart';
+import 'response_cache.dart';
 
 /// Fixture/cache lookup with no LLM work — same budget as /warnings.
 const Duration kFactsTimeout = Duration(seconds: 10);
@@ -76,9 +81,20 @@ class FactsResult {
   /// (`rain_last_24h_mm`); either with `rain_category`, `is_live`, `source`.
   final Figures? rainSoFar;
 
-  const FactsResult({this.city, this.cityName, this.conditionLabel, this.facts, this.message, this.rainSoFar});
+  /// When this reply was saved, if it's a saved copy rather than fresh.
+  final DateTime? savedAt;
 
-  factory FactsResult.fromJson(Map<String, dynamic> json) {
+  const FactsResult({
+    this.city,
+    this.cityName,
+    this.conditionLabel,
+    this.facts,
+    this.message,
+    this.rainSoFar,
+    this.savedAt,
+  });
+
+  factory FactsResult.fromJson(Map<String, dynamic> json, {DateTime? savedAt}) {
     final rain = _object(json['rain_so_far']);
     return FactsResult(
       city: json['city'] as String?,
@@ -87,8 +103,19 @@ class FactsResult {
       facts: _object(json['facts']),
       message: json['message'] as String?,
       rainSoFar: rain == null ? null : Figures(rain),
+      savedAt: savedAt,
     );
   }
+
+  /// The same reply without its rain so far (a saved copy from an earlier day).
+  FactsResult withoutRain() => FactsResult(
+    city: city,
+    cityName: cityName,
+    conditionLabel: conditionLabel,
+    facts: facts,
+    message: message,
+    savedAt: savedAt,
+  );
 
   bool get hasData => facts != null;
 
@@ -149,9 +176,17 @@ class ForecastSeries<T extends Figures> {
   final bool isLive;
   final String? issued;
 
-  const ForecastSeries(this.entries, {this.source, this.isLive = false, this.issued});
+  /// When this reply was saved, if it's a saved copy rather than fresh.
+  final DateTime? savedAt;
 
-  factory ForecastSeries.fromJson(Map<String, dynamic> json, String key, T Function(Map<String, dynamic>) entry) {
+  const ForecastSeries(this.entries, {this.source, this.isLive = false, this.issued, this.savedAt});
+
+  factory ForecastSeries.fromJson(
+    Map<String, dynamic> json,
+    String key,
+    T Function(Map<String, dynamic>) entry, {
+    DateTime? savedAt,
+  }) {
     final provenance = Figures(_object(json['provenance']) ?? const {});
     final list = json[key];
     return ForecastSeries(
@@ -159,10 +194,15 @@ class ForecastSeries<T extends Figures> {
       source: provenance.text('source'),
       isLive: provenance.isLive,
       issued: provenance.text('issued'),
+      savedAt: savedAt,
     );
   }
 
   bool get isEmpty => entries.isEmpty;
+
+  /// The same series with only the [keep] entries.
+  ForecastSeries<T> where(bool Function(T entry) keep) =>
+      ForecastSeries(entries.where(keep).toList(), source: source, isLive: isLive, issued: issued, savedAt: savedAt);
 }
 
 typedef DailyForecast = ForecastSeries<ForecastDay>;
@@ -173,25 +213,45 @@ Future<FactsResult> fetchFacts({
   String intent = 'current_weather',
   String day = 'today',
   String? lang,
+  ResponseCache? cache,
 }) async {
   final params = <String, String>{'city': city, 'intent': intent, 'day': day};
   if (lang != null) params['lang'] = lang;
-  return FactsResult.fromJson(await _getJson('/facts', params));
+  final (json, savedAt) = await _getOrSaved('/facts', params, cache);
+  return FactsResult.fromJson(json, savedAt: savedAt);
 }
 
 /// Up to [days] days (the backend serves 1–10).
-Future<DailyForecast> fetchDailyForecast({required String city, String? lang, int days = 10}) async {
+Future<DailyForecast> fetchDailyForecast({
+  required String city,
+  String? lang,
+  int days = 10,
+  ResponseCache? cache,
+}) async {
   final params = <String, String>{'city': city, 'days': '$days'};
   if (lang != null) params['lang'] = lang;
-  return ForecastSeries.fromJson(await _getJson('/forecast/daily', params), 'days', ForecastDay.new);
+  final (json, savedAt) = await _getOrSaved('/forecast/daily', params, cache);
+  return ForecastSeries.fromJson(json, 'days', ForecastDay.new, savedAt: savedAt);
 }
 
 /// The next 24 hours.
-Future<HourlyForecast> fetchHourlyForecast({required String city, String? lang}) async {
+Future<HourlyForecast> fetchHourlyForecast({required String city, String? lang, ResponseCache? cache}) async {
   final params = <String, String>{'city': city};
   if (lang != null) params['lang'] = lang;
-  return ForecastSeries.fromJson(await _getJson('/forecast/hourly', params), 'hours', ForecastHour.new);
+  final (json, savedAt) = await _getOrSaved('/forecast/hourly', params, cache);
+  return ForecastSeries.fromJson(json, 'hours', ForecastHour.new, savedAt: savedAt);
 }
+
+/// The backend couldn't be reached, so a saved copy may stand in; a 4xx or
+/// a malformed reply is an answer, not an outage.
+bool isWeatherOutage(Object e) =>
+    e is FactsError &&
+    (e.kind == FactsErrorKind.network ||
+        e.kind == FactsErrorKind.timeout ||
+        (e.kind == FactsErrorKind.http && (e.status ?? 0) >= 500));
+
+Future<(Map<String, dynamic>, DateTime?)> _getOrSaved(String path, Map<String, String> params, ResponseCache? cache) =>
+    fetchOrSaved(cache, replyKey(path, params), () => _getJson(path, params), useSaved: isWeatherOutage);
 
 Future<Map<String, dynamic>> _getJson(String path, Map<String, String> params) async {
   final uri = Uri.parse('$kApiBaseUrl$path').replace(queryParameters: params);

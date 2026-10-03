@@ -4,7 +4,8 @@
 // hours as a strip under a temperature curve. Every figure is the feed's
 // own, never generated. A backend from before those routes (404) gets the
 // /facts rows (today, tonight, tomorrow) and the banner that hands a 5-day
-// question to Chat, as before.
+// question to Chat, as before. Saved figures (backend unreachable) show
+// under a banner saying when they were saved.
 import 'package:flutter/material.dart';
 
 import '../components/app_shell.dart';
@@ -48,6 +49,14 @@ class _ForecastPageState extends State<ForecastPage> {
       children: [
         PageHeader(title: 'Forecast', subtitle: prefs.personaInfo.forecastLead),
         const SizedBox(height: AppSpace.md),
+        if (weather.savedAt case final savedAt?) ...[
+          SavedDataBanner(
+            message: "Couldn't reach the weather service. These figures were saved at {time}.",
+            messageArgs: {'time': savedTimeLabel(savedAt, langOf(context))},
+            onRetry: weather.refresh,
+          ),
+          const SizedBox(height: AppSpace.md),
+        ],
         _Switch(value: _view, onChanged: (v) => setState(() => _view = v)),
         const SizedBox(height: AppSpace.md),
         ...(_view == _View.days ? _days(weather) : _hours(weather, city)),
@@ -79,7 +88,7 @@ class _ForecastPageState extends State<ForecastPage> {
           _DayTile(day: day, expanded: _open == i, onTap: () => setState(() => _open = _open == i ? null : i)),
           const SizedBox(height: 10),
         ],
-        _ProvenanceCard(source: daily.source),
+        _ProvenanceCard(source: daily.source, savedAt: daily.savedAt),
         const SizedBox(height: 10),
       ];
     }
@@ -126,7 +135,7 @@ class _ForecastPageState extends State<ForecastPage> {
       return [
         _HourlyStrip(hourly: weather.hourly!),
         const SizedBox(height: 10),
-        _ProvenanceCard(source: weather.hourly!.source),
+        _ProvenanceCard(source: weather.hourly!.source, savedAt: weather.hourly!.savedAt),
         const SizedBox(height: 10),
       ];
     }
@@ -632,7 +641,10 @@ class _Figure extends StatelessWidget {
 
 class _ProvenanceCard extends StatelessWidget {
   final String? source;
-  const _ProvenanceCard({required this.source});
+
+  /// When the series shown was saved, if it's a saved copy.
+  final DateTime? savedAt;
+  const _ProvenanceCard({required this.source, this.savedAt});
 
   @override
   Widget build(BuildContext context) {
@@ -665,6 +677,11 @@ class _ProvenanceCard extends StatelessWidget {
                         ),
                   style: AppText.bodySm.copyWith(color: t.inkMuted),
                 ),
+                if (savedAt case final saved?)
+                  Text(
+                    tr(context, 'Saved on this phone at {time}.', {'time': savedTimeLabel(saved, langOf(context))}),
+                    style: AppText.bodySm.copyWith(color: t.ink, fontWeight: FontWeight.w600),
+                  ),
               ],
             ),
           ),

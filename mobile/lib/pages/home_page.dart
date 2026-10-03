@@ -5,7 +5,8 @@
 // backend (WeatherStore): /facts for the card and the rain, /forecast/daily
 // for the sun times and the strip's five days. A backend without
 // /forecast/daily gets today / tonight / tomorrow from /facts in the strip,
-// and the 5-Day tile asks Chat instead.
+// and the 5-Day tile asks Chat instead. When the backend can't be reached,
+// the saved figures show under a banner saying when they were saved.
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -70,6 +71,14 @@ class _HomePageState extends State<HomePage> {
       footer: SceneryFooter.none,
       children: [
         _Greeting(text: _greeting(context, _now, persona.role), lead: tr(context, persona.homeLead)),
+        if (weather.savedAt case final savedAt?) ...[
+          const SizedBox(height: AppSpace.md),
+          SavedDataBanner(
+            message: "Couldn't reach the weather service. These figures were saved at {time}.",
+            messageArgs: {'time': savedTimeLabel(savedAt, langOf(context))},
+            onRetry: weather.refresh,
+          ),
+        ],
         const SizedBox(height: AppSpace.md),
         _NowCard(weather: weather),
         _TodayCards(weather: weather, now: _now),
@@ -315,7 +324,8 @@ class _NowBody extends StatelessWidget {
         const SizedBox(height: 12),
         Row(
           children: [
-            LiveBadge(live: c.isLive),
+            // A saved copy was live once, not now.
+            c.savedAt == null ? LiveBadge(live: c.isLive) : const LiveBadge(live: false, notLiveText: 'SAVED'),
             const SizedBox(width: AppSpace.sm),
             if (c.issued != null)
               Expanded(
@@ -375,7 +385,7 @@ class _TodayCards extends StatelessWidget {
     final rise = istMinuteOfDay(today?.sunrise);
     final set = istMinuteOfDay(today?.sunset);
     final cards = [
-      if (rain != null) _RainCard(rain),
+      if (rain != null) _RainCard(rain, saved: weather.current?.savedAt != null),
       if (rise != null && set != null && set > rise)
         _DaylightCard(sunrise: today!.sunrise!, sunset: today.sunset!, rise: rise, set: set, now: now),
     ];
@@ -429,7 +439,8 @@ class _CardTitle extends StatelessWidget {
 /// hours' total when the backend had no hourly history to sum.
 class _RainCard extends StatelessWidget {
   final Figures rain;
-  const _RainCard(this.rain);
+  final bool saved;
+  const _RainCard(this.rain, {required this.saved});
 
   @override
   Widget build(BuildContext context) {
@@ -446,7 +457,9 @@ class _RainCard extends StatelessWidget {
           _CardTitle(
             Icons.water_drop_outlined,
             'Rain so far',
-            trailing: rain.isLive ? null : const LiveBadge(live: false),
+            trailing: saved
+                ? const LiveBadge(live: false, notLiveText: 'SAVED')
+                : (rain.isLive ? null : const LiveBadge(live: false)),
           ),
           const SizedBox(height: 8),
           Text(mm == null ? '—' : millimetres(mm), style: AppText.headlineSm.copyWith(color: t.ink)),

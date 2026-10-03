@@ -240,6 +240,52 @@ class LiveBadge extends StatelessWidget {
   }
 }
 
+/// Shown while a page is on saved replies (lib/response_cache.dart):
+/// [message] says what couldn't be reached and when the copy was saved;
+/// neutral, like a "no verdict" card, never an error colour or a green.
+class SavedDataBanner extends StatelessWidget {
+  final String message;
+  final Map<String, Object?> messageArgs;
+  final VoidCallback? onRetry;
+  const SavedDataBanner({super.key, required this.message, this.messageArgs = const {}, this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
+    return Container(
+      padding: const EdgeInsets.all(AppSpace.md),
+      decoration: BoxDecoration(
+        color: t.surfaceContainerLow,
+        border: Border.all(color: t.outlineVariant),
+        borderRadius: BorderRadius.circular(AppRadius.xl),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.cloud_off_outlined, size: 18, color: t.onSurfaceVariant),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  tr(context, 'Showing saved data'),
+                  style: AppText.labelMd.copyWith(color: t.ink, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpace.xs),
+          Text(tr(context, message, messageArgs), style: AppText.bodyMd.copyWith(color: t.onSurfaceVariant)),
+          if (onRetry != null) ...[
+            const SizedBox(height: AppSpace.sm),
+            PillButton(icon: Icons.refresh, label: 'Try again', onPressed: onRetry),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 /// `w-4 h-4 rounded-full border-2 border-outline-variant border-t-primary animate-spin`.
 class InlineSpinner extends StatelessWidget {
   final double size;

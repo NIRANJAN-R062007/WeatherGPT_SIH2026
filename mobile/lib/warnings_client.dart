@@ -9,6 +9,7 @@ import 'package:http/http.dart' as http;
 
 import 'config.dart';
 import 'i18n.dart';
+import 'response_cache.dart';
 
 /// /warnings does no LLM/narration work — fixture/cache lookup only — so a
 /// shorter timeout than /ask's 30s is appropriate (web/src/lib/warnings.ts
@@ -69,4 +70,26 @@ Future<Map<String, dynamic>> fetchWarnings({required String city, String? lang})
   } catch (_) {
     throw WarningsError(WarningsErrorKind.malformed, "The warnings service's reply wasn't valid JSON.");
   }
+}
+
+/// [fetchWarnings], saved in [cache]; when the service can't be reached (no
+/// connection, a timeout, a 5xx), the saved reply and when it was saved.
+/// A saved verdict is old news: show it as that, never as the current state.
+Future<(Map<String, dynamic>, DateTime?)> fetchWarningsOrSaved({
+  required String city,
+  String? lang,
+  required ResponseCache? cache,
+}) {
+  final params = <String, String>{'city': city};
+  if (lang != null) params['lang'] = lang;
+  return fetchOrSaved(
+    cache,
+    replyKey('/warnings', params),
+    () => fetchWarnings(city: city, lang: lang),
+    useSaved: (e) =>
+        e is WarningsError &&
+        (e.kind == WarningsErrorKind.network ||
+            e.kind == WarningsErrorKind.timeout ||
+            (e.kind == WarningsErrorKind.http && (e.status ?? 0) >= 500)),
+  );
 }

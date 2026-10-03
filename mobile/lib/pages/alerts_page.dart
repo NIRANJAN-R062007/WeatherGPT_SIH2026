@@ -8,6 +8,11 @@
 // mockup's humidity / air-quality rows have no endpoint behind them.
 // Emergency numbers (GET /hotlines) follow, tap to dial; 112 shows even
 // when the list can't be fetched.
+//
+// When the backend can't be reached, the saved warnings reply shows under a
+// banner saying when it was saved; a saved "nothing in force" is shown as
+// no verdict, never as an all-clear, since warnings may have been issued
+// since. The saved emergency numbers show as usual.
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -19,6 +24,7 @@ import '../format.dart';
 import '../hotlines_client.dart';
 import '../state/ui_prefs.dart';
 import '../persona_theme.dart';
+import '../response_cache.dart';
 import '../theme.dart';
 import '../warning_colors.dart';
 import '../warnings_client.dart';
@@ -38,6 +44,9 @@ class _AlertsPageState extends State<AlertsPage> {
   Map<String, dynamic>? _data;
   WarningsError? _error;
   int _requestId = 0;
+
+  /// When the warnings reply on show was saved, if it's a saved copy.
+  DateTime? _savedAt;
 
   /// GET /hotlines: null while loading; [_hotlinesFailed] when it couldn't
   /// be had, and only 112 is shown.
@@ -65,6 +74,7 @@ class _AlertsPageState extends State<AlertsPage> {
     _lang = lang;
     _loading = true;
     _error = null;
+    _savedAt = null;
     _hotlinesFailed = false;
     final id = ++_requestId;
     return Future.wait([_fetch(id, city, lang), _fetchHotlines(id, city, lang)]);
@@ -72,7 +82,7 @@ class _AlertsPageState extends State<AlertsPage> {
 
   Future<void> _fetchHotlines(int id, String city, String lang) async {
     try {
-      final list = await fetchHotlines(city: city, lang: lang);
+      final list = await fetchHotlines(city: city, lang: lang, cache: ResponseCacheScope.of(context));
       if (!mounted || id != _requestId) return;
       setState(() => _hotlines = list);
     } catch (_) {
@@ -86,10 +96,15 @@ class _AlertsPageState extends State<AlertsPage> {
 
   Future<void> _fetch(int id, String city, String lang) async {
     try {
-      final data = await fetchWarnings(city: city, lang: lang);
+      final (data, savedAt) = await fetchWarningsOrSaved(
+        city: city,
+        lang: lang,
+        cache: ResponseCacheScope.of(context),
+      );
       if (!mounted || id != _requestId) return;
       setState(() {
         _data = data;
+        _savedAt = savedAt;
         _loading = false;
       });
     } catch (e) {
@@ -122,12 +137,23 @@ class _AlertsPageState extends State<AlertsPage> {
     final city = tr(context, prefs.cityInfo.name);
     final active =
         warning != null && (data!['status'] ?? (warning['colour'] == 'green' ? 'clear' : 'active')) == 'active';
+    // A saved "nothing in force" says nothing about now.
+    final savedAt = _savedAt;
+    final verdictNow = warning != null && (savedAt == null || active);
 
     return PageFrame(
       onRefresh: _reload,
       children: [
         PageHeader(title: 'Alerts & Warnings', subtitle: prefs.personaInfo.alertsLead),
         const SizedBox(height: AppSpace.lg),
+        if (!_loading && savedAt != null) ...[
+          SavedDataBanner(
+            message: "Couldn't reach the warnings service. This was saved at {time}; newer warnings can't be checked now.",
+            messageArgs: {'time': savedTimeLabel(savedAt, langOf(context))},
+            onRetry: _reload,
+          ),
+          const SizedBox(height: AppSpace.md),
+        ],
         if (_loading)
           const LoadingPanel('Checking current warnings…')
         else if (_error != null)
@@ -138,7 +164,7 @@ class _AlertsPageState extends State<AlertsPage> {
             messageArgs: _error!.args,
             onRetry: _reload,
           )
-        else if (warning != null)
+        else if (verdictNow)
           _Verdict(
             data!,
             active: active,
@@ -160,7 +186,7 @@ class _AlertsPageState extends State<AlertsPage> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    warning != null
+                    verdictNow
                         ? tr(context, 'No active alerts for {city}.', {'city': city})
                         : tr(context, 'Alerts for {city} will be listed here when the warnings feed has a verdict.', {
                             'city': city,

@@ -8,6 +8,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import 'config.dart';
+import 'response_cache.dart';
 
 const Duration kHotlinesTimeout = Duration(seconds: 10);
 
@@ -51,20 +52,32 @@ class HotlineList {
   /// When the numbers were last checked against their sources (YYYY-MM-DD).
   final String? checked;
 
-  const HotlineList(this.lines, {this.checked});
+  /// When this list was saved, if it's a saved copy rather than fresh.
+  final DateTime? savedAt;
+
+  const HotlineList(this.lines, {this.checked, this.savedAt});
 }
 
 /// Throws on any failure (no connection, an HTTP error, a backend from
-/// before /hotlines); the caller falls back to [kEmergencyHotline].
-Future<HotlineList> fetchHotlines({required String city, String? lang}) async {
+/// before /hotlines); the caller falls back to [kEmergencyHotline]. With a
+/// [cache], a failure of any kind returns the saved list instead, if there
+/// is one: emergency numbers are wanted most when the network isn't there.
+Future<HotlineList> fetchHotlines({required String city, String? lang, ResponseCache? cache}) async {
   final params = <String, String>{'city': city};
   if (lang != null) params['lang'] = lang;
   final uri = Uri.parse('$kApiBaseUrl/hotlines').replace(queryParameters: params);
-  final res = await http.get(uri).timeout(kHotlinesTimeout);
-  if (res.statusCode != 200) throw http.ClientException('HTTP ${res.statusCode}', uri);
-  final json = jsonDecode(res.body) as Map<String, dynamic>;
-  final raw = json['hotlines'];
-  final lines = [for (final e in raw is List ? raw : const []) ?Hotline.fromJson(e)];
-  if (lines.isEmpty) throw http.ClientException('no hotlines', uri);
-  return HotlineList(lines, checked: json['checked'] is String ? json['checked'] as String : null);
+  final (json, savedAt) = await fetchOrSaved(cache, replyKey('/hotlines', params), () async {
+    final res = await http.get(uri).timeout(kHotlinesTimeout);
+    if (res.statusCode != 200) throw http.ClientException('HTTP ${res.statusCode}', uri);
+    final json = jsonDecode(res.body) as Map<String, dynamic>;
+    final raw = json['hotlines'];
+    if (raw is! List || !raw.any((e) => Hotline.fromJson(e) != null)) throw http.ClientException('no hotlines', uri);
+    return json;
+  }, useSaved: (_) => true);
+  final raw = json['hotlines'] as List;
+  return HotlineList(
+    [for (final e in raw) ?Hotline.fromJson(e)],
+    checked: json['checked'] is String ? json['checked'] as String : null,
+    savedAt: savedAt,
+  );
 }

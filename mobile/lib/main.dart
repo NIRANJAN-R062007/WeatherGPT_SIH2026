@@ -1,7 +1,9 @@
 // WeatherGPT mobile — same product as web/: the shell and page set mirror
 // web/src/ (lib/components/app_shell.dart); the look follows the selected
 // persona (lib/persona_theme.dart). Every page reads live orchestrator data:
-// /facts, /ask, /asr, /tts and /warnings.
+// /facts, /ask, /asr, /tts and /warnings. Weather, warnings and emergency
+// numbers are also saved on the phone and shown, marked as saved, when the
+// backend can't be reached (lib/response_cache.dart).
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -17,6 +19,7 @@ import 'pages/home_page.dart';
 import 'pages/onboarding_pages.dart';
 import 'pages/settings_page.dart';
 import 'persona_theme.dart';
+import 'response_cache.dart';
 import 'state/auth_store.dart';
 import 'state/prefs_store.dart';
 import 'state/ui_prefs.dart';
@@ -57,15 +60,25 @@ class WeatherGptApp extends StatefulWidget {
 
   /// Where the city list comes from (GET /cities); tests pass a stub.
   final CitiesFetcher citiesFetcher;
-  const WeatherGptApp({super.key, this.auth, this.prefsStore, this.citiesFetcher = fetchCities});
+
+  /// Where replies are saved for offline use; tests pass one in memory.
+  final ResponseCache? responseCache;
+  const WeatherGptApp({
+    super.key,
+    this.auth,
+    this.prefsStore,
+    this.citiesFetcher = fetchCities,
+    this.responseCache,
+  });
 
   @override
   State<WeatherGptApp> createState() => _WeatherGptAppState();
 }
 
-class _WeatherGptAppState extends State<WeatherGptApp> {
+class _WeatherGptAppState extends State<WeatherGptApp> with WidgetsBindingObserver {
   final UiPrefs _prefs = UiPrefs();
-  final WeatherStore _weather = WeatherStore();
+  late final ResponseCache _cache = widget.responseCache ?? FileResponseCache();
+  late final WeatherStore _weather = WeatherStore(cache: _cache);
   late final AuthStore _auth = widget.auth ?? AuthStore();
   late final PrefsStore _prefsStore = widget.prefsStore ?? FilePrefsStore();
 
@@ -76,6 +89,7 @@ class _WeatherGptAppState extends State<WeatherGptApp> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     if (_auth.status == AuthStatus.restoring) _auth.restore();
     // The hero and Forecast share one /facts load, redone on a city or
     // language change (condition labels come back localized).
@@ -115,8 +129,15 @@ class _WeatherGptAppState extends State<WeatherGptApp> {
     _prefsStore.write(now);
   }
 
+  /// Back in the foreground with saved data showing: try the backend again.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && _weather.savedAt != null) _weather.refresh();
+  }
+
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _prefs.removeListener(_onPrefsChanged);
     _prefs.dispose();
     _weather.dispose();
@@ -132,38 +153,41 @@ class _WeatherGptAppState extends State<WeatherGptApp> {
         prefs: _prefs,
         child: WeatherScope(
           store: _weather,
-          // The selected persona is the app-wide theme: a persona change
-          // rebuilds the theme and MaterialApp cross-fades every page to it.
-          child: ListenableBuilder(
-            listenable: _prefs,
-            builder: (context, home) => MaterialApp(
-              title: 'WeatherGPT',
-              debugShowCheckedModeBanner: false,
-              theme: buildAppTheme(personaThemeFor(_prefs.persona)),
-              darkTheme: buildAppTheme(personaThemeFor(_prefs.persona, Brightness.dark)),
-              themeMode: _prefs.themeMode,
-              themeAnimationDuration: const Duration(milliseconds: 350),
-              // The app's own text goes through tr(); this puts Flutter's own
-              // (the text-selection menu, back-button tooltips, …) in the
-              // same language.
-              locale: Locale(_prefs.lang),
-              supportedLocales: [for (final lang in kSupportedLanguages) Locale(lang)],
-              localizationsDelegates: GlobalMaterialLocalizations.delegates,
-              // Status-bar and navigation-bar icons follow light / dark.
-              builder: (context, child) {
-                final t = PersonaTheme.of(context);
-                return AnnotatedRegion<SystemUiOverlayStyle>(
-                  value: (t.isDark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark).copyWith(
-                    statusBarColor: Colors.transparent,
-                    systemNavigationBarColor: t.navBar,
-                    systemNavigationBarIconBrightness: t.isDark ? Brightness.light : Brightness.dark,
-                  ),
-                  child: child!,
-                );
-              },
-              home: home,
+          child: ResponseCacheScope(
+            cache: _cache,
+            // The selected persona is the app-wide theme: a persona change
+            // rebuilds the theme and MaterialApp cross-fades every page to it.
+            child: ListenableBuilder(
+              listenable: _prefs,
+              builder: (context, home) => MaterialApp(
+                title: 'WeatherGPT',
+                debugShowCheckedModeBanner: false,
+                theme: buildAppTheme(personaThemeFor(_prefs.persona)),
+                darkTheme: buildAppTheme(personaThemeFor(_prefs.persona, Brightness.dark)),
+                themeMode: _prefs.themeMode,
+                themeAnimationDuration: const Duration(milliseconds: 350),
+                // The app's own text goes through tr(); this puts Flutter's own
+                // (the text-selection menu, back-button tooltips, …) in the
+                // same language.
+                locale: Locale(_prefs.lang),
+                supportedLocales: [for (final lang in kSupportedLanguages) Locale(lang)],
+                localizationsDelegates: GlobalMaterialLocalizations.delegates,
+                // Status-bar and navigation-bar icons follow light / dark.
+                builder: (context, child) {
+                  final t = PersonaTheme.of(context);
+                  return AnnotatedRegion<SystemUiOverlayStyle>(
+                    value: (t.isDark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark).copyWith(
+                      statusBarColor: Colors.transparent,
+                      systemNavigationBarColor: t.navBar,
+                      systemNavigationBarIconBrightness: t.isDark ? Brightness.light : Brightness.dark,
+                    ),
+                    child: child!,
+                  );
+                },
+                home: home,
+              ),
+              child: const _AuthGate(),
             ),
-            child: const _AuthGate(),
           ),
         ),
       ),

@@ -15,6 +15,7 @@ import 'package:weathergpt/components/app_shell.dart';
 import 'package:weathergpt/facts_client.dart';
 import 'package:weathergpt/format.dart';
 import 'package:weathergpt/main.dart';
+import 'package:weathergpt/response_cache.dart';
 import 'package:weathergpt/state/auth_store.dart';
 import 'package:weathergpt/state/prefs_store.dart';
 import 'package:weathergpt/ui_strings.dart';
@@ -171,7 +172,13 @@ Future<void> _settle(WidgetTester tester) async {
 /// The app, signed in as a guest, against [backend]; [lang] preselected.
 Future<void> _boot(WidgetTester tester, MockClient backend, {String lang = 'en'}) async {
   await tester.pumpWidget(
-    WeatherGptApp(auth: await _guest(), prefsStore: MemoryPrefsStore({'lang': lang}), citiesFetcher: () async => null),
+    WeatherGptApp(
+      auth: await _guest(),
+      prefsStore: MemoryPrefsStore({'lang': lang}),
+      citiesFetcher: () async => null,
+      // In memory: the app's file store can't finish under the test clock.
+      responseCache: MemoryResponseCache(),
+    ),
   );
   await _settle(tester);
 }
