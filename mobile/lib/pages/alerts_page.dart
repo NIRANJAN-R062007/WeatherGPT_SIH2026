@@ -21,6 +21,7 @@ import '../components/common.dart';
 import '../components/scenery.dart';
 import '../components/surfaces.dart';
 import '../format.dart';
+import '../glossary_client.dart';
 import '../hotlines_client.dart';
 import '../state/ui_prefs.dart';
 import '../persona_theme.dart';
@@ -53,6 +54,10 @@ class _AlertsPageState extends State<AlertsPage> {
   HotlineList? _hotlines;
   bool _hotlinesFailed = false;
 
+  /// GET /glossary in the app language: the colour legend's words; null
+  /// until (or unless) it answers, and /warnings' own legend stands in.
+  Glossary? _glossary;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -77,7 +82,17 @@ class _AlertsPageState extends State<AlertsPage> {
     _savedAt = null;
     _hotlinesFailed = false;
     final id = ++_requestId;
-    return Future.wait([_fetch(id, city, lang), _fetchHotlines(id, city, lang)]);
+    return Future.wait([_fetch(id, city, lang), _fetchHotlines(id, city, lang), _fetchGlossary(id, lang)]);
+  }
+
+  Future<void> _fetchGlossary(int id, String lang) async {
+    try {
+      final glossary = await fetchGlossary(lang: lang, cache: ResponseCacheScope.of(context));
+      if (!mounted || id != _requestId) return;
+      setState(() => _glossary = glossary);
+    } catch (_) {
+      // /warnings' own legend stands in.
+    }
   }
 
   Future<void> _fetchHotlines(int id, String city, String lang) async {
@@ -167,12 +182,13 @@ class _AlertsPageState extends State<AlertsPage> {
         else if (verdictNow)
           _Verdict(
             data!,
+            glossary: _glossary,
             active: active,
             expanded: _showDetails,
             onToggle: () => setState(() => _showDetails = !_showDetails),
           )
         else if (data != null)
-          _NoVerdict(data),
+          _NoVerdict(data, glossary: _glossary),
         const SizedBox(height: AppSpace.lg),
         const SectionTitle('Active Alerts'),
         const SizedBox(height: AppSpace.sm),
@@ -218,7 +234,8 @@ class _AlertsPageState extends State<AlertsPage> {
 /// deliberately neutral, never green — no verdict is not an all-clear.
 class _NoVerdict extends StatelessWidget {
   final Map<String, dynamic> data;
-  const _NoVerdict(this.data);
+  final Glossary? glossary;
+  const _NoVerdict(this.data, {this.glossary});
 
   @override
   Widget build(BuildContext context) {
@@ -258,7 +275,7 @@ class _NoVerdict extends StatelessWidget {
             style: AppText.bodyMd.copyWith(color: t.onSurface),
           ),
           const SizedBox(height: AppSpace.sm),
-          WarningLegend(rows: data['legend']),
+          _Legend(data, glossary: glossary),
         ],
       ),
     );
@@ -272,7 +289,14 @@ class _Verdict extends StatelessWidget {
   final bool active;
   final bool expanded;
   final VoidCallback onToggle;
-  const _Verdict(this.data, {required this.active, required this.expanded, required this.onToggle});
+  final Glossary? glossary;
+  const _Verdict(
+    this.data, {
+    required this.active,
+    required this.expanded,
+    required this.onToggle,
+    this.glossary,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -370,7 +394,7 @@ class _Verdict extends StatelessWidget {
               Text(s('advice'), style: AppText.bodyMd.copyWith(color: t.inkMuted)),
             ],
             const SizedBox(height: AppSpace.md),
-            WarningLegend(rows: data['legend'], highlight: colour),
+            _Legend(data, glossary: glossary, highlight: colour),
             const SizedBox(height: AppSpace.sm),
             Container(
               padding: const EdgeInsets.only(top: AppSpace.xs),
@@ -406,6 +430,33 @@ class _Verdict extends StatelessWidget {
           ],
         ],
       ),
+    );
+  }
+}
+
+/// The IMD colour legend from GET /glossary (the shared, reviewed-or-not
+/// wording) when it answered, else /warnings' own; a translation no native
+/// speaker has checked yet is marked as such.
+class _Legend extends StatelessWidget {
+  final Map<String, dynamic> data;
+  final Glossary? glossary;
+  final String? highlight;
+  const _Legend(this.data, {this.glossary, this.highlight});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
+    final fromGlossary = glossary?.legend;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        WarningLegend(rows: fromGlossary ?? data['legend'], highlight: highlight),
+        if (fromGlossary != null && !glossary!.legendReviewed)
+          Text(
+            tr(context, 'These translations have not been reviewed by a native speaker yet.'),
+            style: AppText.bodySm.copyWith(color: t.inkMuted),
+          ),
+      ],
     );
   }
 }
