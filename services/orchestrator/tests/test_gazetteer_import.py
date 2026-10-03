@@ -19,7 +19,6 @@ _SCRIPT = config.REPO_ROOT / "scripts" / "import_geonames.py"
 _GAZETTEER = config.DATA_DIR / "gazetteer" / "in_places.json.gz"
 _MIGRATION = weather_store._MIGRATIONS_DIR / "006_cities_gazetteer.sql"
 
-_SCRIPT_STEP = pytest.mark.xfail(strict=True, reason="step 1: import script")
 _FILE_STEP = pytest.mark.xfail(strict=True, reason="step 1: generated gazetteer file")
 
 DEMO_PLACE_IDS = {
@@ -58,7 +57,6 @@ def test_every_demo_city_carries_its_geonames_place_id():
 
 # --- import script ----------------------------------------------------------------
 
-@_SCRIPT_STEP
 @pytest.mark.parametrize("lang,name,ok", [
     ("en", "Tiruchirappalli", True),
     ("en", "Bilāspur", True),          # Latin with diacritics is still Latin
@@ -75,7 +73,6 @@ def test_script_check_per_language(lang, name, ok):
     assert _script().script_ok(lang, name) is ok
 
 
-@_SCRIPT_STEP
 def test_clean_names_drops_junk_and_counts_it():
     raw = [
         ("en", "Trichy"), ("en", "trichy"),          # duplicate, case-insensitive
@@ -119,7 +116,6 @@ def _write_geonames(tmp_path):
         + row("IN.25.603", "Chennai", "Chennai", 1264526), encoding="utf-8")
 
 
-@_SCRIPT_STEP
 def test_build_keeps_india_only_and_maps_demo_cities(tmp_path):
     _write_geonames(tmp_path)
     records, _ = _script().build(tmp_path)
@@ -136,7 +132,6 @@ def test_build_keeps_india_only_and_maps_demo_cities(tmp_path):
     assert "Madras" in by_id["gn:1264527"]["names"]["en"]
 
 
-@_SCRIPT_STEP
 def test_written_file_round_trips(tmp_path):
     _write_geonames(tmp_path)
     mod = _script()
@@ -166,7 +161,6 @@ class _Engine:
             self.rows.append(params)
 
 
-@_SCRIPT_STEP
 def test_sync_places_upserts_names_text_and_keys_demo_rows_by_city(monkeypatch, tmp_path):
     _write_geonames(tmp_path)
     records, _ = _script().build(tmp_path)
