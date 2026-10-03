@@ -297,12 +297,13 @@ def test_ollama_status_no_model_configured(monkeypatch):
 
 _EXPECTED_NLU_GEMINI_SCHEMA = {
     "type": "OBJECT",
-    "propertyOrdering": ["intent", "city", "time_window", "days", "parameter",
+    "propertyOrdering": ["intent", "city", "here", "time_window", "days", "parameter",
                          "language", "confidence"],
     "required": ["intent", "city", "time_window", "days", "parameter", "language", "confidence"],
     "properties": {
         "intent": {"type": "STRING", "enum": list(nlu.INTENTS)},
         "city": {"type": "STRING", "nullable": True},
+        "here": {"type": "BOOLEAN"},
         "time_window": {"type": "STRING", "enum": list(nlu.TIME_WINDOWS)},
         "days": {"type": "INTEGER", "nullable": True},
         "parameter": {"type": "STRING", "enum": list(nlu.PARAMETERS)},
@@ -312,6 +313,7 @@ _EXPECTED_NLU_GEMINI_SCHEMA = {
 }
 
 
+@pytest.mark.xfail(strict=True, reason="step 3: NLU schema gains 'here'")
 def test_gemini_schema_matches_expected_nlu_schema():
     assert narrate.gemini_schema(nlu._NLU_SCHEMA) == _EXPECTED_NLU_GEMINI_SCHEMA
 
