@@ -6,13 +6,17 @@
 // colour, with its legend and provenance under "View details". The feed
 // carries one warning per city, so the list holds at most that one; the
 // mockup's humidity / air-quality rows have no endpoint behind them.
+// Emergency numbers (GET /hotlines) follow, tap to dial; 112 shows even
+// when the list can't be fetched.
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../components/ask_answer.dart';
 import '../components/common.dart';
 import '../components/scenery.dart';
 import '../components/surfaces.dart';
 import '../format.dart';
+import '../hotlines_client.dart';
 import '../state/ui_prefs.dart';
 import '../persona_theme.dart';
 import '../theme.dart';
@@ -35,6 +39,11 @@ class _AlertsPageState extends State<AlertsPage> {
   WarningsError? _error;
   int _requestId = 0;
 
+  /// GET /hotlines: null while loading; [_hotlinesFailed] when it couldn't
+  /// be had, and only 112 is shown.
+  HotlineList? _hotlines;
+  bool _hotlinesFailed = false;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -50,12 +59,29 @@ class _AlertsPageState extends State<AlertsPage> {
     if (city != _city) {
       _data = null;
       _showDetails = false;
+      _hotlines = null;
     }
     _city = city;
     _lang = lang;
     _loading = true;
     _error = null;
-    return _fetch(++_requestId, city, lang);
+    _hotlinesFailed = false;
+    final id = ++_requestId;
+    return Future.wait([_fetch(id, city, lang), _fetchHotlines(id, city, lang)]);
+  }
+
+  Future<void> _fetchHotlines(int id, String city, String lang) async {
+    try {
+      final list = await fetchHotlines(city: city, lang: lang);
+      if (!mounted || id != _requestId) return;
+      setState(() => _hotlines = list);
+    } catch (_) {
+      if (!mounted || id != _requestId) return;
+      setState(() {
+        _hotlines = null;
+        _hotlinesFailed = true;
+      });
+    }
   }
 
   Future<void> _fetch(int id, String city, String lang) async {
@@ -145,6 +171,10 @@ class _AlertsPageState extends State<AlertsPage> {
               ],
             ),
           ),
+        const SizedBox(height: AppSpace.lg),
+        const SectionTitle('Emergency numbers'),
+        const SizedBox(height: AppSpace.sm),
+        _Hotlines(list: _hotlines, failed: _hotlinesFailed),
         const SizedBox(height: AppSpace.lg),
         InfoBanner(
           icon: prefs.personaInfo.icon,
@@ -370,6 +400,78 @@ class _AlertRow extends StatelessWidget {
       subtitle: data['city_name'] as String? ?? cityLabel(data['city'] as String?),
       detail: s('valid_to').isEmpty ? null : tr(context, 'Until {time}', {'time': istTimestamp(s('valid_to'))}),
       onTap: onTap,
+    );
+  }
+}
+
+/// The city's emergency numbers, each a row that opens the dialer; 112
+/// alone (with a note saying why) until or unless the list arrives.
+class _Hotlines extends StatelessWidget {
+  final HotlineList? list;
+  final bool failed;
+  const _Hotlines({required this.list, required this.failed});
+
+  Future<void> _dial(BuildContext context, Hotline line) async {
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    final lang = langOf(context);
+    var opened = false;
+    try {
+      opened = await launchUrl(Uri(scheme: 'tel', path: line.dial));
+    } catch (_) {}
+    if (!opened) {
+      messenger?.showSnackBar(
+        SnackBar(
+          content: Text(trIn(lang, "Couldn't open the phone app. Dial {number} yourself.", {'number': line.number})),
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = PersonaTheme.of(context);
+    final lang = langOf(context);
+    final lines = list?.lines ?? const [kEmergencyHotline];
+    final checked = DateTime.tryParse(list?.checked ?? '');
+    final String? footnote = failed
+        ? tr(context, "Couldn't load the local numbers. 112 works anywhere in India.")
+        : checked == null
+        ? null
+        : tr(context, 'Checked against official government pages on {date}.', {
+            'date': '${dayMonth(checked, lang)} ${checked.year}',
+          });
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final line in lines) ...[
+          Semantics(
+            button: true,
+            label: tr(context, 'Call {name}, {number}', {'name': tr(context, line.name), 'number': line.number}),
+            excludeSemantics: true,
+            child: ActionRow(
+              icon: line.dial == '112' ? Icons.emergency_outlined : Icons.support_agent,
+              iconColor: line.dial == '112' ? Theme.of(context).colorScheme.error : null,
+              title: line.name,
+              subtitle: line.note.isEmpty ? null : line.note,
+              onTap: () => _dial(context, line),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    line.number,
+                    style: AppText.labelMd.copyWith(color: t.primary, fontWeight: FontWeight.w700, fontSize: 15),
+                  ),
+                  const SizedBox(width: 6),
+                  Icon(Icons.call, size: 18, color: t.primary),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: AppSpace.sm),
+        ],
+        if (footnote != null) Text(footnote, style: AppText.bodySm.copyWith(color: t.inkMuted)),
+      ],
     );
   }
 }

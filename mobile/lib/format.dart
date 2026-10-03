@@ -11,6 +11,7 @@ import 'i18n.dart';
 
 const Duration _istOffset = Duration(hours: 5, minutes: 30);
 const _months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const _weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 DateTime nowIst() => DateTime.now().toUtc().add(_istOffset);
 
@@ -36,12 +37,52 @@ String istTime(String? iso) {
   return '${_two(d.hour)}:${_two(d.minute)} IST';
 }
 
+/// "13:49" — [istTime] without the zone, for tight rows; '' if unparseable.
+String istClock(String? iso) {
+  final d = _parseIst(iso);
+  return d == null ? '' : '${_two(d.hour)}:${_two(d.minute)}';
+}
+
+/// Minutes past IST midnight of [iso], for placing it on a day's timeline.
+int? istMinuteOfDay(String? iso) {
+  final d = _parseIst(iso);
+  return d == null ? null : d.hour * 60 + d.minute;
+}
+
 /// "27 Sep" for [iso], or for today + [fallbackOffsetDays] when [iso] is
 /// missing; the month in [lang].
 String istDayMonth(String? iso, {int fallbackOffsetDays = 0, String lang = 'en'}) {
   final d = _parseIst(iso) ?? nowIst().add(Duration(days: fallbackOffsetDays));
   return '${d.day} ${trIn(lang, _months[d.month - 1])}';
 }
+
+/// "27 Sep" for a calendar [date], the month in [lang].
+String dayMonth(DateTime date, String lang) => '${date.day} ${trIn(lang, _months[date.month - 1])}';
+
+/// A forecast day's name in [lang]: "Today" and "Tomorrow" by the backend's
+/// [label], else the short weekday of [date] ("Mon").
+String forecastDayName(String label, DateTime? date, String lang) {
+  if (label == 'today') return trIn(lang, 'Today');
+  if (label == 'tomorrow') return trIn(lang, 'Tomorrow');
+  return date == null ? trIn(lang, 'Later') : trIn(lang, _weekdays[date.weekday - 1]);
+}
+
+/// "11 h 59 min".
+String hoursMinutes(Duration d, String lang) => trIn(lang, '{h} h {m} min', {'h': d.inHours, 'm': d.inMinutes % 60});
+
+/// IMD rain categories (data/decoders/precipitation_categories.json) as
+/// ui_strings.json keys; null for a key this table doesn't know.
+String? rainCategoryLabel(String? key) => const {
+  'no_rain': 'No rain',
+  'light': 'Light rain',
+  'moderate': 'Moderate rain',
+  'heavy': 'Heavy rain',
+  'very_heavy': 'Very heavy rain',
+  'extremely_heavy': 'Extremely heavy rain',
+}[key];
+
+/// "0.6 mm": one decimal below 10 mm, whole millimetres above.
+String millimetres(num mm) => '${mm < 10 ? mm.toStringAsFixed(1) : mm.round()} mm';
 
 /// Resolved city keys come back lowercase ("chennai"); use the bundled
 /// display name, falling back to capitalising a key cities.dart lacks.
