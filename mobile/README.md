@@ -165,6 +165,10 @@ the work sits:
    - ✅ "Use my location": the permission prompt, the near note ("about 4 km")
      and the far note ("about 1755 km"). Driven with `adb shell cmd location
      providers` test locations; `adb emu geo fix` didn't move this emulator.
+   - ✅ With no fix and nothing cached (test providers that never report, and
+     Play services force-stopped to drop its cached location), "Use my
+     location" stops after the 15 s limit and says "Couldn't get a location
+     fix in time…", in English and in Hindi; the city is unchanged.
    - ✅ The mic permission prompt, recording, and the `/asr` round trip; a
      silent recording now says "Didn't catch any audio" instead of being
      asked. Listen played `/tts` audio (about 4 s, not listened to).
@@ -178,7 +182,6 @@ the work sits:
      against the live Supabase project (needs a real account)
    - the mic with real speech, and hearing the `/tts` playback
    - the soft keyboard on a small screen (it never appeared on the emulator)
-   - the 15 s location time limit with no fix at all (unit-tested only)
    - after the redeploy (item 1): 8 cities, Alerts, Airport weather (Aviation
      persona), Best Time & What-if
 3. ~~**Ship the backend URL with the build.**~~ ✅ Done (2026-10-03). A release
