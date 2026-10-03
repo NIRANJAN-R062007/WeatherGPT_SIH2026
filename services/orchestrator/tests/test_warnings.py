@@ -385,10 +385,11 @@ def test_ask_warnings_never_narrates_or_runs_the_guardrail(_warnings_enabled, mo
     assert body["status"] == "active" and body["grounding"]["attempts"] == 0
 
 
+@pytest.mark.xfail(strict=True, reason="step 3: no location -> need_location reply")
 def test_ask_warnings_no_city_is_a_refusal():
     body = _ask("is there any warning?")
     assert body["intent"] == "warnings"
-    assert body["message"] == main._msg("no_city", "en")
+    assert body["message"] == main._msg("need_location", "en")
     assert "status" not in body and "city" not in body
 
 
