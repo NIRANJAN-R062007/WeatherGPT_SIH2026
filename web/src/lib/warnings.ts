@@ -14,6 +14,7 @@
 
 import { useCallback, useRef, useState } from 'react';
 import { API_BASE_URL, type LegendRow, type WarningDetail } from './api';
+import { fetchOrSaved, replyKey, type Json } from './responseCache';
 
 // /warnings does no LLM/narration work — it's a fixture/cache lookup — so a
 // much shorter timeout than /ask's 30s is appropriate.
@@ -46,7 +47,11 @@ export interface WarningsVerdict {
   legend: LegendRow[];
 }
 
-export type WarningsRouteResponse = WarningsUnavailable | WarningsVerdict;
+export type WarningsRouteResponse = (WarningsUnavailable | WarningsVerdict) & {
+  /** When this reply was saved, if it's a saved copy rather than fresh. A
+   *  saved verdict is old news: show it as that, never as the current state. */
+  savedAt?: Date | null;
+};
 
 // ---------------------------------------------------------------------------
 // The call
@@ -78,9 +83,28 @@ export interface WarningsParams {
   lang?: string;
 }
 
+/** The warnings service couldn't be reached (no connection, a timeout, a
+ *  5xx), so a saved reply may stand in; a 404 or a malformed reply may not. */
+const isOutage = (err: unknown) =>
+  err instanceof WarningsError &&
+  (err.kind === 'network' || err.kind === 'timeout' || (err.kind === 'http' && (err.status ?? 0) >= 500));
+
+/** The reply, saved in the browser; when the service can't be reached, the
+ *  saved reply with `savedAt` set (lib/responseCache.ts). */
 export async function fetchWarnings({ city, lang }: WarningsParams): Promise<WarningsRouteResponse> {
-  const params = new URLSearchParams({ city });
-  if (lang) params.set('lang', lang);
+  const query: Record<string, string> = { city };
+  if (lang) query.lang = lang;
+  const { body, savedAt } = await fetchOrSaved(replyKey('/warnings', query), () => fetchVerdict(query), isOutage);
+  // An older orchestrator (still what some deployments run) sends only
+  // `warning`, no `status` / `legend` — derive them the way the mobile app
+  // does: no warning is "unavailable" (never an all-clear), green is clear.
+  const p = body as Partial<WarningsVerdict> & Pick<WarningsRouteResponse, 'city' | 'city_name'>;
+  const status = p.status ?? (!p.warning ? 'unavailable' : p.warning.colour === 'green' ? 'clear' : 'active');
+  return { ...p, status, legend: p.legend ?? [], savedAt } as WarningsRouteResponse;
+}
+
+async function fetchVerdict(query: Record<string, string>): Promise<Json> {
+  const params = new URLSearchParams(query);
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), WARNINGS_TIMEOUT_MS);
@@ -102,12 +126,7 @@ export async function fetchWarnings({ city, lang }: WarningsParams): Promise<War
     if (payload === null || typeof payload !== 'object' || !('warning' in payload)) {
       throw new WarningsError('malformed', "The warnings service's reply didn't look like a verdict.");
     }
-    // An older orchestrator (still what some deployments run) sends only
-    // `warning`, no `status` / `legend` — derive them the way the mobile app
-    // does: no warning is "unavailable" (never an all-clear), green is clear.
-    const p = payload as Partial<WarningsVerdict> & Pick<WarningsRouteResponse, 'city' | 'city_name'>;
-    const status = p.status ?? (!p.warning ? 'unavailable' : p.warning.colour === 'green' ? 'clear' : 'active');
-    return { ...p, status, legend: p.legend ?? [] } as WarningsRouteResponse;
+    return payload as Json;
   } catch (err) {
     if (err instanceof WarningsError) throw err;
     if (err instanceof Error && err.name === 'AbortError') {

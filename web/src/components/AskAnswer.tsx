@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { CITIES } from '../data/cities';
+import { cityLabel } from '../data/cities';
 import type {
   AskError,
   AskOutcome,
@@ -9,16 +9,8 @@ import type {
   WeatherProvenance,
 } from '../lib/api';
 import { COLOUR_BAR, COLOUR_TEXT, istTimestamp } from '../lib/warningUi';
+import { PillButton } from './ui';
 import { useT } from '../lib/i18n';
-
-/** Resolved city keys come back lowercase ("chennai"); data/cities.ts already
- *  mirrors data/cities.json, so use its English display name and only fall
- *  back to capitalising the key for a city this bundle doesn't list yet. */
-function cityLabel(key: string) {
-  const match = CITIES.find((c) => c.key === key);
-  if (match) return match.name;
-  return key.charAt(0).toUpperCase() + key.slice(1);
-}
 
 /** Where an answer is for. A demo city: its English name (the caller
  *  translates it). Any other place: the backend's `location.label`, already
@@ -86,7 +78,7 @@ function WeatherProvenanceFooter({ p, g }: { p: WeatherProvenance; g: Grounding 
       </span>
       {p.issued && <span>{t('Issued {time}', { time: istTimestamp(p.issued) })}</span>}
       <span>{t('Retrieved {time}', { time: istTimestamp(p.retrieved_at) })}</span>
-      <span className="text-outline">
+      <span className="text-ink-muted">
         {g.narration} · {g.provider}
         {g.attempts > 1 ? ` · ${t('{n} attempts', { n: g.attempts })}` : ''}
         {g.fallback_used ? ` · ${t('fell back to template')}` : ''}
@@ -159,12 +151,23 @@ export interface AskAnswerProps {
   /** Re-ask with a tapped place_id when the reply is `ambiguous`. Without it
    *  the candidates are listed but not tappable. */
   onPickPlace?: (placeId: string) => void;
+  /** Share the browser's location and re-ask, when the reply is
+   *  `needs_location` (no place named, none shared). */
+  onUseLocation?: () => void;
 }
 
 /** Renders one /ask result. Every branch main.py can return gets its own
  *  treatment — in particular a refusal carries `message`, not `response`, and
  *  an unavailable warning is never shown as an all-clear. */
-export default function AskAnswer({ asked, loading, outcome, error, detail = false, onPickPlace }: AskAnswerProps) {
+export default function AskAnswer({
+  asked,
+  loading,
+  outcome,
+  error,
+  detail = false,
+  onPickPlace,
+  onUseLocation,
+}: AskAnswerProps) {
   const t = useT();
   if (!loading && !outcome && !error) return null;
 
@@ -298,7 +301,7 @@ export default function AskAnswer({ asked, loading, outcome, error, detail = fal
                 to: istTimestamp(outcome.data.provenance.valid_to),
               })}
             </span>
-            <span className="text-outline">
+            <span className="text-ink-muted">
               {t('verbatim')} · {outcome.data.grounding.provider}
             </span>
           </div>
@@ -367,7 +370,13 @@ export default function AskAnswer({ asked, loading, outcome, error, detail = fal
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="flex items-center gap-1 font-label-md text-label-md font-bold text-on-surface-variant">
               <span className="material-symbols-outlined text-[18px]">info</span>
-              {t('No answer')}
+              {t(
+                outcome.data.ambiguous?.length
+                  ? 'Which place?'
+                  : outcome.data.not_found
+                    ? 'Place not found'
+                    : 'No answer',
+              )}
             </span>
             <Chip tone="primary">{t(outcome.data.intent.replace(/_/g, ' ').toUpperCase())}</Chip>
             {/* Only the no_data branch carries a resolved city key. */}
@@ -409,6 +418,23 @@ export default function AskAnswer({ asked, loading, outcome, error, detail = fal
                   )}
                 </button>
               ))}
+            </div>
+          )}
+
+          {/* Not in the gazetteer: offer the nearest known place, never
+              answered for it unasked. */}
+          {outcome.data.not_found && outcome.data.nearest && onPickPlace && (
+            <div>
+              <PillButton
+                icon="near_me"
+                label={t('Use {place}', { place: outcome.data.nearest.label })}
+                onClick={() => onPickPlace(outcome.data.nearest!.place_id)}
+              />
+            </div>
+          )}
+          {outcome.data.needs_location && onUseLocation && (
+            <div>
+              <PillButton icon="my_location" label="Use my location" onClick={onUseLocation} />
             </div>
           )}
         </div>

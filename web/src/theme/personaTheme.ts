@@ -74,6 +74,8 @@ export interface PersonaTheme {
 
   /** Bottom navigation. */
   navBar: string;
+  /** Idle bottom-bar icons and labels. The labels are 11 px, so this keeps
+   *  at least 4.5:1 (WCAG AA) against navBar (mobile persona_theme.dart). */
   navIdle: string;
 
   /** Painted scenery: far and near silhouettes, lit windows / highlights,
@@ -145,7 +147,7 @@ export const PERSONA_THEMES: Record<string, PersonaTheme> = {
     surfaceContainerLow: '#F0F5FE',
     surfaceContainer: '#E6EEFC',
     surfaceContainerHigh: '#DCE7FA',
-    navIdle: '#6B7A93',
+    navIdle: '#65738A',
     skylineFar: '#B3D0F3',
     skylineNear: '#5E9BE6',
     skylineWindow: '#E3EEFC',
@@ -183,7 +185,7 @@ export const PERSONA_THEMES: Record<string, PersonaTheme> = {
     surfaceContainerLow: '#EFF7EC',
     surfaceContainer: '#E3F1DE',
     surfaceContainerHigh: '#D7EBD1',
-    navIdle: '#6A8270',
+    navIdle: '#617766',
     skylineFar: '#B5DBA3',
     skylineNear: '#8CC152',
     skylineWindow: '#E6F3B4',
@@ -221,7 +223,7 @@ export const PERSONA_THEMES: Record<string, PersonaTheme> = {
     surfaceContainerLow: '#EDF5FC',
     surfaceContainer: '#E0EDF9',
     surfaceContainerHigh: '#D5E6F6',
-    navIdle: '#667C93',
+    navIdle: '#60748A',
     skylineFar: '#A9CDEB',
     skylineNear: '#7FB2DE',
     skylineWindow: '#FFFFFF',
@@ -260,7 +262,7 @@ export const PERSONA_THEMES: Record<string, PersonaTheme> = {
     surfaceContainerLow: '#F5F0FE',
     surfaceContainer: '#EDE6FC',
     surfaceContainerHigh: '#E4DBF9',
-    navIdle: '#79739A',
+    navIdle: '#736D96',
     skylineFar: '#D1C1F0',
     skylineNear: '#9A82DC',
     skylineWindow: '#F5EEFF',
@@ -298,7 +300,7 @@ export const PERSONA_THEMES: Record<string, PersonaTheme> = {
     surfaceContainerLow: '#ECF7F7',
     surfaceContainer: '#DFF1F1',
     surfaceContainerHigh: '#D3EBEB',
-    navIdle: '#65807F',
+    navIdle: '#5D7675',
     skylineFar: '#ADD6DD',
     skylineNear: '#5AA6B8',
     skylineWindow: '#E1F4F6',

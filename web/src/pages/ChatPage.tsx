@@ -122,7 +122,7 @@ function UserBubble({ turn }: { turn: ChatTurn }) {
 
 /** The answer card: square bottom-left corner. */
 function AnswerBubble({ turn }: { turn: ChatTurn }) {
-  const { ask } = useChat();
+  const { ask, shareLocation } = useChat();
   return (
     <div className="mr-space-sm p-3 bg-card border border-card-border shadow-card rounded-2xl rounded-bl-none">
       <AskAnswer
@@ -132,6 +132,7 @@ function AnswerBubble({ turn }: { turn: ChatTurn }) {
         error={turn.error}
         detail
         onPickPlace={(placeId) => ask(turn.question, { placeId })}
+        onUseLocation={() => shareLocation(turn.question)}
       />
     </div>
   );

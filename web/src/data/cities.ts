@@ -21,6 +21,15 @@ export const CITIES: City[] = [
   { key: 'thiruvananthapuram', name: 'Thiruvananthapuram', region: 'Kerala', lat: 8.5241, lon: 76.9366 },
 ];
 
+/** Resolved city keys come back lowercase ("chennai"); use the English
+ *  display name, and only fall back to capitalising the key for a city this
+ *  bundle doesn't list yet. */
+export function cityLabel(key: string) {
+  const match = CITIES.find((c) => c.key === key);
+  if (match) return match.name;
+  return key.charAt(0).toUpperCase() + key.slice(1);
+}
+
 /** /ask and /warnings take a city, not coordinates, so "use my location"
  *  means the nearest of these registered cities (mobile cities.dart). */
 export function nearestCity(lat: number, lon: number): City {

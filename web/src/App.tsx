@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { BrandMark } from './components/Brand';
 import Layout from './components/Layout';
+import AdvisoryPage from './pages/AdvisoryPage';
 import AlertsPage from './pages/AlertsPage';
 import AuthPage from './pages/AuthPage';
 import AviationPage from './pages/AviationPage';
@@ -66,6 +67,12 @@ function Gate() {
             {/* Airport weather is the Aviation persona's page only. */}
             <Route path="aviation" element={persona === 'aviation' ? <AviationPage /> : <Navigate to="/" replace />} />
             <Route path="best-window" element={<BestWindowPage />} />
+            <Route path="travel" element={<AdvisoryPage key="travel" kind="travel" />} />
+            {/* Sowing advice is the Farmer persona's page only. */}
+            <Route
+              path="sowing"
+              element={persona === 'farmer' ? <AdvisoryPage key="sowing" kind="sowing" /> : <Navigate to="/" replace />}
+            />
             <Route path="settings" element={<SettingsPage />} />
             <Route path="persona" element={<PersonaPage />} />
             <Route path="profile" element={<ProfilePage />} />

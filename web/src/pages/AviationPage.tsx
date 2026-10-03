@@ -67,7 +67,7 @@ function ReportCard({
                 {t(report.decoded.observed ? 'Observed' : 'Issued')} {stamp.time_ist} IST · {stamp.time_utc} UTC
               </span>
             )}
-            <span className="text-outline">
+            <span className="text-ink-muted">
               {t('source')}: {report.source}
             </span>
           </div>

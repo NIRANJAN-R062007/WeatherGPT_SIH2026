@@ -23,13 +23,15 @@ function BottomNav() {
             end={item.end}
             aria-label={t(item.label)}
             className={({ isActive }) =>
-              `flex-1 flex flex-col items-center justify-center gap-0.5 ${isActive ? 'text-primary' : 'text-nav-idle'}`
+              `flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 ${isActive ? 'text-primary' : 'text-nav-idle'}`
             }
           >
             {({ isActive }) => (
               <>
                 <Icon name={item.icon} size={25} fill={isActive} />
-                <span className={`text-[11px] leading-tight ${isActive ? 'font-bold' : 'font-medium'}`}>
+                {/* Cut short rather than run into the next label (Tamil at
+                    320 px); the link's aria-label carries the whole name. */}
+                <span className={`max-w-full truncate px-0.5 text-[11px] leading-tight ${isActive ? 'font-bold' : 'font-medium'}`}>
                   {t(item.short)}
                 </span>
               </>
