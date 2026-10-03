@@ -3,11 +3,17 @@ narration_facts(): the parameter-scoped subset of facts sent to the prompt
 (the guardrail always checks the FULL facts, never this trimmed dict).
 """
 
+import cities
 import pytest
 import router
 import weather_data
 from google_weather import FORECAST_DAYS
 from nlu import ParsedQuery
+
+# route() takes location.resolve_location()'s {lat, lon, label}, not a key.
+_CHENNAI = {"lat": cities.CITIES["chennai"].lat, "lon": cities.CITIES["chennai"].lon,
+            "label": "Chennai"}
+_LOC = pytest.mark.xfail(strict=True, reason="step 3: router takes a location")
 
 
 def _pq(**kw) -> ParsedQuery:
@@ -17,24 +23,28 @@ def _pq(**kw) -> ParsedQuery:
     return ParsedQuery(**base)
 
 
+@_LOC
 def test_current_weather_today():
-    data = router.route(_pq(intent="current_weather", time_window="today"), "chennai")
+    data = router.route(_pq(intent="current_weather", time_window="today"), _CHENNAI)
     assert data is not None and "temp_c" in data
 
 
+@_LOC
 def test_current_weather_tonight_and_tomorrow():
     for tw in ("tonight", "tomorrow"):
-        data = router.route(_pq(intent="current_weather", time_window=tw), "chennai")
+        data = router.route(_pq(intent="current_weather", time_window=tw), _CHENNAI)
         assert data is not None and "high_c" in data
 
 
+@_LOC
 def test_forecast_today():
-    data = router.route(_pq(intent="forecast", time_window="today"), "chennai")
+    data = router.route(_pq(intent="forecast", time_window="today"), _CHENNAI)
     assert data is not None and "high_c" in data
 
 
+@_LOC
 def test_day_after_tomorrow_resolves_with_five_day_fixture():
-    data = router.route(_pq(intent="forecast", time_window="day_after_tomorrow"), "chennai")
+    data = router.route(_pq(intent="forecast", time_window="day_after_tomorrow"), _CHENNAI)
     assert data is not None and "high_c" in data
 
 
@@ -44,12 +54,14 @@ def test_forecast_day_strict_none_beyond_fixture():
     assert weather_data.forecast_day("chennai", FORECAST_DAYS) is None
 
 
+@_LOC
 def test_will_it_rain_today_tonight_tomorrow():
     for tw in ("today", "tonight", "tomorrow"):
-        data = router.route(_pq(intent="will_it_rain", time_window=tw), "chennai")
+        data = router.route(_pq(intent="will_it_rain", time_window=tw), _CHENNAI)
         assert data is not None and "rain_probability_pct" in data
 
 
+@_LOC
 def test_forecast_next_n_days_caps_at_available():
     data = router.route(
         _pq(intent="forecast", time_window="next_n_days", days=7), "chennai"
@@ -57,6 +69,7 @@ def test_forecast_next_n_days_caps_at_available():
     assert data["days_counted"] == FORECAST_DAYS and data["days_requested"] == 7
 
 
+@_LOC
 def test_will_it_rain_next_n_days():
     data = router.route(
         _pq(intent="will_it_rain", time_window="next_n_days", days=2), "chennai"
@@ -64,41 +77,46 @@ def test_will_it_rain_next_n_days():
     assert data is not None and "days" in data
 
 
+@_LOC
 def test_rainfall_so_far_today_any_time_window():
-    data = router.route(_pq(intent="rainfall_so_far_today", time_window="tomorrow"), "chennai")
+    data = router.route(_pq(intent="rainfall_so_far_today", time_window="tomorrow"), _CHENNAI)
     assert data is not None and ("rain_so_far_mm" in data or "rain_last_24h_mm" in data)
 
 
+@_LOC
 def test_out_of_scope_returns_none():
-    data = router.route(_pq(intent="out_of_scope"), "chennai")
+    data = router.route(_pq(intent="out_of_scope"), _CHENNAI)
     assert data is None
 
 
+@_LOC
 def test_best_window_today_and_tomorrow():
     # WIE-4: route() resolves which weather_data call answers best_window —
     # the day's decoded hourly facts — never scores the window itself.
     for tw in ("today", "tomorrow"):
-        data = router.route(_pq(intent="best_window", time_window=tw), "chennai")
+        data = router.route(_pq(intent="best_window", time_window=tw), _CHENNAI)
         assert data is not None and "hours" in data
         assert data["day"] == tw
 
 
+@_LOC
 def test_best_window_other_time_windows_fall_back_to_today():
     # "tonight" / "day_after_tomorrow" / "next_n_days" aren't engine days;
     # route() normalises anything that isn't "tomorrow" to "today" rather
     # than asking weather_data.hourly_facts for a day it doesn't support.
     for tw in ("tonight", "day_after_tomorrow", "next_n_days"):
-        data = router.route(_pq(intent="best_window", time_window=tw), "chennai")
+        data = router.route(_pq(intent="best_window", time_window=tw), _CHENNAI)
         assert data is not None and data["day"] == "today"
 
 
+@_LOC
 def test_warnings_never_reaches_weather_data(monkeypatch):
     # main.py answers `warnings` from imd_warnings before routing; if it ever
     # got here it must not turn into a weather lookup.
     monkeypatch.setattr(weather_data, "get_weather",
                         lambda *a, **k: pytest.fail("weather_data called for warnings"))
-    assert router.route(_pq(intent="warnings"), "chennai") is None
-    assert router.route(_pq(intent="warnings", time_window="tomorrow"), "chennai") is None
+    assert router.route(_pq(intent="warnings"), _CHENNAI) is None
+    assert router.route(_pq(intent="warnings", time_window="tomorrow"), _CHENNAI) is None
 
 
 def test_legacy_day_passthrough():
@@ -117,24 +135,28 @@ def test_legacy_day_next_n_days_defaults_forecast_days():
     assert router.legacy_day(pq) == f"next_{google_weather.FORECAST_DAYS}_days"
 
 
+@_LOC
 def test_narration_facts_filters_temperature():
-    facts = router.route(_pq(intent="current_weather", time_window="today"), "chennai")
+    facts = router.route(_pq(intent="current_weather", time_window="today"), _CHENNAI)
     trimmed = router.narration_facts(facts, "temperature")
     assert "temp_c" in trimmed and "humidity_pct" not in trimmed
     assert "source" in trimmed  # meta preserved
 
 
+@_LOC
 def test_narration_facts_general_returns_full():
-    facts = router.route(_pq(intent="current_weather", time_window="today"), "chennai")
+    facts = router.route(_pq(intent="current_weather", time_window="today"), _CHENNAI)
     assert router.narration_facts(facts, "general") == facts
 
 
+@_LOC
 def test_narration_facts_falls_back_to_full_when_no_numeric_leaf():
-    facts = router.route(_pq(intent="current_weather", time_window="tomorrow"), "chennai")
+    facts = router.route(_pq(intent="current_weather", time_window="tomorrow"), _CHENNAI)
     trimmed = router.narration_facts(facts, "humidity")  # forecast facts have no humidity_pct
     assert trimmed == facts
 
 
+@_LOC
 def test_narration_facts_filters_multi_day():
     facts = router.route(
         _pq(intent="forecast", time_window="next_n_days", days=2), "chennai"
@@ -145,6 +167,7 @@ def test_narration_facts_filters_multi_day():
     assert trimmed["days_counted"] == facts["days_counted"]
 
 
+@_LOC
 def test_narration_facts_passes_day_labels_through_unchanged():
     # Labels are weather_data's canonical keys (weekday / "later"); the trim
     # must neither drop nor rewrite them — i18n and narrate render them.
