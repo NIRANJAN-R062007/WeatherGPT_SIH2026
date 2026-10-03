@@ -12,6 +12,8 @@ template.
 """
 
 import hmac
+import math
+import re
 from dataclasses import asdict
 from datetime import datetime, timezone
 
@@ -21,13 +23,16 @@ import bhashini
 import cities
 import config
 import glossary
+import google_weather
 import guardrail
 import history
 import hotlines
 import httpx
+import i18n
 import imd_warnings as warnings_module
 import ivr
 import limits
+import location
 import log_redaction
 import metar
 import metrics
@@ -225,14 +230,65 @@ def _city_list(lang: str) -> str:
     )
 
 
-def _msg(key: str, lang: str) -> str:
+def _msg(key: str, lang: str, **fields) -> str:
+    if key in i18n.LOCATION_MESSAGES:
+        return i18n.location_message(key, lang, **fields)
     template = _MESSAGES[key].get(lang, _MESSAGES[key]["en"])
-    return template.format(cities=_city_list(lang))
+    return template.format(cities=_city_list(lang), **fields)
 
 
-def _demo_point(key: str, lang: str) -> dict:
-    city = cities.CITIES[key]
-    return {"lat": city.lat, "lon": city.lon, "label": cities.display_name(key, lang)}
+_PLACE_ID_RE = re.compile(r"gn:\d{1,12}")
+
+
+def _checked_point(lat: float | None, lon: float | None) -> None:
+    """422 unless the point is both halves, finite and on the globe. A real
+    point outside India is not an error: the resolver answers it."""
+    if (lat is None) != (lon is None):
+        raise HTTPException(status_code=422, detail="give both lat and lon, or neither")
+    if lat is None:
+        return
+    if not (math.isfinite(lat) and math.isfinite(lon)):
+        raise HTTPException(status_code=422, detail="lat/lon must be finite numbers")
+    if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+        raise HTTPException(status_code=422, detail="lat/lon out of range")
+
+
+def _point(loc: dict) -> dict:
+    """All the router, guardrail and provenance ever get of a location."""
+    return {"lat": loc["lat"], "lon": loc["lon"], "label": loc["label"]}
+
+
+def _public_location(loc: dict) -> dict:
+    """The resolved location as /ask reports it: rounded to 2 decimals (~1 km),
+    never the raw fix."""
+    out = {"label": loc["label"], "source": loc["source"],
+           "lat": round(loc["lat"], 2), "lon": round(loc["lon"], 2)}
+    if loc.get("place_id"):
+        out["place_id"] = loc["place_id"]
+    return out
+
+
+def _location_reply(pq, loc: dict, lang: str, query_place: str | None) -> dict:
+    """/ask's answer when the resolver has no single point: which place?,
+    not found, India only, or tell me where — never a default city."""
+    resp: dict = {"intent": pq.intent, "nlu": pq.as_dict()}
+    if loc.get("ambiguous"):
+        resp.update(message=_msg("which_place", lang), ambiguous=loc["ambiguous"])
+    elif loc.get("outside_india"):
+        resp.update(message=_msg("india_only", lang), outside_india=True)
+    elif loc.get("not_found"):
+        place = query_place or ""
+        nearest = loc.get("nearest")
+        resp["not_found"] = True
+        if nearest:
+            resp["nearest"] = nearest
+            resp["message"] = _msg("place_not_found", lang, place=place,
+                                   nearest=nearest["label"])
+        else:
+            resp["message"] = _msg("place_not_found_bare", lang, place=place)
+    else:
+        resp.update(message=_msg("need_location", lang), needs_location=True)
+    return resp
 
 
 def _require_lang(lang: str) -> str:
@@ -934,8 +990,16 @@ def advisory_sowing(req: AdvisoryAsk):
 
 @app.get("/ask")
 def ask(text: str, lang: str = "en", city: str | None = None, persona: str = persona_module.DEFAULT,
-        occupation: str | None = None, token: str | None = Depends(get_bearer_token)):
+        occupation: str | None = None, lat: float | None = None,
+        lon: float | None = None, place_id: str | None = None,
+        token: str | None = Depends(get_bearer_token)):
+    """`lat`/`lon`: the device's GPS fix, used when the question names no
+    place or says "here". `place_id`: a candidate the user tapped from an
+    earlier `ambiguous` reply; it wins over both."""
     lang = lang if lang in SUPPORTED_LANGUAGES else "en"
+    _checked_point(lat, lon)
+    if place_id is not None and not _PLACE_ID_RE.fullmatch(place_id):
+        raise HTTPException(status_code=422, detail="place_id must look like gn:<digits>")
     if not persona_module.is_valid(persona):
         raise HTTPException(
             status_code=422,
@@ -953,19 +1017,32 @@ def ask(text: str, lang: str = "en", city: str | None = None, persona: str = per
     pq = nlu.parse(text, lang_hint=lang, city_hint=city)
     notice = _msg("language_unsupported", lang) if pq.language is None else None
 
-    if pq.intent in ("unrecognized", "unsupported_city", "out_of_scope"):
+    if pq.intent == "unsupported_city" and place_id:
+        # A tapped place for a name we couldn't place: the weather question it was.
+        pq.intent = "will_it_rain" if pq.parameter == "rain" else "current_weather"
+    if pq.intent in ("unrecognized", "out_of_scope"):
         resp = {"intent": pq.intent, "message": _msg(pq.intent, lang), "nlu": pq.as_dict()}
         if notice:
             resp["notice"] = notice
         return resp
 
-    # weather or warnings intent: resolve the city from the query, else the explicit param
-    key = cities.resolve(pq.city) or cities.resolve(city)
-    if key is None:  # §2.3: refuse rather than guess
-        resp = {"intent": pq.intent, "message": _msg("no_city", lang), "nlu": pq.as_dict()}
+    # One resolver (location.py) for place_id > named place > GPS > ask; the
+    # UI's selected city counts as a named place when there is no fix and the
+    # question didn't say "here". §2.3: never a default city.
+    query_place = None if pq.here else pq.place
+    if query_place is None and not pq.here and lat is None:
+        query_place = city
+    loc = location.resolve_location(query_place, lat, lon, lang, place_id)
+    if loc["lat"] is None:
+        resp = _location_reply(pq, loc, lang, query_place)
         if notice:
             resp["notice"] = notice
         return resp
+    point = _point(loc)
+    key = google_weather.point_key(point["lat"], point["lon"])  # a demo key, or "@lat,lon"
+    demo_key = key if key in cities.CITY_KEYS else None
+    label_en = point["label"] if lang == "en" else location.resolve_location(
+        query_place, lat, lon, "en", loc.get("place_id"))["label"]
 
     if pq.intent == "warnings":
         # The /warnings payload (status, warning, legend) inside the /ask
@@ -976,7 +1053,7 @@ def ask(text: str, lang: str = "en", city: str | None = None, persona: str = per
         verdict = warnings_module.public(key, lang)
         warning = verdict["warning"]
         if warning is None:  # feed off or no usable fixture: no verdict, NOT an all-clear
-            resp = {"intent": pq.intent, "city": key,
+            resp = {"intent": pq.intent, "city": demo_key, "location": _public_location(loc),
                     "message": _msg("warnings_unavailable", lang), **verdict,
                     "nlu": pq.as_dict()}
             if notice:
@@ -993,7 +1070,7 @@ def ask(text: str, lang: str = "en", city: str | None = None, persona: str = per
                             fallback_used=False, no_llm=True)
         resp = {
             "intent": pq.intent,
-            "city": key,
+            "city": demo_key, "location": _public_location(loc),
             "response": candidate,
             **verdict,
             "provenance": {
@@ -1012,7 +1089,7 @@ def ask(text: str, lang: str = "en", city: str | None = None, persona: str = per
 
         if token is not None:
             try:
-                history.record(token, query=text, intent=pq.intent, city=key,
+                history.record(token, query=text, intent=pq.intent, city=demo_key or point["label"],
                                 lang=lang, response=candidate)
             except Exception:
                 pass  # best-effort, as below
@@ -1024,12 +1101,12 @@ def ask(text: str, lang: str = "en", city: str | None = None, persona: str = per
         # templates: no LLM narration and no guardrail pass, for the same
         # reason as warnings — every figure is a decoded value of the report,
         # nothing is generated. English only; other languages get a notice.
-        icao = aviation.station_for(key)
-        result = aviation.public(icao)
+        icao = aviation.station_for(demo_key) if demo_key else None
+        result = aviation.public(icao) if icao else None
         want = aviation.want_from_text(text)
-        candidate = aviation.answer_text(result, want)
+        candidate = aviation.answer_text(result, want) if result else None
         if candidate is None:  # no report to show: NOT fair weather
-            resp = {"intent": pq.intent, "city": key,
+            resp = {"intent": pq.intent, "city": demo_key, "location": _public_location(loc),
                     "message": _msg("aviation_unavailable", lang),
                     "status": "unavailable", "nlu": pq.as_dict()}
             if notice:
@@ -1044,7 +1121,7 @@ def ask(text: str, lang: str = "en", city: str | None = None, persona: str = per
                             fallback_used=False, no_llm=True)
         resp = {
             "intent": pq.intent,
-            "city": key,
+            "city": demo_key, "location": _public_location(loc),
             "response": candidate,
             "status": "ok",
             "aviation": result,
@@ -1065,7 +1142,7 @@ def ask(text: str, lang: str = "en", city: str | None = None, persona: str = per
 
         if token is not None:
             try:
-                history.record(token, query=text, intent=pq.intent, city=key,
+                history.record(token, query=text, intent=pq.intent, city=demo_key or point["label"],
                                 lang=lang, response=candidate)
             except Exception:
                 pass  # best-effort, as below
@@ -1079,9 +1156,9 @@ def ask(text: str, lang: str = "en", city: str | None = None, persona: str = per
         # against `window`. fisherman/aviation personas get no
         # window verdict at all (R17), reusing WIE-7's persona_advisor
         # exactly as GET /intelligence/advisory does — not duplicated here.
-        hourly = router.route(pq, _demo_point(key, lang))
+        hourly = router.route(pq, point)
         if hourly is None:
-            resp = {"intent": pq.intent, "city": key,
+            resp = {"intent": pq.intent, "city": demo_key, "location": _public_location(loc),
                     "message": _msg("best_window_unavailable", lang),
                     "status": "unavailable", "nlu": pq.as_dict()}
             if notice:
@@ -1090,7 +1167,7 @@ def ask(text: str, lang: str = "en", city: str | None = None, persona: str = per
 
         persona_key = persona_module.key(persona)
         advisory = advise(hourly["hours"], persona_key)
-        name = cities.display_name(key, "en")
+        name = label_en
         if wants_window(persona_key):
             window = advisory["window"]
             status = "ok" if window else "no_suitable_window"
@@ -1110,7 +1187,7 @@ def ask(text: str, lang: str = "en", city: str | None = None, persona: str = per
                             fallback_used=False, no_llm=True)
         resp = {
             "intent": pq.intent,
-            "city": key,
+            "city": demo_key, "location": _public_location(loc),
             "response": candidate,
             "status": status,
             "label": advisory["label"],
@@ -1127,22 +1204,22 @@ def ask(text: str, lang: str = "en", city: str | None = None, persona: str = per
 
         if token is not None:
             try:
-                history.record(token, query=text, intent=pq.intent, city=key,
+                history.record(token, query=text, intent=pq.intent, city=demo_key or point["label"],
                                 lang=lang, response=candidate)
             except Exception:
                 pass  # best-effort, as above
 
         return resp
 
-    data = router.route(pq, _demo_point(key, lang))
+    data = router.route(pq, point)
     if data is None:
-        resp = {"intent": pq.intent, "city": key, "message": _msg("no_data", lang),
-                "nlu": pq.as_dict()}
+        resp = {"intent": pq.intent, "city": demo_key, "location": _public_location(loc),
+                "message": _msg("no_data", lang), "nlu": pq.as_dict()}
         if notice:
             resp["notice"] = notice
         return resp
 
-    name = cities.display_name(key, lang)
+    name = point["label"]
     prompt_facts = router.narration_facts(data, pq.parameter)
 
     candidate, report, attempted, attempts, provider = \
@@ -1166,7 +1243,7 @@ def ask(text: str, lang: str = "en", city: str | None = None, persona: str = per
     if not report.ok:  # §2.3
         resp = {
             "intent": pq.intent,
-            "city": key,
+            "city": demo_key, "location": _public_location(loc),
             "message": _msg("ungrounded", lang),
             "provenance": _provenance(data),
             "grounding": grounding,
@@ -1179,7 +1256,7 @@ def ask(text: str, lang: str = "en", city: str | None = None, persona: str = per
 
     resp = {
         "intent": pq.intent,
-        "city": key,
+        "city": demo_key, "location": _public_location(loc),
         "day": router.legacy_day(pq),
         "response": candidate,
         "provenance": _provenance(data),
@@ -1192,7 +1269,7 @@ def ask(text: str, lang: str = "en", city: str | None = None, persona: str = per
 
     if token is not None:
         try:
-            history.record(token, query=text, intent=pq.intent, city=key,
+            history.record(token, query=text, intent=pq.intent, city=demo_key or point["label"],
                             lang=lang, response=candidate)
         except Exception:
             pass  # best-effort — a broken history write must never break the answer

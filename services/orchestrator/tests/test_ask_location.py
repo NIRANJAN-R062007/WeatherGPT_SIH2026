@@ -18,7 +18,6 @@ from fastapi.testclient import TestClient
 client = TestClient(main.app)
 
 TRICHY = "gn:1254388"
-_STEP3 = pytest.mark.xfail(strict=True, reason="step 3: router + /ask wiring")
 _STEP4 = pytest.mark.xfail(strict=True, reason="step 4: GPS 'near X' label")
 
 
@@ -63,7 +62,6 @@ def test_here_with_gps_answers_for_near_the_nearest_town(live_anywhere):
     assert "near" in label and "Tiruchirappalli" in label
 
 
-@_STEP3
 def test_here_without_gps_asks_for_a_location():
     body = _ask("will it rain here")
     assert "response" not in body
@@ -71,7 +69,6 @@ def test_here_without_gps_asks_for_a_location():
     assert body["message"] == main._msg("need_location", "en")
 
 
-@_STEP3
 def test_unknown_place_is_not_found_and_names_a_nearest_place():
     body = _ask("weather in Xyzabad")
     assert "response" not in body
@@ -80,14 +77,12 @@ def test_unknown_place_is_not_found_and_names_a_nearest_place():
     assert body["nearest"]["label"] in body["message"]
 
 
-@_STEP3
 def test_a_tapped_place_id_overrides_the_text(live_anywhere):
     body = _ask("weather in Chennai", place_id=TRICHY)
     assert body["location"]["place_id"] == TRICHY
     assert "Tiruchirappalli" in body["response"]
 
 
-@_STEP3
 def test_full_outage_still_answers_for_a_demo_city():
     with pytest.raises(Exception):
         weather_store._engine.begin()
@@ -98,7 +93,6 @@ def test_full_outage_still_answers_for_a_demo_city():
     assert body["location"]["source"] == "demo_fixture"
 
 
-@_STEP3
 def test_full_outage_still_answers_for_a_gazetteer_city(live_anywhere):
     with pytest.raises(Exception):
         weather_store._engine.begin()

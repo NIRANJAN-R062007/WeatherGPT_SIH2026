@@ -341,7 +341,6 @@ def test_ask_uses_the_selected_city_when_none_is_named():
     assert r["aviation"]["station"] == "VOMD"
 
 
-@pytest.mark.xfail(strict=True, reason="step 3: no location -> need_location reply")
 def test_ask_with_no_city_at_all_asks_which():
     r = client.get("/ask", params={"text": "metar please"}).json()
     assert r["intent"] == "aviation" and "response" not in r

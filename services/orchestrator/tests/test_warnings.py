@@ -385,7 +385,6 @@ def test_ask_warnings_never_narrates_or_runs_the_guardrail(_warnings_enabled, mo
     assert body["status"] == "active" and body["grounding"]["attempts"] == 0
 
 
-@pytest.mark.xfail(strict=True, reason="step 3: no location -> need_location reply")
 def test_ask_warnings_no_city_is_a_refusal():
     body = _ask("is there any warning?")
     assert body["intent"] == "warnings"
@@ -399,7 +398,6 @@ def test_ask_warnings_city_param_fills_in(_warnings_enabled):
     assert body["warning"]["colour"] == "yellow"
 
 
-@pytest.mark.xfail(strict=True, reason="step 3: /ask resolves unknown places")
 def test_ask_warnings_unknown_city_is_unsupported_city():
     # Outside the India gazetteer: not_found, never a verdict for a guessed place.
     body = _ask("warning in London")

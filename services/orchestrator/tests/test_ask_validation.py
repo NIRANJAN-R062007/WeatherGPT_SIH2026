@@ -10,7 +10,6 @@ import pytest
 from fastapi.testclient import TestClient
 
 client = TestClient(main.app)
-_STEP3 = pytest.mark.xfail(strict=True, reason="step 3: /ask lat/lon/place_id")
 
 
 @pytest.fixture(autouse=True)
@@ -24,7 +23,6 @@ def _get(**params):
     return client.get("/ask", params={"text": "will it rain here", **params})
 
 
-@_STEP3
 @pytest.mark.parametrize("params", [
     {"lat": "abc", "lon": "78.7"},
     {"lat": "nan", "lon": "78.7"},
@@ -41,7 +39,6 @@ def test_garbage_location_params_are_a_422(params):
     assert _get(**params).status_code == 422
 
 
-@_STEP3
 def test_a_point_outside_india_is_india_only_and_never_fetched(monkeypatch):
     monkeypatch.setattr(config, "WEATHER_MODE", "auto")
     monkeypatch.setattr(google_weather, "fetch_json",
@@ -53,14 +50,12 @@ def test_a_point_outside_india_is_india_only_and_never_fetched(monkeypatch):
     assert body["message"] == main._msg("india_only", "en")
 
 
-@_STEP3
 @pytest.mark.parametrize("lang", ["ta", "hi", "te", "mr"])
 def test_location_replies_are_in_the_users_language(lang):
     body = client.get("/ask", params={"text": "will it rain here", "lang": lang}).json()
     assert body["message"] == main._msg("need_location", lang)
 
 
-@_STEP3
 def test_close_homonyms_come_back_as_candidates_to_tap():
     body = client.get("/ask", params={"text": "weather in Puttur"}).json()
     assert "response" not in body
@@ -70,7 +65,6 @@ def test_close_homonyms_come_back_as_candidates_to_tap():
         assert cand["place_id"].startswith("gn:") and cand["state"]
 
 
-@_STEP3
 def test_resolved_location_is_reported_rounded():
     body = client.get("/ask", params={"text": "what's the weather in Chennai"}).json()
     loc = body["location"]
@@ -79,7 +73,6 @@ def test_resolved_location_is_reported_rounded():
     assert body["city"] == "chennai"
 
 
-@_STEP3
 def test_a_named_place_beats_the_gps_fix(monkeypatch):
     body = client.get("/ask", params={"text": "what's the weather in Chennai",
                                       "lat": 51.5, "lon": -0.12}).json()

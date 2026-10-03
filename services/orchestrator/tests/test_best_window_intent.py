@@ -13,7 +13,6 @@ verdict, R17).
 
 import history
 import main
-import pytest
 import weather_data
 from fastapi.testclient import TestClient
 
@@ -156,7 +155,6 @@ def test_ask_best_window_uses_the_selected_city_when_none_is_named(monkeypatch):
     assert body["intent"] == "best_window" and body["city"] == "madurai"
 
 
-@pytest.mark.xfail(strict=True, reason="step 3: no location -> need_location reply")
 def test_ask_best_window_with_no_city_at_all_asks_which():
     body = _ask("best time to go outside").json()
     assert body["intent"] == "best_window" and "response" not in body
