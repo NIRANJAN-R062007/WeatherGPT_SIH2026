@@ -271,7 +271,7 @@ the work sits:
 12. **Localize the app's own UI.** *(App)* Done, apart from native review.
     Labels, buttons, headings and validators go through `tr()`
     (`lib/i18n.dart`), looked up in `lib/ui_strings.dart`, generated from
-    `ui-strings/ui_strings.json` (539 strings with hi / ta / te / mr, shared
+    `ui-strings/ui_strings.json` (541 strings with hi / ta / te / mr, shared
     with web/). Every literal passed to `tr()` has an entry. Errors that carry
     a value (the server URL, an HTTP status) keep it in `args` and fill it in
     after translating (2026-10-03). Flutter's own text (the text-selection
@@ -332,6 +332,9 @@ the work sits:
       `forecast_detail_test.dart` drives the whole app against a fake backend
       (`http.runWithClient`) for Home, Forecast and Alerts, plus an older
       backend's 404s and a 360 dp check in every language.
+      `test/support/app_tour.dart` tours every page against
+      `test/support/fake_backend.dart` for the large-text and accessibility
+      tests.
     - An `integration_test` run on a device.
 22. **Web target.** There is no `web/` platform folder. `flutter create
     --platforms web .` builds cleanly (checked in a scratch copy), but voice
@@ -340,8 +343,29 @@ the work sits:
 23. **Indic fonts.** The app relies on Android/iOS system fonts for
     Devanagari, Tamil and Telugu. web/ bundles Noto subsets. Bundle them here
     too if older devices show missing glyphs.
-24. **Accessibility pass.** Check large text scale, and TalkBack / VoiceOver
-    on the icon-only controls (most carry tooltips).
+24. ~~**Accessibility pass.**~~ ✅ Done (2026-10-03).
+    - **Large text:** every page, signed in and out, fits at 1.3×, 1.6× and
+      2× (Android's largest) in all five languages on a 360 dp phone. From
+      1.5× (`isLargeText`), rows that run out of room stack: the now card's
+      stats, Home's tiles (2 × 2) and cards, Forecast's day rows (two figures
+      a row), and an emergency number under its name. The hourly strip
+      widens instead, and section titles wrap their action.
+      `test/large_text_test.dart` checks for overflows and for text
+      squeezed into a sliver.
+    - **Screen readers:** every control has a label. Day rows and hourly
+      columns read as sentences ("Today, 3 Oct: clear, high 32°, low 27°,
+      15% chance of rain"), so the droplet's number isn't a bare "15%".
+    - **Touch and contrast:** every tap target is at least 48 dp. Text meets
+      WCAG AA in every persona, light and dark. Colours that fell short were
+      darkened slightly: the idle bottom-bar labels, the onboarding button,
+      dark mode's "Exit guest mode", and the city picker's selected row.
+      `test/accessibility_test.dart` runs Flutter's guidelines at every stop
+      of a tour of the app.
+    - **Checked on the emulator** at 2× font size in English and Tamil (no
+      overflow in logcat), and the spoken labels in Android's accessibility
+      tree.
+    - **Not done:** TalkBack itself wasn't driven end to end, and VoiceOver
+      (iOS) is unchecked.
 
 ### Known limits that are not app bugs
 
