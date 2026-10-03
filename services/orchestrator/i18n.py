@@ -475,3 +475,21 @@ LOCATION_MESSAGES = {
 def location_message(key: str, lang: str, **fields) -> str:
     table = LOCATION_MESSAGES[key]
     return table.get(lang, table["en"]).format(**fields)
+
+
+# The provenance footer main.py appends to a weather answer AFTER the
+# guardrail has validated it: the place and the rounded point the data was
+# fetched for. Its coordinates are never checked as weather figures.
+_PLACE_FOOTER = {
+    "en": "Forecast for {place} ({coords}).",
+    "ta": "{place} ({coords}) பகுதிக்கான முன்னறிவிப்பு.",  # TODO: native_qa
+    "hi": "{place} ({coords}) के लिए पूर्वानुमान।",  # TODO: native_qa
+    "te": "{place} ({coords}) కోసం వాతావరణ సూచన.",  # TODO: native_qa
+    "mr": "{place} ({coords}) साठी अंदाज.",  # TODO: native_qa
+}
+
+
+def place_footer(place: str, lat: float, lon: float, lang: str) -> str:
+    coords = (f"{abs(lat):.2f}°{'N' if lat >= 0 else 'S'}, "
+              f"{abs(lon):.2f}°{'E' if lon >= 0 else 'W'}")
+    return _PLACE_FOOTER.get(lang, _PLACE_FOOTER["en"]).format(place=place, coords=coords)
