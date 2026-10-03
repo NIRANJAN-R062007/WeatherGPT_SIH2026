@@ -19,7 +19,6 @@ _SCRIPT = config.REPO_ROOT / "scripts" / "import_geonames.py"
 _GAZETTEER = config.DATA_DIR / "gazetteer" / "in_places.json.gz"
 _MIGRATION = weather_store._MIGRATIONS_DIR / "006_cities_gazetteer.sql"
 
-_MIGRATION_STEP = pytest.mark.xfail(strict=True, reason="step 1: sql/006 migration")
 _DEMO_STEP = pytest.mark.xfail(strict=True, reason="step 1: demo place_ids")
 _SCRIPT_STEP = pytest.mark.xfail(strict=True, reason="step 1: import script")
 _FILE_STEP = pytest.mark.xfail(strict=True, reason="step 1: generated gazetteer file")
@@ -40,7 +39,6 @@ def _script():
 
 # --- migration ----------------------------------------------------------------
 
-@_MIGRATION_STEP
 def test_gazetteer_migration_is_additive_and_indexed():
     sql = _MIGRATION.read_text(encoding="utf-8")
     assert "CREATE EXTENSION IF NOT EXISTS pg_trgm" in sql
