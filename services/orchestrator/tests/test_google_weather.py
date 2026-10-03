@@ -216,7 +216,6 @@ def test_cache_stats_shape(live_stub):
     assert stats == {"entries": 1, "live": 1, "snapshot": 0}
 
 
-@pytest.mark.xfail(strict=True, reason="step 5: weather_facts keyed by grid cell")
 def test_live_fetch_persists_exactly_once(live_stub, persist_calls):
     google_weather.snapshot(CC, "chennai")
     google_weather.snapshot(CC, "chennai")  # L1 hit: no fetch, no persist

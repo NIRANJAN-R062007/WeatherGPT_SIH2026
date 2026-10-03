@@ -20,7 +20,6 @@ import weather_store
 from fastapi.testclient import TestClient
 
 client = TestClient(main.app)
-_STEP5 = pytest.mark.xfail(strict=True, reason="step 5: grid snapping + privacy")
 
 RAW_LAT, RAW_LON = 10.790537, 78.704681
 # Anything finer than 2 decimals of the raw fix: 10.790537 -> "10.79" is
@@ -51,7 +50,6 @@ def live(monkeypatch):
     return fetched
 
 
-@_STEP5
 @pytest.mark.parametrize("raw,snapped", [
     (10.790537, 10.80), (78.704681, 78.70), (13.0827, 13.10), (80.2707, 80.25),
     (8.4249, 8.40), (-0.024, 0.0), (77.5946, 77.60),
@@ -62,14 +60,12 @@ def test_snap_is_a_two_decimal_point_on_the_005_grid(raw, snapped):
     assert str(out) != "-0.0"
 
 
-@_STEP5
 def test_grid_key_is_the_snapped_cell():
     assert google_weather.grid_key(RAW_LAT, RAW_LON) == "@10.80,78.70"
     c = cities.CITIES["chennai"]
     assert google_weather.grid_key(c.lat, c.lon) == "@13.10,80.25"
 
 
-@_STEP5
 def test_weather_is_fetched_for_the_snapped_point(live):
     client.get("/ask", params={"text": "will it rain here", "lat": RAW_LAT, "lon": RAW_LON})
     assert live
@@ -77,20 +73,17 @@ def test_weather_is_fetched_for_the_snapped_point(live):
         assert (params["location.latitude"], params["location.longitude"]) == (10.80, 78.70)
 
 
-@_STEP5
 def test_a_demo_city_is_fetched_for_its_cell_too(live):
     client.get("/ask", params={"text": "what's the weather in Chennai"})
     assert {(p["location.latitude"], p["location.longitude"]) for p in live} == {(13.10, 80.25)}
 
 
-@_STEP5
 def test_nearby_users_share_one_cache_entry(live):
     for lat, lon in ((10.790537, 78.704681), (10.81, 78.69), (10.79, 78.72)):
         client.get("/ask", params={"text": "what's the weather here", "lat": lat, "lon": lon})
     assert len(live) == 1  # one current-conditions fetch for the whole cell
 
 
-@_STEP5
 def test_redis_and_weather_facts_are_keyed_by_cell(live, monkeypatch):
     keys = []
     monkeypatch.setattr(weather_store, "redis_set",
@@ -120,7 +113,6 @@ class _LeakyEngine:
         raise RuntimeError(f"(psycopg2.OperationalError) boom [parameters: {params}]")
 
 
-@_STEP5
 def test_a_raw_gps_fix_reaches_no_log_metric_cache_or_history(live, monkeypatch, caplog):
     sinks = []
     monkeypatch.setattr(weather_store, "redis_set",

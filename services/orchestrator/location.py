@@ -402,6 +402,10 @@ def _spelling_neighbour(query: str) -> Place | None:
 def resolve_location(query_place: str | None, lat: float | None, lon: float | None,
                      lang: str, place_id: str | None = None) -> dict:
     lang = lang if lang in placenames.LANG_SCRIPT else "en"
+    if lat is not None and lon is not None:
+        # ~1 km, before anything else sees it: the raw fix goes no further
+        # than this line — not into Postgres, a log line or the reply.
+        lat, lon = round(lat, 2), round(lon, 2)
 
     if place_id:
         place = _lookup(place_id)

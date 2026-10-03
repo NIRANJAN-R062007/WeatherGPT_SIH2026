@@ -103,17 +103,29 @@ def _redacted(exc: BaseException) -> str:
 
 
 _POINT_PREFIX = "@"
+# Weather is fetched and cached for this grid, never a raw point: nearby users
+# share cache entries, and a GPS fix goes no further than its ~5 km cell.
+GRID_DEGREES = 0.05
+
+
+def snap(x: float) -> float:
+    """`x` on the 0.05° grid, at 2 decimals (+0.0, never -0.0)."""
+    return round(round(x / GRID_DEGREES) * GRID_DEGREES, 2) + 0.0
+
+
+def grid_key(lat: float, lon: float) -> str:
+    """The cache key of a point's cell: L1, Redis and weather_facts all use it."""
+    return f"{_POINT_PREFIX}{snap(lat):.2f},{snap(lon):.2f}"
 
 
 def point_key(lat: float, lon: float) -> str:
-    """The cache/snapshot key for a point (location.py's {lat, lon}): a demo
-    city's key when the point is that city's own coordinates — so its
-    fixtures, cache entries and weather_facts rows are what they always were —
-    else "@<lat>,<lon>" at 2 decimals (~1 km)."""
+    """What the router hands weather_data for a point (location.py's {lat,
+    lon}): a demo city's key when the point is that city's own coordinates,
+    so its offline snapshots still apply, else the point's grid cell."""
     for key, city in cities.CITIES.items():
         if (city.lat, city.lon) == (lat, lon):
             return key
-    return f"{_POINT_PREFIX}{lat:.2f},{lon:.2f}"
+    return grid_key(lat, lon)
 
 
 def is_point_key(key: str) -> bool:
@@ -134,7 +146,7 @@ def _coords(key: str) -> tuple[float, float] | None:
 
 
 def _params(kind: str, city_key: str) -> dict:
-    lat, lon = _coords(city_key)
+    lat, lon = (snap(v) for v in _coords(city_key))
     key = config.require("GOOGLE_WEATHER_API_KEY", config.GOOGLE_WEATHER_API_KEY)
     params = {
         "location.latitude": lat,
@@ -193,7 +205,8 @@ def snapshot(kind: str, city_key: str, *, force_refresh: bool = False) -> Snapsh
     if config.WEATHER_MODE == "fixtures":
         return _fixture(kind, city_key)
 
-    cache_key = (kind, city_key)
+    cell = grid_key(*_coords(city_key))
+    cache_key = (kind, cell)
     if not force_refresh:
         cached = _CACHE.get(cache_key)
         if cached and _monotonic() - cached[0] < ttl_seconds(kind):
@@ -202,7 +215,7 @@ def snapshot(kind: str, city_key: str, *, force_refresh: bool = False) -> Snapsh
         # L2: Redis, shared across processes/replicas and survives a restart
         # the in-memory dict wouldn't. Populates L1 so the next call in this
         # process skips Redis entirely.
-        remote = weather_store.redis_get(kind, city_key)
+        remote = weather_store.redis_get(kind, cell)
         if remote is not None:
             snap = Snapshot(kind=kind, city=city_key, **remote)
             _CACHE[cache_key] = (_monotonic(), snap)
@@ -220,8 +233,8 @@ def snapshot(kind: str, city_key: str, *, force_refresh: bool = False) -> Snapsh
     _CACHE[cache_key] = (_monotonic(), snap)
     fields = {"payload": snap.payload, "is_live": snap.is_live,
               "retrieved_at": snap.retrieved_at, "source": snap.source}
-    weather_store.redis_set(kind, city_key, fields, ttl_seconds(kind))
-    weather_store.persist(kind, city_key, fields)  # enqueue only; the INSERT is off-thread
+    weather_store.redis_set(kind, cell, fields, ttl_seconds(kind))
+    weather_store.persist(kind, cell, fields)  # enqueue only; the INSERT is off-thread
     return snap
 
 
