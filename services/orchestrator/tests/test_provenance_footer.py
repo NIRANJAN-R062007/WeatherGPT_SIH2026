@@ -17,7 +17,6 @@ import weather_data
 from fastapi.testclient import TestClient
 
 client = TestClient(main.app)
-_STEP6 = pytest.mark.xfail(strict=True, reason="step 6: provenance footer")
 CHENNAI_FOOTER = "Forecast for Chennai (13.10°N, 80.25°E)."
 
 
@@ -32,14 +31,12 @@ def _ask(text, **params):
     return client.get("/ask", params={"text": text, **params}).json()
 
 
-@_STEP6
 def test_a_weather_answer_ends_with_the_place_and_rounded_point():
     body = _ask("what's the weather in Chennai")
     assert body["response"].endswith("\n" + CHENNAI_FOOTER)
     assert body["provenance"]["place"] == {"label": "Chennai", "lat": 13.10, "lon": 80.25}
 
 
-@_STEP6
 def test_a_gazetteer_answer_names_the_place_and_its_cell(monkeypatch):
     monkeypatch.setattr(config, "WEATHER_MODE", "auto")
     monkeypatch.setattr(config, "GOOGLE_WEATHER_API_KEY", "test-key")
@@ -55,7 +52,6 @@ def test_a_gazetteer_answer_names_the_place_and_its_cell(monkeypatch):
         "\nForecast for Tiruchirappalli, Tamil Nadu (10.80°N, 78.70°E).")
 
 
-@_STEP6
 @pytest.mark.parametrize("lang", ["ta", "hi", "te", "mr"])
 def test_the_footer_is_in_the_users_language(lang):
     body = _ask("what's the weather in Chennai", lang=lang)
@@ -63,7 +59,6 @@ def test_the_footer_is_in_the_users_language(lang):
     assert body["response"].endswith("\n" + footer)
 
 
-@_STEP6
 def test_the_guardrail_never_sees_the_footer(monkeypatch):
     checked = []
     real = guardrail.check
@@ -78,7 +73,6 @@ def test_the_guardrail_never_sees_the_footer(monkeypatch):
     assert "°N" in body["response"] and body["grounding"]["ok"] is True
 
 
-@_STEP6
 def test_the_validator_still_rejects_an_invented_figure_with_a_footer_present(monkeypatch):
     monkeypatch.setattr(main, "narrate",
                         lambda *a, **k: "Chennai: 99°C and humidity 81% right now.")
@@ -91,7 +85,6 @@ def test_the_validator_still_rejects_an_invented_figure_with_a_footer_present(mo
     assert guardrail.check("Chennai: 99°C right now.\n" + CHENNAI_FOOTER, data).ok is False
 
 
-@_STEP6
 def test_an_ungrounded_refusal_still_names_the_place(monkeypatch):
     monkeypatch.setattr(guardrail, "check",
                         lambda *a, **k: guardrail.Report(ok=False, matched=0, total=1))

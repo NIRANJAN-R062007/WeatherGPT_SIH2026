@@ -258,6 +258,20 @@ def _point(loc: dict) -> dict:
     return {"lat": loc["lat"], "lon": loc["lon"], "label": loc["label"]}
 
 
+def _fetched_place(point: dict) -> dict:
+    """The place an answer is for, at the 0.05° point its data was fetched
+    for (google_weather.snap) — what provenance and the footer report."""
+    return {"label": point["label"], "lat": google_weather.snap(point["lat"]),
+            "lon": google_weather.snap(point["lon"])}
+
+
+def _with_footer(candidate: str, place: dict, lang: str) -> str:
+    """Append the provenance footer to an answer the guardrail has ALREADY
+    validated. Never call this before guardrail.check(): the footer's
+    coordinates are not weather figures and must not be checked as such."""
+    return f"{candidate}\n{i18n.place_footer(place['label'], place['lat'], place['lon'], lang)}"
+
+
 def _public_location(loc: dict) -> dict:
     """The resolved location as /ask reports it: rounded to 2 decimals (~1 km),
     never the raw fix."""
@@ -1240,12 +1254,13 @@ def ask(text: str, lang: str = "en", city: str | None = None, persona: str = per
     metrics.observe_ask(intent=pq.intent, lang=lang, provider=provider, narration=narration,
                         fallback_used=fallback_used, no_llm=not attempted)
 
+    place = _fetched_place(point)
     if not report.ok:  # §2.3
         resp = {
             "intent": pq.intent,
             "city": demo_key, "location": _public_location(loc),
             "message": _msg("ungrounded", lang),
-            "provenance": _provenance(data),
+            "provenance": {**_provenance(data), "place": place},
             "grounding": grounding,
             "nlu": pq.as_dict(),
         }
@@ -1258,8 +1273,8 @@ def ask(text: str, lang: str = "en", city: str | None = None, persona: str = per
         "intent": pq.intent,
         "city": demo_key, "location": _public_location(loc),
         "day": router.legacy_day(pq),
-        "response": candidate,
-        "provenance": _provenance(data),
+        "response": _with_footer(candidate, place, lang),  # after the guardrail, above
+        "provenance": {**_provenance(data), "place": place},
         "grounding": grounding,
         "nlu": pq.as_dict(),
     }
@@ -1270,7 +1285,7 @@ def ask(text: str, lang: str = "en", city: str | None = None, persona: str = per
     if token is not None:
         try:
             history.record(token, query=text, intent=pq.intent, city=demo_key or point["label"],
-                            lang=lang, response=candidate)
+                            lang=lang, response=resp["response"])
         except Exception:
             pass  # best-effort — a broken history write must never break the answer
 

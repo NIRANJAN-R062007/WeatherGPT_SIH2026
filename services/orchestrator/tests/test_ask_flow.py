@@ -38,7 +38,6 @@ def test_grounded_llm_answer_is_used(monkeypatch):
     assert body["grounding"]["fallback_used"] is False
 
 
-@pytest.mark.xfail(strict=True, reason="step 6: provenance footer + place")
 def test_hallucinated_llm_answer_falls_back_to_template(monkeypatch):
     monkeypatch.setattr(main, "narrate", lambda *a, **k: "Chennai: 99°C and 4 inches of rain.")
     body = _ask("what's the weather in Chennai")
@@ -59,7 +58,6 @@ def test_llm_unavailable_uses_template_without_flagging_fallback(monkeypatch):
     assert body["grounding"]["attempts"] == 1  # nothing to regenerate from
 
 
-@pytest.mark.xfail(strict=True, reason="step 6: provenance footer + place")
 @pytest.mark.parametrize("lang", ["ta", "hi", "te", "mr"])
 def test_non_english_uses_bhashini_translation_of_grounded_english(monkeypatch, lang):
     monkeypatch.setattr(main, "narrate",
@@ -126,7 +124,6 @@ def test_all_combos_ground_with_llm_stub(monkeypatch, key, lang, intent_text):
     assert g["ok"] is True and g["matched"] == g["total"] >= 1
 
 
-@pytest.mark.xfail(strict=True, reason="step 6: provenance footer + place")
 def test_provenance_and_health_shape(monkeypatch):
     monkeypatch.setattr(main, "narrate", lambda *a, **k: None)
     body = _ask("what's the weather in Chennai")
@@ -210,7 +207,6 @@ def test_mocked_live_data_marks_is_live(monkeypatch):
     assert body["grounding"]["ok"] is True
 
 
-@pytest.mark.xfail(strict=True, reason="step 6: provenance footer + place")
 def test_rainfall_so_far_end_to_end_template_path(monkeypatch):
     monkeypatch.setattr(main, "narrate", lambda *a, **k: None)
     body = _ask("how much rain has Chennai had so far today?")
@@ -267,7 +263,6 @@ def test_next_n_days_tamil_template_grounds_with_malformed_display_date(
         assert i18n.DAY_LABELS["ta"][label] in body["response"]
 
 
-@pytest.mark.xfail(strict=True, reason="step 6: provenance footer + place")
 def test_day_after_tomorrow_resolves(monkeypatch):
     # With FORECAST_DAYS raised to 5, day_after_tomorrow (offset 2) is within the
     # fixture range and now answers instead of refusing.
