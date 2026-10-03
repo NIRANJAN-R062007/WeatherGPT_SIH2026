@@ -8,8 +8,6 @@ import narrate
 import nlu
 import pytest
 
-_STEP3 = pytest.mark.xfail(strict=True, reason="step 3: NLU place/here extraction")
-
 
 @pytest.fixture(autouse=True)
 def _no_llm(monkeypatch):
@@ -23,7 +21,6 @@ def _llm_says(monkeypatch, payload: str):
 
 
 # TODO: native_qa — the ta/hi/te/mr phrasings below are first drafts.
-@_STEP3
 @pytest.mark.parametrize("text,lang", [
     ("will it rain here", "en"),
     ("weather at my location", "en"),
@@ -40,13 +37,11 @@ def test_here_is_detected_by_the_rules_in_all_five_languages(text, lang):
     assert pq.place is None
 
 
-@_STEP3
 def test_here_promotes_a_weather_question_with_no_city():
     pq = nlu.parse("weather at my location tomorrow")
     assert (pq.intent, pq.time_window, pq.source) == ("current_weather", "tomorrow", "rules")
 
 
-@_STEP3
 @pytest.mark.parametrize("text,place", [
     ("weather in Trichy", "Trichy"),
     ("will it rain in Tiruchirappalli tomorrow", "Tiruchirappalli"),
@@ -59,26 +54,22 @@ def test_a_gazetteer_place_is_extracted_and_answered_by_the_rules(text, place):
     assert pq.here is False
 
 
-@_STEP3
 def test_a_native_script_gazetteer_place_is_extracted_with_its_case_suffix():
     pq = nlu.parse("తిరుపతిలో వాతావరణం ఎలా ఉంది?", lang_hint="te")
     assert pq.place == "తిరుపతి"
 
 
-@_STEP3
 def test_an_unknown_place_is_unsupported_and_still_named():
     pq = nlu.parse("weather in Xyzabad")
     assert pq.intent == "unsupported_city"
     assert pq.place == "Xyzabad"
 
 
-@_STEP3
 def test_a_demo_city_is_still_its_key():
     pq = nlu.parse("weather in Chennai")
     assert pq.city == "chennai" and pq.place is not None
 
 
-@_STEP3
 def test_llm_gazetteer_place_is_not_a_refusal(monkeypatch):
     _llm_says(monkeypatch, '{"intent":"current_weather","city":"तिरुचिरापल्ली",'
                            '"time_window":"today","days":null,"parameter":"general",'
@@ -88,7 +79,6 @@ def test_llm_gazetteer_place_is_not_a_refusal(monkeypatch):
     assert pq.place == "तिरुचिरापल्ली"
 
 
-@_STEP3
 def test_llm_here_flag_is_read(monkeypatch):
     _llm_says(monkeypatch, '{"intent":"will_it_rain","city":null,"here":true,'
                            '"time_window":"tomorrow","days":null,"parameter":"rain",'
@@ -97,7 +87,6 @@ def test_llm_here_flag_is_read(monkeypatch):
     assert pq.here is True and pq.place is None
 
 
-@_STEP3
 def test_here_is_in_the_llm_schema_and_prompt():
     assert nlu._NLU_SCHEMA["properties"]["here"] == {"type": "boolean"}
     assert '"here"' in nlu._NLU_PROMPT or "here:" in nlu._NLU_PROMPT

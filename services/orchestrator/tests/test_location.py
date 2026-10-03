@@ -24,7 +24,6 @@ BILASPUR_CG = "gn:1275637"
 
 # Tests land before the code they test (each commit stays green); each marker
 # comes off in the commit that makes its tests pass.
-_STEP3 = pytest.mark.xfail(strict=True, reason="step 3: NLU place extraction")
 
 
 def _location():
@@ -117,7 +116,6 @@ def test_trichy_and_tiruchirappalli_are_one_place():
     assert a["source"] == "gazetteer"
 
 
-@_STEP3
 def test_query_text_weather_in_trichy_resolves_to_tiruchirappalli(monkeypatch):
     monkeypatch.setattr(config, "GEMINI_API_KEY", None)
     monkeypatch.setattr(config, "GROQ_API_KEY", None)
@@ -126,7 +124,6 @@ def test_query_text_weather_in_trichy_resolves_to_tiruchirappalli(monkeypatch):
     assert out["place_id"] == TRICHY
 
 
-@_STEP3
 @pytest.mark.parametrize("text,lang", [("மதுரை", "ta"), ("मदुरै", "hi")])
 def test_native_script_madurai_resolves_with_zero_llm_calls(monkeypatch, text, lang):
     calls = []

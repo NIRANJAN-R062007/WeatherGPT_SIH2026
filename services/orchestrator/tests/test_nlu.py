@@ -249,7 +249,6 @@ def test_unrecognized_has_no_city():
     assert pq.intent == "unrecognized" and pq.city is None
 
 
-@pytest.mark.xfail(strict=True, reason="step 3: a bare place name is a rules answer")
 def test_city_only_chennai_is_a_rules_answer():
     # A query that is just a place name is current weather there, decided by
     # the rules in any language (same as "மதுரை" / "मदुरै") — no LLM round trip.
