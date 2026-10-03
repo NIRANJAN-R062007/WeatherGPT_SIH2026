@@ -149,3 +149,54 @@ def test_backend_down_shows_error_card(app, backend):
         assert app.get_by_test_id("error-card").first.is_visible()
     finally:
         backend["proc"] = backend["respawn"]()
+
+
+# --- "Use my location" and place candidates (cities-and-location step 8) --------
+
+_STEP8 = pytest.mark.xfail(strict=True, reason="step 8: location UI")
+
+
+@_STEP8
+def test_use_my_location_sends_a_rounded_fix_and_answers(app):
+    asked = []
+    app.on("request", lambda r: asked.append(r.url) if "/ask?" in r.url else None)
+    app.context.grant_permissions(["geolocation"])
+    app.context.set_geolocation({"latitude": 9.951234, "longitude": 78.151234})
+    app.get_by_test_id("locate-button").click()
+    _answers(app).first.wait_for(timeout=15000)
+    assert asked and "lat=9.95&" in asked[-1] and "lon=78.15" in asked[-1]
+    assert "9.951234" not in asked[-1]  # rounded in the page, before it leaves
+    # fixtures mode: answered for the nearest demo city, and says so
+    text = _answers(app).first.inner_text()
+    assert text.startswith("Madurai:") and "Offline" in text
+    assert not app.errors, app.errors
+
+
+@_STEP8
+def test_denied_location_falls_back_to_typing_and_picks_no_city(app):
+    app.evaluate("""() => {
+        navigator.geolocation.getCurrentPosition = (ok, err) => err({code: 1});
+    }""")
+    asked = []
+    app.on("request", lambda r: asked.append(r.url) if "/ask?" in r.url else None)
+    app.get_by_test_id("locate-button").click()
+    notice = app.get_by_test_id("geo-notice")
+    notice.wait_for(timeout=5000)
+    assert "denied" in notice.inner_text().lower()
+    assert asked == []  # nothing was asked on the user's behalf
+    assert app.evaluate("document.activeElement.dataset.testid") == "ask-input"
+
+
+@_STEP8
+def test_ambiguous_place_offers_candidates_and_a_tap_resends_with_place_id(app):
+    asked = []
+    app.on("request", lambda r: asked.append(r.url) if "/ask?" in r.url else None)
+    app.get_by_placeholder("Ask WeatherGPT about any place...").fill("weather in Puttur")
+    app.keyboard.press("Enter")
+    cands = app.get_by_test_id("place-candidate")
+    cands.first.wait_for(timeout=15000)
+    assert cands.count() >= 2
+    cands.first.click()
+    app.wait_for_timeout(1500)
+    assert "place_id=gn%3A" in asked[-1]
+    assert not app.errors, app.errors
