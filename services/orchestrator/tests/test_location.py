@@ -187,3 +187,60 @@ def test_no_place_with_gps_uses_gps():
     out = _location().resolve_location(None, 10.79, 78.70, "en")
     assert out["source"] == "gps"
     assert out["lat"] is not None and out["lon"] is not None
+
+
+# --- Postgres path ---------------------------------------------------------------
+
+class _PgEngine:
+    """weather_store._engine stand-in: answers the match query with `rows`,
+    or raises on begin() when `down`."""
+
+    def __init__(self, rows=(), down=False):
+        self.rows, self.down, self.begins = list(rows), down, 0
+
+    def begin(self):
+        self.begins += 1
+        if self.down:
+            raise RuntimeError("postgres down")
+        return self
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def execute(self, stmt, params=None):
+        rows = self.rows if "FROM cities" in str(stmt) else []
+
+        class _R:
+            def fetchall(self):
+                return rows
+        return _R()
+
+
+@_STEP2
+def test_a_dead_postgres_costs_one_attempt_then_the_file_answers(synthetic, monkeypatch):
+    import weather_store
+    loc = synthetic()
+    engine = _PgEngine(down=True)
+    monkeypatch.setattr(weather_store, "_engine", engine)
+    monkeypatch.setattr(loc, "_pg_down_until", 0.0)
+    assert loc.resolve_location("Sitapur", None, None, "en")["place_id"] == "gn:5"
+    assert loc.resolve_location("Sitapur", None, None, "en")["place_id"] == "gn:5"
+    assert engine.begins == 1  # parked after the first failure
+
+
+@_STEP2
+def test_postgres_candidates_are_ranked_like_the_file(synthetic, monkeypatch):
+    import weather_store
+    loc = synthetic()
+    rows = [(r["id"], r["lat"], r["lon"], r["pop"], r["names"], r["admin1"], r["admin2"])
+            for r in _synthetic() if r["names"]["en"] == ["Rampur"]]
+    monkeypatch.setattr(weather_store, "_engine", _PgEngine(rows))
+    monkeypatch.setattr(loc, "_pg_down_until", 0.0)
+    from_pg = loc.resolve_location("Rampur", None, None, "en")
+    monkeypatch.setattr(loc, "_pg_down_until", float("inf"))
+    from_file = loc.resolve_location("Rampur", None, None, "en")
+    assert from_pg == from_file
+    assert [c["place_id"] for c in from_pg["ambiguous"]] == ["gn:2", "gn:1", "gn:3"]
