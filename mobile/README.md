@@ -78,10 +78,10 @@ you actually want.
 
 | web/ page | Mobile page | Backend calls |
 |---|---|---|
-| `HomePage.tsx` | **Home** — current-conditions hero (condition/time-of-day gradient), humidity / wind / rain-chance / UV tiles, Today · Tonight · Tomorrow strip, feature tiles, WeatherGPT Copilot ask box | `GET /facts` ×4, `GET /ask` |
+| `HomePage.tsx` | **Home** — current-conditions hero (condition/time-of-day gradient), humidity / wind / rain-chance tiles, rain so far today and daylight (sunrise, sunset, how much of the day has passed) cards, five-day strip, feature tiles, Quick Actions | `GET /facts` ×4, `GET /forecast/daily`, `GET /ask` |
 | `ChatPage.tsx` | **Chat & Evidence** — a real transcript; answers show the grounding badge, per-figure evidence and provenance; voice input (the transcript fills the ask box, and Send asks it) and a Listen button | `GET /ask`, `POST /asr`, `POST /tts` |
-| `ForecastPage.tsx` | **Forecast** — Today / Tonight / Tomorrow accordion, provenance card, forecast ask box ("5-day forecast for …") | `GET /facts`, `GET /ask` |
-| `AlertsPage.tsx` | **Alerts & Warnings** — the IMD colour verdict with its legend; "no verdict" is always neutral, never green | `GET /warnings` |
+| `ForecastPage.tsx` | **Forecast** — Days: up to 10 days (5 from fixtures), tap a day for its rain chance and millimetres, wind, humidity, UV, daylight, sunrise / sunset and night; Hourly: the next 24 hours under a temperature curve; provenance card. Against a backend without `/forecast/*` it falls back to Today / Tonight / Tomorrow from `/facts` and a "5-day forecast" question for Chat | `GET /forecast/daily`, `GET /forecast/hourly`, `GET /facts`, `GET /ask` |
+| `AlertsPage.tsx` | **Alerts & Warnings** — the IMD colour verdict with its legend; "no verdict" is always neutral, never green; the city's emergency numbers (112 first), tap to open the dialer, with the date they were checked; 112 alone when the list can't be had | `GET /warnings`, `GET /hotlines` |
 | `SettingsPage.tsx` | **Settings** — language, °C/°F, persona (sent to `/ask`) | — |
 | `HistoryPage.tsx` | **History** (drawer) — the signed-in user's past questions and answers; All / Alerts / Rain filters, search, "Ask again", "Clear history"; a guest is invited to sign in | `GET /history`, `DELETE /history` |
 
@@ -93,9 +93,8 @@ which city and how far away, and a warning beyond 50 km). The bell opens
 Alerts. Android back returns to Home before leaving the app.
 
 Only data some endpoint actually serves is shown. The web pages' static design
-samples are left out: hourly chart, 10-day list, sunrise/sunset panel, "rain so
-far today" tile, "Recently asked", alert category tiles, emergency hotlines and
-adjacent sectors. The report below lists what each one would need.
+samples that still have no endpoint are left out: "Recently asked", alert
+category tiles and adjacent sectors.
 
 ## Code layout
 
@@ -113,11 +112,12 @@ lib/
   state/
     ui_prefs.dart           language, unit, city, persona, appearance (web UiPrefsContext.tsx)
     prefs_store.dart        remembers ui_prefs across launches (app_prefs.json)
-    weather_store.dart      shared /facts load for Home + Forecast
+    weather_store.dart      shared /facts + /forecast/daily + /forecast/hourly load for Home + Forecast
     ask_controller.dart     single-answer /ask state (web useAsk.ts)
   api_client.dart           GET /ask + classifyAsk (web api.ts)
-  facts_client.dart         GET /facts
+  facts_client.dart         GET /facts, /forecast/daily, /forecast/hourly
   warnings_client.dart      GET /warnings
+  hotlines_client.dart      GET /hotlines (112 as the fallback)
   history_client.dart       GET / DELETE /history (bearer token)
   voice_client.dart         POST /asr, POST /tts
   voice_recorder.dart       16 kHz mono WAV capture (record plugin)
@@ -155,6 +155,10 @@ the work sits:
      "warning": null}`), so every city shows "No warning verdict".
    - `/aviation`, `/intelligence/best-window` and `/glossary` are 404, so
      Airport weather and Best Time & What-if show their error states.
+   - `/forecast/daily`, `/forecast/hourly` and `/hotlines` are 404 and `/facts`
+     has no `rain_so_far` (2026-10-03), so Forecast shows Today / Tonight /
+     Tomorrow, Hourly says the service doesn't serve it yet, Home has no rain or
+     daylight card, and Alerts lists 112 alone.
 
    The app tolerates all of this, but users see less than `main` can serve.
 2. **Verify on a real device.** *(App)* Partly done on an Android 16 (API 36)
@@ -183,7 +187,9 @@ the work sits:
    - the mic with real speech, and hearing the `/tts` playback
    - the soft keyboard on a small screen (it never appeared on the emulator)
    - after the redeploy (item 1): 8 cities, Alerts, Airport weather (Aviation
-     persona), Best Time & What-if
+     persona), Best Time & What-if, and the forecast detail (items 15–19)
+   - tapping an emergency number on a real phone (on the emulator it opens the
+     dialer with the number filled in)
 3. ~~**Ship the backend URL with the build.**~~ ✅ Done (2026-10-03). A release
    build defaults to `https://3-108-52-61.sslip.io` (`lib/config.dart`); debug
    and profile builds keep `http://localhost:8001`. `--dart-define=API_BASE_URL=…`
@@ -254,7 +260,7 @@ the work sits:
 12. **Localize the app's own UI.** *(App)* Done, apart from native review.
     Labels, buttons, headings and validators go through `tr()`
     (`lib/i18n.dart`), looked up in `lib/ui_strings.dart`, generated from
-    `ui-strings/ui_strings.json` (487 strings with hi / ta / te / mr, shared
+    `ui-strings/ui_strings.json` (534 strings with hi / ta / te / mr, shared
     with web/). Every literal passed to `tr()` has an entry. Errors that carry
     a value (the server URL, an HTTP status) keep it in `args` and fill it in
     after translating (2026-10-03). Flutter's own text (the text-selection
@@ -277,21 +283,27 @@ the work sits:
 
 ### P3 — web design sections that need new endpoints first
 
-15. **Hourly forecast** strip and chart. *(Backend, then App)* Needs an hourly
-    endpoint backed by Google Weather's hourly forecast.
-16. **Structured 5–10 day list.** *(Backend, then App)*
-    `weather_data.multi_day_facts()` exists but only reaches clients as narrated
-    `/ask` text. A `GET /forecast?city=&days=` would let the app render web's
-    10-day accordion from real figures.
-17. **Sunrise / sunset / daylight progress** (web Home hero). *(Backend, then
-    App)* Google Weather's `forecastDays` carry sun events, but `/facts` doesn't
-    expose them. The hero's time-of-day tint uses web's fixed 06:32 / 18:14
-    until then.
-18. **"Rain so far today" tile.** *(Backend, then App)*
-    `weather_data.rain_so_far()` exists, but only `/ask` reaches it. Expose it
-    on `/facts`.
-19. **Emergency hotlines** (web Alerts sample). *(Content)* Needs a verified,
-    city-aware list before any phone number ships.
+15. ~~**Hourly forecast** strip and chart.~~ ✅ Done (2026-10-03). `GET
+    /forecast/hourly` serves the next 24 hours; Forecast → Hourly shows them as
+    a strip under a temperature curve, "Now" first and each new day marked.
+16. ~~**Structured 5–10 day list.**~~ ✅ Done (2026-10-03). `GET
+    /forecast/daily?days=` serves up to 10 days; a live call now fetches all 10
+    in one page. Forecast → Days lists them, and a tapped day shows its rain
+    chance and millimetres, wind, humidity, UV, daylight, sunrise / sunset and
+    night. Fixture mode has 5 days (the snapshots hold 5).
+17. ~~**Sunrise / sunset / daylight progress.**~~ ✅ Done (2026-10-03). Each
+    `/forecast/daily` day carries `sunrise` / `sunset`; Home's Daylight card
+    shows the day length, both times and how much of the day has passed.
+18. ~~**"Rain so far today" tile.**~~ ✅ Done (2026-10-03). `/facts` (current
+    conditions) carries `rain_so_far` beside `facts`, so /ask's guardrail facts
+    are unchanged; Home's card shows the millimetres since midnight with the IMD
+    category, or the last 24 hours when the backend has no hourly history.
+19. ~~**Emergency hotlines.**~~ ✅ Done (2026-10-03). `GET /hotlines` serves
+    `data/hotlines.json`: 112, then each city's state, district and city lines.
+    Every number was read off an official .gov.in / .nic.in page, kept with the
+    page's wording, and checked on 2026-10-03; Chennai's 1913, NDMA's 1078 and
+    Kerala's 1077 had only news sources and are left out. Re-check the list
+    before a release. Alerts shows the numbers, tap to dial.
 
 ### P4 — engineering hygiene
 
@@ -305,7 +317,10 @@ the work sits:
     `MockClient`. The Windows-only temp-folder teardown failure in "the language
     is remembered across launches" is fixed (9fd163a: the test uses the
     in-memory store). Still needed:
-    - An injectable HTTP client with fixture-backed success-path tests per page.
+    - Fixture-backed success-path tests for the remaining pages.
+      `forecast_detail_test.dart` drives the whole app against a fake backend
+      (`http.runWithClient`) for Home, Forecast and Alerts, plus an older
+      backend's 404s and a 360 dp check in every language.
     - An `integration_test` run on a device.
 22. **Web target.** There is no `web/` platform folder. `flutter create
     --platforms web .` builds cleanly (checked in a scratch copy), but voice
