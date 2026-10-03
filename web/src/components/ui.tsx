@@ -256,8 +256,9 @@ export function TagChip({ children, icon, tone = 'neutral' }: { children: ReactN
   );
 }
 
-/** The LIVE / NOT LIVE provenance badge. */
-export function LiveBadge({ live }: { live: boolean }) {
+/** The LIVE / NOT LIVE provenance badge; `notLiveText` replaces NOT LIVE
+ *  (SAVED, for a saved copy). */
+export function LiveBadge({ live, notLiveText = 'NOT LIVE' }: { live: boolean; notLiveText?: string }) {
   const t = useT();
   return (
     <span
@@ -265,7 +266,7 @@ export function LiveBadge({ live }: { live: boolean }) {
         live ? 'bg-secondary-container text-on-secondary-container' : 'bg-surface-container-high text-on-surface-variant'
       }`}
     >
-      {t(live ? 'LIVE' : 'NOT LIVE')}
+      {t(live ? 'LIVE' : notLiveText)}
     </span>
   );
 }
@@ -308,6 +309,35 @@ export function ErrorPanel({
         {t(title)}
       </div>
       <p className="font-body-md text-body-md">{t(message, messageArgs)}</p>
+      {onRetry && (
+        <div className="mt-space-sm">
+          <PillButton icon="refresh" label="Try again" onClick={onRetry} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Shown while a page is on saved replies (lib/responseCache.ts): `message`
+ *  says what couldn't be reached and when the copy was saved; neutral, like
+ *  a "no verdict" card, never an error colour or a green. */
+export function SavedDataBanner({
+  message,
+  messageArgs,
+  onRetry,
+}: {
+  message: string;
+  messageArgs?: Args;
+  onRetry?: () => void;
+}) {
+  const t = useT();
+  return (
+    <div role="status" className="flex flex-col gap-1 p-space-md rounded-xl border border-outline-variant bg-surface-container-low">
+      <div className="flex items-center gap-1.5 font-label-md text-label-md font-semibold text-ink">
+        <Icon name="cloud_off" size={18} className="text-on-surface-variant" />
+        {t('Showing saved data')}
+      </div>
+      <p className="font-body-md text-body-md text-on-surface-variant">{t(message, messageArgs)}</p>
       {onRetry && (
         <div className="mt-space-sm">
           <PillButton icon="refresh" label="Try again" onClick={onRetry} />

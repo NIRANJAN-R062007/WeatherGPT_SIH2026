@@ -4,16 +4,29 @@
 // localized). The day list and hourly series (/forecast/daily,
 // /forecast/hourly) load beside it, each with its own error: a backend
 // without those routes (404) still serves Home and the /facts rows.
+//
+// Offline (plan.md §2 principle 5): a backend that can't be reached gives
+// the last saved replies instead (lib/responseCache.ts), trimmed to what
+// still holds now (freshFacts, freshDaily, freshHourly) and marked by
+// `savedAt`. While saved data is showing, the context retries every
+// OFFLINE_RETRY_MS until the backend answers again.
+import { API_BASE_URL } from '../lib/api';
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   FactsError,
   fetchDailyForecast,
   fetchFacts,
   fetchHourlyForecast,
+  freshDaily,
+  freshFacts,
+  freshHourly,
   type FactsResult,
   type ForecastSeries,
 } from '../lib/facts';
 import { useUiPrefs } from './UiPrefsContext';
+
+/** How often to try the backend again while showing saved data. */
+const OFFLINE_RETRY_MS = 60_000;
 
 interface WeatherState {
   loading: boolean;
@@ -39,6 +52,9 @@ interface WeatherCtx extends WeatherState {
   /** Still waiting on /forecast/daily. */
   dailyPending: boolean;
   hourlyPending: boolean;
+  /** When the oldest saved reply on show was saved; null when everything
+   *  shown is fresh. */
+  savedAt: Date | null;
   refresh: () => void;
 }
 
@@ -54,6 +70,12 @@ const EMPTY: WeatherState = {
   dailyError: null,
   hourlyError: null,
 };
+
+/** A saved copy with nothing left that still holds counts as unreachable. */
+const unreachable = () =>
+  new FactsError('network', "Couldn't reach the weather service at {url}. Is the orchestrator running?", undefined, {
+    url: API_BASE_URL,
+  });
 
 const asFactsError = (err: unknown) =>
   err instanceof FactsError ? err : new FactsError('network', 'Something went wrong talking to the weather service.');
@@ -88,11 +110,16 @@ export function WeatherProvider({ children }: { children: ReactNode }) {
     // error for the page; a forecast period that fails is just left empty.
     const facts = async () => {
       let failure: FactsError | null = null;
-      const fetch = (intent = 'current_weather', day = 'today') =>
-        fetchFacts({ city, lang, intent, day }).catch((err: unknown) => {
-          if (intent === 'current_weather' && day === 'today') failure = asFactsError(err);
-          return null;
-        });
+      const fetch = (intent = 'current_weather', day = 'today') => {
+        const current = intent === 'current_weather' && day === 'today';
+        return fetchFacts({ city, lang, intent, day }).then(
+          (r) => freshFacts(r, new Date(), current),
+          (err: unknown) => {
+            if (current) failure = asFactsError(err);
+            return null;
+          },
+        );
+      };
       const [current, today, tonight, tomorrow] = await Promise.all([
         fetch(),
         fetch('will_it_rain'),
@@ -106,11 +133,17 @@ export function WeatherProvider({ children }: { children: ReactNode }) {
       );
     };
     const daily = fetchDailyForecast({ city, lang }).then(
-      (daily) => update({ daily, dailyError: null }),
+      (d) => {
+        const daily = freshDaily(d, new Date());
+        update({ daily, dailyError: daily ? null : unreachable() });
+      },
       (err: unknown) => update({ daily: null, dailyError: asFactsError(err) }),
     );
     const hourly = fetchHourlyForecast({ city, lang }).then(
-      (hourly) => update({ hourly, hourlyError: null }),
+      (h) => {
+        const hourly = freshHourly(h, new Date());
+        update({ hourly, hourlyError: hourly ? null : unreachable() });
+      },
       (err: unknown) => update({ hourly: null, hourlyError: asFactsError(err) }),
     );
     await Promise.all([facts(), daily, hourly]);
@@ -122,12 +155,26 @@ export function WeatherProvider({ children }: { children: ReactNode }) {
 
   const refresh = useCallback(() => void load(city, lang), [city, lang, load]);
 
+  const times = [state.current, state.today, state.tonight, state.tomorrow, state.daily, state.hourly]
+    .map((r) => r?.savedAt?.getTime())
+    .filter((t): t is number => t !== undefined);
+  const savedAt = times.length ? new Date(Math.min(...times)) : null;
+
+  // Keep trying while saved data is showing; stop once it's all fresh.
+  const offline = savedAt !== null && !state.loading;
+  useEffect(() => {
+    if (!offline) return;
+    const id = window.setInterval(refresh, OFFLINE_RETRY_MS);
+    return () => window.clearInterval(id);
+  }, [offline, refresh]);
+
   const value: WeatherCtx = {
     ...state,
     hasDaily: (state.daily?.entries.length ?? 0) > 0,
     hasHourly: (state.hourly?.entries.length ?? 0) > 0,
     dailyPending: state.daily === null && state.dailyError === null,
     hourlyPending: state.hourly === null && state.hourlyError === null,
+    savedAt,
     refresh,
   };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

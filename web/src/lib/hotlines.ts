@@ -3,7 +3,7 @@
 // official government page (services/orchestrator/hotlines.py,
 // data/hotlines.json; mobile/lib/hotlines_client.dart). `name` and `note`
 // are English keys into ui-strings/ui_strings.json, translated where shown.
-import { getJson } from './facts';
+import { getJsonOrSaved } from './facts';
 
 export interface Hotline {
   /** As shown: "1077", "040 2111 1111". */
@@ -18,6 +18,8 @@ export interface HotlineList {
   lines: Hotline[];
   /** When the numbers were last checked against their sources (YYYY-MM-DD). */
   checked: string | null;
+  /** When this list was saved, if it's a saved copy rather than fresh. */
+  savedAt: Date | null;
 }
 
 /** 112 works anywhere in India (MHA's ERSS page, data/hotlines.json), so it
@@ -41,14 +43,19 @@ function hotline(json: unknown): Hotline | null {
   };
 }
 
+const linesOf = (json: Record<string, unknown>) =>
+  (Array.isArray(json.hotlines) ? json.hotlines : []).map(hotline).filter((h): h is Hotline => h !== null);
+
 /** Throws on any failure (no connection, an HTTP error, a backend from
- *  before /hotlines, an empty list); the caller falls back to
- *  EMERGENCY_HOTLINE. */
+ *  before /hotlines, an empty list) with nothing saved; the caller falls
+ *  back to EMERGENCY_HOTLINE. A failure of any kind gives the saved list
+ *  if there is one: emergency numbers are wanted most when the network
+ *  isn't there. */
 export async function fetchHotlines({ city, lang }: { city: string; lang?: string }): Promise<HotlineList> {
   const params: Record<string, string> = { city };
   if (lang) params.lang = lang;
-  const json = await getJson('/hotlines', params);
-  const lines = (Array.isArray(json.hotlines) ? json.hotlines : []).map(hotline).filter((h): h is Hotline => h !== null);
+  const { body, savedAt } = await getJsonOrSaved('/hotlines', params, true);
+  const lines = linesOf(body);
   if (lines.length === 0) throw new Error('no hotlines');
-  return { lines, checked: typeof json.checked === 'string' ? json.checked : null };
+  return { lines, checked: typeof body.checked === 'string' ? body.checked : null, savedAt };
 }

@@ -17,9 +17,15 @@
 // hourly strip) come through the same helper and errors. A backend from
 // before those routes answers 404; FactsError.status says so, and the pages
 // fall back to the /facts rows.
+//
+// Each reply is saved in the browser (lib/responseCache.ts), and when the
+// backend can't be reached (no connection, a timeout, a 5xx) the saved copy
+// comes back instead, with its `savedAt` set; freshFacts / freshDaily /
+// freshHourly trim a saved copy to what still holds now.
 
 import { API_BASE_URL } from './api';
 import type { Args } from './i18n';
+import { fetchOrSaved, replyKey } from './responseCache';
 
 /** Fixture/cache lookup with no LLM work — same budget as /warnings. */
 export const FACTS_TIMEOUT_MS = 10_000;
@@ -66,6 +72,8 @@ export interface FactsResult {
    *  `since`) or, with no hourly history, the last 24 hours
    *  (`rain_last_24h_mm`); either with `rain_category`, `is_live`, `source`. */
   rain_so_far?: Figures;
+  /** When this reply was saved, if it's a saved copy rather than fresh. */
+  savedAt?: Date | null;
 }
 
 export const factNumber = (r: FactsResult | null | undefined, key: string) => figure(r?.facts, key);
@@ -95,9 +103,11 @@ export interface ForecastSeries {
   source: string | null;
   isLive: boolean;
   issued: string | null;
+  /** When this reply was saved, if it's a saved copy rather than fresh. */
+  savedAt: Date | null;
 }
 
-function series(json: Record<string, unknown>, key: string): ForecastSeries {
+function series(json: Record<string, unknown>, key: string, savedAt: Date | null): ForecastSeries {
   const provenance = (json.provenance ?? {}) as Figures;
   const list = json[key];
   return {
@@ -105,6 +115,7 @@ function series(json: Record<string, unknown>, key: string): ForecastSeries {
     source: figureText(provenance, 'source'),
     isLive: provenance.is_live === true,
     issued: figureText(provenance, 'issued'),
+    savedAt,
   };
 }
 
@@ -121,21 +132,81 @@ export async function fetchFacts({
 }): Promise<FactsResult> {
   const params: Record<string, string> = { city, intent, day };
   if (lang) params.lang = lang;
-  return (await getJson('/facts', params)) as FactsResult;
+  const { body, savedAt } = await getJsonOrSaved('/facts', params);
+  return { ...(body as FactsResult), savedAt };
 }
 
 /** Up to `days` days (the backend serves 1–10). */
 export async function fetchDailyForecast({ city, lang, days = 10 }: { city: string; lang?: string; days?: number }) {
   const params: Record<string, string> = { city, days: String(days) };
   if (lang) params.lang = lang;
-  return series(await getJson('/forecast/daily', params), 'days');
+  const { body, savedAt } = await getJsonOrSaved('/forecast/daily', params);
+  return series(body, 'days', savedAt);
 }
 
 /** The next 24 hours. */
 export async function fetchHourlyForecast({ city, lang }: { city: string; lang?: string }) {
   const params: Record<string, string> = { city };
   if (lang) params.lang = lang;
-  return series(await getJson('/forecast/hourly', params), 'hours');
+  const { body, savedAt } = await getJsonOrSaved('/forecast/hourly', params);
+  return series(body, 'hours', savedAt);
+}
+
+/** The backend couldn't be reached, so a saved copy may stand in; a 4xx or
+ *  a malformed reply is an answer, not an outage. */
+export const isWeatherOutage = (err: unknown) =>
+  err instanceof FactsError &&
+  (err.kind === 'network' || err.kind === 'timeout' || (err.kind === 'http' && (err.status ?? 0) >= 500));
+
+/** getJson, saved; a saved copy when the backend is out. With `always`, any
+ *  failure gives the saved copy (lists wanted most when the network isn't
+ *  there: emergency numbers, the glossary). */
+export function getJsonOrSaved(path: string, params: Record<string, string>, always = false) {
+  return fetchOrSaved(replyKey(path, params), () => getJson(path, params), always ? () => true : isWeatherOutage);
+}
+
+const IST_MS = 330 * 60_000;
+
+/** The IST calendar date of `t`, as "YYYY-MM-DD". */
+const istDate = (t: Date) => new Date(t.getTime() + IST_MS).toISOString().slice(0, 10);
+
+/** A saved /facts reply as far as it still holds at `now`. Current
+ *  conditions stand however old (the page says when they were saved), but
+ *  their rain since midnight belongs to the day it was saved; a forecast
+ *  period (today / tonight / tomorrow) saved on an earlier day is gone. */
+export function freshFacts(r: FactsResult, now: Date, current: boolean): FactsResult | null {
+  if (!r.savedAt || istDate(r.savedAt) === istDate(now)) return r;
+  if (!current) return null;
+  const { rain_so_far: _, ...rest } = r;
+  return rest;
+}
+
+/** A saved day list from today on (past days dropped), with today and
+ *  tomorrow labelled by date rather than by the order they were saved in.
+ *  Null when no day is left. */
+export function freshDaily(d: ForecastSeries, now: Date): ForecastSeries | null {
+  if (!d.savedAt) return d;
+  const today = istDate(now);
+  const tomorrow = istDate(new Date(now.getTime() + 86_400_000));
+  const entries = d.entries
+    .filter((day) => (figureText(day, 'date') ?? '') >= today)
+    .map((day) => {
+      const date = figureText(day, 'date');
+      // Anything later is shown as its weekday.
+      return { ...day, label: date === today ? 'today' : date === tomorrow ? 'tomorrow' : 'later' };
+    });
+  return entries.length ? { ...d, entries } : null;
+}
+
+/** A saved hourly series without the hours that have ended. Null when none
+ *  is left. */
+export function freshHourly(h: ForecastSeries, now: Date): ForecastSeries | null {
+  if (!h.savedAt) return h;
+  const entries = h.entries.filter((hour) => {
+    const start = Date.parse(figureText(hour, 'time_iso') ?? '');
+    return !Number.isNaN(start) && start + 3_600_000 > now.getTime();
+  });
+  return entries.length ? { ...h, entries } : null;
 }
 
 /** GET `path` with `params` from the orchestrator as a JSON object, with

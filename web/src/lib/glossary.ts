@@ -2,9 +2,10 @@
 // the IMD warning colour words and their meanings, and the warning category
 // labels, in one language, each flagged by whether a native speaker has
 // reviewed it (`native_qa`). Alerts builds its colour legend from it rather
-// than carry its own copy (mobile/lib/glossary_client.dart).
+// than carry its own copy (mobile/lib/glossary_client.dart). Saved for
+// offline use like the other replies.
 import type { LegendRow, WarningColour } from './api';
-import { getJson } from './facts';
+import { getJsonOrSaved } from './facts';
 
 export interface GlossaryEntry {
   text: string;
@@ -44,7 +45,8 @@ export function glossaryLegend(g: Glossary | null): LegendRow[] | null {
 export const legendReviewed = (g: Glossary) =>
   COLOURS.every((c) => g[`colour_word_${c}`]?.reviewed === true && g[`colour_${c}`]?.reviewed === true);
 
-/** Throws on a failure; Alerts then keeps /warnings' own legend. */
+/** Saved for offline use; a failure of any kind gives the saved copy. Throws
+ *  with nothing saved; Alerts then keeps /warnings' own legend. */
 export async function fetchGlossary({ lang }: { lang: string }): Promise<Glossary> {
-  return parseGlossary(await getJson('/glossary', { lang }));
+  return parseGlossary((await getJsonOrSaved('/glossary', { lang }, true)).body);
 }

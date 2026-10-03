@@ -93,6 +93,15 @@ export function rainCategoryLabel(key: string | null) {
   return key ? (labels[key] ?? null) : null;
 }
 
+/** When a saved reply was saved: "14:20 IST" if today (IST), else
+ *  "2 Oct, 14:20 IST", the month in the app language. */
+export function savedTimeLabel(t: T, savedAt: Date, now = new Date()) {
+  const iso = savedAt.toISOString();
+  const day = (d: Date) => new Date(d.getTime() + 330 * 60_000).toISOString().slice(0, 10);
+  if (day(savedAt) === day(now)) return istTime(iso);
+  return `${istDayMonth(iso).replace(/[A-Z][a-z]{2}/, (m) => t(m))}, ${istTime(iso)}`;
+}
+
 /** "27 Sep" for `iso`, or for today + `fallbackOffsetDays` when absent. */
 export function istDayMonth(iso: string | null | undefined, fallbackOffsetDays = 0) {
   let d = iso ? new Date(iso) : null;

@@ -5,12 +5,23 @@
 // from the backend (WeatherContext): /facts for the card and the rain,
 // /forecast/daily for the sun times and the strip's five days. A backend
 // without /forecast/daily gets today / tonight / tomorrow from /facts in the
-// strip, and the 5-Day tile asks Chat instead.
+// strip, and the 5-Day tile asks Chat instead. When the backend can't be
+// reached, the saved figures show under a banner saying when they were saved.
 import { useEffect, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageFrame from '../components/PageFrame';
 import { PersonaScenery } from '../components/scenery/Scenery';
-import { ActionRow, AppCard, ErrorPanel, Icon, IconDisc, LiveBadge, LoadingPanel, SectionTitle } from '../components/ui';
+import {
+  ActionRow,
+  AppCard,
+  ErrorPanel,
+  Icon,
+  IconDisc,
+  LiveBadge,
+  LoadingPanel,
+  SavedDataBanner,
+  SectionTitle,
+} from '../components/ui';
 import WeatherGlyph from '../components/WeatherGlyph';
 import { question, questionTitle } from '../data/personas';
 import {
@@ -29,6 +40,7 @@ import {
   forecastDayName,
   hoursMinutes,
   isNightIst,
+  savedTimeLabel,
   istClock,
   istHour,
   istMinuteOfDay,
@@ -142,14 +154,20 @@ function CardTitle({ icon, title, trailing }: { icon: string; title: string; tra
 
 /** Millimetres since local midnight with the IMD category, or the last 24
  *  hours' total when the backend had no hourly history to sum. */
-function RainCard({ rain }: { rain: Figures }) {
+function RainCard({ rain, saved }: { rain: Figures; saved: boolean }) {
   const t = useT();
   const sinceMidnight = figure(rain, 'rain_so_far_mm');
   const mm = sinceMidnight ?? figure(rain, 'rain_last_24h_mm');
   const category = rainCategoryLabel(figureText(rain, 'rain_category'));
   return (
     <AppCard pad="p-3.5">
-      <CardTitle icon="water_drop" title="Rain so far" trailing={rain.is_live === true ? null : <LiveBadge live={false} />} />
+      <CardTitle
+        icon="water_drop"
+        title="Rain so far"
+        trailing={
+          saved ? <LiveBadge live={false} notLiveText="SAVED" /> : rain.is_live === true ? null : <LiveBadge live={false} />
+        }
+      />
       <div className="mt-2 font-headline-sm text-headline-sm text-ink">{mm === null ? '—' : millimetres(mm)}</div>
       {category && <div className="font-body-sm text-body-sm text-ink-muted">{t(category)}</div>}
       <div className="font-body-sm text-body-sm text-ink-muted">
@@ -213,7 +231,7 @@ function TodayCards() {
   if (!rain && !daylight) return null;
   return (
     <div className={`grid gap-2.5 ${rain && daylight ? 'grid-cols-2' : ''}`}>
-      {rain && <RainCard rain={rain} />}
+      {rain && <RainCard rain={rain} saved={!!weather.current?.savedAt} />}
       {daylight && <DaylightCard sunrise={sunrise} sunset={sunset} rise={rise} set={set} />}
     </div>
   );
@@ -301,7 +319,7 @@ function OutlookStrip() {
 export default function HomePage() {
   const navigate = useNavigate();
   const { askInChat } = useChat();
-  const { hasDaily } = useWeather();
+  const { hasDaily, savedAt, refresh } = useWeather();
   const { cityInfo, personaInfo: persona } = useUiPrefs();
   const [hour, setHour] = useState(() => istHour());
   const t = useT();
@@ -338,6 +356,16 @@ export default function HomePage() {
           <p className="font-body-sm text-body-sm md:text-body-md text-ink-muted">{t(persona.homeLead)}</p>
         </div>
       </div>
+
+      {savedAt && (
+        <div className="mt-space-md">
+          <SavedDataBanner
+            message="Couldn't reach the weather service. These figures were saved at {time}."
+            messageArgs={{ time: savedTimeLabel(t, savedAt) }}
+            onRetry={refresh}
+          />
+        </div>
+      )}
 
       <div className="mt-space-md grid gap-x-space-lg gap-y-space-md lg:grid-cols-2">
         <div className="flex flex-col gap-3">

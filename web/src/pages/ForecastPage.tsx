@@ -4,11 +4,21 @@
 // /forecast/hourly's next 24 hours as a strip under a temperature curve.
 // Every figure is the feed's own, never generated. A backend from before
 // those routes (404) gets the /facts rows (today, tonight, tomorrow) and the
-// banner that hands a 5-day question to Chat, as before.
+// banner that hands a 5-day question to Chat, as before. Saved figures
+// (backend unreachable) show under a banner saying when they were saved.
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageFrame from '../components/PageFrame';
-import { AppCard, ErrorPanel, Icon, IconDisc, InfoBanner, LoadingPanel, PageHeader } from '../components/ui';
+import {
+  AppCard,
+  ErrorPanel,
+  Icon,
+  IconDisc,
+  InfoBanner,
+  LoadingPanel,
+  PageHeader,
+  SavedDataBanner,
+} from '../components/ui';
 import WeatherGlyph from '../components/WeatherGlyph';
 import {
   factCondition,
@@ -28,6 +38,7 @@ import {
   istClock,
   istDayMonth,
   millimetres,
+  savedTimeLabel,
   sentenceCase,
 } from '../lib/format';
 import { useChat } from '../state/ChatContext';
@@ -443,6 +454,15 @@ export default function ForecastPage() {
   return (
     <PageFrame>
       <PageHeader title="Forecast" subtitle={personaInfo.forecastLead} />
+      {weather.savedAt && (
+        <div className="mt-space-md">
+          <SavedDataBanner
+            message="Couldn't reach the weather service. These figures were saved at {time}."
+            messageArgs={{ time: savedTimeLabel(t, weather.savedAt) }}
+            onRetry={weather.refresh}
+          />
+        </div>
+      )}
       <div className="mt-space-md">
         <Switch value={view} onChange={setView} />
       </div>

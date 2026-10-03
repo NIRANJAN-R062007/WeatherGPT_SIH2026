@@ -8,7 +8,10 @@
 // GET /glossary (the one shared wording) when it answers, marked when a
 // translation hasn't had native review; /warnings' own legend otherwise.
 // Emergency numbers (GET /hotlines) follow, each a tel: link; 112 shows even
-// when the list can't be fetched.
+// when the list can't be fetched. When the warnings service can't be
+// reached, the saved reply shows under a banner saying when it was saved; a
+// saved "nothing in force" is shown as no verdict, since it says nothing
+// about now. Saved emergency numbers show as usual.
 import { useEffect, useState } from 'react';
 import { Legend } from '../components/AskAnswer';
 import PageFrame from '../components/PageFrame';
@@ -21,11 +24,12 @@ import {
   InfoBanner,
   LoadingPanel,
   PageHeader,
+  SavedDataBanner,
   SectionTitle,
   TagChip,
 } from '../components/ui';
 import type { LegendRow, WarningColour } from '../lib/api';
-import { calendarDate, dayMonth } from '../lib/format';
+import { calendarDate, dayMonth, savedTimeLabel } from '../lib/format';
 import { fetchGlossary, glossaryLegend, legendReviewed, type Glossary } from '../lib/glossary';
 import { EMERGENCY_HOTLINE, fetchHotlines, type Hotline, type HotlineList } from '../lib/hotlines';
 import { useWarnings, type WarningsUnavailable, type WarningsVerdict } from '../lib/warnings';
@@ -241,12 +245,22 @@ export default function AlertsPage() {
   const shownHotlines = hotlines?.key === key ? hotlines : null;
   const shownGlossary = glossary?.lang === lang ? glossary.glossary : null;
 
-  const verdict = data && data.status !== 'unavailable' ? data : null;
-  const active = verdict?.status === 'active';
+  const active = data?.status === 'active';
+  // A saved "nothing in force" says nothing about now.
+  const verdict = data && data.status !== 'unavailable' && (!data.savedAt || active) ? data : null;
 
   return (
     <PageFrame>
       <PageHeader title="Alerts & Warnings" subtitle={personaInfo.alertsLead} />
+      {!loading && data?.savedAt && (
+        <div className="mt-space-lg">
+          <SavedDataBanner
+            message="Couldn't reach the warnings service. This was saved at {time}; newer warnings can't be checked now."
+            messageArgs={{ time: savedTimeLabel(t, data.savedAt) }}
+            onRetry={() => void load(city, lang)}
+          />
+        </div>
+      )}
       <div className="mt-space-lg">
         {loading ? (
           <LoadingPanel text="Checking current warnings…" />
