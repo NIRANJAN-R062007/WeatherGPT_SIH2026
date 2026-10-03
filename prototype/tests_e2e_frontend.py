@@ -153,10 +153,6 @@ def test_backend_down_shows_error_card(app, backend):
 
 # --- "Use my location" and place candidates (cities-and-location step 8) --------
 
-_STEP8 = pytest.mark.xfail(strict=True, reason="step 8: location UI")
-
-
-@_STEP8
 def test_use_my_location_sends_a_rounded_fix_and_answers(app):
     asked = []
     app.on("request", lambda r: asked.append(r.url) if "/ask?" in r.url else None)
@@ -172,7 +168,6 @@ def test_use_my_location_sends_a_rounded_fix_and_answers(app):
     assert not app.errors, app.errors
 
 
-@_STEP8
 def test_denied_location_falls_back_to_typing_and_picks_no_city(app):
     app.evaluate("""() => {
         navigator.geolocation.getCurrentPosition = (ok, err) => err({code: 1});
@@ -187,7 +182,6 @@ def test_denied_location_falls_back_to_typing_and_picks_no_city(app):
     assert app.evaluate("document.activeElement.dataset.testid") == "ask-input"
 
 
-@_STEP8
 def test_ambiguous_place_offers_candidates_and_a_tap_resends_with_place_id(app):
     asked = []
     app.on("request", lambda r: asked.append(r.url) if "/ask?" in r.url else None)
