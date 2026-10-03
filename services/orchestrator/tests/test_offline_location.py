@@ -72,7 +72,6 @@ def test_the_nearest_demo_city_helper():
     assert location.nearest_demo_city(19.2, 72.9).key == "mumbai"
 
 
-@_STEP7
 @pytest.mark.parametrize("key", ["offline_nearest_demo", "offline_demo_only"])
 @pytest.mark.parametrize("lang", i18n.SUPPORTED_LANGUAGES)
 def test_offline_messages_exist_in_every_language(key, lang):
@@ -81,7 +80,6 @@ def test_offline_messages_exist_in_every_language(key, lang):
     assert text and "{" not in text
 
 
-@_STEP7
 def test_offline_messages_carry_the_native_qa_marker():
     source = inspect.getsource(i18n).splitlines()
     for key in ("offline_nearest_demo", "offline_demo_only"):

@@ -469,6 +469,22 @@ LOCATION_MESSAGES = {
         "te": "మీ లొకేషన్",  # TODO: native_qa
         "mr": "तुमचे स्थान",  # TODO: native_qa
     },
+    # Offline (OFFLINE_MODE / WEATHER_MODE=fixtures): only the demo cities
+    # have saved data. {city}: the demo city a GPS answer used instead.
+    "offline_nearest_demo": {
+        "en": "Offline, so this is for {city}, the nearest city with saved data.",
+        "ta": "இணைப்பு இல்லை, எனவே இது சேமித்த தரவு உள்ள அருகிலுள்ள நகரமான {city}க்கானது.",  # noqa: E501 — TODO: native_qa
+        "hi": "ऑफ़लाइन है, इसलिए यह {city} के लिए है, सहेजे गए डेटा वाला सबसे नज़दीकी शहर।",  # noqa: E501 — TODO: native_qa
+        "te": "ఆఫ్‌లైన్‌లో ఉంది, కాబట్టి ఇది సేవ్ చేసిన డేటా ఉన్న దగ్గరి నగరం {city} కోసం.",  # noqa: E501 — TODO: native_qa
+        "mr": "ऑफलाइन आहे, म्हणून हे जतन केलेला डेटा असलेल्या सर्वात जवळच्या {city} शहरासाठी आहे.",  # noqa: E501 — TODO: native_qa
+    },
+    "offline_demo_only": {
+        "en": "Offline, I only have saved data for {cities} — not {place}.",
+        "ta": "இணைப்பு இல்லை; {cities} ஆகியவற்றுக்கு மட்டுமே சேமித்த தரவு உள்ளது — {place}க்கு இல்லை.",  # noqa: E501 — TODO: native_qa
+        "hi": "ऑफ़लाइन मेरे पास केवल {cities} का सहेजा गया डेटा है — {place} का नहीं।",  # noqa: E501 — TODO: native_qa
+        "te": "ఆఫ్‌లైన్‌లో నా దగ్గర {cities} కోసం మాత్రమే సేవ్ చేసిన డేటా ఉంది — {place} కోసం లేదు.",  # noqa: E501 — TODO: native_qa
+        "mr": "ऑफलाइन माझ्याकडे फक्त {cities} साठी जतन केलेला डेटा आहे — {place} साठी नाही.",  # noqa: E501 — TODO: native_qa
+    },
 }
 
 
