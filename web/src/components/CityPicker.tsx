@@ -130,7 +130,7 @@ export function CityHintRow() {
         {t(cityInfo.name)}
         <Icon name="expand_more" size={16} className="text-on-surface-variant" />
       </button>
-      <span className="text-outline">· LANG {lang.toUpperCase()}</span>
+      <span className="text-ink-muted">· LANG {lang.toUpperCase()}</span>
       <CityPickerSheet open={open} onClose={() => setOpen(false)} />
     </div>
   );

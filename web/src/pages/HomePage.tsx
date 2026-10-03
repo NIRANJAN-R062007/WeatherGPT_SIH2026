@@ -106,9 +106,11 @@ function NowCard() {
     const issued = factText(c, 'issued');
     body = (
       <>
-        <div className="flex items-center gap-3">
+        {/* The figures go under the temperature on narrow screens (or zoomed
+            text), so neither column is squeezed into ellipses. */}
+        <div className="flex flex-wrap items-center gap-3">
           <WeatherGlyph condition={factCondition(c)} night={isNightIst()} size={64} />
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-[9rem]">
             <div className="font-headline-xl text-[34px] leading-tight font-bold text-ink">
               {temp === null ? '—' : toCelsiusLabel(temp)}
             </div>
@@ -119,17 +121,17 @@ function NowCard() {
               <div className="font-body-sm text-body-sm text-ink-muted">{t('Feels like {temp}', { temp: toCelsiusLabel(feels) })}</div>
             )}
           </div>
-          <div className="w-px self-stretch my-1 bg-card-border" />
-          <div className="flex-1 min-w-0 flex flex-col gap-1.5">
+          <div className="hidden min-[400px]:block w-px self-stretch my-1 bg-card-border" />
+          <div className="flex-1 min-w-[10rem] flex flex-col gap-1.5">
             <Stat icon="water_drop" label="Humidity" value={humidity === null ? '—' : `${Math.round(humidity)}%`} />
             <Stat icon="air" label="Wind" value={wind === null ? '—' : `${Math.round(wind)} km/h`} />
             <Stat icon="umbrella" label="Rain" value={rain === null ? '—' : `${Math.round(rain)}%`} />
           </div>
         </div>
-        <div className="mt-3 flex items-center gap-space-sm">
+        <div className="mt-3 flex flex-wrap items-center gap-space-sm">
           <LiveBadge live={factIsLive(c)} />
           {issued && (
-            <span className="truncate font-citation-mono text-citation-mono text-ink-muted">
+            <span className="font-citation-mono text-citation-mono text-ink-muted">
               {t('Updated {time}', { time: istTime(issued) })}
             </span>
           )}
@@ -368,15 +370,15 @@ export default function HomePage() {
       )}
 
       <div className="mt-space-md grid gap-x-space-lg gap-y-space-md lg:grid-cols-2">
-        <div className="flex flex-col gap-3">
+        <div className="min-w-0 flex flex-col gap-3">
           <NowCard />
           <TodayCards />
           <div className="grid grid-cols-4 gap-2.5">
             {tiles.map(([icon, label, onClick]) => (
-              <AppCard key={label} pad="py-3" onClick={onClick}>
+              <AppCard key={label} pad="py-3 px-1" onClick={onClick} label={t(label)}>
                 <span className="flex flex-col items-center gap-1.5">
                   <Icon name={icon} size={26} fill className="text-primary" />
-                  <span className="truncate font-label-md text-label-md font-semibold text-ink">{t(label)}</span>
+                  <span className="max-w-full truncate font-label-md text-label-md font-semibold text-ink">{t(label)}</span>
                 </span>
               </AppCard>
             ))}

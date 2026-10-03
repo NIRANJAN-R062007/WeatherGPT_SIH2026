@@ -111,19 +111,23 @@ export default {
         'space-md': '1rem',
         'space-xs': '0.25rem',
       },
+      // Each family falls back to 'Inter', whose @font-face set (index.css)
+      // carries the self-hosted Noto Devanagari / Telugu / Tamil faces:
+      // without it, mono and headline text in hi/mr/te/ta drew whatever the
+      // OS had, or empty boxes where it had nothing.
       fontFamily: {
-        'headline-lg': ['Plus Jakarta Sans'],
-        'headline-lg-mobile': ['Plus Jakarta Sans'],
-        'body-sm': ['Inter'],
-        'label-md': ['Inter'],
-        'metric-display': ['Plus Jakarta Sans'],
-        'headline-sm': ['Plus Jakarta Sans'],
-        'citation-mono': ['JetBrains Mono'],
-        'headline-xl': ['Plus Jakarta Sans'],
-        'body-lg': ['Inter'],
-        'headline-xl-mobile': ['Plus Jakarta Sans'],
-        'body-md': ['Inter'],
-        'headline-md': ['Plus Jakarta Sans'],
+        'headline-lg': ['Plus Jakarta Sans', 'Inter', 'sans-serif'],
+        'headline-lg-mobile': ['Plus Jakarta Sans', 'Inter', 'sans-serif'],
+        'body-sm': ['Inter', 'sans-serif'],
+        'label-md': ['Inter', 'sans-serif'],
+        'metric-display': ['Plus Jakarta Sans', 'Inter', 'sans-serif'],
+        'headline-sm': ['Plus Jakarta Sans', 'Inter', 'sans-serif'],
+        'citation-mono': ['JetBrains Mono', 'Inter', 'monospace'],
+        'headline-xl': ['Plus Jakarta Sans', 'Inter', 'sans-serif'],
+        'body-lg': ['Inter', 'sans-serif'],
+        'headline-xl-mobile': ['Plus Jakarta Sans', 'Inter', 'sans-serif'],
+        'body-md': ['Inter', 'sans-serif'],
+        'headline-md': ['Plus Jakarta Sans', 'Inter', 'sans-serif'],
       },
       fontSize: {
         'headline-lg': ['32px', { lineHeight: '40px', letterSpacing: '-0.015em', fontWeight: '600' }],

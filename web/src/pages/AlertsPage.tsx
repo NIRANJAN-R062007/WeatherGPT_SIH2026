@@ -158,7 +158,7 @@ function Verdict({
               {w.issued_by}
             </span>
             <span>{t('Valid {from} → {to}', { from: istTimestamp(w.valid_from), to: istTimestamp(w.valid_to) })}</span>
-            <span className="text-outline">
+            <span className="text-ink-muted">
               {t('source')}: {w.source}
             </span>
           </div>

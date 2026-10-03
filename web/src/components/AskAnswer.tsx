@@ -78,7 +78,7 @@ function WeatherProvenanceFooter({ p, g }: { p: WeatherProvenance; g: Grounding 
       </span>
       {p.issued && <span>{t('Issued {time}', { time: istTimestamp(p.issued) })}</span>}
       <span>{t('Retrieved {time}', { time: istTimestamp(p.retrieved_at) })}</span>
-      <span className="text-outline">
+      <span className="text-ink-muted">
         {g.narration} · {g.provider}
         {g.attempts > 1 ? ` · ${t('{n} attempts', { n: g.attempts })}` : ''}
         {g.fallback_used ? ` · ${t('fell back to template')}` : ''}
@@ -301,7 +301,7 @@ export default function AskAnswer({
                 to: istTimestamp(outcome.data.provenance.valid_to),
               })}
             </span>
-            <span className="text-outline">
+            <span className="text-ink-muted">
               {t('verbatim')} · {outcome.data.grounding.provider}
             </span>
           </div>
