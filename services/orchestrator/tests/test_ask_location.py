@@ -18,7 +18,6 @@ from fastapi.testclient import TestClient
 client = TestClient(main.app)
 
 TRICHY = "gn:1254388"
-_STEP4 = pytest.mark.xfail(strict=True, reason="step 4: GPS 'near X' label")
 
 
 @pytest.fixture(autouse=True)
@@ -53,7 +52,6 @@ def _ask(text, **params):
     return client.get("/ask", params={"text": text, **params}).json()
 
 
-@_STEP4
 def test_here_with_gps_answers_for_near_the_nearest_town(live_anywhere):
     body = _ask("will it rain here", lat=10.79, lon=78.70)
     assert "response" in body

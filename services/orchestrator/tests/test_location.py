@@ -231,17 +231,14 @@ def test_postgres_candidates_are_ranked_like_the_file(synthetic, monkeypatch):
 
 # --- GPS label (step 4) ------------------------------------------------------------
 
-_STEP4 = pytest.mark.xfail(strict=True, reason="step 4: GPS 'near X' label")
 
 
-@_STEP4
 def test_gps_label_names_the_nearest_town_in_english():
     out = _location().resolve_location(None, 10.79, 78.70, "en")
     assert out["label"] == "your location (near Tiruchirappalli)"
     assert out["nearest"]["place_id"] == TRICHY
 
 
-@_STEP4
 @pytest.mark.parametrize("lang,town", [("ta", "திருச்சிராப்பள்ளி"), ("hi", "तिरुचिरापल्ली"),
                                        ("mr", "तिरुचिरापल्ली")])
 def test_gps_label_prefers_the_towns_name_in_the_users_language(lang, town):
@@ -250,7 +247,6 @@ def test_gps_label_prefers_the_towns_name_in_the_users_language(lang, town):
     assert out["label"] == i18n.location_message("gps_label", lang, town=town)
 
 
-@_STEP4
 def test_gps_label_falls_back_to_the_english_name():
     # GeoNames has no Telugu name for Tiruchirappalli.
     import i18n
@@ -258,7 +254,6 @@ def test_gps_label_falls_back_to_the_english_name():
     assert out["label"] == i18n.location_message("gps_label", "te", town="Tiruchirappalli")
 
 
-@_STEP4
 def test_gps_label_without_any_known_town(monkeypatch):
     import i18n
     loc = _location()

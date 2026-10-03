@@ -33,6 +33,7 @@ import time
 from dataclasses import dataclass, field
 
 import cities
+import i18n
 import placenames
 from config import DATA_DIR
 from sqlalchemy import text
@@ -374,11 +375,15 @@ def nearest_place(lat: float, lon: float) -> Place | None:
 def _gps(lat: float, lon: float, lang: str) -> dict:
     if not in_india(lat, lon):
         return _unresolved(outside_india=True)
-    out = {"lat": lat, "lon": lon, "label": "your location", "source": "gps"}
     near = nearest_place(lat, lon)
-    if near is not None:
-        out["nearest"] = _nearest_info(near, lang)
-    return out
+    if near is None:
+        return {"lat": lat, "lon": lon, "label": i18n.location_message("gps_label_bare", lang),
+                "source": "gps"}
+    # The town by its name in the user's language where GeoNames has one,
+    # else English (Place.name's fallback).
+    label = i18n.location_message("gps_label", lang, town=near.name(lang))
+    return {"lat": lat, "lon": lon, "label": label, "source": "gps",
+            "nearest": _nearest_info(near, lang)}
 
 
 def _spelling_neighbour(query: str) -> Place | None:
