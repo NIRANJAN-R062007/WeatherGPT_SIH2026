@@ -8,10 +8,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 
+import 'package:weathergpt/advisory_client.dart';
 import 'package:weathergpt/auth_client.dart';
 import 'package:weathergpt/components/app_shell.dart';
 import 'package:weathergpt/components/common.dart';
 import 'package:weathergpt/main.dart';
+import 'package:weathergpt/pages/advisory_page.dart';
 import 'package:weathergpt/pages/auth_page.dart';
 import 'package:weathergpt/pages/aviation_page.dart';
 import 'package:weathergpt/pages/best_window_page.dart';
@@ -86,6 +88,29 @@ Future<void> _visit(WidgetTester tester, String where, void Function(BuildContex
   await settle(tester);
 }
 
+/// Opens an advisory page, asks [example], scrolls to the answer's
+/// [verdict], and tours the page.
+Future<void> _visitAdvisory(
+  WidgetTester tester,
+  String lang,
+  AdvisoryKind kind, {
+  required String example,
+  required String verdict,
+  TourStop? at,
+}) async {
+  final where = kind == AdvisoryKind.travel ? 'Travel advice' : 'Sowing advice';
+  openAdvisory(_ctx(tester), kind);
+  await settle(tester);
+  await at?.call('$where (examples)');
+  await reveal(tester, find.text(shown(lang, example)));
+  await tester.tap(find.text(shown(lang, example)));
+  await settle(tester);
+  await reveal(tester, find.text(shown(lang, verdict)));
+  await scrollThrough(tester, '$where (answer)', at);
+  Navigator.of(_ctx(tester)).pop();
+  await settle(tester);
+}
+
 void Function(BuildContext) _push(Widget page) =>
     (context) => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => page));
 
@@ -133,6 +158,25 @@ Future<void> tourApp(
       await tester.pump(const Duration(milliseconds: 200));
     }
     expect(find.textContaining('31°C in Chennai'), findsWidgets, reason: 'the answer');
+    // A place two towns share: pick one of the offered places.
+    await tester.enterText(find.byType(TextField).last, 'weather in Puttur');
+    await tester.pump();
+    await tester.ensureVisible(find.byTooltip(shown(lang, 'Send')).last);
+    await tester.pump();
+    await tester.tap(find.byTooltip(shown(lang, 'Send')).last);
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 200));
+    }
+    final place = find.text('Puttūr, Karnataka · Dakshina Kannada');
+    expect(place, findsOneWidget, reason: 'the places to pick from');
+    await scrollThrough(tester, 'Chat (which place?)', at);
+    await tester.ensureVisible(place);
+    await tester.pump();
+    await tester.tap(place);
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 200));
+    }
+    expect(find.textContaining('31°C in Puttūr'), findsWidgets, reason: 'the picked place answered');
     await scrollThrough(tester, 'Chat', at);
 
     await tab(Icons.light_mode_outlined); // Forecast: an open day, then hourly
@@ -172,6 +216,22 @@ Future<void> tourApp(
     await _visit(tester, 'Airport weather', openAviation, at);
     await _visit(tester, 'Best time', openBestWindow, at);
     await _visit(tester, 'History', (c) => openHistory(c, onAskAgain: (_) {}), at);
+    await _visitAdvisory(
+      tester,
+      lang,
+      AdvisoryKind.travel,
+      example: 'Chennai to Madurai tomorrow by train',
+      verdict: 'Go with caution',
+      at: at,
+    );
+    await _visitAdvisory(
+      tester,
+      lang,
+      AdvisoryKind.sowing,
+      example: 'When should I sow groundnut in Madurai?',
+      verdict: 'Not available',
+      at: at,
+    );
   }, () => backend.client);
   await tester.pumpWidget(const SizedBox());
 }
