@@ -10,7 +10,6 @@ import pytest
 _KEYS = ("need_location", "which_place", "place_not_found", "place_not_found_bare",
          "india_only")
 _GPS_KEYS = ("gps_label", "gps_label_bare")
-_STEP4 = pytest.mark.xfail(strict=True, reason="step 4: GPS label templates")
 
 
 @pytest.mark.parametrize("key", _KEYS)
@@ -42,7 +41,6 @@ def test_new_indic_strings_carry_the_native_qa_marker():
             assert lines and all("TODO: native_qa" in ln for ln in lines), (key, lang)
 
 
-@_STEP4
 @pytest.mark.parametrize("key", _GPS_KEYS)
 @pytest.mark.parametrize("lang", i18n.SUPPORTED_LANGUAGES)
 def test_gps_labels_exist_in_every_language(key, lang):
@@ -52,7 +50,6 @@ def test_gps_labels_exist_in_every_language(key, lang):
         assert "Tiruchirappalli" in text
 
 
-@_STEP4
 def test_gps_labels_carry_the_native_qa_marker():
     source = inspect.getsource(i18n).splitlines()
     for key in _GPS_KEYS:

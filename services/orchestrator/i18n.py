@@ -453,6 +453,22 @@ LOCATION_MESSAGES = {
         "te": "క్షమించండి, నేను భారతదేశంలోని ప్రదేశాలకు మాత్రమే సమాధానం ఇవ్వగలను.",  # noqa: E501 — TODO: native_qa
         "mr": "माफ करा, मी फक्त भारतातील ठिकाणांसाठी उत्तर देऊ शकतो.",  # TODO: native_qa
     },
+    # The label a GPS answer carries (location.py): {town} is the nearest
+    # gazetteer town, in this language where GeoNames has the name.
+    "gps_label": {
+        "en": "your location (near {town})",
+        "ta": "உங்கள் இருப்பிடம் ({town} அருகில்)",  # TODO: native_qa
+        "hi": "आपकी लोकेशन ({town} के पास)",  # TODO: native_qa
+        "te": "మీ లొకేషన్ ({town} దగ్గర)",  # TODO: native_qa
+        "mr": "तुमचे स्थान ({town} जवळ)",  # TODO: native_qa
+    },
+    "gps_label_bare": {
+        "en": "your location",
+        "ta": "உங்கள் இருப்பிடம்",  # TODO: native_qa
+        "hi": "आपकी लोकेशन",  # TODO: native_qa
+        "te": "మీ లొకేషన్",  # TODO: native_qa
+        "mr": "तुमचे स्थान",  # TODO: native_qa
+    },
 }
 
 
