@@ -6,7 +6,7 @@
 // (tailwind.config.js), so these re-tint with the persona and appearance.
 import { useEffect, type CSSProperties, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { useT } from '../lib/i18n';
+import { useT, type Args } from '../lib/i18n';
 
 export function Icon({
   name,
@@ -290,11 +290,14 @@ export function ErrorPanel({
   icon,
   title,
   message,
+  messageArgs,
   onRetry,
 }: {
   icon: string;
   title: string;
   message: string;
+  /** Values for `message`'s `{name}` placeholders. */
+  messageArgs?: Args;
   onRetry?: () => void;
 }) {
   const t = useT();
@@ -304,7 +307,7 @@ export function ErrorPanel({
         <Icon name={icon} size={18} />
         {t(title)}
       </div>
-      <p className="font-body-md text-body-md">{t(message)}</p>
+      <p className="font-body-md text-body-md">{t(message, messageArgs)}</p>
       {onRetry && (
         <div className="mt-space-sm">
           <PillButton icon="refresh" label="Try again" onClick={onRetry} />
