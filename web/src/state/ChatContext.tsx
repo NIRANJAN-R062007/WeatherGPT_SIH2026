@@ -53,6 +53,12 @@ function istTimeNow() {
   }).format(new Date())} IST`;
 }
 
+/** A fix travels snapped to the 0.05° grid (~5 km), as on mobile: enough
+ *  for the weather, not enough to place a home. */
+function snapToGrid(degrees: number) {
+  return Number((Math.round(degrees / 0.05) * 0.05).toFixed(2));
+}
+
 function currentFix(): Promise<{ lat: number; lon: number }> {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
@@ -60,11 +66,7 @@ function currentFix(): Promise<{ lat: number; lon: number }> {
       return;
     }
     navigator.geolocation.getCurrentPosition(
-      (pos) =>
-        resolve({
-          lat: Math.round(pos.coords.latitude * 100) / 100,
-          lon: Math.round(pos.coords.longitude * 100) / 100,
-        }),
+      (pos) => resolve({ lat: snapToGrid(pos.coords.latitude), lon: snapToGrid(pos.coords.longitude) }),
       (err) => reject((err.code === err.PERMISSION_DENIED ? 'denied' : 'unavailable') satisfies LocateError),
       { enableHighAccuracy: false, timeout: 15_000, maximumAge: 600_000 },
     );
