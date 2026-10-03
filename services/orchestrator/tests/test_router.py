@@ -61,16 +61,18 @@ def test_will_it_rain_today_tonight_tomorrow():
         assert data is not None and "rain_probability_pct" in data
 
 
+@_LOC
 def test_forecast_next_n_days_caps_at_available():
     data = router.route(
-        _pq(intent="forecast", time_window="next_n_days", days=7), "chennai"
+        _pq(intent="forecast", time_window="next_n_days", days=7), _CHENNAI
     )
     assert data["days_counted"] == FORECAST_DAYS and data["days_requested"] == 7
 
 
+@_LOC
 def test_will_it_rain_next_n_days():
     data = router.route(
-        _pq(intent="will_it_rain", time_window="next_n_days", days=2), "chennai"
+        _pq(intent="will_it_rain", time_window="next_n_days", days=2), _CHENNAI
     )
     assert data is not None and "days" in data
 
@@ -152,9 +154,10 @@ def test_narration_facts_falls_back_to_full_when_no_numeric_leaf():
     assert trimmed == facts
 
 
+@_LOC
 def test_narration_facts_filters_multi_day():
     facts = router.route(
-        _pq(intent="forecast", time_window="next_n_days", days=2), "chennai"
+        _pq(intent="forecast", time_window="next_n_days", days=2), _CHENNAI
     )
     trimmed = router.narration_facts(facts, "rain")
     for day in trimmed["days"]:
@@ -162,11 +165,12 @@ def test_narration_facts_filters_multi_day():
     assert trimmed["days_counted"] == facts["days_counted"]
 
 
+@_LOC
 def test_narration_facts_passes_day_labels_through_unchanged():
     # Labels are weather_data's canonical keys (weekday / "later"); the trim
     # must neither drop nor rewrite them — i18n and narrate render them.
     facts = router.route(
-        _pq(intent="forecast", time_window="next_n_days", days=5), "chennai"
+        _pq(intent="forecast", time_window="next_n_days", days=5), _CHENNAI
     )
     facts["days"][4]["label"] = "later"
     trimmed = router.narration_facts(facts, "temperature")
