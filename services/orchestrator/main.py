@@ -39,6 +39,8 @@ import router
 import security_headers
 import taf
 import weather_data
+from advisory import agent as advisory_agent
+from advisory import slots as advisory_slots
 from auth import get_bearer_token, get_current_user
 from config import ALLOWED_ORIGINS, CORS_ALLOW_HEADERS
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
@@ -852,6 +854,77 @@ def _persona_fields(persona, occ: "occupation_module.Resolved | None") -> dict:
     if persona != persona_module.DEFAULT:
         return {"persona": persona}
     return {}
+
+
+class AdvisoryAsk(BaseModel):
+    text: str = Field(default="", max_length=300)
+    lang: str = "en"
+    slots: dict[str, str] = Field(default_factory=dict, max_length=8)  # from the last turn
+    asking: str | None = Field(default=None, max_length=20)
+
+
+_ADVISORY_DISCLAIMER = {
+    "travel": "Awareness only. Check the airline, railway or official source before you travel.",
+    "farming": "Check with your local KVK or agriculture office before you sow.",
+}
+
+
+def _carried_slots(kind: str, slots: dict[str, str]) -> dict[str, str]:
+    """The slots a client sent back from the last turn, kept only if each is a value we
+    could have produced: a registered city key, a known day, a known crop. Anything else
+    is dropped and asked for again, so no client text reaches the facts or the prompt."""
+    keep: dict[str, str] = {}
+    for slot in advisory_slots.REQUIRED[kind]:
+        value = slots.get(slot)
+        if value is None:
+            continue
+        if slot in ("origin", "destination", "district"):
+            ok = cities.resolve(value) == value
+        elif slot == "day":
+            ok = value in advisory_slots.DAYS
+        else:
+            ok = value in advisory_slots.CROPS
+        if ok:
+            keep[slot] = value
+    return keep
+
+
+def _advisory(kind: str, req: AdvisoryAsk) -> dict:
+    lang = req.lang if req.lang in SUPPORTED_LANGUAGES else "en"
+    asking = req.asking if req.asking in advisory_slots.REQUIRED[kind] else None
+    parsed = advisory_slots.parse(kind, req.text, have=_carried_slots(kind, req.slots),
+                                  asking=asking)
+    if not parsed.complete:
+        return {"kind": kind, "status": "ask_back",
+                "question": advisory_slots.ask_back(parsed, lang), "slots": parsed.slots,
+                "asking": parsed.asking, "unsupported": parsed.unsupported}
+    advice = advisory_agent.advise(kind, parsed.slots, lang)
+    return {
+        "kind": kind,
+        "status": "ok",
+        "slots": parsed.slots,
+        "assumed": parsed.assumed,
+        "answer": advice.answer,
+        "missing": advice.facts.missing(),
+        "provenance": advice.facts.provenance(),
+        "path": advice.path,
+        "fallback_reason": advice.fallback_reason,
+        "disclaimer": _ADVISORY_DISCLAIMER[kind],
+    }
+
+
+@app.post("/advisory/travel")
+def advisory_travel(req: AdvisoryAsk):
+    """TFA-17: "can I go from Chennai to Madurai tomorrow". Slots first (a missing one is
+    asked for), then the agent, the hard override and the guardrail (advisory/agent.py)."""
+    return _advisory("travel", req)
+
+
+@app.post("/advisory/sowing")
+def advisory_sowing(req: AdvisoryAsk):
+    """TFA-17: "when should I sow groundnut in Madurai". Answers `not_available` for every
+    crop until the sourced crop file (TFA-9) exists."""
+    return _advisory("farming", req)
 
 
 @app.get("/ask")

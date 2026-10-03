@@ -17,6 +17,11 @@ data:
   OLLAMA_MODEL: "llama3.2:3b"
   OLLAMA_TIMEOUT: "30"
 
+  # Travel / sowing advisory agent (services/orchestrator/advisory/agent.py)
+  ADVISORY_AGENT_ENABLED: "1"
+  ADVISORY_AGENT_TIMEOUT_S: "8"
+  ADVISORY_AGENT_MAX_TOOL_CALLS: "4"
+
   # Public-surface limits (services/orchestrator/limits.py)
   MAX_BODY_BYTES: "2097152"
   RATE_LIMIT_PER_MINUTE: "30"

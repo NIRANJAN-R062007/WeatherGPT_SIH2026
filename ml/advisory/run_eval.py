@@ -1,8 +1,9 @@
-"""Score candidate models on the travel/farming eval set (plan.md §8 TFA-1, §11.5).
+"""Score the travel/farming advisory on the eval set (plan.md §8 TFA-1, TFA-17, §11.5).
 
     python ml/advisory/run_eval.py --model oracle
-    python ml/advisory/run_eval.py --model ollama:qwen3:8b --no-think --out qwen3-8b.json
-    python ml/advisory/run_eval.py --model openai:qwen3-8b --base-url http://gpu-host:8000/v1
+    python ml/advisory/run_eval.py --model strands:gemini --out gemini.json
+    python ml/advisory/run_eval.py --model strands:groq
+    python ml/advisory/run_eval.py --model strands:ollama:llama3.2:3b
 
 For each `answer` row it builds the facts (real fixture collectors plus one named
 weather scenario, scenarios.py), asks the candidate, and scores three things per
@@ -13,16 +14,20 @@ plan §11.5:
   guardrail    guardrail.check_advisory() passes: every number, clock time, window
                and cited path in the reply traces to the facts
 
-A row passes only if all three do. Each row also reports latency. `ask_back` rows
+A row passes only if all three do. Each row also reports latency and, for an agent,
+how many tool calls it made. `strands:<provider>[:<model>]` runs the production agent
+(`advisory/agent.py`: same prompt, tools, hard override and Strands model classes) on
+the row's pinned facts, so what is scored is what ships; its tools return only what the
+pinned facts already hold. `ask_back` rows
 have no model call: they check the TFA-3 slot parser, as does the first stage of
 every `answer` row. The model scores are results, not a pass/fail gate, unless
 `--min-pass` is given; the exit code is 1 for a broken eval set or an unexpected
 slot-stage failure.
 
-`oracle` answers from the rubric in code, so it must score 100%: it proves the
-set, the scenarios and the harness agree with each other, and is the baseline a
-real model is read against. Real candidates need a server (TFA-2); nothing here
-starts one.
+`oracle` answers from the rule-based template (`advisory/template.py`), so it must
+score 100%: it proves the set, the scenarios and the harness agree with each other,
+and is the baseline an agent is read against. An agent candidate needs its provider's
+key in the environment (GEMINI_API_KEY, GROQ_API_KEY) or a running Ollama.
 
 Row fields: id, lang, kind (travel|farming), type (answer|ask_back), text, slots
 (the slots a correct parse yields), then for answers `scenario` and `expected`
@@ -47,12 +52,10 @@ os.environ.setdefault("WEATHER_MODE", "fixtures")  # before config is imported
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE.parents[1] / "services" / "orchestrator"))
 
+import config  # noqa: E402
 import guardrail  # noqa: E402
-import httpx  # noqa: E402
-import prompt as prompt_module  # noqa: E402
-import rubric  # noqa: E402
 import scenarios  # noqa: E402
-from advisory import schema, slots  # noqa: E402
+from advisory import agent, prompt, schema, slots, template  # noqa: E402
 
 KINDS = ("travel", "farming")
 TYPES = ("answer", "ask_back")
@@ -123,141 +126,55 @@ def slot_stage(row: dict) -> dict:
     return {"status": status, "problems": problems, "known_gap": gap}
 
 
-# --- the reference answer (the `oracle` candidate) -------------------------------
-
-
-def reference_answer(row: dict, facts) -> str:
-    verdict = rubric.reference_verdict(facts)
-    pros: list[str] = []
-    cons: list[str] = []
-    cites: list[str] = []
-    raw = facts.raw()
-
-    if facts.kind == "travel":
-        for role in ("origin", "destination"):
-            if "forecast" not in raw.get(role, {}):
-                cons.append(f"The forecast for the {role} is not available.")
-                continue
-            pct = raw[role]["forecast"]["rain_probability_pct"]
-            (cons if pct >= rubric.RAIN_CAUTION_PCT else pros).append(
-                f"Rain chance at the {role} is {pct}%.")
-            cites.append(f"{role}.forecast.rain_probability_pct")
-            wind = (raw[role].get("current") or {}).get("wind_kmh")
-            if wind is not None:
-                (cons if wind >= rubric.WIND_CAUTION_KMH else pros).append(
-                    f"Wind at the {role} is {wind} km/h.")
-                cites.append(f"{role}.current.wind_kmh")
-            warning = raw[role].get("warnings")
-            if warning is None:
-                cons.append(f"The IMD warning for the {role} is not available.")
-            elif warning["colour"] == "green":
-                pros.append(f"No IMD warning is in force at the {role}.")
-            else:
-                cons.append(f"An {warning['colour']} IMD warning is in force at the {role}.")
-            aviation = raw[role].get("aviation")
-            if aviation and "thunderstorm" in aviation["metar"]["briefing"]:
-                cons.append(f"The {role} airport report shows a thunderstorm.")
-    else:
-        crop = raw.get("crop", {}).get("entry")
-        days = (raw.get("location", {}).get("forecast") or {}).get("days")
-        if crop is None:
-            cons.append("The crop file has no entry for this crop.")
-        if not days:
-            cons.append("The forecast is not available.")
-        if crop and days:
-            day = days[0]
-            ok = verdict == "suitable"
-            (pros if ok else cons).append(
-                f"Rain chance is {day['rain_probability_pct']}% with a high of {day['high_c']}°C.")
-            cites += ["location.forecast.days[0].rain_probability_pct",
-                      "location.forecast.days[0].high_c"]
-
-    window = None
-    section = facts.section("destination", "window")
-    if row["expected"]["window"] and section is not None and section.available:
-        window = {k: section.data[k] for k in ("start_local", "end_local")}
-    return json.dumps({"verdict": verdict, "pros": pros, "cons": cons, "window": window,
-                       "cites": cites}, ensure_ascii=False)
-
-
 # --- candidates ------------------------------------------------------------------
 
 
 class Candidate:
     name = "?"
+    last_tool_calls: int | None = None
 
-    def __call__(self, text: str, row: dict, facts) -> str:
+    def __call__(self, row: dict, facts) -> str:
         raise NotImplementedError
 
 
 class Oracle(Candidate):
     name = "oracle"
 
-    def __call__(self, text, row, facts):
-        return reference_answer(row, facts)
+    def __call__(self, row, facts):
+        return json.dumps(template.template_answer(facts), ensure_ascii=False)
 
 
-class Ollama(Candidate):
-    """Native /api/generate. Temperature 0, so a re-run is comparable."""
+class StrandsAgent(Candidate):
+    """The production agent on the row's pinned facts (advisory/agent.py)."""
 
-    def __init__(self, model: str, base: str, constrain: bool, no_think: bool, timeout: float):
-        self.name = f"ollama:{model}"
-        self.model, self.base = model, base.rstrip("/")
-        self.constrain, self.no_think, self.timeout = constrain, no_think, timeout
+    def __init__(self, provider: str, model_id: str | None, timeout: float):
+        self.name = f"strands:{provider}" + (f":{model_id}" if model_id else "")
+        self.model = agent.make_model(provider, model_id)
+        self.timeout = timeout
 
-    def __call__(self, text, row, facts):
-        body = {"model": self.model, "prompt": text, "stream": False, "keep_alive": "30m",
-                "options": {"temperature": 0, "num_predict": 700}}
-        if self.constrain:
-            body["format"] = prompt_module.json_schema(row["kind"])
-        if self.no_think:
-            body["think"] = False
-        resp = httpx.post(f"{self.base}/api/generate", json=body,
-                          timeout=httpx.Timeout(self.timeout, connect=5.0))
-        resp.raise_for_status()
-        return resp.json().get("response") or ""
-
-
-class OpenAICompatible(Candidate):
-    """/chat/completions: vLLM, Groq, or any hosted open-weight endpoint. The key
-    is read from LLM_API_KEY, never from the command line."""
-
-    def __init__(self, model: str, base: str, constrain: bool, no_think: bool, timeout: float):
-        self.name = f"openai:{model}"
-        self.model, self.base = model, base.rstrip("/")
-        self.constrain, self.no_think, self.timeout = constrain, no_think, timeout
-
-    def __call__(self, text, row, facts):
-        body = {"model": self.model, "messages": [{"role": "user", "content": text}],
-                "temperature": 0, "max_tokens": 700}
-        if self.constrain:
-            body["response_format"] = {"type": "json_object"}
-        if self.no_think:
-            body["chat_template_kwargs"] = {"enable_thinking": False}
-        headers = {"Content-Type": "application/json"}
-        if os.getenv("LLM_API_KEY"):
-            headers["Authorization"] = f"Bearer {os.environ['LLM_API_KEY']}"
-        resp = httpx.post(f"{self.base}/chat/completions", json=body, headers=headers,
-                          timeout=httpx.Timeout(self.timeout, connect=5.0))
-        resp.raise_for_status()
-        choices = resp.json().get("choices") or []
-        return ((choices[0].get("message") or {}).get("content") or "") if choices else ""
+    def __call__(self, row, facts):
+        box = agent.Toolbox(facts, agent.no_fetch, config.ADVISORY_AGENT_MAX_TOOL_CALLS)
+        system = prompt.build(row["kind"], row["slots"], row["lang"], facts, tools=True)
+        try:
+            reply = agent.run_agent(self.model, box, system, self.timeout)
+        finally:
+            self.last_tool_calls = box.calls
+        parsed = schema.parse(reply)
+        # The hard override runs after the agent in production, so it is scored too.
+        if parsed is None:
+            return reply
+        return json.dumps(template.apply_override(facts, parsed), ensure_ascii=False)
 
 
-def make_candidate(spec: str, *, base_url: str | None, constrain: bool, no_think: bool,
-                   timeout: float) -> Candidate:
-    kind, _, model = spec.partition(":")
-    if kind == "oracle" and not model:
+def make_candidate(spec: str, *, timeout: float) -> Candidate:
+    kind, _, rest = spec.partition(":")
+    if kind == "oracle" and not rest:
         return Oracle()
-    if kind == "ollama" and model:
-        base = base_url or os.getenv("OLLAMA_BASE") or "http://localhost:11434"
-        return Ollama(model, base, constrain, no_think, timeout)
-    if kind == "openai" and model:
-        base = base_url or os.getenv("LLM_BASE_URL")
-        if not base:
-            raise SystemExit("openai:<model> needs --base-url (or LLM_BASE_URL)")
-        return OpenAICompatible(model, base, constrain, no_think, timeout)
-    raise SystemExit(f"unknown --model {spec!r}: use oracle, ollama:<model> or openai:<model>")
+    provider, _, model_id = rest.partition(":")
+    if kind == "strands" and provider in ("gemini", "groq", "ollama"):
+        return StrandsAgent(provider, model_id or None, timeout)
+    raise SystemExit(
+        f"unknown --model {spec!r}: use oracle or strands:<gemini|groq|ollama>[:<model>]")
 
 
 # --- stage 2: the model ------------------------------------------------------------
@@ -290,14 +207,15 @@ def run_row(row: dict, candidate: Candidate) -> dict:
     if row["type"] != "answer":
         return out
     facts = scenarios.build(row["kind"], row["slots"], row["scenario"])
-    text = prompt_module.build(row, facts)
     started = time.perf_counter()
+    candidate.last_tool_calls = None
     try:
-        reply = candidate(text, row, facts)
+        reply = candidate(row, facts)
         error = None
-    except (httpx.HTTPError, OSError, ValueError) as exc:
+    except (agent.AgentError, OSError, ValueError) as exc:
         reply, error = "", f"{type(exc).__name__}: {exc}"
     out["latency_s"] = round(time.perf_counter() - started, 3)
+    out["tool_calls"] = candidate.last_tool_calls
     out["reply"] = reply
     out["error"] = error
     out["model"] = score_reply(row, facts, reply)
@@ -366,12 +284,10 @@ def print_report(name: str, results: list[dict], summary: dict) -> None:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
-    ap.add_argument("--model", default="oracle", help="oracle | ollama:<model> | openai:<model>")
-    ap.add_argument("--base-url", default=None, help="server base URL (ollama or openai)")
-    ap.add_argument("--schema", action="store_true",
-                    help="constrain decoding to the answer schema (default: free generation)")
-    ap.add_argument("--no-think", action="store_true", help="turn a thinking model's reasoning off")
-    ap.add_argument("--timeout", type=float, default=120.0)
+    ap.add_argument("--model", default="oracle",
+                    help="oracle | strands:<gemini|groq|ollama>[:<model>]")
+    ap.add_argument("--timeout", type=float, default=config.ADVISORY_AGENT_TIMEOUT_S,
+                    help="seconds per row for an agent (default: ADVISORY_AGENT_TIMEOUT_S)")
     ap.add_argument("--kind", choices=KINDS)
     ap.add_argument("--lang")
     ap.add_argument("--min-pass", type=float, default=None,
@@ -388,16 +304,15 @@ def main() -> int:
     rows = [r for r in rows if (not args.kind or r["kind"] == args.kind)
             and (not args.lang or r["lang"].split("-")[0] == args.lang)]
 
-    candidate = make_candidate(args.model, base_url=args.base_url, constrain=args.schema,
-                               no_think=args.no_think, timeout=args.timeout)
+    candidate = make_candidate(args.model, timeout=args.timeout)
     results = [run_row(row, candidate) for row in rows]
     summary = summarise(results)
     print_report(candidate.name, results, summary)
 
     if args.out:
         Path(args.out).write_text(json.dumps({
-            "model": candidate.name, "schema_constrained": args.schema,
-            "no_think": args.no_think, "summary": summary, "rows": results,
+            "model": candidate.name, "timeout_s": args.timeout, "summary": summary,
+            "rows": results,
         }, ensure_ascii=False, indent=1), encoding="utf-8")
 
     unexpected = summary["slot_stage"]["fail"] + summary["slot_stage"]["gap_closed"]
