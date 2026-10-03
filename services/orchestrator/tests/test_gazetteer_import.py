@@ -19,7 +19,6 @@ _SCRIPT = config.REPO_ROOT / "scripts" / "import_geonames.py"
 _GAZETTEER = config.DATA_DIR / "gazetteer" / "in_places.json.gz"
 _MIGRATION = weather_store._MIGRATIONS_DIR / "006_cities_gazetteer.sql"
 
-_FILE_STEP = pytest.mark.xfail(strict=True, reason="step 1: generated gazetteer file")
 
 DEMO_PLACE_IDS = {
     "chennai": "gn:1264527", "madurai": "gn:1264521", "coimbatore": "gn:1273865",
@@ -177,7 +176,6 @@ def test_sync_places_upserts_names_text_and_keys_demo_rows_by_city(monkeypatch, 
 
 # --- the committed file --------------------------------------------------------------
 
-@_FILE_STEP
 def test_committed_gazetteer_is_small_and_agrees_with_the_demo_list():
     assert _GAZETTEER.stat().st_size < 5 * 1024 * 1024
     blob = json.loads(gzip.decompress(_GAZETTEER.read_bytes()))
