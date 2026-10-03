@@ -67,7 +67,6 @@ def test_a_demo_city_offline_is_answered_normally():
     assert body["response"].startswith("Chennai:") and "offline" not in body
 
 
-@_STEP7
 def test_the_nearest_demo_city_helper():
     assert location.nearest_demo_city(10.79, 78.70).key == "madurai"
     assert location.nearest_demo_city(19.2, 72.9).key == "mumbai"

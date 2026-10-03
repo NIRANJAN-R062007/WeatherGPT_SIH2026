@@ -372,6 +372,12 @@ def nearest_place(lat: float, lon: float) -> Place | None:
     return _GAZETTEER.nearest(lat, lon)
 
 
+def nearest_demo_city(lat: float, lon: float) -> cities.City:
+    """The demo city (data/cities.json) nearest a point — the only places with
+    saved snapshots, so what an offline GPS answer falls back to."""
+    return min(cities.CITIES.values(), key=lambda c: _haversine_km(lat, lon, c.lat, c.lon))
+
+
 def _gps(lat: float, lon: float, lang: str) -> dict:
     if not in_india(lat, lon):
         return _unresolved(outside_india=True)
