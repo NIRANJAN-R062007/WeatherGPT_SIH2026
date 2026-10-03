@@ -61,7 +61,6 @@ def test_will_it_rain_today_tonight_tomorrow():
         assert data is not None and "rain_probability_pct" in data
 
 
-@_LOC
 def test_forecast_next_n_days_caps_at_available():
     data = router.route(
         _pq(intent="forecast", time_window="next_n_days", days=7), "chennai"
@@ -69,7 +68,6 @@ def test_forecast_next_n_days_caps_at_available():
     assert data["days_counted"] == FORECAST_DAYS and data["days_requested"] == 7
 
 
-@_LOC
 def test_will_it_rain_next_n_days():
     data = router.route(
         _pq(intent="will_it_rain", time_window="next_n_days", days=2), "chennai"
@@ -83,7 +81,6 @@ def test_rainfall_so_far_today_any_time_window():
     assert data is not None and ("rain_so_far_mm" in data or "rain_last_24h_mm" in data)
 
 
-@_LOC
 def test_out_of_scope_returns_none():
     data = router.route(_pq(intent="out_of_scope"), _CHENNAI)
     assert data is None
@@ -109,7 +106,6 @@ def test_best_window_other_time_windows_fall_back_to_today():
         assert data is not None and data["day"] == "today"
 
 
-@_LOC
 def test_warnings_never_reaches_weather_data(monkeypatch):
     # main.py answers `warnings` from imd_warnings before routing; if it ever
     # got here it must not turn into a weather lookup.
@@ -156,7 +152,6 @@ def test_narration_facts_falls_back_to_full_when_no_numeric_leaf():
     assert trimmed == facts
 
 
-@_LOC
 def test_narration_facts_filters_multi_day():
     facts = router.route(
         _pq(intent="forecast", time_window="next_n_days", days=2), "chennai"
@@ -167,7 +162,6 @@ def test_narration_facts_filters_multi_day():
     assert trimmed["days_counted"] == facts["days_counted"]
 
 
-@_LOC
 def test_narration_facts_passes_day_labels_through_unchanged():
     # Labels are weather_data's canonical keys (weekday / "later"); the trim
     # must neither drop nor rewrite them — i18n and narrate render them.
