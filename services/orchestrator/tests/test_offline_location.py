@@ -62,7 +62,6 @@ def test_a_named_non_demo_place_offline_is_told_demo_cities_only(params):
                                         cities=main._city_list("en"))
 
 
-@_STEP7
 def test_a_demo_city_offline_is_answered_normally():
     body = _ask("what's the weather in Chennai")
     assert body["response"].startswith("Chennai:") and "offline" not in body
