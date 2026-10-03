@@ -92,9 +92,10 @@ jobs:
         with:
           node-version: "22"
 
-      # Reads package-lock.json; no install needed. High and critical fail.
+      # Reads package-lock.json; no install needed. High and critical fail,
+      # except advisories accepted by id, with the reason, in the script.
       - name: npm audit
-        run: npm audit --audit-level=high
+        run: node ../.github/scripts/npm-audit.mjs
 
   # The same two images publish-images (ci.yml) pushes to GHCR, built here
   # from the same Dockerfiles and scanned before they could ship.
