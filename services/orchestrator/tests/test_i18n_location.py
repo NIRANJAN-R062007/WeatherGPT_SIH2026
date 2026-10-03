@@ -7,12 +7,10 @@ import inspect
 import i18n
 import pytest
 
-_STEP3 = pytest.mark.xfail(strict=True, reason="step 3: location message templates")
 _KEYS = ("need_location", "which_place", "place_not_found", "place_not_found_bare",
          "india_only")
 
 
-@_STEP3
 @pytest.mark.parametrize("key", _KEYS)
 @pytest.mark.parametrize("lang", i18n.SUPPORTED_LANGUAGES)
 def test_every_location_message_exists_in_every_language(key, lang):
@@ -21,20 +19,17 @@ def test_every_location_message_exists_in_every_language(key, lang):
     assert not any(ch.isdigit() for ch in text)  # never a figure the guardrail must ground
 
 
-@_STEP3
 def test_not_found_names_the_place_and_the_nearest_one():
     text = i18n.location_message("place_not_found", "en", place="Xyzabad",
                                  nearest="Fyzābād, Uttar Pradesh")
     assert "Xyzabad" in text and "Fyzābād, Uttar Pradesh" in text
 
 
-@_STEP3
 def test_unknown_language_falls_back_to_english():
     assert i18n.location_message("need_location", "fr") == \
         i18n.location_message("need_location", "en")
 
 
-@_STEP3
 def test_new_indic_strings_carry_the_native_qa_marker():
     """audit-4.2: unreviewed ta/hi/te/mr text is marked at its source."""
     source = inspect.getsource(i18n).splitlines()

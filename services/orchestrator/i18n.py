@@ -411,3 +411,51 @@ for _name, _table in (
         if _missing:
             raise RuntimeError(f"i18n.{_name}[{_lang!r}] keys differ from en: {sorted(_missing)}")
 del _name, _table, _keyed, _lang, _missing
+
+
+# What /ask says instead of an answer when location.resolve_location() has no
+# single point (main.py). {place} is the name as the user wrote it; {nearest}
+# a gazetteer label. No figures, so nothing here needs grounding.
+# Every ta/hi/te/mr string is a first draft (audit 4.2).
+LOCATION_MESSAGES = {
+    "need_location": {
+        "en": "Which place? Name a town or city, or share your location.",
+        "ta": "எந்த இடம்? ஒரு ஊர் அல்லது நகரத்தின் பெயரைச் சொல்லுங்கள், அல்லது உங்கள் இருப்பிடத்தைப் பகிருங்கள்.",  # noqa: E501 — TODO: native_qa
+        "hi": "कौन सी जगह? किसी कस्बे या शहर का नाम बताइए, या अपनी लोकेशन साझा कीजिए।",  # noqa: E501 — TODO: native_qa
+        "te": "ఏ ప్రదేశం? ఒక ఊరు లేదా నగరం పేరు చెప్పండి, లేదా మీ లొకేషన్ పంచుకోండి.",  # noqa: E501 — TODO: native_qa
+        "mr": "कोणते ठिकाण? एखाद्या गावाचे किंवा शहराचे नाव सांगा, किंवा तुमचे स्थान शेअर करा.",  # noqa: E501 — TODO: native_qa
+    },
+    "which_place": {
+        "en": "There is more than one place with that name. Which one did you mean?",
+        "ta": "அந்தப் பெயரில் ஒன்றுக்கு மேற்பட்ட இடங்கள் உள்ளன. நீங்கள் எதைக் குறிப்பிடுகிறீர்கள்?",  # noqa: E501 — TODO: native_qa
+        "hi": "इस नाम की एक से अधिक जगहें हैं। आपका मतलब कौन सी से है?",  # TODO: native_qa
+        "te": "ఆ పేరుతో ఒకటి కంటే ఎక్కువ ప్రదేశాలు ఉన్నాయి. మీరు ఏది అనుకుంటున్నారు?",  # noqa: E501 — TODO: native_qa
+        "mr": "या नावाची एकापेक्षा जास्त ठिकाणे आहेत. तुम्हाला कोणते म्हणायचे आहे?",  # noqa: E501 — TODO: native_qa
+    },
+    "place_not_found": {
+        "en": "I couldn't find {place} in India. The nearest known place is {nearest}.",
+        "ta": "இந்தியாவில் {place} என்ற இடத்தைக் கண்டுபிடிக்க முடியவில்லை. அருகிலுள்ள அறியப்பட்ட இடம் {nearest}.",  # noqa: E501 — TODO: native_qa
+        "hi": "भारत में {place} नहीं मिला। सबसे नज़दीकी ज्ञात जगह {nearest} है।",  # TODO: native_qa
+        "te": "భారతదేశంలో {place} కనుగొనలేకపోయాను. దగ్గరలో తెలిసిన ప్రదేశం {nearest}.",  # noqa: E501 — TODO: native_qa
+        "mr": "भारतात {place} सापडले नाही. सर्वात जवळचे ज्ञात ठिकाण {nearest} आहे.",  # noqa: E501 — TODO: native_qa
+    },
+    "place_not_found_bare": {
+        "en": "I couldn't find {place} in India. Try a nearby town or city.",
+        "ta": "இந்தியாவில் {place} என்ற இடத்தைக் கண்டுபிடிக்க முடியவில்லை. அருகிலுள்ள ஊர் அல்லது நகரத்தை முயற்சிக்கவும்.",  # noqa: E501 — TODO: native_qa
+        "hi": "भारत में {place} नहीं मिला। पास का कोई कस्बा या शहर आज़माइए।",  # TODO: native_qa
+        "te": "భారతదేశంలో {place} కనుగొనలేకపోయాను. దగ్గరలోని ఊరు లేదా నగరాన్ని ప్రయత్నించండి.",  # noqa: E501 — TODO: native_qa
+        "mr": "भारतात {place} सापडले नाही. जवळचे गाव किंवा शहर वापरून पहा.",  # TODO: native_qa
+    },
+    "india_only": {
+        "en": "Sorry, I can only answer for places in India.",
+        "ta": "மன்னிக்கவும், இந்தியாவில் உள்ள இடங்களுக்கு மட்டுமே பதிலளிக்க முடியும்.",  # noqa: E501 — TODO: native_qa
+        "hi": "माफ़ कीजिए, मैं केवल भारत की जगहों के लिए बता सकता हूँ।",  # TODO: native_qa
+        "te": "క్షమించండి, నేను భారతదేశంలోని ప్రదేశాలకు మాత్రమే సమాధానం ఇవ్వగలను.",  # noqa: E501 — TODO: native_qa
+        "mr": "माफ करा, मी फक्त भारतातील ठिकाणांसाठी उत्तर देऊ शकतो.",  # TODO: native_qa
+    },
+}
+
+
+def location_message(key: str, lang: str, **fields) -> str:
+    table = LOCATION_MESSAGES[key]
+    return table.get(lang, table["en"]).format(**fields)
