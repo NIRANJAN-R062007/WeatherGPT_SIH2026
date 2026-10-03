@@ -230,6 +230,11 @@ def _msg(key: str, lang: str) -> str:
     return template.format(cities=_city_list(lang))
 
 
+def _demo_point(key: str, lang: str) -> dict:
+    city = cities.CITIES[key]
+    return {"lat": city.lat, "lon": city.lon, "label": cities.display_name(key, lang)}
+
+
 def _require_lang(lang: str) -> str:
     if lang not in SUPPORTED_LANGUAGES:
         raise HTTPException(status_code=422, detail=f"lang must be one of {SUPPORTED_LANGUAGES}")
@@ -1074,7 +1079,7 @@ def ask(text: str, lang: str = "en", city: str | None = None, persona: str = per
         # against `window`. fisherman/aviation personas get no
         # window verdict at all (R17), reusing WIE-7's persona_advisor
         # exactly as GET /intelligence/advisory does — not duplicated here.
-        hourly = router.route(pq, key)
+        hourly = router.route(pq, _demo_point(key, lang))
         if hourly is None:
             resp = {"intent": pq.intent, "city": key,
                     "message": _msg("best_window_unavailable", lang),
@@ -1129,7 +1134,7 @@ def ask(text: str, lang: str = "en", city: str | None = None, persona: str = per
 
         return resp
 
-    data = router.route(pq, key)
+    data = router.route(pq, _demo_point(key, lang))
     if data is None:
         resp = {"intent": pq.intent, "city": key, "message": _msg("no_data", lang),
                 "nlu": pq.as_dict()}

@@ -102,12 +102,43 @@ def _redacted(exc: BaseException) -> str:
     return text.replace(key, "REDACTED") if key else text
 
 
+_POINT_PREFIX = "@"
+
+
+def point_key(lat: float, lon: float) -> str:
+    """The cache/snapshot key for a point (location.py's {lat, lon}): a demo
+    city's key when the point is that city's own coordinates — so its
+    fixtures, cache entries and weather_facts rows are what they always were —
+    else "@<lat>,<lon>" at 2 decimals (~1 km)."""
+    for key, city in cities.CITIES.items():
+        if (city.lat, city.lon) == (lat, lon):
+            return key
+    return f"{_POINT_PREFIX}{lat:.2f},{lon:.2f}"
+
+
+def is_point_key(key: str) -> bool:
+    return _coords(key) is not None
+
+
+def _coords(key: str) -> tuple[float, float] | None:
+    if key in cities.CITY_KEYS:
+        city = cities.CITIES[key]
+        return city.lat, city.lon
+    if not key.startswith(_POINT_PREFIX):
+        return None
+    try:
+        lat, lon = (float(v) for v in key[len(_POINT_PREFIX):].split(","))
+    except ValueError:
+        return None
+    return (lat, lon) if -90 <= lat <= 90 and -180 <= lon <= 180 else None
+
+
 def _params(kind: str, city_key: str) -> dict:
-    city = cities.CITIES[city_key]
+    lat, lon = _coords(city_key)
     key = config.require("GOOGLE_WEATHER_API_KEY", config.GOOGLE_WEATHER_API_KEY)
     params = {
-        "location.latitude": city.lat,
-        "location.longitude": city.lon,
+        "location.latitude": lat,
+        "location.longitude": lon,
         "unitsSystem": "METRIC",
         "key": key,
     }
@@ -134,6 +165,8 @@ def _live(kind: str, city_key: str) -> Snapshot:
 
 
 def _fixture(kind: str, city_key: str) -> Snapshot | None:
+    if city_key not in cities.CITY_KEYS:
+        return None  # snapshots exist for the demo cities only
     cache_key = (kind, city_key)
     env = _FIXTURE_CACHE.get(cache_key)
     if env is None:
@@ -154,7 +187,7 @@ def _fixture(kind: str, city_key: str) -> Snapshot | None:
 
 
 def snapshot(kind: str, city_key: str, *, force_refresh: bool = False) -> Snapshot | None:
-    if kind not in ENDPOINTS or city_key not in cities.CITY_KEYS:
+    if kind not in ENDPOINTS or _coords(city_key) is None:
         return None
 
     if config.WEATHER_MODE == "fixtures":

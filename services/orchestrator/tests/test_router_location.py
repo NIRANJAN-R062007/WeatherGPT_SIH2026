@@ -13,8 +13,6 @@ import pytest
 import router
 import weather_data
 
-_STEP3 = pytest.mark.xfail(strict=True, reason="step 3: router takes a location")
-
 TRICHY = {"lat": 10.8155, "lon": 78.69651, "label": "Tiruchirappalli, Tamil Nadu"}
 
 
@@ -29,26 +27,22 @@ def _loc(key):
     return {"lat": c.lat, "lon": c.lon, "label": c.names["en"]}
 
 
-@_STEP3
 def test_a_demo_city_point_routes_to_its_snapshot():
     facts = router.route(_pq(), _loc("chennai"))
     assert facts == weather_data.get_weather("chennai", "current_weather", "today")
 
 
-@_STEP3
 @pytest.mark.parametrize("key", sorted(cities.CITY_KEYS))
 def test_every_demo_city_point_maps_back_to_its_key(key):
     c = cities.CITIES[key]
     assert google_weather.point_key(c.lat, c.lon) == key
 
 
-@_STEP3
 def test_any_other_point_has_a_point_key():
     key = google_weather.point_key(TRICHY["lat"], TRICHY["lon"])
     assert key.startswith("@") and key not in cities.CITY_KEYS
 
 
-@_STEP3
 def test_a_gazetteer_point_is_fetched_live_for_its_coordinates(monkeypatch):
     monkeypatch.setattr(config, "WEATHER_MODE", "auto")
     monkeypatch.setattr(config, "GOOGLE_WEATHER_API_KEY", "test-key")
@@ -70,7 +64,6 @@ def test_a_gazetteer_point_is_fetched_live_for_its_coordinates(monkeypatch):
         assert abs(params["location.longitude"] - TRICHY["lon"]) < 0.06
 
 
-@_STEP3
 def test_a_point_with_no_live_data_has_no_fixture_to_fall_back_on():
     # Fixture mode (the suite default): only demo cities have snapshots.
     assert router.route(_pq(), TRICHY) is None
