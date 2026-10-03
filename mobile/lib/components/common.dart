@@ -240,6 +240,10 @@ class LiveBadge extends StatelessWidget {
   }
 }
 
+/// From 1.5× system text size some rows run out of room side by side, so
+/// they stack instead: Home's now card, Forecast's day rows.
+bool isLargeText(BuildContext context) => MediaQuery.textScalerOf(context).scale(10) >= 15;
+
 /// Shown while a page is on saved replies (lib/response_cache.dart):
 /// [message] says what couldn't be reached and when the copy was saved;
 /// neutral, like a "no verdict" card, never an error colour or a green.
@@ -397,7 +401,8 @@ class PillButton extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(AppRadius.lg),
         onTap: onPressed,
-        child: Padding(
+        child: Container(
+          constraints: const BoxConstraints(minHeight: kMinInteractiveDimension),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           child: Row(mainAxisSize: MainAxisSize.min, children: [
             Icon(icon, size: 18, color: t.onPrimaryFixed),
@@ -601,7 +606,9 @@ class _CityRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = PersonaTheme.of(context);
-    final fg = active ? t.primary : t.onSurface;
+    // The selected row is marked by its tint, accent icon and weight; its
+    // text stays ink, since the accent on the tint falls short of 4.5:1.
+    final fg = t.onSurface;
     return Material(
       color: active ? t.primaryContainer.withValues(alpha: 0.1) : Colors.transparent,
       borderRadius: BorderRadius.circular(AppRadius.lg),

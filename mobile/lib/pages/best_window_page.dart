@@ -243,14 +243,16 @@ class _DaySwitch extends StatelessWidget {
               child: InkWell(
                 borderRadius: BorderRadius.circular(999),
                 onTap: () => onChanged(v),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  child: Text(
-                    tr(context, label),
-                    textAlign: TextAlign.center,
-                    style: AppText.labelMd.copyWith(
-                      color: selected ? t.onPrimary : t.ink,
-                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: kMinInteractiveDimension),
+                  child: Center(
+                    child: Text(
+                      tr(context, label),
+                      textAlign: TextAlign.center,
+                      style: AppText.labelMd.copyWith(
+                        color: selected ? t.onPrimary : t.ink,
+                        fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                      ),
                     ),
                   ),
                 ),
@@ -408,8 +410,7 @@ class _HourPicker extends StatelessWidget {
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
-          value: value,
-          isDense: true,
+          value: value, // not dense: 48 dp, Android's minimum touch target
           style: AppText.labelMd.copyWith(color: t.ink),
           dropdownColor: t.card,
           items: [for (final h in kHourOptions) DropdownMenuItem(value: h, child: Text(h))],

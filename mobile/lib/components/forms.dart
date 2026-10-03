@@ -219,7 +219,8 @@ class OutlineActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = PersonaTheme.of(context);
-    final fg = destructive ? AppColors.error : t.primary;
+    // The theme's error colour, so it stays readable in dark mode too.
+    final fg = destructive ? Theme.of(context).colorScheme.error : t.primary;
     final radius = BorderRadius.circular(AppRadius.card);
     return Material(
       color: t.card,

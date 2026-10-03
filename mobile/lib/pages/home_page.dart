@@ -127,27 +127,38 @@ class _QuickTiles extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = PersonaTheme.of(context);
-    return Row(
+    // Two to a row at large text sizes, so the labels keep their words.
+    final large = isLargeText(context);
+    final perRow = large ? 2 : tiles.length;
+    return Column(
       children: [
-        for (final (i, (icon, label, onTap)) in tiles.indexed) ...[
-          if (i > 0) const SizedBox(width: 10),
-          Expanded(
-            child: AppCard(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              onTap: onTap,
-              child: Column(
-                children: [
-                  Icon(icon, size: 26, color: t.primary),
-                  const SizedBox(height: 6),
-                  Text(
-                    tr(context, label),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppText.labelMd.copyWith(color: t.ink, fontWeight: FontWeight.w600),
+        for (var start = 0; start < tiles.length; start += perRow) ...[
+          if (start > 0) const SizedBox(height: 10),
+          Row(
+            children: [
+              for (final (i, (icon, label, onTap)) in tiles.skip(start).take(perRow).indexed) ...[
+                if (i > 0) const SizedBox(width: 10),
+                Expanded(
+                  child: AppCard(
+                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+                    onTap: onTap,
+                    child: Column(
+                      children: [
+                        Icon(icon, size: 26, color: t.primary),
+                        const SizedBox(height: 6),
+                        Text(
+                          tr(context, label),
+                          maxLines: large ? 2 : 1,
+                          textAlign: TextAlign.center,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppText.labelMd.copyWith(color: t.ink, fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
                   ),
-                ],
-              ),
-            ),
+                ),
+              ],
+            ],
           ),
         ],
       ],
@@ -268,6 +279,16 @@ class _NowBody extends StatelessWidget {
     final humidity = c.number('humidity_pct');
     final wind = c.number('wind_kmh');
     final night = nowIst().hour >= 19 || nowIst().hour < 6;
+    final stats = [
+      _Stat(Icons.water_drop_outlined, 'Humidity', humidity == null ? '—' : '${humidity.round()}%'),
+      const SizedBox(height: 6),
+      _Stat(Icons.air, 'Wind', wind == null ? '—' : '${wind.round()} km/h'),
+      const SizedBox(height: 6),
+      _Stat(Icons.umbrella_outlined, 'Rain', rain == null ? '—' : '${rain!.round()}%'),
+    ];
+    // At large text sizes the stats need the card's full width, so they move
+    // under the temperature instead of beside it.
+    final stacked = isLargeText(context);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -305,22 +326,19 @@ class _NowBody extends StatelessWidget {
                 ],
               ),
             ),
-            Container(width: 1, height: 72, margin: const EdgeInsets.symmetric(horizontal: 10), color: t.cardBorder),
-            Expanded(
-              flex: 5,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _Stat(Icons.water_drop_outlined, 'Humidity', humidity == null ? '—' : '${humidity.round()}%'),
-                  const SizedBox(height: 6),
-                  _Stat(Icons.air, 'Wind', wind == null ? '—' : '${wind.round()} km/h'),
-                  const SizedBox(height: 6),
-                  _Stat(Icons.umbrella_outlined, 'Rain', rain == null ? '—' : '${rain!.round()}%'),
-                ],
+            if (!stacked) ...[
+              Container(width: 1, height: 72, margin: const EdgeInsets.symmetric(horizontal: 10), color: t.cardBorder),
+              Expanded(
+                flex: 5,
+                child: Column(mainAxisAlignment: MainAxisAlignment.center, children: stats),
               ),
-            ),
+            ],
           ],
         ),
+        if (stacked) ...[
+          Container(height: 1, margin: const EdgeInsets.symmetric(vertical: 12), color: t.cardBorder),
+          ...stats,
+        ],
         const SizedBox(height: 12),
         Row(
           children: [
@@ -390,6 +408,13 @@ class _TodayCards extends StatelessWidget {
         _DaylightCard(sunrise: today!.sunrise!, sunset: today.sunset!, rise: rise, set: set, now: now),
     ];
     if (cards.isEmpty) return const SizedBox.shrink();
+    // One under the other at large text sizes, so the titles keep their words.
+    if (isLargeText(context)) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [for (final card in cards) ...[const SizedBox(height: 12), card]],
+      );
+    }
     return Padding(
       padding: const EdgeInsets.only(top: 12),
       child: IntrinsicHeight(
@@ -551,7 +576,9 @@ class _OutlookStrip extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 14, horizontal: AppSpace.sm),
         child: Row(
           children: [
-            for (final day in weather.daily!.entries.take(5)) Expanded(child: _DailyCell(day: day)),
+            // Three days at large text sizes, so each still has room.
+            for (final day in weather.daily!.entries.take(isLargeText(context) ? 3 : 5))
+              Expanded(child: _DailyCell(day: day)),
           ],
         ),
       );

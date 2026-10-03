@@ -3232,5 +3232,17 @@
     "ta": "இந்த தொலைபேசியில் சேமித்த நேரம்: {time}.",
     "te": "ఈ ఫోన్‌లో సేవ్ చేసిన సమయం: {time}.",
     "mr": "या फोनवर जतन केल्याची वेळ: {time}."
+  },
+  "{day}, {date}: {condition}, high {high}, low {low}, {rain}% chance of rain": {
+    "hi": "{day}, {date}: {condition}, अधिकतम {high}, न्यूनतम {low}, बारिश की संभावना {rain}%",
+    "ta": "{day}, {date}: {condition}, அதிகபட்சம் {high}, குறைந்தபட்சம் {low}, மழை வாய்ப்பு {rain}%",
+    "te": "{day}, {date}: {condition}, గరిష్ఠం {high}, కనిష్ఠం {low}, వర్షం అవకాశం {rain}%",
+    "mr": "{day}, {date}: {condition}, कमाल {high}, किमान {low}, पावसाची शक्यता {rain}%"
+  },
+  "{time}: {temp}, {condition}, {rain}% chance of rain": {
+    "hi": "{time}: {temp}, {condition}, बारिश की संभावना {rain}%",
+    "ta": "{time}: {temp}, {condition}, மழை வாய்ப்பு {rain}%",
+    "te": "{time}: {temp}, {condition}, వర్షం అవకాశం {rain}%",
+    "mr": "{time}: {temp}, {condition}, पावसाची शक्यता {rain}%"
   }
 }
