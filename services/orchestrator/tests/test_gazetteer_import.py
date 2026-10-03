@@ -19,7 +19,6 @@ _SCRIPT = config.REPO_ROOT / "scripts" / "import_geonames.py"
 _GAZETTEER = config.DATA_DIR / "gazetteer" / "in_places.json.gz"
 _MIGRATION = weather_store._MIGRATIONS_DIR / "006_cities_gazetteer.sql"
 
-_DEMO_STEP = pytest.mark.xfail(strict=True, reason="step 1: demo place_ids")
 _SCRIPT_STEP = pytest.mark.xfail(strict=True, reason="step 1: import script")
 _FILE_STEP = pytest.mark.xfail(strict=True, reason="step 1: generated gazetteer file")
 
@@ -53,7 +52,6 @@ def test_gazetteer_migration_is_additive_and_indexed():
 
 # --- demo cities ----------------------------------------------------------------
 
-@_DEMO_STEP
 def test_every_demo_city_carries_its_geonames_place_id():
     assert {k: c.place_id for k, c in cities.CITIES.items()} == DEMO_PLACE_IDS
 
