@@ -9,3 +9,4 @@ sqlalchemy==2.0.52
 psycopg2-binary==2.9.13
 redis==5.0.8
 python-multipart==0.0.31
+strands-agents[gemini,ollama,openai]==1.57.2

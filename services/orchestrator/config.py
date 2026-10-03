@@ -62,6 +62,17 @@ OLLAMA_BASE: str = (os.getenv("OLLAMA_BASE") or "http://localhost:11434").rstrip
 OLLAMA_MODEL: str | None = os.getenv("OLLAMA_MODEL") or "llama3.2:3b"
 OLLAMA_TIMEOUT: float = _float_env("OLLAMA_TIMEOUT", 30.0)
 
+# Travel / sowing advisory agent (advisory/agent.py, plan.md §11.2a). Off, offline
+# (OFFLINE_MODE) or with no provider key it is skipped and the rule-based answer is
+# returned. The two budgets are the latency guard: the whole agent run, tools and every
+# provider tried, must finish inside ADVISORY_AGENT_TIMEOUT_S, and a run may call at
+# most ADVISORY_AGENT_MAX_TOOL_CALLS tools.
+ADVISORY_AGENT_ENABLED: bool = (os.getenv("ADVISORY_AGENT_ENABLED") or "1").strip().lower() in (
+    "1", "true", "yes",
+)
+ADVISORY_AGENT_TIMEOUT_S: float = _float_env("ADVISORY_AGENT_TIMEOUT_S", 8.0)
+ADVISORY_AGENT_MAX_TOOL_CALLS: int = int(_float_env("ADVISORY_AGENT_MAX_TOOL_CALLS", 4))
+
 # Public-surface limits (limits.py). 0 disables the rate limit.
 MAX_BODY_BYTES: int = int(_float_env("MAX_BODY_BYTES", 2 * 1024 * 1024))
 RATE_LIMIT_PER_MINUTE: int = int(_float_env("RATE_LIMIT_PER_MINUTE", 30))

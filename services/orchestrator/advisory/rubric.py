@@ -1,16 +1,15 @@
-"""The draft rubric the eval set is scored against (plan.md §8 TFA-1, §11.5/§11.6).
+"""The verdict rules for travel and farming (plan.md §8 TFA-1/7/11, §11.2a, §11.6).
 
-Two jobs: its text goes into the model's prompt (`prompt.py`), and
-`reference_verdict()` is the same rule as code, so every row's expected verdict
-can be checked against the facts it is about, and the `oracle` candidate has
-something to answer with.
+Three jobs: its text goes into the agent's prompt (`prompt.py`); `reference_verdict()`
+is the same rule as code, which is the rule-based answer used when the agent is
+off, offline or fails (`template.py`) and the verdict the eval set is checked
+against; and `hard_override()` is the §11.6 override that runs in code after the
+agent returns, whatever it said.
 
-This is **eval scaffolding, not the production rule table**. TFA-7 (travel
-Go/Caution/Avoid thresholds, with the §11.6 hard overrides) and TFA-11 (farming,
-sourced crop thresholds) own the real numbers, and the real overrides run in
-code regardless of what a model says. The thresholds below are first drafts
-chosen so the eval scenarios (scenarios.py) are unambiguous; change them there
-and here together.
+The thresholds are **first drafts**, chosen so the eval scenarios
+(`ml/advisory/scenarios.py`) are unambiguous. TFA-7 (travel Go/Caution/Avoid
+thresholds) and TFA-11 (farming, sourced crop thresholds) own the real numbers
+and tune them against the eval set; change the scenarios and these together.
 """
 
 from __future__ import annotations
@@ -56,19 +55,31 @@ def _has_thunderstorm(aviation: dict) -> bool:
     return any("thunderstorm" in (w.get("text") or "") for w in weather)
 
 
+def hard_override(facts) -> str | None:
+    """The one verdict a model may never talk its way past (§11.6): "avoid" for
+    travel when an IMD warning at the origin or destination is red, or a METAR
+    shows a thunderstorm at either airport. None when no override applies (and
+    always for farming)."""
+    if facts.kind != "travel":
+        return None
+    for role in ("origin", "destination"):
+        if (_avail(facts, role, "warnings") or {}).get("colour") == "red":
+            return "avoid"
+        aviation = _avail(facts, role, "aviation")
+        if aviation and _has_thunderstorm(aviation):
+            return "avoid"
+    return None
+
+
 def reference_travel(facts) -> str:
     roles = ("origin", "destination")
+    if hard_override(facts):
+        return "avoid"
     forecasts = {r: _avail(facts, r, "forecast") for r in roles}
     if any(f is None for f in forecasts.values()):
         return "not_available"
 
     warnings = {r: _avail(facts, r, "warnings") for r in roles}
-    if any((w or {}).get("colour") == "red" for w in warnings.values()):
-        return "avoid"
-    for role in roles:
-        aviation = _avail(facts, role, "aviation")
-        if aviation and _has_thunderstorm(aviation):
-            return "avoid"
 
     if any(w is None or w.get("colour") != "green" for w in warnings.values()):
         return "caution"

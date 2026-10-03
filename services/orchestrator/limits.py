@@ -57,7 +57,7 @@ from starlette.responses import JSONResponse
 
 _LOG = logging.getLogger("weathergpt.limits")
 
-LIMITED_PATHS = frozenset({"/ask", "/asr", "/tts"})
+LIMITED_PATHS = frozenset({"/ask", "/asr", "/tts", "/advisory/travel", "/advisory/sowing"})
 # Read-style routes that still cost something (a DB scan, a decoder run) get
 # their own per-client bucket at RATE_LIMIT_PER_MINUTE so they can't drain the
 # /ask budget or be used to probe past it.

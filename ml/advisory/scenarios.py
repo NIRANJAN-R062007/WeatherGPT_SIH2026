@@ -25,7 +25,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "services" / "orche
 from advisory import facts as facts_module  # noqa: E402
 from advisory.facts import AdvisoryFacts, FactSection  # noqa: E402
 
-# Pinned values. The thresholds in rubric.py are written against these.
+# Pinned values. The thresholds in advisory/rubric.py are written against these.
 CALM_RAIN_PCT = 10
 CALM_WIND_KMH = 10
 RAINY_PCT = 60
