@@ -4,21 +4,10 @@ The main WeatherGPT website UI, imported from the team's Google Stitch project
 ("WeatherGPT AI Weather Assistant") via the Stitch MCP server and rebuilt as a
 proper Vite + React + TypeScript + Tailwind app.
 
-**Status: frontend only.** Every screen renders with the realistic sample
-content Stitch generated inline (city, forecast figures, alerts, history —
-literal text in each page component, not fetched). Nothing calls the
-orchestrator's `/ask` API yet — that wiring (real weather data, the
-grounding/evidence panel backed by real tool responses, language switching
-backed by `data/i18n/`) is a follow-up pass, not part of this import.
-
-Navigation is real (`react-router-dom`, one route per sidebar item). The
-language pills and °C/°F toggle in the top bar and Settings are wired to
-real React state (`src/state/UiPrefsContext.tsx`) and visibly track a
-selection — but every temperature/figure on the Stitch-sourced pages is
-still literal mock text, so toggling °F doesn't yet recompute the "29°" on
-the Home hero or any other number. Wiring that (and real translation) needs
-the pages to read from live data instead of hardcoded strings, which is the
-same follow-up pass as the `/ask` integration above.
+**Status (2026-10-03): live, and level with the mobile app.** Every page
+reads the orchestrator (`VITE_API_BASE_URL`), in the five app languages;
+the Stitch sample content is gone from the main pages (History is still
+the static mock, reachable from the sidebar only).
 
 ## Personas, themes and accounts (2026-09-29)
 
@@ -41,8 +30,40 @@ the pics/ persona mockups:
   `VITE_SUPABASE_ANON_KEY`). There is a landing page, sign in / create
   account (name, email, phone, occupation), a Profile page with Sign out,
   and "Continue as guest". The session is kept in localStorage.
-- **Live data.** Home and Forecast read `GET /facts` (today, tonight and
-  tomorrow). Chat asks `/ask` with the persona. Alerts reads `/warnings`.
+- **Live data.** Home and Forecast read `GET /facts`, `/forecast/daily`
+  and `/forecast/hourly`. Chat asks `/ask` with the persona. Alerts reads
+  `/warnings`, `/glossary` and `/hotlines`.
+
+## Mobile parity (2026-10-03)
+
+The site caught up with the app's work since 2026-10-01:
+
+- **Forecast detail.** Forecast is "Days | Hourly": up to 10 days (open a
+  day for rain, rainfall, wind, humidity, UV, daylight, sun times and its
+  night) and the next 24 hours under a temperature curve. Home has Rain so
+  far and Daylight cards and a five-day strip. A backend without the
+  forecast routes still gets the /facts rows.
+- **Alerts.** Emergency numbers from `/hotlines` as tel: links (112
+  always), and the colour legend from `/glossary`, marked when a
+  translation hasn't had native review.
+- **Travel and Sowing advice** (`/travel` for everyone, `/sowing` for the
+  Farmer persona), a short conversation over `POST /advisory/*`.
+- **Location answers.** "Place not found" offers the nearest place, "which
+  place?" offers Use my location; the browser fix is sent snapped to the
+  0.05° grid (~5 km).
+- **Offline.** Public replies are saved in localStorage
+  (`src/lib/responseCache.ts`, never /ask or History) and shown under a
+  "Showing saved data" banner when the backend can't be reached, trimmed
+  to what still holds; the weather data retries every minute.
+- **Accessibility.** axe-core (WCAG 2.1 AA) is clean on Home, Forecast,
+  Alerts, Travel and Chat for all five personas, light (Hindi) and dark:
+  the idle bottom-bar colours were darkened as on mobile, and `text-outline`
+  is no longer used for text. Nothing overflows at 320 px (200% zoom) in
+  Tamil. Forecast rows and hours have spoken sentences; the hotlines read
+  "Call …, …". Every font falls back to the self-hosted Noto Indic faces,
+  so mono and headline text no longer shows empty boxes in hi/mr/te/ta.
+- **Tests.** Vitest covers the lib/ logic (`npm test`, 23 tests), and the
+  CI web job runs it.
 
 ## Pages
 
@@ -53,6 +74,10 @@ the pics/ persona mockups:
 | `/forecast` | Forecast | Forecast - WeatherGPT |
 | `/alerts` | Alerts & Warnings | Alerts & Warnings - WeatherGPT |
 | `/history` | History | History - WeatherGPT |
+| `/best-window` | Best Time & What-if | hand-built |
+| `/travel` | Travel advice | hand-built (mobile advisory_page.dart) |
+| `/sowing` | Sowing advice (Farmer only) | hand-built (mobile advisory_page.dart) |
+| `/aviation` | Airport weather (Aviation only) | hand-built |
 | `/settings` | Settings | hand-built — no Settings screen existed in the Stitch project yet, so this one only reuses the shared design tokens/components |
 
 ## Design system
@@ -117,6 +142,8 @@ applies — carry the same pattern over on the next pass).
 ```bash
 cd web
 npm install
-npm run dev      # http://localhost:5181
+npm run dev      # http://localhost:5181 (API_PROXY_TARGET to proxy /api)
 npm run build    # tsc -b && vite build
+npm test         # Vitest, the lib/ unit tests
+npm run lint     # oxlint
 ```
