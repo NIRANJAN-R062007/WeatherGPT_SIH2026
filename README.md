@@ -276,3 +276,8 @@ The full task list and history are in [`plan.md`](plan.md).
 - [`mobile/README.md`](mobile/README.md) · [`web/README.md`](web/README.md) · [`k8s/README.md`](k8s/README.md) · [`loadtest/README.md`](loadtest/README.md)
 
 Weather data: Google Weather API. Language services: Bhashini, Government of India.
+
+Place names and coordinates: [GeoNames](https://www.geonames.org/), licensed
+[CC-BY 4.0](https://creativecommons.org/licenses/by/4.0/). The India gazetteer in
+`data/gazetteer/in_places.json.gz` is built from GeoNames' `cities500` and India
+alternate-names dumps by `scripts/import_geonames.py`; see [`NOTICE`](NOTICE).

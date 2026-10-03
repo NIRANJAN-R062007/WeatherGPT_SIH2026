@@ -1,0 +1,19 @@
+WeatherGPT — Team Techtonics (SIH 2026, PS SIH26068)
+
+This repository includes data from third parties:
+
+GeoNames
+  data/gazetteer/in_places.json.gz contains place names, alternate names,
+  coordinates, populations and administrative divisions derived from the
+  GeoNames geographical database (https://www.geonames.org/):
+  cities500.txt, alternatenames/IN.txt, admin1CodesASCII.txt and
+  admin2Codes.txt (https://download.geonames.org/export/dump/), downloaded
+  2026-10-03 and filtered to India and the en/ta/hi/te/mr languages by
+  scripts/import_geonames.py.
+
+  GeoNames data is licensed under the Creative Commons Attribution 4.0
+  International License (CC-BY 4.0):
+  https://creativecommons.org/licenses/by/4.0/
+  The data is provided "as is" without warranty or any representation of
+  accuracy, timeliness or completeness. Changes made: filtered by country and
+  language, junk names removed, names normalised for matching.
