@@ -1031,8 +1031,9 @@ def ask(text: str, lang: str = "en", city: str | None = None, persona: str = per
     pq = nlu.parse(text, lang_hint=lang, city_hint=city)
     notice = _msg("language_unsupported", lang) if pq.language is None else None
 
-    if pq.intent == "unsupported_city" and place_id:
-        # A tapped place for a name we couldn't place: the weather question it was.
+    if pq.intent in ("unsupported_city", "unrecognized") and place_id:
+        # A tapped place: the weather question it was, even if the text alone
+        # couldn't say (a name we couldn't place, or just "weather").
         pq.intent = "will_it_rain" if pq.parameter == "rain" else "current_weather"
     if pq.intent in ("unrecognized", "out_of_scope"):
         resp = {"intent": pq.intent, "message": _msg(pq.intent, lang), "nlu": pq.as_dict()}
@@ -1057,6 +1058,27 @@ def ask(text: str, lang: str = "en", city: str | None = None, persona: str = per
     demo_key = key if key in cities.CITY_KEYS else None
     label_en = point["label"] if lang == "en" else location.resolve_location(
         query_place, lat, lon, "en", loc.get("place_id"))["label"]
+
+    # Offline only the demo cities have saved data (§2 principle 5): a GPS
+    # fix is answered for the nearest one, saying so; any other named place
+    # is told so rather than answered for a different city (principle 3).
+    offline_note = None
+    if (config.OFFLINE_MODE or config.WEATHER_MODE == "fixtures") and demo_key is None:
+        if loc["source"] != "gps":
+            resp = {"intent": pq.intent, "offline": True, "location": _public_location(loc),
+                    "message": _msg("offline_demo_only", lang, place=loc["label"],
+                                    cities=_city_list(lang)),
+                    "nlu": pq.as_dict()}
+            if notice:
+                resp["notice"] = notice
+            return resp
+        demo = location.nearest_demo_city(loc["lat"], loc["lon"])
+        loc = {"lat": demo.lat, "lon": demo.lon, "label": cities.display_name(demo.key, lang),
+               "source": "demo_fixture", "place_id": demo.place_id}
+        point, key, demo_key = _point(loc), demo.key, demo.key
+        label_en = cities.display_name(demo.key, "en")
+        offline_note = _msg("offline_nearest_demo", lang, city=loc["label"])
+        notice = f"{notice} {offline_note}" if notice else offline_note
 
     if pq.intent == "warnings":
         # The /warnings payload (status, warning, legend) inside the /ask
@@ -1273,11 +1295,16 @@ def ask(text: str, lang: str = "en", city: str | None = None, persona: str = per
         "intent": pq.intent,
         "city": demo_key, "location": _public_location(loc),
         "day": router.legacy_day(pq),
-        "response": _with_footer(candidate, place, lang),  # after the guardrail, above
+        # After the guardrail (above): the offline note and the footer are ours,
+        # not narrated weather, so neither is validated as figures.
+        "response": _with_footer(f"{candidate}\n{offline_note}" if offline_note else candidate,
+                                 place, lang),
         "provenance": {**_provenance(data), "place": place},
         "grounding": grounding,
         "nlu": pq.as_dict(),
     }
+    if offline_note:
+        resp["offline"] = True
     if notice:
         resp["notice"] = notice
     resp.update(_persona_fields(persona, occ))

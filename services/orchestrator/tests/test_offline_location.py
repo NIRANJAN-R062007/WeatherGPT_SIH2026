@@ -15,7 +15,6 @@ import pytest
 from fastapi.testclient import TestClient
 
 client = TestClient(main.app)
-_STEP7 = pytest.mark.xfail(strict=True, reason="step 7: offline snap to demo city")
 
 
 @pytest.fixture(autouse=True)
@@ -30,7 +29,6 @@ def _ask(text, **params):
     return client.get("/ask", params={"text": text, **params}).json()
 
 
-@_STEP7
 @pytest.mark.parametrize("lat,lon,demo", [(10.79, 78.70, "madurai"), (11.10, 77.00, "coimbatore"),
                                           (28.40, 77.30, "delhi")])
 def test_gps_offline_answers_for_the_nearest_demo_city_and_says_so(lat, lon, demo):
@@ -43,14 +41,12 @@ def test_gps_offline_answers_for_the_nearest_demo_city_and_says_so(lat, lon, dem
     assert body["provenance"]["place"]["label"] == name
 
 
-@_STEP7
 def test_offline_mode_flag_behaves_the_same(monkeypatch):
     monkeypatch.setattr(config, "OFFLINE_MODE", True)
     body = _ask("will it rain here", lat=9.95, lon=78.15)
     assert body["city"] == "madurai" and body["offline"] is True
 
 
-@_STEP7
 @pytest.mark.parametrize("params", [{"text": "what's the weather in Tiruchirappalli"},
                                     {"text": "weather", "place_id": "gn:1254388"}])
 def test_a_named_non_demo_place_offline_is_told_demo_cities_only(params):
