@@ -3,6 +3,7 @@ correctly with the LLM off; "llm" rows need real keys and network, so they're
 marked live.
 """
 
+import importlib
 import json
 
 import cities
@@ -39,6 +40,12 @@ def _assert_row(row: dict, pq) -> None:
     assert pq.parameter == expected.get("parameter")
     expected_lang = None if row["lang"] == "other" else row["lang"]
     assert pq.language == expected_lang
+    if "here" in expected:
+        assert pq.here is expected["here"]
+    if "place_id" in expected:
+        location = importlib.import_module("location")
+        resolved = location.resolve_location(pq.place, None, None, pq.language or "en")
+        assert resolved.get("place_id") == expected["place_id"]
 
 
 @pytest.mark.parametrize("row", _RULES_ROWS, ids=[r["id"] for r in _RULES_ROWS])

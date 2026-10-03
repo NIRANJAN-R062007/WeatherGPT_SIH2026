@@ -36,7 +36,7 @@ _LATER = "later"
 
 def get_weather(city: str, intent: str = "current_weather", day: str = "today") -> dict | None:
     key = (city or "").strip().lower()
-    if key not in cities.CITY_KEYS:
+    if not google_weather.is_point_key(key):
         return None
     if intent == "will_it_rain" or day in _FORECAST_DAYS:
         return _day_facts(key, day)
@@ -323,8 +323,9 @@ def _rain_last_24h(key: str) -> dict | None:
 
 
 def _city_timezone(key: str):
-    try:
-        return ZoneInfo(cities.CITIES[key].timezone)
+    city = cities.CITIES.get(key)
+    try:  # a point key is in India (location.INDIA_BBOX): IST, like every demo city
+        return ZoneInfo(city.timezone if city else "Asia/Kolkata")
     except ZoneInfoNotFoundError:  # slim images may lack tzdata; every demo city is IST
         return timezone(timedelta(hours=5, minutes=30))
 

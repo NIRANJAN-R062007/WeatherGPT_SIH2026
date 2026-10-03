@@ -11,13 +11,38 @@ import { CityHintRow } from '../components/CityPicker';
 import PageFrame from '../components/PageFrame';
 import { ActionRow, Icon, InfoBanner, PageHeader, RuleLabel, SectionTitle, Spinner } from '../components/ui';
 import { question, questionTitle } from '../data/personas';
-import { useChat, type ChatTurn } from '../state/ChatContext';
+import { useChat, type ChatTurn, type LocateError } from '../state/ChatContext';
 import { useUiPrefs } from '../state/UiPrefsContext';
 import { useT } from '../lib/i18n';
 
+const LOCATE_ERROR: Record<LocateError, string> = {
+  denied: 'Location permission denied. Type a place, or pick a city below.',
+  unavailable: "Couldn't get your location. Type a place, or pick a city below.",
+  unsupported: "This browser can't share your location. Type a place, or pick a city below.",
+};
+
+/** Instead of "IF UNSPECIFIED, ASSUME <city>" while a GPS fix is in use:
+ *  questions that name no place go to the backend with the fix. */
+function UsingLocationRow({ onStop }: { onStop: () => void }) {
+  const t = useT();
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 px-1 font-citation-mono text-citation-mono text-on-surface-variant">
+      <Icon name="my_location" size={14} className="text-primary" />
+      <span>{t('USING YOUR LOCATION')}</span>
+      <button
+        type="button"
+        onClick={onStop}
+        className="inline-flex items-center rounded px-1.5 py-1 bg-surface-container-low text-on-surface font-label-md text-label-md hover:bg-surface-container"
+      >
+        {t('Stop')}
+      </button>
+    </div>
+  );
+}
+
 function Composer() {
   const t = useT();
-  const { ask, loading } = useChat();
+  const { ask, loading, locate, locateError, shareLocation, stopUsingLocation } = useChat();
   const { personaInfo } = useUiPrefs();
   const [text, setText] = useState('');
   return (
@@ -41,6 +66,23 @@ function Composer() {
           value={text}
         />
         <button
+          type="button"
+          className={`shrink-0 w-10 h-10 rounded-xl flex items-center justify-center border disabled:opacity-60 ${
+            locate === 'on' ? 'bg-primary text-on-primary border-primary' : 'bg-card text-on-surface-variant border-card-border hover:bg-tint'
+          }`}
+          disabled={loading || locate === 'locating'}
+          aria-label={t('Use my location')}
+          aria-pressed={locate === 'on'}
+          title={t('Use my location')}
+          onClick={() => {
+            shareLocation(text);
+            setText('');
+          }}
+          data-testid="locate-button"
+        >
+          {locate === 'locating' ? <Spinner className="w-5 h-5" /> : <Icon name="my_location" size={20} />}
+        </button>
+        <button
           className="shrink-0 w-10 h-10 rounded-xl bg-accent-gradient text-on-primary flex items-center justify-center shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
           disabled={loading || text.trim() === ''}
           aria-label={t('Send')}
@@ -54,7 +96,12 @@ function Composer() {
           )}
         </button>
       </div>
-      <CityHintRow />
+      {locateError && (
+        <p role="status" className="px-1 font-body-sm text-body-sm text-error" data-testid="geo-notice">
+          {t(LOCATE_ERROR[locateError])}
+        </p>
+      )}
+      {locate === 'on' ? <UsingLocationRow onStop={stopUsingLocation} /> : <CityHintRow />}
     </form>
   );
 }
@@ -75,6 +122,7 @@ function UserBubble({ turn }: { turn: ChatTurn }) {
 
 /** The answer card: square bottom-left corner. */
 function AnswerBubble({ turn }: { turn: ChatTurn }) {
+  const { ask } = useChat();
   return (
     <div className="mr-space-sm p-3 bg-card border border-card-border shadow-card rounded-2xl rounded-bl-none">
       <AskAnswer
@@ -83,6 +131,7 @@ function AnswerBubble({ turn }: { turn: ChatTurn }) {
         outcome={turn.outcome}
         error={turn.error}
         detail
+        onPickPlace={(placeId) => ask(turn.question, { placeId })}
       />
     </div>
   );

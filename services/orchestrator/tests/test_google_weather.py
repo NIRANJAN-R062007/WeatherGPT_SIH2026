@@ -54,7 +54,7 @@ def live_stub(monkeypatch):
         calls["n"] += 1
         kind = _path_to_kind[path]
         city = next(c for c in ("chennai", "madurai", "coimbatore")
-                    if abs(params["location.latitude"] - cities.CITIES[c].lat) < 1e-6)
+                    if abs(params["location.latitude"] - cities.CITIES[c].lat) < 0.05)
         return _fixture_response(kind, city)
 
     monkeypatch.setattr(google_weather, "fetch_json", _fetch)
@@ -219,7 +219,9 @@ def test_cache_stats_shape(live_stub):
 def test_live_fetch_persists_exactly_once(live_stub, persist_calls):
     google_weather.snapshot(CC, "chennai")
     google_weather.snapshot(CC, "chennai")  # L1 hit: no fetch, no persist
-    assert [(k, c) for k, c, _ in persist_calls] == [(CC, "chennai")]
+    chennai = cities.CITIES["chennai"]  # keyed by its 0.05° cell, never a city name
+    assert [(k, c) for k, c, _ in persist_calls] == \
+        [(CC, google_weather.grid_key(chennai.lat, chennai.lon))]
     fields = persist_calls[0][2]
     assert fields["is_live"] is True
     assert fields["payload"] == _fixture_response(CC, "chennai")

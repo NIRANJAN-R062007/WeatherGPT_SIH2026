@@ -1,9 +1,10 @@
 {
   "version": 1,
-  "note": "Source of truth for demo cities. Backend loader: services/orchestrator/cities.py. The frontend CITIES object in prototype/frontend/WeatherGPT.dc.html must stay in sync until it fetches GET /cities. Lat/lon and Tamil names copied verbatim from that frontend object. hi/te/mr names are a first-draft transliteration, not native-speaker verified (plan.md §13 open item) — TODO QA before demo.",
+  "note": "Source of truth for demo cities. place_id is the GeoNames id the gazetteer (data/gazetteer/in_places.json.gz) and the Postgres cities table use for the same place. Backend loader: services/orchestrator/cities.py. The frontend CITIES object in prototype/frontend/WeatherGPT.dc.html must stay in sync until it fetches GET /cities. Lat/lon and Tamil names copied verbatim from that frontend object. hi/te/mr names are a first-draft transliteration, not native-speaker verified (plan.md §13 open item) — TODO QA before demo.",
   "cities": [
     {
       "key": "chennai",
+      "place_id": "gn:1264527",
       "lat": 13.0827,
       "lon": 80.2707,
       "names": {"en": "Chennai", "ta": "சென்னை", "hi": "चेन्नई", "te": "చెన్నై", "mr": "चेन्नई"},
@@ -13,6 +14,7 @@
     },
     {
       "key": "madurai",
+      "place_id": "gn:1264521",
       "lat": 9.9252,
       "lon": 78.1198,
       "names": {"en": "Madurai", "ta": "மதுரை", "hi": "मदुरै", "te": "మదురై", "mr": "मदुरै"},
@@ -22,6 +24,7 @@
     },
     {
       "key": "coimbatore",
+      "place_id": "gn:1273865",
       "lat": 11.0168,
       "lon": 76.9558,
       "names": {"en": "Coimbatore", "ta": "கோயம்புத்தூர்", "hi": "कोयंबटूर", "te": "కోయంబత్తూరు",
@@ -32,6 +35,7 @@
     },
     {
       "key": "bengaluru",
+      "place_id": "gn:1277333",
       "lat": 12.9716,
       "lon": 77.5946,
       "names": {"en": "Bengaluru", "ta": "பெங்களூரு", "hi": "बेंगलुरु", "te": "బెంగళూరు", "mr": "बंगळूर"},
@@ -41,6 +45,7 @@
     },
     {
       "key": "hyderabad",
+      "place_id": "gn:1269843",
       "lat": 17.3850,
       "lon": 78.4867,
       "names": {"en": "Hyderabad", "ta": "ஹைதராபாத்", "hi": "हैदराबाद", "te": "హైదరాబాద్", "mr": "हैदराबाद"},
@@ -50,6 +55,7 @@
     },
     {
       "key": "mumbai",
+      "place_id": "gn:1275339",
       "lat": 19.0760,
       "lon": 72.8777,
       "names": {"en": "Mumbai", "ta": "மும்பை", "hi": "मुंबई", "te": "ముంబై", "mr": "मुंबई"},
@@ -59,6 +65,7 @@
     },
     {
       "key": "delhi",
+      "place_id": "gn:1273294",
       "lat": 28.6139,
       "lon": 77.2090,
       "names": {"en": "Delhi", "ta": "டெல்லி", "hi": "दिल्ली", "te": "ఢిల్లీ", "mr": "दिल्ली"},
@@ -68,6 +75,7 @@
     },
     {
       "key": "thiruvananthapuram",
+      "place_id": "gn:1254163",
       "lat": 8.5241,
       "lon": 76.9366,
       "names": {"en": "Thiruvananthapuram", "ta": "திருவனந்தபுரம்", "hi": "तिरुवनंतपुरम", "te": "తిరువనంతపురం", "mr": "तिरुवनंतपुरम"},

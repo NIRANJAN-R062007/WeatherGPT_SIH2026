@@ -388,7 +388,7 @@ def test_ask_warnings_never_narrates_or_runs_the_guardrail(_warnings_enabled, mo
 def test_ask_warnings_no_city_is_a_refusal():
     body = _ask("is there any warning?")
     assert body["intent"] == "warnings"
-    assert body["message"] == main._msg("no_city", "en")
+    assert body["message"] == main._msg("need_location", "en")
     assert "status" not in body and "city" not in body
 
 
@@ -399,9 +399,10 @@ def test_ask_warnings_city_param_fills_in(_warnings_enabled):
 
 
 def test_ask_warnings_unknown_city_is_unsupported_city():
-    body = _ask("warning in Kolkata")
+    # Outside the India gazetteer: not_found, never a verdict for a guessed place.
+    body = _ask("warning in London")
     assert body["intent"] == "unsupported_city"
-    assert body["message"] == main._msg("unsupported_city", "en")
+    assert body["not_found"] is True and "warning" not in body
 
 
 def test_ask_warnings_records_history_when_signed_in(_warnings_enabled, monkeypatch):

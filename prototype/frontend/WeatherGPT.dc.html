@@ -183,7 +183,10 @@ a:hover{color:#1d5b7e}
         <div style="position:relative;margin-top:28px;max-width:720px">
           <div style="display:flex;align-items:center;gap:12px;background:rgba(255,255,255,.94);border-radius:12px;padding:10px 10px 10px 16px;box-shadow:0 4px 18px rgba(9,18,32,.22)">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#8b98a6" stroke-width="1.8" style="flex:none"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
-            <input class="{{ uiFont }}" style="flex:1;min-width:0;border:0;outline:none;background:transparent;font:inherit;font-size:14px;color:#1b2a3b" value="{{ draft }}" onChange="{{ onDraft }}" onKeyDown="{{ onDraftKey }}" placeholder="{{ askPlaceholder }}" aria-label="Ask WeatherGPT">
+            <input class="{{ uiFont }}" style="flex:1;min-width:0;border:0;outline:none;background:transparent;font:inherit;font-size:14px;color:#1b2a3b" value="{{ draft }}" onChange="{{ onDraft }}" onKeyDown="{{ onDraftKey }}" placeholder="{{ askPlaceholder }}" aria-label="Ask WeatherGPT" data-testid="ask-input">
+            <button style="width:44px;height:44px;border:1px solid {{ locateBorder }};cursor:pointer;border-radius:50%;background:{{ locateBg }};display:flex;align-items:center;justify-content:center;flex:none;padding:0" onClick="{{ onLocate }}" aria-label="{{ locateAria }}" title="{{ locateAria }}" aria-pressed="{{ locateOn }}" data-testid="locate-button">
+              <svg class="{{ locateSpin }}" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="{{ locateStroke }}" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="7"></circle><circle cx="12" cy="12" r="2.2"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3"></path></svg>
+            </button>
             <button class="{{ micRing }}" style="width:44px;height:44px;border:1px solid {{ micBorder }};cursor:pointer;border-radius:50%;background:{{ micBg }};display:flex;align-items:center;justify-content:center;flex:none;padding:0" onClick="{{ onMic }}" aria-label="{{ micAria }}" title="{{ micAria }}" data-testid="mic-button">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="{{ micStroke }}" stroke-width="1.8" stroke-linecap="round"><rect x="9" y="2.5" width="6" height="11" rx="3"></rect><path d="M5.5 11a6.5 6.5 0 0 0 13 0"></path><path d="M12 17.5V21"></path></svg>
             </button>
@@ -192,6 +195,9 @@ a:hover{color:#1d5b7e}
             </button>
           </div>
 
+          <sc-if value="{{ geoNoticeVisible }}" hint-placeholder-val="{{ false }}">
+            <div class="{{ uiFont }}" role="status" style="margin-top:10px;font-size:12px;line-height:1.6;color:{{ geoNoticeColor }};background:rgba(255,255,255,.94);border:1px solid #e7ecf1;border-radius:12px;padding:10px 14px;box-shadow:0 4px 18px rgba(9,18,32,.16)" data-testid="geo-notice">{{ geoNotice }}</div>
+          </sc-if>
           <sc-if value="{{ voiceOpen }}" hint-placeholder-val="{{ false }}">
             <div style="margin-top:10px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:rgba(255,255,255,.94);border:1px solid #e7ecf1;border-radius:12px;padding:10px 14px;box-shadow:0 4px 18px rgba(9,18,32,.16)">
               <sc-if value="{{ voiceListening }}" hint-placeholder-val="{{ true }}">
@@ -281,7 +287,14 @@ a:hover{color:#1d5b7e}
                   <div style="display:flex;gap:16px;align-items:flex-start;padding:15px 16px 13px">
                     <div style="flex:1;min-width:0">
                       <div class="{{ e.font }}" style="font-size:12.5px;font-weight:600;color:#2c6d95">WeatherGPT</div>
-                      <div class="{{ e.font }}" style="font-size:14px;line-height:1.7;color:#22344a;margin-top:6px" data-testid="answer">{{ e.headline }}</div>
+                      <div class="{{ e.font }}" style="font-size:14px;line-height:1.7;color:#22344a;margin-top:6px;white-space:pre-line" data-testid="answer">{{ e.headline }}</div>
+                      <sc-if value="{{ e.hasCandidates }}" hint-placeholder-val="{{ false }}">
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+                          <sc-for list="{{ e.candidates }}" as="c" hint-placeholder-count="2">
+                            <button class="{{ e.font }}" style="border:1px solid #b9d0e0;background:#f2f8fc;cursor:pointer;font:inherit;font-size:12.5px;color:#1c4a6b;border-radius:14px;padding:7px 13px;text-align:left;line-height:1.4" onClick="{{ c.pick }}" data-testid="place-candidate">{{ c.label }}<span style="display:block;font-size:11px;color:#6b7c8e">{{ c.detail }}</span></button>
+                          </sc-for>
+                        </div>
+                      </sc-if>
                       <div style="font-size:10.5px;color:#96a3b1;margin-top:8px;font-variant-numeric:tabular-nums">{{ e.time }}</div>
                     </div>
                     <sc-if value="{{ e.hasFigures }}" hint-placeholder-val="{{ true }}">
@@ -527,7 +540,12 @@ const STR = {
     issuedPrefix: i => `Issued ${i}`, fallbackNote: "LLM answer rejected by the guardrail",
     intentCurrentWeather: "Current conditions", intentForecast: "Forecast", intentWillItRain: "Rain forecast",
     intentRainfallSoFar: "Rainfall so far today", intentOutOfScope: "Out of scope",
-    intentUnrecognized: "Not recognized", intentUnsupportedCity: "City not supported"},
+    intentUnrecognized: "Not recognized", intentUnsupportedCity: "City not supported",
+    locateAria: "Use my location", geoLocating: "Finding your location…",
+    geoDenied: "Location access was denied. Type a town or city in the box instead.",
+    geoError: "Couldn't get your location. Type a town or city in the box instead.",
+    geoUnsupported: "This browser can't share your location. Type a town or city in the box instead.",
+    hereQuery: "What's the weather here?"},
   hi: {poweredBy: "Google Weather API द्वारा संचालित", currentWeatherLabel: "वर्तमान मौसम", humidityLabel: "आर्द्रता", windLabel: "हवा", rainLabel: "बारिश की संभावना",
     feelsLike: t => `अनुभव ${t} जैसा`, emptyTitle: "मौसम के बारे में पूछें",
     emptyBody: "ऊपर एक सवाल टाइप करें या किसी सुझाव पर टैप करें। हर जवाब में वह सटीक रीडिंग दिखती है जहाँ से वह आया है।",
@@ -563,7 +581,13 @@ const STR = {
     issuedPrefix: i => `${i} पर जारी`, fallbackNote: "गार्डरेल द्वारा LLM उत्तर अस्वीकृत",
     intentCurrentWeather: "वर्तमान स्थिति", intentForecast: "पूर्वानुमान", intentWillItRain: "बारिश का पूर्वानुमान",
     intentRainfallSoFar: "आज तक की बारिश", intentOutOfScope: "दायरे से बाहर",
-    intentUnrecognized: "समझ नहीं आया", intentUnsupportedCity: "शहर समर्थित नहीं"},
+    intentUnrecognized: "समझ नहीं आया", intentUnsupportedCity: "शहर समर्थित नहीं",
+    // TODO: native_qa — the location strings below are first drafts
+    locateAria: "मेरी लोकेशन इस्तेमाल करें", geoLocating: "आपकी लोकेशन ढूँढ रहे हैं…",
+    geoDenied: "लोकेशन की अनुमति नहीं मिली। इसके बजाय बॉक्स में किसी कस्बे या शहर का नाम लिखें।",
+    geoError: "आपकी लोकेशन नहीं मिल सकी। इसके बजाय बॉक्स में किसी कस्बे या शहर का नाम लिखें।",
+    geoUnsupported: "यह ब्राउज़र लोकेशन साझा नहीं कर सकता। इसके बजाय बॉक्स में किसी कस्बे या शहर का नाम लिखें।",
+    hereQuery: "यहाँ मौसम कैसा है?"},
   ta: {poweredBy: "Google Weather API வழங்குகிறது", currentWeatherLabel: "தற்போதைய வானிலை", humidityLabel: "ஈரப்பதம்", windLabel: "காற்று", rainLabel: "மழை வாய்ப்பு",
     feelsLike: t => `உணரப்படுவது ${t}`, emptyTitle: "வானிலை பற்றி கேளுங்கள்",
     emptyBody: "மேலே ஒரு கேள்வியைத் தட்டுங்கள் அல்லது தட்டச்சு செய்யுங்கள். ஒவ்வொரு பதிலிலும் எண்கள் எங்கிருந்து வந்தன என்பதைக் காணலாம்.",
@@ -599,7 +623,13 @@ const STR = {
     issuedPrefix: i => `${i} வெளியீடு`, fallbackNote: "பாதுகாப்பு வழிமுறையால் LLM பதில் நிராகரிக்கப்பட்டது",
     intentCurrentWeather: "தற்போதைய நிலை", intentForecast: "முன்னறிவிப்பு", intentWillItRain: "மழை முன்னறிவிப்பு",
     intentRainfallSoFar: "இன்று வரை மழை", intentOutOfScope: "வரம்புக்கு வெளியே",
-    intentUnrecognized: "புரியவில்லை", intentUnsupportedCity: "நகரம் ஆதரிக்கப்படவில்லை"},
+    intentUnrecognized: "புரியவில்லை", intentUnsupportedCity: "நகரம் ஆதரிக்கப்படவில்லை",
+    // TODO: native_qa — the location strings below are first drafts
+    locateAria: "என் இருப்பிடத்தைப் பயன்படுத்து", geoLocating: "உங்கள் இருப்பிடத்தைக் கண்டறிகிறது…",
+    geoDenied: "இருப்பிட அனுமதி மறுக்கப்பட்டது. பதிலாகப் பெட்டியில் ஒரு ஊர் அல்லது நகரத்தின் பெயரைத் தட்டச்சு செய்யுங்கள்.",
+    geoError: "உங்கள் இருப்பிடத்தைப் பெற முடியவில்லை. பதிலாகப் பெட்டியில் ஒரு ஊர் அல்லது நகரத்தின் பெயரைத் தட்டச்சு செய்யுங்கள்.",
+    geoUnsupported: "இந்த உலாவியால் இருப்பிடத்தைப் பகிர முடியாது. பதிலாகப் பெட்டியில் ஒரு ஊர் அல்லது நகரத்தின் பெயரைத் தட்டச்சு செய்யுங்கள்.",
+    hereQuery: "இங்கே வானிலை எப்படி இருக்கிறது?"},
   te: {poweredBy: "Google Weather API అందిస్తోంది", currentWeatherLabel: "ప్రస్తుత వాతావరణం", humidityLabel: "తేమ", windLabel: "గాలి", rainLabel: "వర్ష అవకాశం",
     feelsLike: t => `అనుభూతి ${t}`, emptyTitle: "వాతావరణం గురించి అడగండి",
     emptyBody: "పైన ఒక ప్రశ్న టైప్ చేయండి లేదా సూచనలలో ఒకటి నొక్కండి. ప్రతి సమాధానం అది వచ్చిన ఖచ్చితమైన రీడింగ్‌ను చూపుతుంది.",
@@ -635,7 +665,13 @@ const STR = {
     issuedPrefix: i => `${i} న విడుదల`, fallbackNote: "గార్డ్‌రెయిల్ ద్వారా LLM సమాధానం తిరస్కరించబడింది",
     intentCurrentWeather: "ప్రస్తుత పరిస్థితులు", intentForecast: "సూచన", intentWillItRain: "వర్ష సూచన",
     intentRainfallSoFar: "ఈరోజు వరకు వర్షపాతం", intentOutOfScope: "పరిధికి వెలుపల",
-    intentUnrecognized: "గుర్తించబడలేదు", intentUnsupportedCity: "నగరం మద్దతు లేదు"},
+    intentUnrecognized: "గుర్తించబడలేదు", intentUnsupportedCity: "నగరం మద్దతు లేదు",
+    // TODO: native_qa — the location strings below are first drafts
+    locateAria: "నా లొకేషన్ ఉపయోగించు", geoLocating: "మీ లొకేషన్ కనుగొంటోంది…",
+    geoDenied: "లొకేషన్ అనుమతి నిరాకరించబడింది. బదులుగా బాక్స్‌లో ఒక ఊరు లేదా నగరం పేరు టైప్ చేయండి.",
+    geoError: "మీ లొకేషన్ పొందలేకపోయాము. బదులుగా బాక్స్‌లో ఒక ఊరు లేదా నగరం పేరు టైప్ చేయండి.",
+    geoUnsupported: "ఈ బ్రౌజర్ లొకేషన్ పంచుకోలేదు. బదులుగా బాక్స్‌లో ఒక ఊరు లేదా నగరం పేరు టైప్ చేయండి.",
+    hereQuery: "ఇక్కడ వాతావరణం ఎలా ఉంది?"},
   mr: {poweredBy: "Google Weather API द्वारा समर्थित", currentWeatherLabel: "सध्याचे हवामान", humidityLabel: "आर्द्रता", windLabel: "वारा", rainLabel: "पावसाची शक्यता",
     feelsLike: t => `जाणवते ${t}`, emptyTitle: "हवामानाबद्दल विचारा",
     emptyBody: "वर एक प्रश्न टाइप करा किंवा सुचनांपैकी एकावर टॅप करा. प्रत्येक उत्तर ते नेमके कोणत्या रीडिंगवरून आले हे दाखवते.",
@@ -671,7 +707,13 @@ const STR = {
     issuedPrefix: i => `${i} रोजी जारी`, fallbackNote: "गार्डरेलने LLM उत्तर नाकारले",
     intentCurrentWeather: "सध्याची स्थिती", intentForecast: "अंदाज", intentWillItRain: "पावसाचा अंदाज",
     intentRainfallSoFar: "आजपर्यंतचा पाऊस", intentOutOfScope: "व्याप्तीबाहेर",
-    intentUnrecognized: "समजले नाही", intentUnsupportedCity: "शहर समर्थित नाही"}
+    intentUnrecognized: "समजले नाही", intentUnsupportedCity: "शहर समर्थित नाही",
+    // TODO: native_qa — the location strings below are first drafts
+    locateAria: "माझे स्थान वापरा", geoLocating: "तुमचे स्थान शोधत आहे…",
+    geoDenied: "स्थानाची परवानगी नाकारली. त्याऐवजी बॉक्समध्ये गाव किंवा शहराचे नाव लिहा.",
+    geoError: "तुमचे स्थान मिळू शकले नाही. त्याऐवजी बॉक्समध्ये गाव किंवा शहराचे नाव लिहा.",
+    geoUnsupported: "हा ब्राउझर स्थान शेअर करू शकत नाही. त्याऐवजी बॉक्समध्ये गाव किंवा शहराचे नाव लिहा.",
+    hereQuery: "इथे हवामान कसे आहे?"}
 };
 
 const PREFS_KEY = "wg-prefs";
@@ -887,6 +929,9 @@ class Component extends DCLogic {
       // failure message (ASR error, no speech understood, service down) that
       // is shown even after voice has already reverted to "idle".
       voice: "idle", micNotice: null,
+      // "Use my location": the fix (2 decimals) lives in memory for this
+      // session only — never in PREFS_KEY/localStorage.
+      geo: "idle", geoNotice: null, geoFailed: false, coords: null,
       playingId: null, audioPct: 0,
       auth: "signed_out", user: null, userMenuOpen: false,
       view: "home", historyStatus: "idle", history: []
@@ -1075,7 +1120,11 @@ class Component extends DCLogic {
   }
 
   // ---- Ask (GET /ask) ---------------------------------------------------------
-  async ask(q) {
+  // opts.coords: a fresh GPS fix; opts.placeId: a candidate tapped from an
+  // `ambiguous` reply. Neither ever picks a city on the client: the backend's
+  // resolver decides, and asks back when it can't.
+  async ask(q, opts) {
+    opts = opts || {};
     const query = (q || "").trim();
     if (!query) return;
     const id = this.state.seq + 1;
@@ -1084,18 +1133,53 @@ class Component extends DCLogic {
     // the backend's own NLU always takes priority over this client-side guess.
     const cityKey = this.matchCity(query) || this.state.city;
     const time = new Date().toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"});
-    const rec = {id, query, time, lang, status: "pending"};
+    const rec = {id, query, time, lang, status: "pending", opts};
     this.setState(s => ({seq: id, draft: "", records: [...s.records, rec], city: cityKey, view: "home"}));
     const patch = fields => this.setIfAlive(s => ({
       records: s.records.map(r => r.id === id ? Object.assign({}, r, fields) : r)
     }));
     try {
-      const data = await this.api("/ask", {text: query, lang, city: cityKey}, this.authHeaders());
+      const params = {text: query, lang, city: cityKey};
+      const coords = opts.coords || this.state.coords;
+      if (coords) { params.lat = coords.lat; params.lon = coords.lon; }
+      if (opts.placeId) params.place_id = opts.placeId;
+      const data = await this.api("/ask", params, this.authHeaders());
       patch({status: "ok", data});
-      if (data.city) this.setIfAlive({city: data.city});
+      if (data.city && CITIES[data.city]) this.setIfAlive({city: data.city});
     } catch (e) {
       patch({status: "error", errorInfo: String((e && e.message) || e)});
     }
+  }
+
+  // ---- "Use my location" (navigator.geolocation -> /ask lat/lon) -------------
+  // The fix is rounded to 2 decimals (~1 km) before it leaves the page and is
+  // only ever sent to /ask. Denied, failed or unsupported: say so and put the
+  // cursor in the ask box so the user can type a place — never auto-pick one.
+  useMyLocation() {
+    const L = STR[this.state.lang] || STR.en;
+    if (this.state.geo === "locating") return;
+    if (!navigator.geolocation) {
+      this.setState({geoNotice: L.geoUnsupported, geoFailed: true});
+      this.focusAsk();
+      return;
+    }
+    this.setState({geo: "locating", geoNotice: L.geoLocating, geoFailed: false});
+    navigator.geolocation.getCurrentPosition(pos => {
+      const coords = {lat: Math.round(pos.coords.latitude * 100) / 100,
+                      lon: Math.round(pos.coords.longitude * 100) / 100};
+      this.setIfAlive({geo: "idle", geoNotice: null, geoFailed: false, coords});
+      this.ask((this.state.draft || "").trim() || L.hereQuery, {coords});
+    }, err => {
+      const denied = !!err && err.code === 1;  // PERMISSION_DENIED
+      this.setIfAlive({geo: "idle", coords: null, geoFailed: true,
+                       geoNotice: denied ? L.geoDenied : L.geoError});
+      this.focusAsk();
+    }, {enableHighAccuracy: false, timeout: 15000, maximumAge: 600000});
+  }
+
+  focusAsk() {
+    const el = document.querySelector('[data-testid="ask-input"]');
+    if (el) el.focus();
   }
 
   // ---- Voice input (mic -> WavRecorder -> POST /asr) -------------------------
@@ -1252,7 +1336,8 @@ class Component extends DCLogic {
       evidenceLabel: open ? L.evidenceHide : L.evidenceShow,
       toggleEvidence: () => this.setState(s => ({openEvidence: s.openEvidence === rec.id ? null : rec.id})),
       errorCode: rec.errorInfo || "",
-      retry: () => this.ask(rec.query)
+      retry: () => this.ask(rec.query, rec.opts),
+      candidates: [], hasCandidates: false
     };
     const noAudio = {
       canSpeak: false, audioPlaying: false, audioIdle: true, audioPct: "0%",
@@ -1282,11 +1367,18 @@ class Component extends DCLogic {
     };
 
     if (!d.response) {
-      // message-only shapes: unsupported / unrecognized / no city / no data / guardrail refusal
+      // message-only shapes: unsupported / unrecognized / no location / no data /
+      // guardrail refusal, and `ambiguous` — several places share the name, so
+      // each candidate is a button that re-asks with its place_id.
+      const candidates = (d.ambiguous || []).map(c => ({
+        label: c.label, detail: c.district || "",
+        pick: () => this.ask(rec.query, {placeId: c.place_id})
+      }));
       return Object.assign({}, base, audio, {
         headline: d.message || "", hasFigures: false, sourceName: "", issued: "",
         validatorChip: "", tokens: [], liveBadge: "", liveColor: "transparent",
-        narrationTag: "", dataNote: "", hasEvidence: false, canSpeak: false
+        narrationTag: "", dataNote: "", hasEvidence: false, canSpeak: false,
+        candidates, hasCandidates: candidates.length > 0
       });
     }
 
@@ -1452,6 +1544,17 @@ class Component extends DCLogic {
       micStroke: this.state.voice === "listening" ? "#fff" : ((this.state.voice === "denied" || this.state.micNotice) ? "#c0424c" : "#5f7082"),
       micAria: this.state.voice === "listening" ? L.micStopListening : L.micAskVoice,
       onMic: () => this.toggleMic(),
+
+      onLocate: () => this.useMyLocation(),
+      locateAria: L.locateAria,
+      locateOn: this.state.coords ? "true" : "false",
+      locateSpin: this.state.geo === "locating" ? "wg-spin" : "",
+      locateBg: this.state.coords ? "#1c4a6b" : (this.state.geoFailed ? "#fdeeef" : "transparent"),
+      locateBorder: this.state.coords ? "#1c4a6b" : (this.state.geoFailed ? "#f2c9cd" : "#dfe6ed"),
+      locateStroke: this.state.coords ? "#fff" : (this.state.geoFailed ? "#c0424c" : "#5f7082"),
+      geoNoticeVisible: !!this.state.geoNotice,
+      geoNotice: this.state.geoNotice || "",
+      geoNoticeColor: this.state.geoFailed ? "#a5323c" : "#22344a",
 
       voiceOpen: this.state.voice !== "idle" || !!this.state.micNotice,
       voiceListening: this.state.voice === "listening",

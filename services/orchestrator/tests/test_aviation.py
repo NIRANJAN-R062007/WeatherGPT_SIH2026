@@ -344,7 +344,7 @@ def test_ask_uses_the_selected_city_when_none_is_named():
 def test_ask_with_no_city_at_all_asks_which():
     r = client.get("/ask", params={"text": "metar please"}).json()
     assert r["intent"] == "aviation" and "response" not in r
-    assert r["message"].startswith("Which city?")
+    assert r["message"] == main._msg("need_location", "en") and r["needs_location"] is True
 
 
 def test_ask_in_another_language_gets_an_english_notice():

@@ -158,7 +158,7 @@ def test_ask_best_window_uses_the_selected_city_when_none_is_named(monkeypatch):
 def test_ask_best_window_with_no_city_at_all_asks_which():
     body = _ask("best time to go outside").json()
     assert body["intent"] == "best_window" and "response" not in body
-    assert body["message"].startswith("Which city?")
+    assert body["message"] == main._msg("need_location", "en")
 
 
 # --- fixtures-vs-live provenance ----------------------------------------------

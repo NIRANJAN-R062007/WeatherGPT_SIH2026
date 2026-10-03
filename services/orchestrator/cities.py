@@ -22,6 +22,7 @@ class City:
     region: dict
     timezone: str
     aliases: tuple
+    place_id: str  # GeoNames id, shared with the gazetteer (location.py)
 
 
 def _load() -> dict:
@@ -32,6 +33,7 @@ def _load() -> dict:
             key=c["key"], lat=c["lat"], lon=c["lon"],
             names=c["names"], region=c["region"],
             timezone=c["timezone"], aliases=tuple(c.get("aliases", [])),
+            place_id=c["place_id"],
         )
     return cities
 

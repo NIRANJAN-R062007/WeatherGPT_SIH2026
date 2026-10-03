@@ -48,6 +48,17 @@ def _check_row(row: dict, nlu, cities) -> list[tuple]:
     expected_lang = None if row["lang"] == "other" else row["lang"]
     if pq.language != expected_lang:
         mismatches.append(("language", expected_lang, pq.language))
+    if "here" in expected and getattr(pq, "here", None) is not expected["here"]:
+        mismatches.append(("here", expected["here"], getattr(pq, "here", None)))
+    if "place_id" in expected:
+        try:
+            import location
+            got = location.resolve_location(pq.place, None, None,
+                                            pq.language or "en").get("place_id")
+        except (ImportError, AttributeError):
+            got = None
+        if got != expected["place_id"]:
+            mismatches.append(("place_id", expected["place_id"], got))
 
     return mismatches, pq.source
 

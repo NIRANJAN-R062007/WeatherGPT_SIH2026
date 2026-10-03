@@ -23,3 +23,7 @@ loadtest/results/llm-*.json
 
 # IVR simulated-call output (services/orchestrator/ivr_simulate.py)
 ivr-sim-output/
+
+# GeoNames downloads for scripts/import_geonames.py (CC-BY 4.0, large; the
+# generated data/gazetteer/in_places.json.gz is what gets committed)
+data/geonames/

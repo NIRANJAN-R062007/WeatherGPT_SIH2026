@@ -16,7 +16,9 @@ from dataclasses import asdict, dataclass
 import cities
 import google_weather
 import httpx
+import location
 import narrate
+import placenames
 from intent import parse_intent
 
 INTENTS = (
@@ -80,6 +82,30 @@ _KEYWORD_HIT_RE = re.compile(
     r"|வானிலை|மழை|வெப்பநிலை|காற்று|ஈரப்பதம்",
     re.IGNORECASE,
 )
+# "here" — the user's own location, which lets /ask use the GPS fix it was
+# sent (location.resolve_location's precedence 3).
+# TODO: native_qa — the ta/hi/te/mr words are first drafts.
+_HERE_RE = re.compile(
+    r"\bhere\b|\bmy\s+(?:current\s+)?location\b|\bnear\s+me\b|\bwhere\s+i\s+am\b"
+    r"|இங்கே|இங்கு|यहाँ|यहां|ఇక్కడ|इथे|येथे",
+    re.IGNORECASE,
+)
+# A lone Latin word is a place only with a cue around it: "in/at/for X",
+# "X weather", the whole query, or a word of 5+ letters that isn't ordinary
+# English. GeoNames has an Indian "Red", "Bank", "Bay", "Mango", ...
+_LOCATIVE_BEFORE_RE = re.compile(r"\b(?:in|at|for|near|of|to|from)\s*$", re.IGNORECASE)
+_WEATHER_AFTER_RE = re.compile(r"^\s*(?:'s\b|weather|forecast|rain|temperature|climate)",
+                               re.IGNORECASE)
+_COMMON_WORDS = frozenset("""
+    along begun canning mango manor punch salon sector tundra wellington tetra raver
+    noria parol prisal badian aland karma fatwa samba
+""".split())
+_MIN_UNCUED_LEN = 5
+# Case suffixes on an Indic place name ("திருச்சியில்", "చెన్నైలో", "मुंबईत"):
+# a token may be a gazetteer name plus up to this many trailing code points.
+_MAX_SUFFIX = 6
+_MIN_INDIC_NAME = 3
+
 _PARAM_PATTERNS = (
     ("temperature", re.compile(r"temperature|temp\b|hot|cold|warm|வெப்பநிலை|சூடு", re.IGNORECASE)),
     ("humidity", re.compile(r"humid|ஈரப்பதம்", re.IGNORECASE)),
@@ -90,8 +116,8 @@ _PARAM_PATTERNS = (
 
 _NLU_PROMPT = (
     "You are the intent parser for WeatherGPT, a weather assistant for India. Read the "
-    "user's message and output ONLY a JSON object with keys intent, city, time_window, "
-    "days, parameter, language, confidence.\n"
+    "user's message and output ONLY a JSON object with keys intent, city, here, "
+    "time_window, days, parameter, language, confidence.\n"
     "- intent: current_weather = conditions right now / today. forecast = conditions on "
     "a future day or over several days. will_it_rain = chance of rain. "
     "rainfall_so_far_today = how much rain has already fallen today / till now. "
@@ -107,6 +133,8 @@ _NLU_PROMPT = (
     '- city: exactly "chennai", "madurai" or "coimbatore" when the message names one of '
     "them in ANY language, script or spelling ({city_list}). Any other place: copy the "
     "place name as written. No place named: null. Never invent a city.\n"
+    "- here: true when the user asks about where they are now (here, my location, near "
+    "me, இங்கே, यहाँ, ఇక్కడ, इथे, येथे) and names no place; otherwise false.\n"
     "- time_window: today | tonight | tomorrow | day_after_tomorrow | next_n_days "
     '(default today). For "next 3 days", "3-day forecast", "this week" use next_n_days '
     "and set days to the integer (week = 7); otherwise days = null.\n"
@@ -147,6 +175,7 @@ _NLU_SCHEMA = {
     "properties": {
         "intent": {"type": "string", "enum": list(INTENTS)},
         "city": {"type": ["string", "null"]},
+        "here": {"type": "boolean"},
         "time_window": {"type": "string", "enum": list(TIME_WINDOWS)},
         "days": {"type": ["integer", "null"]},
         "parameter": {"type": "string", "enum": list(PARAMETERS)},
@@ -166,6 +195,10 @@ class ParsedQuery:
     language: str | None
     source: str  # "rules" | "llm" | "rules_fallback"
     confidence: float
+    # What location.resolve_location() gets: the place as the query named it
+    # (or a demo city key), and whether the query asked about "here".
+    place: str | None = None
+    here: bool = False
 
     def as_dict(self) -> dict:
         return asdict(self)
@@ -210,10 +243,98 @@ def _extract_days(match: re.Match, text: str) -> int | None:
     return None
 
 
+def _tokens(text: str) -> list[tuple[int, int]]:
+    """Spans of word characters — letters, digits and, unlike `\\w`, the
+    combining vowel signs Indic words are made of."""
+    spans, start = [], None
+    for i, ch in enumerate(text):
+        if placenames._is_word_char(ch):
+            if start is None:
+                start = i
+        elif start is not None:
+            spans.append((start, i))
+            start = None
+    if start is not None:
+        spans.append((start, len(text)))
+    return spans
+
+
+def _is_gazetteer_name(surface: str) -> bool:
+    return bool(location._GAZETTEER.exact(placenames.normalize(surface)))
+
+
+def _cued(text: str, start: int, end: int, whole: bool) -> bool:
+    word = placenames.normalize(text[start:end])
+    if _LOCATIVE_BEFORE_RE.search(text[:start]):
+        return True
+    if word in _COMMON_WORDS:
+        return False
+    return (whole or bool(_WEATHER_AFTER_RE.match(text[end:]))
+            or len(word) >= _MIN_UNCUED_LEN)
+
+
+def scan_place(text: str) -> str | None:
+    """The longest gazetteer place name in `text`, as written there (an Indic
+    case suffix stripped), or None. Exact names only, so no LLM and no guess."""
+    spans = _tokens(text)
+    for n in (4, 3, 2, 1):
+        for i in range(len(spans) - n + 1):
+            start, end = spans[i][0], spans[i + n - 1][1]
+            surface = text[start:end]
+            if placenames.is_latin(surface):
+                if _is_gazetteer_name(surface) and (
+                        n > 1 or _cued(text, start, end, len(spans) == 1)):
+                    return surface
+                continue
+            if n > 1 and _is_gazetteer_name(surface):
+                return surface
+            if n == 1:
+                for cut in range(len(surface), _MIN_INDIC_NAME - 1, -1):
+                    if len(surface) - cut > _MAX_SUFFIX:
+                        break
+                    stem = surface[:cut]
+                    if _is_gazetteer_name(stem):
+                        return stem
+                    # Tamil drops the pulli before a suffix: கோயம்புத்தூர் + இல்
+                    # -> கோயம்புத்தூரில்
+                    if cut < len(surface) and _is_gazetteer_name(stem + cities._TAMIL_PULLI):
+                        return stem + cities._TAMIL_PULLI
+    return None
+
+
+def place_known(name: str | None) -> bool:
+    """A place the resolver can answer for or ask about (a demo city, a
+    gazetteer match, or an ambiguous one) — not not_found."""
+    if not name:
+        return False
+    if cities.resolve(name) is not None:
+        return True
+    out = location.resolve_location(name, None, None, "en")
+    return out.get("lat") is not None or bool(out.get("ambiguous"))
+
+
 def parse_rules(text: str, script: str) -> ParsedQuery:
     base = parse_intent(text)
     city, base_intent, time_window = base["city"], base["intent"], base["day"]
     days = None
+    here = bool(_HERE_RE.search(text))
+    has_rain_word = bool(_RAIN_WORD_RE.search(text))
+    weather_intent = "will_it_rain" if has_rain_word else "current_weather"
+
+    if base_intent == "unsupported_city" and here and _HERE_RE.fullmatch(city.strip()):
+        city, base_intent = None, "unrecognized"  # "in my location" names no place
+    if base_intent == "unsupported_city" and place_known(city):
+        base_intent = weather_intent  # "in Trichy": a gazetteer place, not a refusal
+    place = city
+    if place is None:
+        place = scan_place(text)
+        if place is not None:
+            city = place
+            if base_intent == "unrecognized":
+                base_intent = weather_intent
+    if (base_intent == "unrecognized" and here and place is None
+            and _KEYWORD_HIT_RE.search(text)):
+        base_intent = weather_intent
 
     next_n_match = _NEXT_N_RE.search(text)
     is_day_after = bool(_DAY_AFTER_RE.search(text))
@@ -224,7 +345,6 @@ def parse_rules(text: str, script: str) -> ParsedQuery:
     is_out_of_scope = bool(_OUT_OF_SCOPE_RE.search(text)) or (
         bool(_HAZARD_RE.search(text)) and not is_warnings
     )
-    has_rain_word = bool(_RAIN_WORD_RE.search(text))
 
     if next_n_match:
         time_window, days = "next_n_days", _extract_days(next_n_match, text)
@@ -250,22 +370,31 @@ def parse_rules(text: str, script: str) -> ParsedQuery:
         final_intent = base_intent
 
     return ParsedQuery(
-        intent=final_intent, city=city, time_window=time_window, days=days,
-        parameter=parameter, language=None, source="rules", confidence=0.9,
+        intent=final_intent, city=cities.resolve(city) or city, time_window=time_window,
+        days=days, parameter=parameter, language=None, source="rules", confidence=0.9,
+        place=place, here=here and place is None,
     )
 
 
-def _rule_accepted(pq: ParsedQuery, keyword_hit: bool) -> bool:
+def _bare_place(text: str) -> bool:
+    """The whole query is one place name ("மதுரை", "मदुरै"): current weather
+    there, in any language, with no LLM round trip. Demo cities' curated
+    names are in the gazetteer index too."""
+    return _is_gazetteer_name(text)
+
+
+def _rule_accepted(pq: ParsedQuery, keyword_hit: bool, text: str) -> bool:
     # A warning word or an unsupported product decides on its own — no city or
     # weather keyword needed, and no LLM round trip to confirm it.
     no_city_needed = ("out_of_scope", "warnings", "aviation", "best_window")
     if pq.intent in no_city_needed and pq.language in ("en", "ta"):
         return True
+    if pq.intent == "current_weather" and pq.place and _bare_place(text):
+        return True
     return (
         pq.intent in _P0_INTENTS
         and keyword_hit
-        and pq.city is not None
-        and cities.resolve(pq.city) is not None
+        and (pq.here or place_known(pq.place))
         and pq.language in ("en", "ta")
     )
 
@@ -287,7 +416,7 @@ def _validate_llm_json(raw: str) -> ParsedQuery | None:
     if city_raw:
         resolved = cities.resolve(city_raw)
         city = resolved if resolved else city_raw
-        if resolved is None:
+        if resolved is None and not place_known(city_raw):
             intent = "unsupported_city"
 
     days = obj.get("days")
@@ -304,6 +433,7 @@ def _validate_llm_json(raw: str) -> ParsedQuery | None:
         intent=intent, city=city, time_window=time_window, days=days,
         parameter=parameter, language=None if language == "other" else language,
         source="llm", confidence=confidence,
+        place=city_raw or None, here=obj.get("here") is True and not city_raw,
     )
 
 
@@ -340,13 +470,14 @@ def parse(text: str, lang_hint: str | None = None, city_hint: str | None = None)
     # is clearly weather-shaped: fall back to the UI's currently selected city
     # rather than paying for a full LLM round trip just to learn there's no
     # city to disambiguate.
-    if pq.city is None and (pq.intent in _P0_INTENTS or pq.intent in ("aviation", "best_window")):
+    if pq.city is None and not pq.here and (
+            pq.intent in _P0_INTENTS or pq.intent in ("aviation", "best_window")):
         resolved_hint = cities.resolve(city_hint)
         if resolved_hint is not None:
             pq.city = resolved_hint
 
     keyword_hit = bool(_KEYWORD_HIT_RE.search(text))
-    if _rule_accepted(pq, keyword_hit):
+    if _rule_accepted(pq, keyword_hit, text):
         pq.source, pq.confidence = "rules", 0.9
         return pq
 
@@ -359,6 +490,8 @@ def parse(text: str, lang_hint: str | None = None, city_hint: str | None = None)
         if llm_pq is not None:
             if script in ("ta", "te"):  # script is unambiguous; models confuse the two
                 llm_pq.language = script
+            if llm_pq.place is None:
+                llm_pq.here = llm_pq.here or pq.here
             return llm_pq
 
     pq.source, pq.confidence = "rules_fallback", (0.5 if script == "deva" else 0.3)

@@ -3,13 +3,16 @@ right `weather_data` call, and trims the resulting facts down to what the
 narration prompt needs for the asked parameter (the guardrail still checks
 against the FULL facts dict, never this trimmed subset).
 
+The location is already resolved (location.py) and arrives as {lat, lon,
+label}; weather is fetched for that point.
+
 The `warnings` intent is not a `weather_data` call: main.py's /ask answers it
 straight from imd_warnings.public() before routing, so route() returns None
 for it like any other non-weather intent.
 """
 
 import weather_data
-from google_weather import FORECAST_DAYS
+from google_weather import FORECAST_DAYS, point_key
 from nlu import ParsedQuery
 
 _PARAM_KEYS = {
@@ -31,8 +34,11 @@ def legacy_day(pq: ParsedQuery) -> str:
     return pq.time_window
 
 
-def route(pq: ParsedQuery, key: str) -> dict | None:
+def route(pq: ParsedQuery, loc: dict) -> dict | None:
+    """`loc` is location.resolve_location()'s {lat, lon, label}: the router
+    never sees a city name, only the point the weather is fetched for."""
     intent, tw = pq.intent, pq.time_window
+    key = point_key(loc["lat"], loc["lon"])
 
     if intent == "best_window":
         # WIE-4: the day's decoded hourly facts for the Weather Intelligence

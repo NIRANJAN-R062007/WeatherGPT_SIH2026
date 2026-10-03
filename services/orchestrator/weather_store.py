@@ -50,6 +50,7 @@ from pathlib import Path
 
 import cities
 import config
+import placenames
 import redis
 from sqlalchemy import create_engine, text
 
@@ -152,6 +153,59 @@ def _ensure_schema() -> None:
     _SCHEMA_READY = not failed
 
 
+_UPSERT_CITY = text("""
+    INSERT INTO cities
+        (key, lat, lon, names, region, timezone, aliases, place_id, population,
+         admin1, admin2, names_norm, names_text, synced_at)
+    VALUES
+        (:key, :lat, :lon, :names, :region, :timezone, :aliases, :place_id, :population,
+         :admin1, :admin2, :names_norm, :names_text, now())
+    ON CONFLICT (key) DO UPDATE SET
+        lat = EXCLUDED.lat,
+        lon = EXCLUDED.lon,
+        names = EXCLUDED.names,
+        region = EXCLUDED.region,
+        timezone = EXCLUDED.timezone,
+        aliases = EXCLUDED.aliases,
+        place_id = EXCLUDED.place_id,
+        population = EXCLUDED.population,
+        admin1 = EXCLUDED.admin1,
+        admin2 = EXCLUDED.admin2,
+        names_norm = EXCLUDED.names_norm,
+        names_text = EXCLUDED.names_text,
+        synced_at = now()
+""")
+
+
+def _match_columns(names) -> dict:
+    """names_norm / names_text (sql/006): every name normalised once, at
+    upsert time, the same way location.py normalises a query."""
+    flat = names.values() if isinstance(names, dict) else names
+    values = [v for v in flat for v in (v if isinstance(v, list) else [v])]
+    norm = list(dict.fromkeys(n for n in map(placenames.normalize, values) if n))
+    return {"names_norm": norm, "names_text": " ".join(norm)}
+
+
+def _demo_row(city: "cities.City", extra: dict | None = None) -> dict:
+    extra = extra or {}
+    names = [*city.names.values(), *city.aliases,
+             *(n for v in extra.get("names", {}).values() for n in v)]
+    return {
+        "key": city.key,
+        "lat": city.lat,
+        "lon": city.lon,
+        "names": json.dumps(city.names, ensure_ascii=False),
+        "region": json.dumps(city.region, ensure_ascii=False),
+        "timezone": city.timezone,
+        "aliases": list(city.aliases),
+        "place_id": city.place_id,
+        "population": extra.get("pop", 0),
+        "admin1": json.dumps(extra.get("admin1", {}), ensure_ascii=False),
+        "admin2": json.dumps(extra.get("admin2", {}), ensure_ascii=False),
+        **_match_columns(names),
+    }
+
+
 def sync_cities() -> int:
     """Upsert data/cities.json into the `cities` table. Returns rows written.
 
@@ -164,31 +218,41 @@ def sync_cities() -> int:
     rows = 0
     with _engine.begin() as conn:
         for city in cities.CITIES.values():
-            conn.execute(
-                text("""
-                    INSERT INTO cities
-                        (key, lat, lon, names, region, timezone, aliases, synced_at)
-                    VALUES
-                        (:key, :lat, :lon, :names, :region, :timezone, :aliases, now())
-                    ON CONFLICT (key) DO UPDATE SET
-                        lat = EXCLUDED.lat,
-                        lon = EXCLUDED.lon,
-                        names = EXCLUDED.names,
-                        region = EXCLUDED.region,
-                        timezone = EXCLUDED.timezone,
-                        aliases = EXCLUDED.aliases,
-                        synced_at = now()
-                """),
-                {
-                    "key": city.key,
-                    "lat": city.lat,
-                    "lon": city.lon,
-                    "names": json.dumps(city.names, ensure_ascii=False),
-                    "region": json.dumps(city.region, ensure_ascii=False),
-                    "timezone": city.timezone,
-                    "aliases": list(city.aliases),
-                },
-            )
+            conn.execute(_UPSERT_CITY, _demo_row(city))
+            rows += 1
+    return rows
+
+
+def sync_places(records: list[dict]) -> int:
+    """Upsert gazetteer records (scripts/import_geonames.py) into `cities`.
+
+    The same idempotent upsert as sync_cities(). A record for a demo city
+    updates that city's row (keyed by its city key, names from
+    data/cities.json, GeoNames' alternate names added to the match columns);
+    every other place is keyed by its place_id.
+    """
+    _ensure_schema()
+    rows = 0
+    with _engine.begin() as conn:
+        for rec in records:
+            if rec.get("demo") in cities.CITIES:
+                row = _demo_row(cities.CITIES[rec["demo"]], rec)
+            else:
+                row = {
+                    "key": rec["id"],
+                    "lat": rec["lat"],
+                    "lon": rec["lon"],
+                    "names": json.dumps(rec["names"], ensure_ascii=False),
+                    "region": json.dumps(rec.get("admin1", {}), ensure_ascii=False),
+                    "timezone": "Asia/Kolkata",  # every GeoNames IN place
+                    "aliases": [],
+                    "place_id": rec["id"],
+                    "population": rec.get("pop", 0),
+                    "admin1": json.dumps(rec.get("admin1", {}), ensure_ascii=False),
+                    "admin2": json.dumps(rec.get("admin2", {}), ensure_ascii=False),
+                    **_match_columns(rec["names"]),
+                }
+            conn.execute(_UPSERT_CITY, row)
             rows += 1
     return rows
 
