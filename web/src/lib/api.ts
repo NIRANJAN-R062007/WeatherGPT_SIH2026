@@ -44,6 +44,30 @@ export interface Nlu {
   /** "rules" | "llm" | "rules_fallback" */
   source: string;
   confidence: number;
+  /** The place as the question named it (or a demo city key), handed to the
+   *  backend's location resolver. Absent on an older backend. */
+  place?: string | null;
+  /** The question asked about "here" / "my location". */
+  here?: boolean;
+}
+
+/** main.py's `_public_location(loc)`: where the answer is for, as the
+ *  backend resolved it (location.resolve_location). lat/lon are rounded to
+ *  2 decimals; never the raw GPS fix. */
+export interface AskLocation {
+  label: string;
+  source: 'gps' | 'gazetteer' | 'demo_fixture';
+  lat: number;
+  lon: number;
+  place_id?: string;
+}
+
+/** One place an `ambiguous` reply offers to tap; re-ask with its place_id. */
+export interface PlaceCandidate {
+  place_id: string;
+  label: string;
+  district: string | null;
+  state: string | null;
 }
 
 /** One numeric token guardrail.check() extracted from the narration.
@@ -76,6 +100,9 @@ export interface WeatherProvenance {
   issued: string | null;
   is_live: boolean;
   retrieved_at: string;
+  /** The place and the 0.05° point the data was fetched for (the footer
+   *  appended to `response` says the same). */
+  place?: { label: string; lat: number; lon: number };
 }
 
 /** The warnings branch builds its provenance inline instead of calling
@@ -133,15 +160,21 @@ export type WarningStatus = 'unavailable' | 'clear' | 'active';
 /** Weather intent, narration passed the guardrail. The only branch with `day`. */
 export interface AskSuccessResponse {
   intent: string;
-  /** Resolved city key, lowercase (e.g. "chennai"), not a display name. */
-  city: string;
+  /** A demo city's key, lowercase (e.g. "chennai"); null for any other place
+   *  (a gazetteer town or a GPS fix) — then `location` names it. */
+  city: string | null;
+  location?: AskLocation;
   /** router.legacy_day(pq): a time_window, or "next_<n>_days". */
   day: string;
+  /** The answer, then (on its own line) the provenance footer
+   *  "Forecast for <place> (<lat>°N, <lon>°E)." */
   response: string;
   provenance: WeatherProvenance;
   grounding: Grounding;
   nlu: Nlu;
   notice?: string;
+  /** Offline: the answer is for the nearest demo city (it says so). */
+  offline?: boolean;
 }
 
 /** `warnings` intent with a usable feed verdict. Its `response` is the feed's
@@ -177,7 +210,8 @@ export interface AskWarningsUnavailableResponse {
  *  `message` AND `provenance`/`grounding`, but no `response` and no `day`. */
 export interface AskUngroundedResponse {
   intent: string;
-  city: string;
+  city: string | null;
+  location?: AskLocation;
   message: string;
   provenance: WeatherProvenance;
   grounding: Grounding;
@@ -185,15 +219,27 @@ export interface AskUngroundedResponse {
   notice?: string;
 }
 
-/** unrecognized / unsupported_city / out_of_scope (no `city` at all),
- *  the "which city?" refusal (no `city`), and no_data (`city` present).
- *  Never has provenance or grounding. */
+/** unrecognized / unsupported_city / out_of_scope (no `city` at all), the
+ *  location replies (which place? / not found / need a location / India
+ *  only / offline), and no_data (`city` present). Never has provenance or
+ *  grounding. */
 export interface AskFallbackResponse {
   intent: string;
-  city?: string;
+  city?: string | null;
+  location?: AskLocation;
   message: string;
   nlu: Nlu;
   notice?: string;
+  /** Several places share the name: tap one to re-ask with its place_id. */
+  ambiguous?: PlaceCandidate[];
+  /** The named place isn't in the India gazetteer (never answered for a guess). */
+  not_found?: boolean;
+  nearest?: PlaceCandidate & { lat: number; lon: number };
+  /** No place named and no location shared: tell the user where to look. */
+  needs_location?: boolean;
+  outside_india?: boolean;
+  /** Offline and the place has no saved data. */
+  offline?: boolean;
 }
 
 export type AskResponse =
@@ -269,13 +315,23 @@ export interface AskParams {
    *  narration's framing only, never the facts. "general" is the default
    *  framing, so it isn't sent. */
   persona?: string;
+  /** A GPS fix, already rounded to 2 decimals (~1 km) by the caller. The
+   *  backend uses it when the question names no place or says "here". */
+  coords?: { lat: number; lon: number };
+  /** A candidate the user tapped from an `ambiguous` reply; wins over all. */
+  placeId?: string;
 }
 
-export async function askWeather({ text, lang, city, token, persona }: AskParams): Promise<AskResponse> {
+export async function askWeather({ text, lang, city, token, persona, coords, placeId }: AskParams): Promise<AskResponse> {
   const params = new URLSearchParams({ text });
   if (lang) params.set('lang', lang);
   if (city) params.set('city', city);
   if (persona && persona !== 'general') params.set('persona', persona);
+  if (coords) {
+    params.set('lat', String(coords.lat));
+    params.set('lon', String(coords.lon));
+  }
+  if (placeId) params.set('place_id', placeId);
 
   const headers: Record<string, string> = {};
   if (token) headers.Authorization = `Bearer ${token}`;

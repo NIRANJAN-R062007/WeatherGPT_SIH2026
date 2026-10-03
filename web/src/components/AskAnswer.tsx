@@ -20,6 +20,19 @@ function cityLabel(key: string) {
   return key.charAt(0).toUpperCase() + key.slice(1);
 }
 
+/** Where an answer is for. A demo city: its English name (the caller
+ *  translates it). Any other place: the backend's `location.label`, already
+ *  in the user's language ("Tiruchirappalli, Tamil Nadu", "your location
+ *  (near …)"), so it is shown as is. */
+function placeLabel(
+  city: string | null | undefined,
+  location: { label: string } | undefined,
+  t: (s: string) => string,
+) {
+  if (city) return t(cityLabel(city));
+  return location?.label ?? '';
+}
+
 /** router.legacy_day values -> a short human label. `next_<n>_days` is built
  *  by the backend, so it is parsed rather than enumerated. */
 function dayLabel(day: string) {
@@ -143,12 +156,15 @@ export interface AskAnswerProps {
   error: AskError | null;
   /** Legend + per-figure detail are hidden by default on the compact panel. */
   detail?: boolean;
+  /** Re-ask with a tapped place_id when the reply is `ambiguous`. Without it
+   *  the candidates are listed but not tappable. */
+  onPickPlace?: (placeId: string) => void;
 }
 
 /** Renders one /ask result. Every branch main.py can return gets its own
  *  treatment — in particular a refusal carries `message`, not `response`, and
  *  an unavailable warning is never shown as an all-clear. */
-export default function AskAnswer({ asked, loading, outcome, error, detail = false }: AskAnswerProps) {
+export default function AskAnswer({ asked, loading, outcome, error, detail = false, onPickPlace }: AskAnswerProps) {
   const t = useT();
   if (!loading && !outcome && !error) return null;
 
@@ -205,14 +221,16 @@ export default function AskAnswer({ asked, loading, outcome, error, detail = fal
             <Chip tone="primary">{t(outcome.data.intent.replace(/_/g, ' ').toUpperCase())}</Chip>
             <Chip>
               <span className="material-symbols-outlined text-[11px] align-middle">location_on</span>{' '}
-              {t(cityLabel(outcome.data.city))}
+              {placeLabel(outcome.data.city, outcome.data.location, t)}
             </Chip>
             <Chip>{t(dayLabel(outcome.data.day))}</Chip>
           </div>
 
           {outcome.data.notice && <Notice text={outcome.data.notice} />}
 
-          <p className="font-body-lg text-body-lg text-on-surface leading-relaxed">
+          {/* whitespace-pre-line: the provenance footer (and an offline note)
+              come on their own lines after the answer. */}
+          <p className="font-body-lg text-body-lg text-on-surface leading-relaxed whitespace-pre-line">
             {outcome.data.response}
           </p>
 
@@ -321,7 +339,7 @@ export default function AskAnswer({ asked, loading, outcome, error, detail = fal
             </span>
             <Chip>
               <span className="material-symbols-outlined text-[11px] align-middle">location_on</span>{' '}
-              {t(cityLabel(outcome.data.city))}
+              {placeLabel(outcome.data.city, outcome.data.location, t)}
             </Chip>
             <Chip>
               {t('{matched}/{total} figures matched', {
@@ -370,6 +388,29 @@ export default function AskAnswer({ asked, loading, outcome, error, detail = fal
           {outcome.data.notice && <Notice text={outcome.data.notice} />}
 
           <p className="font-body-md text-body-md text-on-surface">{outcome.data.message}</p>
+
+          {/* Several places share the name: one button each, district under
+              the label; a tap re-asks the same question for that place_id.
+              Never picks one on the user's behalf. */}
+          {outcome.data.ambiguous && outcome.data.ambiguous.length > 0 && (
+            <div className="flex flex-wrap gap-space-xs" role="group" aria-label={t('Choose a place')}>
+              {outcome.data.ambiguous.map((c) => (
+                <button
+                  key={c.place_id}
+                  type="button"
+                  disabled={!onPickPlace}
+                  onClick={() => onPickPlace?.(c.place_id)}
+                  className="flex flex-col items-start text-left px-3 py-2 rounded-lg border border-card-border bg-card hover:bg-tint disabled:cursor-default"
+                  data-testid="place-candidate"
+                >
+                  <span className="font-label-md text-label-md text-on-surface">{c.label}</span>
+                  {c.district && (
+                    <span className="font-body-sm text-body-sm text-on-surface-variant">{c.district}</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
