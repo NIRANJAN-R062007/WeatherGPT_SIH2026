@@ -399,7 +399,7 @@ def test_ask_warnings_city_param_fills_in(_warnings_enabled):
 
 
 def test_ask_warnings_unknown_city_is_unsupported_city():
-    body = _ask("warning in Kolkata")
+    body = _ask("warning in London")
     assert body["intent"] == "unsupported_city"
     assert body["message"] == main._msg("unsupported_city", "en")
 

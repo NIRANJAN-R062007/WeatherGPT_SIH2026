@@ -161,7 +161,7 @@ def test_rules_warnings_hit_never_calls_the_llm(monkeypatch):
 
 
 def test_rules_warning_for_unsupported_city_is_a_refusal():
-    pq = nlu.parse("warning in Kolkata")
+    pq = nlu.parse("warning in London")
     assert pq.intent == "unsupported_city"
 
 
@@ -184,10 +184,10 @@ def test_llm_warnings_for_unknown_city_becomes_unsupported_city(monkeypatch):
     monkeypatch.setattr(config, "GEMINI_API_KEY", "k")
     monkeypatch.setattr(
         narrate, "generate",
-        lambda *a, **k: '{"intent":"warnings","city":"Kolkata","time_window":"today",'
+        lambda *a, **k: '{"intent":"warnings","city":"London","time_window":"today",'
                         '"days":null,"parameter":"general","language":"hi","confidence":0.9}',
     )
-    pq = nlu.parse("क्या कोलकाता के लिए कोई चेतावनी है?")
+    pq = nlu.parse("क्या लंदन के लिए कोई चेतावनी है?")
     assert pq.intent == "unsupported_city" and pq.source == "llm"
 
 
@@ -293,10 +293,10 @@ def test_llm_unknown_city_becomes_unsupported_city(monkeypatch):
     monkeypatch.setattr(config, "GEMINI_API_KEY", "k")
     monkeypatch.setattr(
         narrate, "generate",
-        lambda *a, **k: '{"intent":"current_weather","city":"Kolkata","time_window":"today",'
+        lambda *a, **k: '{"intent":"current_weather","city":"London","time_window":"today",'
                         '"days":null,"parameter":"general","language":"en","confidence":0.9}',
     )
-    pq = nlu.parse("weather in Kolkata")
+    pq = nlu.parse("weather in London")
     assert pq.intent == "unsupported_city" and pq.source == "llm"
 
 
@@ -484,7 +484,7 @@ def test_aviation_does_not_swallow_other_intents(text, intent):
 
 
 def test_aviation_word_with_an_unsupported_city_still_needs_a_supported_one():
-    pq = nlu.parse("metar for Kolkata")
+    pq = nlu.parse("metar for London")
     assert pq.intent == "aviation" and pq.city is None  # /ask then asks which city
 
 
@@ -504,7 +504,7 @@ def test_llm_aviation_answer_is_accepted():
 
 def test_llm_aviation_with_an_unknown_city_is_a_refusal():
     pq = nlu._validate_llm_json(
-        '{"intent":"aviation","city":"Kolkata","time_window":"today","days":null,'
+        '{"intent":"aviation","city":"London","time_window":"today","days":null,'
         '"parameter":"general","language":"en","confidence":0.9}'
     )
     assert pq.intent == "unsupported_city"
@@ -563,20 +563,20 @@ def test_best_window_does_not_swallow_other_intents(text, intent):
 
 
 def test_best_window_word_with_an_unsupported_city_still_needs_a_supported_one():
-    # "for Kolkata" (unlike "in Kolkata") doesn't match CITY_PATTERN's "in
-    # <city>" capture, and "Kolkata" isn't a registered city either, so
+    # "for London" (unlike "in London") doesn't match CITY_PATTERN's "in
+    # <city>" capture, and "London" isn't a registered city either, so
     # intent.py's base parse is "unrecognized" with no city at all — the
-    # best_window word still decides on its own, same as "metar for Kolkata".
-    pq = nlu.parse("best time to go outside for Kolkata")
+    # best_window word still decides on its own, same as "metar for London".
+    pq = nlu.parse("best time to go outside for London")
     assert pq.intent == "best_window" and pq.city is None  # /ask then asks which city
 
 
 def test_best_window_with_an_explicitly_unsupported_city_is_a_refusal():
-    # "in Kolkata" DOES match CITY_PATTERN, so intent.py's base parse is
+    # "in London" DOES match CITY_PATTERN, so intent.py's base parse is
     # "unsupported_city" (a known-bad place, not just "no city named") —
     # that refusal takes priority over the best_window word, same rule as
-    # warnings ("warning in Kolkata" -> unsupported_city, test_nlu.py above).
-    pq = nlu.parse("best time to go outside in Kolkata")
+    # warnings ("warning in London" -> unsupported_city, test_nlu.py above).
+    pq = nlu.parse("best time to go outside in London")
     assert pq.intent == "unsupported_city"
 
 
@@ -597,7 +597,7 @@ def test_llm_best_window_answer_is_accepted():
 
 def test_llm_best_window_with_an_unknown_city_is_a_refusal():
     pq = nlu._validate_llm_json(
-        '{"intent":"best_window","city":"Kolkata","time_window":"today","days":null,'
+        '{"intent":"best_window","city":"London","time_window":"today","days":null,'
         '"parameter":"general","language":"en","confidence":0.9}'
     )
     assert pq.intent == "unsupported_city"

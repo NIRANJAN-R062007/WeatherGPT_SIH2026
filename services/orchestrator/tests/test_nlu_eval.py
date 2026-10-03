@@ -20,7 +20,9 @@ _ROWS = [
 ]
 # Rows added with the gazetteer (step 0), ahead of the NLU wiring that passes
 # them; the marker comes off in the commit that does.
-_PENDING = {"en-054", "en-055", "en-056", "en-057", "en-059", "ta-027", "ta-028", "hi-016"}
+# en-024 ("weather in Kolkata") was unsupported_city before the gazetteer.
+_PENDING = {"en-024", "en-054", "en-055", "en-056", "en-057", "en-059",
+            "ta-027", "ta-028", "hi-016"}
 _RULES_ROWS = [r for r in _ROWS if r["path"] == "rules"]
 _LLM_ROWS = [r for r in _ROWS if r["path"] == "llm"]
 
