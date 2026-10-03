@@ -249,19 +249,20 @@ the work sits:
     persona and Light / Dark / System are saved to a small JSON file in the app
     support directory (`lib/state/prefs_store.dart`) and restored at launch;
     the older language-only file is migrated. No new package was needed.
-12. **Localize the app's own UI.** *(App)* Mostly done. Labels, buttons,
-    headings and validators go through `tr()` (`lib/i18n.dart`), looked up in
-    `lib/ui_strings.dart`, generated from `ui-strings/ui_strings.json`
-    (463 strings with hi / ta / te / mr, shared with web/). Every literal
-    passed to `tr()` has an entry. What's left:
+12. **Localize the app's own UI.** *(App)* Done, apart from native review.
+    Labels, buttons, headings and validators go through `tr()`
+    (`lib/i18n.dart`), looked up in `lib/ui_strings.dart`, generated from
+    `ui-strings/ui_strings.json` (487 strings with hi / ta / te / mr, shared
+    with web/). Every literal passed to `tr()` has an entry. Errors that carry
+    a value (the server URL, an HTTP status) keep it in `args` and fill it in
+    after translating (2026-10-03). Flutter's own text (the text-selection
+    menu, tooltips) follows the app language through `flutter_localizations`,
+    and iOS's `Info.plist` lists the five languages (not checked on iOS: no
+    Mac). What's left:
     - **Native-speaker review.** Every hi / ta / te / mr string is
       author-written (`TODO: native_qa` in `ui-strings/gen_ui_strings.py`).
-    - Error messages that embed the server URL or an HTTP status (e.g.
-      "Couldn't reach the weather service at …") don't match a table entry, so
-      they show in English. Their titles are translated.
-    - Text that Flutter's Material widgets supply themselves (e.g. the
-      text-selection menu's Copy / Paste) stays English, because
-      `flutter_localizations` isn't added.
+    - Text the server writes (answers, `/asr` notices, Supabase's own error
+      messages) is in whatever language the server sends.
 13. **Cyclone map** (plan.md §8, open). *(App + Backend)* Needs a map package
     (`flutter_map` with OSM tiles, or `google_maps_flutter`) and a source of
     cyclone tracks / CAP warning polygons. `imd_warnings.py` is a per-city

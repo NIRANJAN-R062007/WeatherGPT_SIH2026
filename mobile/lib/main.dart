@@ -5,6 +5,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'cities_client.dart';
 import 'components/app_shell.dart';
@@ -142,6 +143,12 @@ class _WeatherGptAppState extends State<WeatherGptApp> {
               darkTheme: buildAppTheme(personaThemeFor(_prefs.persona, Brightness.dark)),
               themeMode: _prefs.themeMode,
               themeAnimationDuration: const Duration(milliseconds: 350),
+              // The app's own text goes through tr(); this puts Flutter's own
+              // (the text-selection menu, back-button tooltips, …) in the
+              // same language.
+              locale: Locale(_prefs.lang),
+              supportedLocales: [for (final lang in kSupportedLanguages) Locale(lang)],
+              localizationsDelegates: GlobalMaterialLocalizations.delegates,
               // Status-bar and navigation-bar icons follow light / dark.
               builder: (context, child) {
                 final t = PersonaTheme.of(context);

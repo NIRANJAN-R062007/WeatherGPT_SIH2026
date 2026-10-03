@@ -189,6 +189,30 @@ void main() {
     }
   });
 
+  testWidgets("Flutter's own text (Copy / Paste, tooltips) follows the app language", (tester) async {
+    _phone(tester);
+    await tester.pumpWidget(WeatherGptApp(auth: await _signedIn(), prefsStore: MemoryPrefsStore()));
+    await _settle(tester);
+
+    final prefs = UiPrefs.of(tester.element(find.byType(BottomNav)));
+    final seen = <String>{};
+    for (final lang in ['en', 'hi', 'ta', 'te', 'mr']) {
+      prefs.lang = lang;
+      await _settle(tester);
+      final context = tester.element(find.byType(BottomNav));
+      expect(Localizations.localeOf(context).languageCode, lang);
+      final material = MaterialLocalizations.of(context);
+      if (lang == 'en') {
+        expect(material.copyButtonLabel, 'Copy');
+      } else {
+        expect(material.copyButtonLabel, isNot('Copy'), reason: lang);
+        expect(material.backButtonTooltip, isNot('Back'), reason: lang);
+      }
+      seen.add(material.pasteButtonLabel);
+    }
+    expect(seen, hasLength(5)); // a different "Paste" in each language
+  });
+
   testWidgets('a Home quick question is asked in Chat', (tester) async {
     await tester.pumpWidget(WeatherGptApp(auth: await _signedIn()));
     await _settle(tester);
