@@ -9,7 +9,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../advisory_client.dart';
 import '../auth_client.dart';
+import '../pages/advisory_page.dart';
 import '../pages/aviation_page.dart';
 import '../pages/best_window_page.dart';
 import '../pages/history_page.dart';
@@ -108,6 +110,7 @@ class _AppShellState extends State<AppShell> {
     final t = PersonaTheme.of(context);
     // Airport weather (METAR / TAF) is the Aviation persona's page only.
     final aviation = UiPrefs.of(context).persona == 'aviation';
+    final farmer = UiPrefs.of(context).persona == 'farmer';
     final stack = IndexedStack(
       index: _current.index,
       children: [
@@ -181,6 +184,16 @@ class _AppShellState extends State<AppShell> {
                             Navigator.of(context).pop();
                             openBestWindow(context);
                           },
+                          onTravel: () {
+                            Navigator.of(context).pop();
+                            openAdvisory(context, AdvisoryKind.travel);
+                          },
+                          onSowing: farmer
+                              ? () {
+                                  Navigator.of(context).pop();
+                                  openAdvisory(context, AdvisoryKind.sowing);
+                                }
+                              : null,
                           onHistory: () {
                             Navigator.of(context).pop();
                             openHistory(context, onAskAgain: _askInChat);
@@ -200,6 +213,8 @@ class _AppShellState extends State<AppShell> {
                               onProfile: () => openProfile(context),
                               onAviation: aviation ? () => openAviation(context) : null,
                               onBestWindow: () => openBestWindow(context),
+                              onTravel: () => openAdvisory(context, AdvisoryKind.travel),
+                              onSowing: farmer ? () => openAdvisory(context, AdvisoryKind.sowing) : null,
                               onHistory: () => openHistory(context, onAskAgain: _askInChat),
                             ),
                           ),
@@ -339,6 +354,11 @@ class Sidebar extends StatelessWidget {
   /// Opens Query history (pushed on top too); a guest sees an invitation to
   /// sign in there.
   final VoidCallback? onHistory;
+
+  /// Open Travel advice (everyone) and Sowing advice (null, no tile, unless
+  /// the persona is Farmer), pushed on top like Best Time.
+  final VoidCallback? onTravel;
+  final VoidCallback? onSowing;
   const Sidebar({
     super.key,
     required this.current,
@@ -347,6 +367,8 @@ class Sidebar extends StatelessWidget {
     this.onAviation,
     this.onBestWindow,
     this.onHistory,
+    this.onTravel,
+    this.onSowing,
   });
 
   @override
@@ -421,6 +443,21 @@ class Sidebar extends StatelessWidget {
                         label: 'Best Time & What-if',
                         active: false,
                         onTap: onBestWindow!,
+                      ),
+                    ),
+                  if (onTravel != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: _NavTile(icon: Icons.route_outlined, label: 'Travel advice', active: false, onTap: onTravel!),
+                    ),
+                  if (onSowing != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: _NavTile(
+                        icon: Icons.agriculture_outlined,
+                        label: 'Sowing advice',
+                        active: false,
+                        onTap: onSowing!,
                       ),
                     ),
                   if (onProfile != null) ...[
