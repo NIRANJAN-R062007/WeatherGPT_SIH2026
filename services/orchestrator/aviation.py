@@ -37,7 +37,9 @@ TIMEOUT = 8.0
 DISCLAIMER = ("For awareness only, not for flight planning. Use the official AAI / IMD "
               "aviation briefing before flying.")
 
-CITY_STATION = {name.lower(): icao for icao, name in metar.STATIONS.items()}
+# City key -> ICAO. Resolved through the registry, so "Port Blair" maps to port_blair.
+CITY_STATION = {cities.resolve(name, travel=True) or name.lower(): icao
+                for icao, name in metar.STATIONS.items()}
 _DECODERS = {
     "metar": (metar.decode, metar.briefing, metar.briefing_lines),
     "taf": (taf.decode, taf.briefing, taf.briefing_lines),
@@ -65,7 +67,7 @@ def station_for(city_or_station: str) -> str | None:
     code = city_or_station.strip().upper()
     if code in metar.STATIONS:
         return code
-    key = cities.resolve(city_or_station)
+    key = cities.resolve(city_or_station, travel=True)
     return CITY_STATION.get(key) if key else None
 
 
@@ -166,7 +168,7 @@ def public(station: str) -> dict:
     return {
         "station": station,
         "station_name": name,
-        "city": name.lower() if name else None,
+        "city": (cities.resolve(name, travel=True) or name.lower()) if name else None,
         "status": "ok" if any(parts.values()) else "unavailable",
         **parts,
         "disclaimer": DISCLAIMER,

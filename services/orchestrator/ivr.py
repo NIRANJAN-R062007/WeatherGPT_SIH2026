@@ -28,6 +28,10 @@ request/response turn:
       -> Greeting applet -> GET /ivr/answer/{CallSid}.wav?key=... — plays
          back whatever process_recording() cached for that call
 
+A question about sowing is answered by the sowing advisory instead of /ask
+(TFA-14, ivr_sowing.py), which may ask back for a missing crop or district: for
+that, the flow loops from the answer Greeting back to the Record applet.
+
 Because Passthru doesn't block the flow on our response, the Record+Passthru
 step's whole ASR->ask->TTS chain has to finish (or fail) *before* the flow
 reaches the following Greeting node — Exotel's own inter-applet latency is
@@ -55,6 +59,7 @@ from urllib.parse import urlsplit
 import bhashini
 import config
 import httpx
+import ivr_sowing
 from fastapi import FastAPI, Form, HTTPException, Response
 
 _LOG = logging.getLogger("weathergpt.ivr")
@@ -241,6 +246,17 @@ def process_recording(call_sid: str, lang: str, recording_url: str, ask_fn, msg_
     transcript = bhashini.speech_to_text(audio_b64, lang, IVR_SAMPLING_RATE)
     if not transcript:
         _finish(msg_fn("voice_unavailable", lang))
+        return
+
+    try:
+        # A sowing question goes to the sowing advisory instead (TFA-14, ivr_sowing.py).
+        sowing = ivr_sowing.reply(call_sid, transcript, lang)
+    except Exception as exc:  # nor may the advisory
+        _LOG.warning("IVR: sowing advisory raised for call %s (%s)", call_sid, exc)
+        _finish(msg_fn("no_data", lang))
+        return
+    if sowing is not None:
+        _finish(sowing)
         return
 
     try:

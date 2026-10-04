@@ -114,10 +114,15 @@ def get(cache_key: str | None) -> dict | None:
 def put(cache_key: str | None, answer: dict, hourly: dict | None) -> None:
     """Store `answer`, computed from `hourly` (weather_data.hourly_facts), for
     the rest of that forecast's life. A fixture or a spent forecast is skipped."""
-    if cache_key is None or not hourly or not hourly.get("is_live") or not _usable():
+    if not hourly or not hourly.get("is_live"):
         return
-    ttl = remaining_seconds(hourly.get("retrieved_at"))
-    if ttl <= 0:
+    store(cache_key, answer, remaining_seconds(hourly.get("retrieved_at")))
+
+
+def store(cache_key: str | None, answer: dict, ttl: int) -> None:
+    """Store `answer` for `ttl` seconds; nothing when the TTL is spent. The caller
+    decides the TTL (put() above, advisory/cache.py)."""
+    if cache_key is None or ttl <= 0 or not _usable():
         return
     try:
         _redis.setex(cache_key, ttl, json.dumps(jsonable_encoder(answer)))
