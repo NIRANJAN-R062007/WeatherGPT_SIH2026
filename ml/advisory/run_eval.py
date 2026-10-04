@@ -5,6 +5,11 @@
     python ml/advisory/run_eval.py --model strands:groq --pause 4
     python ml/advisory/run_eval.py --model strands:ollama:llama3.2:3b
 
+    # a free tier's daily quota ends the run partway: the next day, ask only the
+    # rate-limited rows again and keep the rest (the same command every day)
+    python ml/advisory/run_eval.py --model strands:gemini --pause 15 \
+        --resume ml/advisory/gemini.json --out ml/advisory/gemini.json
+
 For each `answer` row it builds the facts (real fixture collectors plus one named
 weather scenario, scenarios.py), asks the candidate, and scores three things per
 plan §11.5:
@@ -39,6 +44,7 @@ TFA-3 gap: it reports as a gap, and flags itself once the gap is fixed.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import statistics
@@ -203,11 +209,19 @@ def score_reply(row: dict, facts, reply: str) -> dict:
             "problems": problems}
 
 
+def row_key(row: dict) -> str:
+    """The row a stored result was scored on, so --resume never keeps an answer to a
+    row that has since been edited."""
+    text = json.dumps(row, sort_keys=True, ensure_ascii=False)
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
+
+
 def run_row(row: dict, candidate: Candidate) -> dict:
     out = {"id": row["id"], "lang": row["lang"], "kind": row["kind"], "type": row["type"],
-           "slots": slot_stage(row)}
+           "row_key": row_key(row), "slots": slot_stage(row)}
     if row["type"] != "answer":
         return out
+    out["ran_on"] = time.strftime("%Y-%m-%d")
     facts = scenarios.build(row["kind"], row["slots"], row["scenario"])
     started = time.perf_counter()
     candidate.last_tool_calls = None
@@ -226,19 +240,67 @@ def run_row(row: dict, candidate: Candidate) -> dict:
     return out
 
 
+def reusable(previous: dict | None, row: dict) -> bool:
+    """Whether --resume keeps a stored answer instead of asking again. A rate limit
+    is the free tier's daily quota, not the agent, so that row is asked again; a
+    timeout or a 503 is a measurement (TFA-18 counts them) and is kept."""
+    return (previous is not None and "model" in previous
+            and previous.get("row_key") == row_key(row)
+            and error_kind(previous.get("error")) != "rate_limited")
+
+
 def run_rows(rows: list[dict], candidate: Candidate, *, pause: float = 0.0,
-             sleep=time.sleep) -> list[dict]:
+             sleep=time.sleep, previous: dict[str, dict] | None = None,
+             progress=None) -> list[dict]:
     """Every row in order. `pause` spaces the model calls out: on a free tier a
     burst of 54 agent runs is mostly measuring the rate limiter (plan.md TFA-18).
-    Ask-back rows make no call, so they never wait."""
+    Ask-back rows make no call, so they never wait. `previous` holds an earlier
+    run's results by id; its reusable answers are kept without a call (the slot
+    stage, which costs nothing, is run again). `progress(result, kept)` is called
+    after each answer row."""
+    previous = previous or {}
     results = []
     called = False
     for row in rows:
+        old = previous.get(row["id"])
+        if row["type"] == "answer" and reusable(old, row):
+            results.append({**old, "slots": slot_stage(row)})
+            if progress:
+                progress(results[-1], True)
+            continue
         if pause and called and row["type"] == "answer":
             sleep(pause)
         results.append(run_row(row, candidate))
         called = called or row["type"] == "answer"
+        if progress and row["type"] == "answer":
+            progress(results[-1], False)
     return results
+
+
+def print_progress(result: dict, kept: bool) -> None:
+    """One line per answer row on stderr, so a long live run can be watched (and a
+    run the quota refuses from the first row can be stopped)."""
+    if kept:
+        status = "kept"
+    elif result["error"]:
+        status = error_kind(result["error"])
+    else:
+        status = "pass" if result["model"]["passed"] else "fail"
+    print(f"  {result['id']:<11}{status:<21}{result['latency_s']:.2f}s",
+          file=sys.stderr, flush=True)
+
+
+def load_previous(path: Path, model: str, timeout: float) -> dict[str, dict]:
+    """An earlier --out file's rows by id. It must be the same model and budget,
+    or the merged numbers would describe two different setups."""
+    if not path.exists():
+        print(f"--resume: {path} not found yet, so every row is asked\n")
+        return {}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if data.get("model") != model or data.get("timeout_s") != timeout:
+        raise SystemExit(f"--resume {path}: it was run as model={data.get('model')} "
+                         f"timeout={data.get('timeout_s')}s, not {model} {timeout}s")
+    return {r["id"]: r for r in data.get("rows", [])}
 
 
 # --- report ------------------------------------------------------------------------
@@ -270,7 +332,12 @@ def summarise(results: list[dict]) -> dict:
     summary["call_errors"] = {k: kinds.count(k) for k in sorted({k for k in kinds if k})}
     for key in ("valid_json", "rubric", "guardrail", "passed"):
         summary[key] = sum(r["model"][key] for r in scored)
-    latencies = sorted(r["latency_s"] for r in scored)
+    # A rate-limited row is the free tier's quota, not the agent: it comes back in a
+    # fraction of a second, so it is left out of the latency and counted apart.
+    answered = [r for r, k in zip(scored, kinds) if k != "rate_limited"]
+    summary["answered"] = len(answered)
+    summary["answered_passed"] = sum(r["model"]["passed"] for r in answered)
+    latencies = sorted(r["latency_s"] for r in answered)
     if latencies:
         summary["latency_p50_s"] = round(statistics.median(latencies), 3)
         summary["latency_p95_s"] = round(latencies[min(len(latencies) - 1,
@@ -282,6 +349,9 @@ def summarise(results: list[dict]) -> dict:
         summary["tool_calls_mean"] = round(statistics.mean(calls), 2)
         summary["tool_calls_max"] = max(calls)
         summary["tool_calls_per_row"] = {str(n): calls.count(n) for n in sorted(set(calls))}
+    # A resumed run spans days; which rows ran when goes into the plan.md log.
+    days = [r["ran_on"] for r in scored if r.get("ran_on")]
+    summary["ran_on"] = {d: days.count(d) for d in sorted(set(days))}
     summary["slot_stage"] = {s: sum(r["slots"]["status"] == s for r in results)
                              for s in ("pass", "fail", "known_gap", "gap_closed")}
     return summary
@@ -302,11 +372,19 @@ def print_report(name: str, results: list[dict], summary: dict) -> None:
                      for k in ("valid_json", "rubric", "guardrail", "passed")]
             print(f"{label:<12}{cells[0]:<12}{cells[1]:<10}{cells[2]:<11}{cells[3]}  "
                   f"({len(rows)} rows)")
+        if summary["answered"] < n:
+            print(f"\nanswered (not rate-limited)  {summary['answered']}/{n} rows, "
+                  f"{_pct(summary['answered_passed'], summary['answered'])} of them pass "
+                  "all three")
         if "latency_p50_s" in summary:
-            print(f"\nlatency  p50={summary['latency_p50_s']}s  p95={summary['latency_p95_s']}s")
+            print(f"\nlatency  p50={summary['latency_p50_s']}s  p95={summary['latency_p95_s']}s"
+                  + ("  (answered rows)" if summary["answered"] < n else ""))
         if summary["call_errors"]:
             print("call errors  " + "  ".join(
                 f"{k}={v}" for k, v in summary["call_errors"].items()))
+        if len(summary["ran_on"]) > 1:
+            print("answered on  " + "  ".join(
+                f"{d}:{c}" for d, c in summary["ran_on"].items()))
         if "tool_calls_mean" in summary:
             spread = "  ".join(f"{n}:{c}" for n, c in summary["tool_calls_per_row"].items())
             print(f"tool calls per row  mean={summary['tool_calls_mean']}  "
@@ -343,7 +421,14 @@ def main() -> int:
     ap.add_argument("--out", default=None, help="write the full results as JSON here")
     ap.add_argument("--pause", type=float, default=0.0,
                     help="seconds to wait between answer rows (free-tier rate limits)")
+    ap.add_argument("--resume", default=None,
+                    help="an earlier --out file: keep its answers, ask only the rows that\n"
+                         "were rate-limited or are missing (same model and --timeout)")
     args = ap.parse_args()
+    if args.resume and (args.kind or args.lang):
+        # The --out file is rewritten from this run's rows, so a subset would drop
+        # the stored answers outside it.
+        raise SystemExit("--resume runs the whole set: drop --kind/--lang")
 
     rows = load_rows()
     bad = [(r.get("id"), p) for r in rows for p in validate_row(r)]
@@ -355,9 +440,16 @@ def main() -> int:
             and (not args.lang or r["lang"].split("-")[0] == args.lang)]
 
     candidate = make_candidate(args.model, timeout=args.timeout)
-    results = run_rows(rows, candidate, pause=args.pause)
+    previous = (load_previous(Path(args.resume), candidate.name, args.timeout)
+                if args.resume else None)
+    results = run_rows(rows, candidate, pause=args.pause, previous=previous,
+                       progress=print_progress)
     summary = summarise(results)
     print_report(candidate.name, results, summary)
+    limited = summary["call_errors"].get("rate_limited")
+    if limited and args.out:
+        print(f"\n{limited} rows were rate-limited: run the same command with "
+              f"--resume {args.out} once the quota resets to ask only those")
 
     if args.out:
         Path(args.out).write_text(json.dumps({
