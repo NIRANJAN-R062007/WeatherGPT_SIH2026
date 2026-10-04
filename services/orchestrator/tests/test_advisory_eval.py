@@ -341,3 +341,18 @@ def test_the_summary_counts_call_errors_by_kind():
                _scored("c", tool_calls=0, error="AgentError: 429 Too Many Requests"),
                _scored("d", tool_calls=0, error="AgentError: 429 Too Many Requests")]
     assert run_eval.summarise(results)["call_errors"] == {"rate_limited": 2, "timeout": 1}
+
+
+def test_pause_spaces_out_only_the_rows_that_call_a_model():
+    rows = [BY_ID["trv-en-01"], ROWS[[r["type"] for r in ROWS].index("ask_back")],
+            BY_ID["trv-en-02"], BY_ID["frm-en-01"]]
+    slept = []
+    results = run_eval.run_rows(rows, run_eval.Oracle(), pause=3, sleep=slept.append)
+    assert len(results) == 4
+    assert slept == [3, 3]  # before the 2nd and 3rd answer rows; never before the first
+
+
+def test_no_pause_never_sleeps():
+    slept = []
+    run_eval.run_rows(ANSWERS[:3], run_eval.Oracle(), sleep=slept.append)
+    assert slept == []

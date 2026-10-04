@@ -2,7 +2,7 @@
 
     python ml/advisory/run_eval.py --model oracle
     python ml/advisory/run_eval.py --model strands:gemini --out gemini.json
-    python ml/advisory/run_eval.py --model strands:groq
+    python ml/advisory/run_eval.py --model strands:groq --pause 4
     python ml/advisory/run_eval.py --model strands:ollama:llama3.2:3b
 
 For each `answer` row it builds the facts (real fixture collectors plus one named
@@ -224,6 +224,21 @@ def run_row(row: dict, candidate: Candidate) -> dict:
     return out
 
 
+def run_rows(rows: list[dict], candidate: Candidate, *, pause: float = 0.0,
+             sleep=time.sleep) -> list[dict]:
+    """Every row in order. `pause` spaces the model calls out: on a free tier a
+    burst of 54 agent runs is mostly measuring the rate limiter (plan.md TFA-18).
+    Ask-back rows make no call, so they never wait."""
+    results = []
+    called = False
+    for row in rows:
+        if pause and called and row["type"] == "answer":
+            sleep(pause)
+        results.append(run_row(row, candidate))
+        called = called or row["type"] == "answer"
+    return results
+
+
 # --- report ------------------------------------------------------------------------
 
 
@@ -324,6 +339,8 @@ def main() -> int:
     ap.add_argument("--min-pass", type=float, default=None,
                     help="exit 1 if the all-three pass rate is below this (0-1)")
     ap.add_argument("--out", default=None, help="write the full results as JSON here")
+    ap.add_argument("--pause", type=float, default=0.0,
+                    help="seconds to wait between answer rows (free-tier rate limits)")
     args = ap.parse_args()
 
     rows = load_rows()
@@ -336,7 +353,7 @@ def main() -> int:
             and (not args.lang or r["lang"].split("-")[0] == args.lang)]
 
     candidate = make_candidate(args.model, timeout=args.timeout)
-    results = [run_row(row, candidate) for row in rows]
+    results = run_rows(rows, candidate, pause=args.pause)
     summary = summarise(results)
     print_report(candidate.name, results, summary)
 
