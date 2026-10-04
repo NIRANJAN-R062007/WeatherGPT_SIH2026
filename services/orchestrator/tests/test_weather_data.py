@@ -345,3 +345,12 @@ def test_hourly_facts_empty_forecast_hours_is_none(monkeypatch):
 
     monkeypatch.setattr(google_weather, "snapshot", _snapshot)
     assert weather_data.hourly_facts("chennai", "today") is None
+
+
+def test_multi_day_facts_dates_each_day_in_city_time():
+    """TFA-11 checks a crop's sowing months against these dates."""
+    from datetime import date
+
+    days = weather_data.multi_day_facts("madurai", 5)["days"]
+    dates = [date.fromisoformat(d["date"]) for d in days]
+    assert dates == [dates[0] + timedelta(days=i) for i in range(len(days))]

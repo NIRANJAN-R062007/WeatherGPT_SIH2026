@@ -160,6 +160,7 @@ def multi_day_facts(key: str, days_requested: int) -> dict | None:
         ef = _entry_facts(days[i], "daytimeForecast")
         out_days.append({
             "label": _day_label(key, i, days[i]),
+            "date": _entry_date(key, days[i]),  # city-local; the sowing season is read off it
             "condition": ef.get("condition"),
             "rain_probability_pct": ef.get("rain_probability_pct"),
             "high_c": ef.get("high_c"),
