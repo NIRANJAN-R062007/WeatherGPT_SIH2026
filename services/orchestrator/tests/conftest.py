@@ -87,6 +87,11 @@ def _no_local_datastores(request, monkeypatch):
 
     monkeypatch.setattr(weather_store, "_redis", _UnreachableRedis())
     monkeypatch.setattr(weather_store, "_engine", _UnreachableEngine())
+    # WIE-15's result cache: same reason, and its cooldown is per-process state.
+    import intelligence_cache
+
+    intelligence_cache.reset()
+    monkeypatch.setattr(intelligence_cache, "_redis", _UnreachableRedis())
     yield
 
 
