@@ -22,6 +22,20 @@ def _window(facts) -> dict | None:
     return None
 
 
+def _strongest_wind(role_facts: dict, role: str) -> tuple[float | None, str | None]:
+    """The highest wind the role's facts give (now or any hour) and its path — the
+    same figure rubric.max_wind() judges, so the sentence says what decided."""
+    best: tuple[float | None, str | None] = (None, None)
+    now = (role_facts.get("current") or {}).get("wind_kmh")
+    if now is not None:
+        best = (now, f"{role}.current.wind_kmh")
+    for i, hour in enumerate((role_facts.get("hourly") or {}).get("hours", [])):
+        w = hour.get("wind_kmh")
+        if w is not None and (best[0] is None or w > best[0]):
+            best = (w, f"{role}.hourly.hours[{i}].wind_kmh")
+    return best
+
+
 def template_answer(facts) -> dict:
     """The `advisory.schema` answer for `facts`, from the rules alone."""
     verdict = rubric.reference_verdict(facts)
@@ -31,29 +45,34 @@ def template_answer(facts) -> dict:
     raw = facts.raw()
 
     if facts.kind == "travel":
+        rules = rubric.mode_rules(facts.subject.get("mode"))
         for role in ("origin", "destination"):
             if "forecast" not in raw.get(role, {}):
                 cons.append(f"The forecast for the {role} is not available.")
                 continue
             pct = raw[role]["forecast"]["rain_probability_pct"]
-            (cons if pct >= rubric.RAIN_CAUTION_PCT else pros).append(
+            (cons if pct >= rules.rain_caution_pct else pros).append(
                 f"Rain chance at the {role} is {pct}%.")
             cites.append(f"{role}.forecast.rain_probability_pct")
-            wind = (raw[role].get("current") or {}).get("wind_kmh")
+            wind, path = _strongest_wind(raw[role], role)
             if wind is not None:
-                (cons if wind >= rubric.WIND_CAUTION_KMH else pros).append(
-                    f"Wind at the {role} is {wind} km/h.")
-                cites.append(f"{role}.current.wind_kmh")
+                (cons if wind >= rules.wind_caution_kmh else pros).append(
+                    f"Wind at the {role} reaches {wind} km/h.")
+                cites.append(path)
             warning = raw[role].get("warnings")
             if warning is None:
                 cons.append(f"The IMD warning for the {role} is not available.")
             elif warning["colour"] == "green":
                 pros.append(f"No IMD warning is in force at the {role}.")
             else:
-                cons.append(f"An {warning['colour']} IMD warning is in force at the {role}.")
+                article = "An" if warning["colour"][:1] in "aeiou" else "A"
+                cons.append(f"{article} {warning['colour']} IMD warning is in force at the {role}.")
             aviation = raw[role].get("aviation")
             if aviation and "thunderstorm" in aviation["metar"]["briefing"]:
                 cons.append(f"The {role} airport report shows a thunderstorm.")
+        if rules.needs_marine:
+            cons.append("Sea conditions are not in the facts, so the crossing cannot be "
+                        "confirmed; check the ferry operator.")
     else:
         crop = raw.get("crop", {}).get("entry")
         days = (raw.get("location", {}).get("forecast") or {}).get("days")

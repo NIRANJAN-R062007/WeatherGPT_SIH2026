@@ -113,3 +113,45 @@ def test_the_override_beats_the_agent_end_to_end(monkeypatch):
     advice = agent.advise("travel", facts.subject, models=[("gemini", None)])
     assert advice.path == "agent:gemini"
     assert advice.answer["verdict"] == "avoid"
+
+
+# --- the template answer and the prompt use the mode -------------------------------
+
+
+@pytest.mark.parametrize("scenario, mode", [
+    ("rain_showers", "train"), ("rain_showers", "road"), ("strong_wind", "ferry"),
+    ("clear", "ferry"), ("orange_warning", None), ("red_warning", "flight"),
+])
+def test_the_template_answer_matches_the_table_and_grounds(scenario, mode):
+    facts = _facts(scenario, mode)
+    answer = template.template_answer(facts)
+    assert answer["verdict"] == rubric.reference_travel(facts)
+    assert guardrail.check_advisory(answer, facts).ok
+
+
+def test_rain_below_the_trains_level_is_a_pro_not_a_con():
+    answer = template.template_answer(_facts("rain_showers", "train"))
+    assert f"Rain chance at the destination is {scenarios.RAINY_PCT}%." in answer["pros"]
+    assert answer["verdict"] == "go"
+
+
+def test_a_ferry_answer_says_sea_conditions_are_not_available():
+    answer = template.template_answer(_facts("clear", "ferry"))
+    assert answer["verdict"] == "caution"
+    assert any("Sea conditions are not in the facts" in c for c in answer["cons"])
+
+
+def test_warning_sentences_take_the_right_article():
+    assert "An orange IMD warning is in force at the destination." in template.template_answer(
+        _facts("orange_warning", None))["cons"]
+    assert "A red IMD warning is in force at the destination." in template.template_answer(
+        _facts("red_warning", None))["cons"]
+
+
+def test_the_prompt_carries_the_requests_mode_rules():
+    from advisory import prompt
+
+    facts = _facts("clear", "ferry")
+    text = prompt.build("travel", facts.subject, "en", facts)
+    assert rubric.travel_rubric("ferry") in text
+    assert rubric.travel_rubric(None) not in text
