@@ -57,6 +57,12 @@ def test_each_indic_language_has_enough_rows_to_score_on(lang):
     assert sum(r["type"] == "ask_back" for r in ROWS if r["lang"] == lang) >= 1
 
 
+def test_every_travel_mode_is_scored():
+    """TFA-7: each mode's table is exercised by at least one answer row."""
+    modes = {r["slots"].get("mode") for r in ANSWERS if r["kind"] == "travel"}
+    assert set(rubric.TRAVEL_MODES) <= modes
+
+
 def test_non_english_rows_are_flagged_as_not_native_reviewed():
     """Same convention as ml/nlu/eval_set.jsonl: author-written, no native QA yet."""
     assert {r["native_qa"] for r in ROWS if r["lang"] != "en"} == {False}
