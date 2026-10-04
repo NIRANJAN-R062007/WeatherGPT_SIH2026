@@ -304,6 +304,41 @@ def test_read_style_routes_are_limited_in_their_own_bucket(monkeypatch, path, pa
     assert client.get("/ask", params=Q).status_code == 200  # /ask budget untouched
 
 
+# WIE-15: every /intelligence/* route, one per-client bucket of its own.
+INTELLIGENCE_ROUTES = [
+    ("GET", "/intelligence/best-window", {"params": {"city": "chennai", "day": "today"}}),
+    ("POST", "/intelligence/scenario", {"json": {"city": "chennai", "times": ["09:00"]}}),
+    ("POST", "/intelligence/advisory", {"json": {"city": "chennai", "day": "today"}}),
+    ("GET", "/intelligence/changes", {"params": {"city": "chennai", "day": "today"}}),
+]
+
+
+@pytest.mark.parametrize("method,path,kwargs", INTELLIGENCE_ROUTES)
+def test_intelligence_routes_return_429_with_retry_after(monkeypatch, method, path, kwargs):
+    monkeypatch.setattr(config, "RATE_LIMIT_PER_MINUTE", 2)
+    statuses = [client.request(method, path, **kwargs) for _ in range(3)]
+    assert [r.status_code for r in statuses[:2]] == [200, 200]
+    assert statuses[2].status_code == 429
+    assert statuses[2].headers["retry-after"] == "60"
+
+
+def test_intelligence_bucket_is_shared_by_its_routes_but_not_with_ask(monkeypatch):
+    monkeypatch.setattr(config, "RATE_LIMIT_PER_MINUTE", 2)
+    for method, path, kwargs in INTELLIGENCE_ROUTES[:2]:
+        assert client.request(method, path, **kwargs).status_code == 200
+    method, path, kwargs = INTELLIGENCE_ROUTES[3]
+    assert client.request(method, path, **kwargs).status_code == 429  # same bucket, full
+    assert client.get("/ask", params=Q).status_code == 200  # /ask budget untouched
+    assert client.get("/cities").status_code == 200  # nor the browse bucket
+    assert client.request(method, path, headers=_xff(9), **kwargs).status_code == 200
+
+
+def test_intelligence_limit_follows_the_master_switch():
+    # RATE_LIMIT_PER_MINUTE is 0 (conftest): every per-client rule is off.
+    method, path, kwargs = INTELLIGENCE_ROUTES[0]
+    assert all(client.request(method, path, **kwargs).status_code == 200 for _ in range(40))
+
+
 def test_new_paths_unlimited_when_master_switch_is_off():
     for _ in range(40):
         assert client.get("/metar/decode", params={"raw": "x"}).status_code != 429

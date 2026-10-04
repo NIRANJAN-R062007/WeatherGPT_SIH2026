@@ -70,6 +70,10 @@ BROWSE_PATHS = frozenset({"/me", "/history", "/facts", "/warnings", "/cities", "
 # they are stricter: ALERTS_WRITE_RATE_LIMIT_PER_MINUTE (config.py). Matched by
 # prefix because DELETE /alerts/subscribe/{sub_id} is parameterised.
 _WRITE_PREFIX = "/alerts/subscribe"
+# The Weather Intelligence Engine (WIE-15): deterministic, no LLM, but a cache
+# miss can cost a paid hourly-forecast fetch. Its own per-client bucket at
+# RATE_LIMIT_PER_MINUTE, by prefix so a new /intelligence/ route is covered too.
+_INTELLIGENCE_PREFIX = "/intelligence/"
 _IVR_PATH = "/ivr/recording"
 # Fetched by Exotel during a call: one global bucket, like _IVR_PATH.
 _IVR_AUDIO_PATH = "/ivr/menu.wav"
@@ -177,6 +181,8 @@ def _rule(path: str) -> tuple[str, int, bool]:
         return "alerts-write", min(per_client, config.ALERTS_WRITE_RATE_LIMIT_PER_MINUTE), True
     if path in READ_PATHS:
         return "read", per_client, True
+    if path.startswith(_INTELLIGENCE_PREFIX):
+        return "intelligence", per_client, True
     if path in BROWSE_PATHS:
         if per_client <= 0:
             return "browse", 0, True
