@@ -1,9 +1,12 @@
 """Public-surface guards: body cap, per-client rate limit, input validation."""
 
+import asyncio
+import json
 import logging
 import secrets
 
 import config
+import httpx
 import limits
 import main
 import pytest
@@ -68,6 +71,69 @@ Q = {"text": "weather in Chennai"}
 def test_oversized_body_is_rejected_before_the_route(monkeypatch):
     monkeypatch.setattr(config, "MAX_BODY_BYTES", 1000)
     resp = client.post("/asr", json={"audio": "A" * 5000, "lang": "en"})
+    assert resp.status_code == 413
+
+
+def _stream_post(path: str, chunks: list[bytes], headers: dict | None = None):
+    """POST `chunks` one ASGI message at a time, so the body has no Content-Length unless
+    `headers` gives one. Returns (response, sizes of the chunks the server pulled): httpx's
+    ASGITransport only reads the next chunk when the app asks for it."""
+    pulled: list[int] = []
+
+    async def body():
+        for chunk in chunks:
+            pulled.append(len(chunk))
+            yield chunk
+
+    async def go():
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=client.app),
+                                     base_url="http://orchestrator") as c:
+            return await c.post(path, content=body(), headers={
+                "content-type": "application/json", **(headers or {})})
+
+    return asyncio.run(go()), pulled
+
+
+def test_a_chunked_body_over_the_cap_is_413_too(monkeypatch):
+    """No Content-Length (Transfer-Encoding: chunked) used to skip the cap entirely."""
+    monkeypatch.setattr(config, "MAX_BODY_BYTES", 1000)
+    payload = b"x" * 6000
+    assert client.post("/tts", content=payload).status_code == 413
+    resp = client.post("/tts", content=(payload[i:i + 1500] for i in range(0, 6000, 1500)))
+    assert resp.status_code == 413
+    assert resp.json() == {"detail": "request body too large"}
+    assert resp.headers["x-content-type-options"] == "nosniff"  # the outer layers still apply
+
+
+@pytest.mark.parametrize("headers", [
+    {},                        # chunked: no Content-Length at all
+    {"content-length": "4"},   # declared small, actually large
+], ids=["no-content-length", "lying-content-length"])
+def test_a_streamed_body_is_cut_off_the_moment_it_crosses_the_cap(monkeypatch, headers):
+    monkeypatch.setattr(config, "MAX_BODY_BYTES", 1000)
+    resp, pulled = _stream_post("/tts", [b"x" * 400] * 5, headers)
+    assert resp.status_code == 413
+    assert pulled == [400, 400, 400]  # 800 fits, 1200 doesn't; the other two are never read
+
+
+def test_a_chunked_body_under_the_cap_reaches_the_route_whole(monkeypatch):
+    monkeypatch.setattr(config, "MAX_BODY_BYTES", 1000)
+    seen = []
+    monkeypatch.setattr(main.bhashini, "text_to_speech", lambda text, lang: seen.append(text))
+    raw = json.dumps({"text": "namaste chennai", "lang": "en"}).encode()
+    resp, pulled = _stream_post("/tts", [raw[:7], b"", raw[7:20], raw[20:]])
+    assert resp.status_code == 200 and resp.json() == {"audio": None}
+    assert seen == ["namaste chennai"]
+    assert pulled == [7, 0, 13, len(raw) - 20]
+
+
+def test_a_body_exactly_at_the_cap_is_not_refused(monkeypatch):
+    raw = json.dumps({"text": "hi", "lang": "en"}).encode()
+    monkeypatch.setattr(config, "MAX_BODY_BYTES", len(raw))
+    resp, _ = _stream_post("/tts", [raw[:5], raw[5:]])
+    assert resp.status_code == 200
+    monkeypatch.setattr(config, "MAX_BODY_BYTES", len(raw) - 1)
+    resp, _ = _stream_post("/tts", [raw[:5], raw[5:]])
     assert resp.status_code == 413
 
 
