@@ -25,18 +25,11 @@ def _window(facts) -> dict | None:
     return None
 
 
-def _strongest_wind(role_facts: dict, role: str) -> tuple[float | None, str | None]:
-    """The highest wind the role's facts give (now or any hour) and its path — the
-    same figure rubric.max_wind() judges, so the sentence says what decided."""
-    best: tuple[float | None, str | None] = (None, None)
-    now = (role_facts.get("current") or {}).get("wind_kmh")
-    if now is not None:
-        best = (now, f"{role}.current.wind_kmh")
-    for i, hour in enumerate((role_facts.get("hourly") or {}).get("hours", [])):
-        w = hour.get("wind_kmh")
-        if w is not None and (best[0] is None or w > best[0]):
-            best = (w, f"{role}.hourly.hours[{i}].wind_kmh")
-    return best
+def _strongest_wind(facts, role: str) -> tuple[float | None, str | None]:
+    """The trip day's highest wind at `role` and its path — the same figure
+    rubric.max_wind() judges, so the sentence says what decided."""
+    readings = rubric.wind_readings(facts, role)
+    return max(readings, key=lambda r: r[0]) if readings else (None, None)
 
 
 def template_answer(facts) -> dict:
@@ -57,8 +50,10 @@ def template_answer(facts) -> dict:
             (cons if pct >= rules.rain_caution_pct else pros).append(
                 f"Rain chance at the {role} is {pct}%.")
             cites.append(f"{role}.forecast.rain_probability_pct")
-            wind, path = _strongest_wind(raw[role], role)
-            if wind is not None:
+            wind, path = _strongest_wind(facts, role)
+            if wind is None:
+                cons.append(f"No wind forecast for the trip day is available for the {role}.")
+            else:
                 (cons if wind >= rules.wind_caution_kmh else pros).append(
                     f"Wind at the {role} reaches {wind} km/h.")
                 cites.append(path)
@@ -70,9 +65,9 @@ def template_answer(facts) -> dict:
             else:
                 article = "An" if warning["colour"][:1] in "aeiou" else "A"
                 cons.append(f"{article} {warning['colour']} IMD warning is in force at the {role}.")
-            aviation = raw[role].get("aviation")
-            if aviation and "thunderstorm" in aviation["metar"]["briefing"]:
-                cons.append(f"The {role} airport report shows a thunderstorm.")
+            storm = rubric.thunderstorm_source(facts, role)
+            if storm:
+                cons.append(rubric.thunderstorm_sentence(role, storm))
         if rules.needs_marine:
             cons.append("Sea conditions are not in the facts, so the crossing cannot be "
                         "confirmed; check the ferry operator.")

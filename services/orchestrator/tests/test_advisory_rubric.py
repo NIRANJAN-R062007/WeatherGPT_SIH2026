@@ -7,7 +7,7 @@ Facts are the real fixture collector output with an eval scenario pinned on top
 import calendar
 import json
 import sys
-from datetime import date
+from datetime import date, timedelta
 
 import config
 import guardrail
@@ -65,7 +65,7 @@ def test_the_verdict_follows_the_modes_table(scenario, mode, verdict):
 
 def test_the_prompt_states_the_requests_mode_only():
     ferry, train = rubric.travel_rubric("ferry"), rubric.travel_rubric("train")
-    assert "travel by ferry" in ferry and "never \"go\"" in ferry and "45 or more" in ferry
+    assert "travel by ferry" in ferry and "never \"go\"" in ferry and "39 or more" in ferry
     assert "rain_probability_pct of 70 or more" in train and "ferry" not in train
     assert rubric.TRAVEL_RUBRIC == rubric.travel_rubric(None)
 
@@ -116,6 +116,108 @@ def test_the_override_beats_the_agent_end_to_end(monkeypatch):
     advice = agent.advise("travel", facts.subject, models=[("gemini", None)])
     assert advice.path == "agent:gemini"
     assert advice.answer["verdict"] == "avoid"
+
+
+# --- a later day is judged by that day (Niranjan's TFA-7 review) -------------------
+
+
+def _trip(scenario: str, mode: str | None, day: str):
+    slots = {"origin": "chennai", "destination": "madurai", "day": day}
+    if mode:
+        slots["mode"] = mode
+    return scenarios.build("travel", slots, scenario)
+
+
+def _now_wind(facts, kmh: float):
+    scenarios._destination(facts, "current", lambda d: d.update(wind_kmh=kmh))
+    return facts
+
+
+@pytest.mark.parametrize("mode, now_kmh, verdict", [
+    ("ferry", 50, "caution"),   # was "avoid": 50 km/h now, calm tomorrow
+    ("road", 45, "go"),         # was "caution"
+])
+def test_todays_wind_does_not_decide_tomorrows_trip(mode, now_kmh, verdict):
+    facts = _now_wind(_trip("clear", mode, "tomorrow"), now_kmh)
+    assert rubric.hard_override(facts) is None
+    assert rubric.reference_travel(facts) == verdict
+    assert template.template_answer(facts)["verdict"] == verdict
+    # the same wind on a trip today still counts
+    assert rubric.max_wind(_now_wind(_trip("clear", mode, "today"), now_kmh),
+                           "destination") == now_kmh
+
+
+def test_todays_metar_thunderstorm_does_not_decide_tomorrows_flight():
+    facts = _trip("clear", "flight", "tomorrow")
+    scenarios._destination(facts, "aviation", lambda d: scenarios._set_metar_weather(
+        d["metar"], "thunderstorm with rain"))
+    assert rubric.hard_override(facts) is None and rubric.reference_travel(facts) == "go"
+    assert not any("thunderstorm" in c for c in template.template_answer(facts)["cons"])
+
+
+def test_a_taf_thunderstorm_on_the_trip_day_forces_avoid():
+    answer = _forced_on("thunderstorm_metar", "flight", "tomorrow")
+    assert answer["verdict"] == "avoid"
+    assert answer["cons"][0] == (
+        "The destination airport forecast (TAF) shows a thunderstorm on the trip day.")
+
+
+def test_a_taf_thunderstorm_on_another_day_does_not():
+    facts = _trip("clear", "flight", "tomorrow")
+    day_before = rubric.trip_date(facts) - timedelta(days=1)
+    scenarios._destination(facts, "aviation",
+                           lambda d: scenarios._taf_thunderstorm(d["taf"], day_before))
+    assert rubric.hard_override(facts) is None
+
+
+def test_a_taf_thunderstorm_later_today_forces_avoid_for_a_trip_today():
+    facts = _trip("clear", "flight", "today")
+    scenarios._destination(facts, "aviation", lambda d: scenarios._taf_thunderstorm(
+        d["taf"], rubric.trip_date(facts)))
+    assert rubric.thunderstorm_source(facts, "destination") == "taf"
+    assert rubric.hard_override(facts) == "avoid"
+
+
+def test_an_old_taf_snapshot_never_matches_the_trip_day():
+    facts = _trip("thunderstorm_metar", "flight", "tomorrow")
+    scenarios._destination(facts, "aviation", lambda d: d["taf"].update(
+        retrieved_at="2025-01-01T00:00:00+00:00"))
+    assert rubric.thunderstorm_source(facts, "destination") is None
+
+
+def test_no_wind_for_the_trip_day_is_caution_not_go():
+    """The day after tomorrow is past the 24 h hourly series: the wind is unknown,
+    and unknown is never calm."""
+    facts = _trip("clear", "road", "day_after_tomorrow")
+    assert not facts.section("destination", "hourly").available
+    assert rubric.max_wind(facts, "destination") is None
+    assert rubric.reference_travel(facts) == "caution"
+    answer = template.template_answer(facts)
+    assert answer["verdict"] == "caution"
+    assert "No wind forecast for the trip day is available for the destination." in answer["cons"]
+    assert guardrail.check_advisory(answer, facts).ok
+
+
+def test_hourly_facts_never_returns_another_days_hours():
+    import weather_data
+
+    assert weather_data.hourly_facts("chennai", "today")["day"] == "today"
+    assert weather_data.hourly_facts("chennai", "day_after_tomorrow") is None  # 24 h series
+    assert weather_data.hourly_facts("chennai", "next_week") is None  # was today's hours
+
+
+def test_the_prompt_says_which_day_decides():
+    later = rubric.travel_rubric("flight", "tomorrow")
+    assert "trip day's hourly forecast only" in later and "covers the trip day" in later
+    assert "the METAR weather" in rubric.travel_rubric("flight", "today")
+    assert rubric.travel_rubric("flight") == rubric.travel_rubric("flight", "today")
+
+
+def _forced_on(scenario: str, mode: str | None, day: str) -> dict:
+    facts = _trip(scenario, mode, day)
+    answer = template.apply_override(facts, dict(GO_ANSWER))
+    assert guardrail.check_advisory(answer, facts).ok, guardrail.check_advisory(answer, facts)
+    return answer
 
 
 # --- the template answer and the prompt use the mode -------------------------------
