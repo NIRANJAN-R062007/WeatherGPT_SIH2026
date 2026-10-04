@@ -15,7 +15,7 @@ has (weather_data, aviation, imd_warnings); they add no data source.
 
 The two concrete collectors are deliberately minimal — origin and destination
 city only for travel, one district for farming. Route legs and the airports
-along them are TFA-6; the crop file (TFA-9) plugs in through `crop_lookup`.
+along them are TFA-6; the crop file (TFA-9) is read through `crop_lookup`.
 """
 
 from __future__ import annotations
@@ -31,6 +31,8 @@ import cities
 import imd_warnings
 import weather_data
 from google_weather import FORECAST_DAYS
+
+from advisory import crops
 
 _LOG = logging.getLogger("weathergpt.advisory")
 
@@ -183,14 +185,11 @@ def warnings(role: str, city: str) -> FactSection:
     return _gather(role, "warnings", fetch, "warnings feed unavailable")
 
 
-# TFA-9 plugs the sourced crop file in here: (crop, region) -> the entry, or
-# None when the crop/region isn't covered. Until then no crop is, and the
-# section says so rather than letting a model fill the gap from memory.
-def _no_crop_file(crop: str, region: str) -> dict | None:
-    return None
-
-
-crop_lookup: Callable[[str, str], dict | None] = _no_crop_file
+# (crop, region) -> the sourced crop file's entry, or None when the crop/region
+# isn't covered (advisory/crops.py; the file itself is TFA-9). Until the file
+# exists no crop is, and the section says so rather than letting a model fill
+# the gap from memory.
+crop_lookup: Callable[[str, str], dict | None] = crops.lookup
 
 
 def crop_entry(crop: str, region: str) -> FactSection:
