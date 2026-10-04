@@ -177,11 +177,11 @@ def test_no_place_with_gps_uses_gps():
 # --- Postgres path ---------------------------------------------------------------
 
 class _PgEngine:
-    """weather_store._engine stand-in: answers the match query with `rows`,
-    or raises on begin() when `down`."""
+    """weather_store._engine stand-in: answers the match query with `rows` and the
+    seeded check with `places` (default: plenty), or raises on begin() when `down`."""
 
-    def __init__(self, rows=(), down=False):
-        self.rows, self.down, self.begins = list(rows), down, 0
+    def __init__(self, rows=(), down=False, places=10**6):
+        self.rows, self.down, self.begins, self.places = list(rows), down, 0, places
 
     def begin(self):
         self.begins += 1
@@ -196,11 +196,17 @@ class _PgEngine:
         return False
 
     def execute(self, stmt, params=None):
-        rows = self.rows if "FROM cities" in str(stmt) else []
+        if "count(*)" in str(stmt):
+            rows = [(self.places,)]
+        else:
+            rows = self.rows if "FROM cities" in str(stmt) else []
 
         class _R:
             def fetchall(self):
                 return rows
+
+            def scalar(self):
+                return rows[0][0] if rows else None
         return _R()
 
 
@@ -213,6 +219,22 @@ def test_a_dead_postgres_costs_one_attempt_then_the_file_answers(synthetic, monk
     assert loc.resolve_location("Sitapur", None, None, "en")["place_id"] == "gn:5"
     assert loc.resolve_location("Sitapur", None, None, "en")["place_id"] == "gn:5"
     assert engine.begins == 1  # parked after the first failure
+
+
+def test_a_migrated_but_unseeded_table_leaves_the_answer_to_the_file(synthetic, monkeypatch,
+                                                                     caplog):
+    """A new database before migrate.py --sync-places: an empty `cities` used to
+    answer "not found" for every place, the demo cities included."""
+    import weather_store
+    loc = synthetic()
+    engine = _PgEngine(rows=[], places=0)
+    monkeypatch.setattr(weather_store, "_engine", engine)
+    monkeypatch.setattr(loc, "_pg_down_until", 0.0)
+    monkeypatch.setattr(loc, "_pg_seeded_until", 0.0)
+    assert loc.resolve_location("Sitapur", None, None, "en")["place_id"] == "gn:5"
+    assert loc.resolve_location("Sitapur", None, None, "en")["place_id"] == "gn:5"
+    assert engine.begins == 1  # parked like a down Postgres, then checked again later
+    assert "run migrate.py --sync-places" in caplog.text
 
 
 def test_postgres_candidates_are_ranked_like_the_file(synthetic, monkeypatch):
