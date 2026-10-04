@@ -388,6 +388,239 @@ def _render_forecast(city: str, data: dict, lang: str) -> str:
     return ", ".join(parts) + "."
 
 
+# --- Weather Intelligence Engine answers (WIE-8) ------------------------------
+# The best-window, what-if and forecast-change answers, built straight from the
+# engine's structured results (weather_intelligence/) with no LLM, so the
+# engine answers in every language offline (R5). Figures keep their symbols
+# (°C, %, km/h) and clock times stay "HH:MM", so each sentence grounds the same
+# way in every language. English is unchanged from main.py's WIE-4/WIE-11
+# sentences. Every ta/hi/te/mr string here is a first draft. TODO: native_qa
+_WIE_DAY = {
+    "en": {"today": "today", "tomorrow": "tomorrow"},
+    "hi": {"today": "आज", "tomorrow": "कल"},
+    "ta": {"today": "இன்று", "tomorrow": "நாளை"},
+    "te": {"today": "ఈరోజు", "tomorrow": "రేపు"},
+    "mr": {"today": "आज", "tomorrow": "उद्या"},
+}
+
+_WINDOW_PHRASES = {
+    "en": {
+        "ok": "{city}: the most suitable window to be outdoors {day} is {start}–{end} "
+              "(around {temp}°C, up to {rain}% chance of rain, winds up to {wind} km/h).",
+        "none": "{city}: no suitable window to be outdoors {day} — every hour had too much "
+                "rain, heat, cold or wind.",
+    },
+    "hi": {
+        "ok": "{city}: {day} बाहर रहने के लिए सबसे उपयुक्त समय {start}–{end} है "
+              "(लगभग {temp}°C, बारिश की संभावना {rain}% तक, हवा {wind} km/h तक)।",
+        "none": "{city}: {day} बाहर रहने के लिए कोई उपयुक्त समय नहीं है — हर घंटे बारिश, "
+                "गर्मी, ठंड या हवा बहुत ज़्यादा है।",
+    },
+    "ta": {
+        "ok": "{city}: {day} வெளியே செல்ல மிகவும் ஏற்ற நேரம் {start}–{end} "
+              "(சுமார் {temp}°C, மழை வாய்ப்பு {rain}% வரை, காற்று {wind} km/h வரை).",
+        "none": "{city}: {day} வெளியே செல்ல ஏற்ற நேரம் இல்லை — ஒவ்வொரு மணி நேரமும் மழை, "
+                "வெப்பம், குளிர் அல்லது காற்று அதிகமாக உள்ளது.",
+    },
+    "te": {
+        "ok": "{city}: {day} బయట ఉండటానికి అత్యంత అనువైన సమయం {start}–{end} "
+              "(సుమారు {temp}°C, వర్షం అవకాశం {rain}% వరకు, గాలి {wind} km/h వరకు).",
+        "none": "{city}: {day} బయట ఉండటానికి అనువైన సమయం లేదు — ప్రతి గంటలోనూ వర్షం, "
+                "వేడి, చలి లేదా గాలి ఎక్కువగా ఉంది.",
+    },
+    "mr": {
+        "ok": "{city}: {day} बाहेर जाण्यासाठी सर्वात योग्य वेळ {start}–{end} आहे "
+              "(सुमारे {temp}°C, पावसाची शक्यता {rain}% पर्यंत, वारा {wind} km/h पर्यंत).",
+        "none": "{city}: {day} बाहेर जाण्यासाठी योग्य वेळ नाही — प्रत्येक तासाला पाऊस, "
+                "उष्णता, थंडी किंवा वारा जास्त आहे.",
+    },
+}
+
+# {day_of}: "tomorrow's" in English; the Indic rows say "in {day}'s forecast"
+# their own way. Hindi and Marathi use a noun for the direction ("an increase
+# in ...") so the sentence needs no gender agreement with the metric.
+_CHANGE_PHRASES = {
+    "en": {
+        "rain_probability_pct": "chance of rain", "temp_c": "temperature",
+        "wind_kmh": "wind speed",
+        "item": "{label} {direction} from {frm} to {to} ({span})",
+        "rose": "rose", "fell": "fell",
+        "around": "around {t}", "mostly": "mostly {s}–{e}",
+        "since": "since the forecast retrieved {then} (now {now})",
+        "ok": "{city}: {day}'s {items} {since}.",
+        "none": "{city}: no significant change in {day}'s forecast {since}.",
+    },
+    "hi": {
+        "rain_probability_pct": "बारिश की संभावना", "temp_c": "तापमान",
+        "wind_kmh": "हवा की गति",
+        "item": "{label} में {direction}: {frm} से {to} ({span})",
+        "rose": "बढ़ोतरी", "fell": "कमी",
+        "around": "लगभग {t}", "mostly": "मुख्यतः {s}–{e}",
+        "since": "{then} पर लिए गए पूर्वानुमान की तुलना में (अभी {now})",
+        "ok": "{city}: {day} के पूर्वानुमान में, {since}: {items}।",
+        "none": "{city}: {day} के पूर्वानुमान में {since} कोई खास बदलाव नहीं है।",
+    },
+    "ta": {
+        "rain_probability_pct": "மழை வாய்ப்பு", "temp_c": "வெப்பநிலை",
+        "wind_kmh": "காற்றின் வேகம்",
+        "item": "{label} {frm} இலிருந்து {to} ஆக {direction} ({span})",
+        "rose": "உயர்ந்தது", "fell": "குறைந்தது",
+        "around": "சுமார் {t}", "mostly": "பெரும்பாலும் {s}–{e}",
+        "since": "{then} அன்று பெறப்பட்ட முன்னறிவிப்புடன் ஒப்பிடுகையில் (இப்போது {now})",
+        "ok": "{city}: {day} முன்னறிவிப்பில், {since}: {items}.",
+        "none": "{city}: {day} முன்னறிவிப்பில் {since} குறிப்பிடத்தக்க மாற்றம் இல்லை.",
+    },
+    "te": {
+        "rain_probability_pct": "వర్షం అవకాశం", "temp_c": "ఉష్ణోగ్రత",
+        "wind_kmh": "గాలి వేగం",
+        "item": "{label} {frm} నుంచి {to}కి {direction} ({span})",
+        "rose": "పెరిగింది", "fell": "తగ్గింది",
+        "around": "సుమారు {t}", "mostly": "ఎక్కువగా {s}–{e}",
+        "since": "{then}న తీసుకున్న సూచనతో పోలిస్తే (ఇప్పుడు {now})",
+        "ok": "{city}: {day} సూచనలో, {since}: {items}.",
+        "none": "{city}: {day} సూచనలో {since} గణనీయమైన మార్పు లేదు.",
+    },
+    "mr": {
+        "rain_probability_pct": "पावसाची शक्यता", "temp_c": "तापमान",
+        "wind_kmh": "वाऱ्याचा वेग",
+        "item": "{label} मध्ये {direction}: {frm} वरून {to} ({span})",
+        "rose": "वाढ", "fell": "घट",
+        "around": "सुमारे {t}", "mostly": "मुख्यतः {s}–{e}",
+        "since": "{then} रोजी घेतलेल्या अंदाजाच्या तुलनेत (आता {now})",
+        "ok": "{city}: {day}च्या अंदाजात, {since}: {items}.",
+        "none": "{city}: {day}च्या अंदाजात {since} लक्षणीय बदल नाही.",
+    },
+}
+_CHANGE_UNITS = {"rain_probability_pct": "%", "temp_c": "°C", "wind_kmh": " km/h"}
+
+_SCENARIO_PHRASES = {
+    "en": {"rain": "{v}% chance of rain", "wind": "winds {v} km/h",
+           "missing": "{t} — not in the forecast",
+           "better": " {t} has the lower chance of rain."},
+    "hi": {"rain": "बारिश की संभावना {v}%", "wind": "हवा {v} km/h",
+           "missing": "{t} — पूर्वानुमान में नहीं है",
+           "better": " {t} पर बारिश की संभावना कम है।"},
+    "ta": {"rain": "மழை வாய்ப்பு {v}%", "wind": "காற்று {v} km/h",
+           "missing": "{t} — முன்னறிவிப்பில் இல்லை",
+           "better": " {t} மணிக்கு மழை வாய்ப்பு குறைவு."},
+    "te": {"rain": "వర్షం అవకాశం {v}%", "wind": "గాలి {v} km/h",
+           "missing": "{t} — సూచనలో లేదు",
+           "better": " {t}కి వర్షం అవకాశం తక్కువ."},
+    "mr": {"rain": "पावसाची शक्यता {v}%", "wind": "वारा {v} km/h",
+           "missing": "{t} — अंदाजात नाही",
+           "better": " {t} ला पावसाची शक्यता कमी आहे."},
+}
+
+# fisherman/aviation get this instead of a window verdict (R17). English is
+# persona_advisor.CAVEATS verbatim (tests/test_wie_templates.py pins that).
+_PERSONA_CAVEATS = {
+    "en": {
+        "fisherman": "This is a city forecast, not sea conditions — always check the "
+                     "official IMD fishermen warning before going out.",
+        "aviation": "This is a city forecast, not an airport observation — it has no "
+                    "visibility, cloud base or runway data.",
+    },
+    "hi": {
+        "fisherman": "यह शहर का पूर्वानुमान है, समुद्र की स्थिति नहीं — समुद्र में जाने से पहले "
+                     "हमेशा IMD की आधिकारिक मछुआरा चेतावनी देखें।",
+        "aviation": "यह शहर का पूर्वानुमान है, हवाई अड्डे का अवलोकन नहीं — इसमें दृश्यता, "
+                    "बादलों की ऊँचाई या रनवे का डेटा नहीं है।",
+    },
+    "ta": {
+        "fisherman": "இது நகர வானிலை முன்னறிவிப்பு, கடல் நிலை அல்ல — கடலுக்குச் செல்லும் முன் "
+                     "எப்போதும் IMD-யின் அதிகாரப்பூர்வ மீனவர் எச்சரிக்கையைப் பாருங்கள்.",
+        "aviation": "இது நகர வானிலை முன்னறிவிப்பு, விமான நிலைய அவதானிப்பு அல்ல — இதில் "
+                    "தெரிவுநிலை, மேக அடிமட்டம் அல்லது ஓடுபாதை தரவு இல்லை.",
+    },
+    "te": {
+        "fisherman": "ఇది నగర వాతావరణ సూచన, సముద్ర పరిస్థితులు కాదు — వేటకు వెళ్లే ముందు "
+                     "ఎల్లప్పుడూ IMD అధికారిక మత్స్యకారుల హెచ్చరికను చూడండి.",
+        "aviation": "ఇది నగర వాతావరణ సూచన, విమానాశ్రయ పరిశీలన కాదు — ఇందులో దృశ్యమానత, "
+                    "మేఘాల ఎత్తు లేదా రన్‌వే డేటా లేదు.",
+    },
+    "mr": {
+        "fisherman": "हा शहराचा अंदाज आहे, समुद्राची स्थिती नाही — समुद्रात जाण्यापूर्वी नेहमी "
+                     "IMD चा अधिकृत मच्छीमार इशारा तपासा.",
+        "aviation": "हा शहराचा अंदाज आहे, विमानतळाचे निरीक्षण नाही — यात दृश्यमानता, "
+                    "ढगांची उंची किंवा धावपट्टीचा डेटा नाही.",
+    },
+}
+
+
+def _wie_day(day: str, lang: str) -> str:
+    return _WIE_DAY[lang]["tomorrow" if day == "tomorrow" else "today"]
+
+
+def _num(value: float) -> str:
+    return f"{value:g}"
+
+
+def best_window_text(city: str, day: str, window: dict, lang: str) -> str:
+    """WIE-4's best-window sentence from window_analyzer's result."""
+    lang = lang if lang in SUPPORTED_LANGUAGES else "en"
+    return _WINDOW_PHRASES[lang]["ok"].format(
+        city=city, day=_wie_day(day, lang), start=window["start_local"],
+        end=window["end_local"], temp=window["avg_temp_c"],
+        rain=window["max_rain_probability_pct"], wind=window["max_wind_kmh"],
+    )
+
+
+def no_suitable_window_text(city: str, day: str, lang: str) -> str:
+    """"No suitable window" is an honest answer (R17), never the least-bad hour."""
+    lang = lang if lang in SUPPORTED_LANGUAGES else "en"
+    return _WINDOW_PHRASES[lang]["none"].format(city=city, day=_wie_day(day, lang))
+
+
+def changes_text(city: str, day: str, result: dict, then: str, now: str, lang: str) -> str:
+    """WIE-11's forecast-change sentence from change_detector's result; `then`
+    and `now` are the two retrieval times, already formatted."""
+    lang = lang if lang in SUPPORTED_LANGUAGES else "en"
+    p = _CHANGE_PHRASES[lang]
+    day_word, since = _wie_day(day, lang), p["since"].format(then=then, now=now)
+    if result["status"] == "no_significant_change":
+        return p["none"].format(city=city, day=day_word, since=since)
+    items = []
+    for c in result["changes"]:
+        unit = _CHANGE_UNITS[c["metric"]]
+        span = (p["around"].format(t=c["start_local"]) if c["start_local"] == c["end_local"]
+                else p["mostly"].format(s=c["start_local"], e=c["end_local"]))
+        items.append(p["item"].format(
+            label=p[c["metric"]], direction=p[c["direction"]],
+            frm=f"{_num(c['from'])}{unit}", to=f"{_num(c['to'])}{unit}", span=span,
+        ))
+    return p["ok"].format(city=city, day=day_word, items="; ".join(items), since=since)
+
+
+def scenario_text(city: str, day: str, result: dict, lang: str) -> str:
+    """WIE-6's what-if comparison from scenario_analyzer's result: each asked
+    time's figures (or that it isn't in the forecast — never an invented
+    value), then the time with the lower rain chance when there is one."""
+    lang = lang if lang in SUPPORTED_LANGUAGES else "en"
+    p = _SCENARIO_PHRASES[lang]
+    parts = []
+    for h in result["hours"]:
+        if not h["available"]:
+            parts.append(p["missing"].format(t=h["time"]))
+            continue
+        figures = []
+        if h.get("temp_c") is not None:
+            figures.append(f"{_num(h['temp_c'])}°C")
+        if h.get("rain_probability_pct") is not None:
+            figures.append(p["rain"].format(v=_num(h["rain_probability_pct"])))
+        if h.get("wind_kmh") is not None:
+            figures.append(p["wind"].format(v=_num(h["wind_kmh"])))
+        parts.append(f"{h['time']} — " + ", ".join(figures))
+    text = f"{city}, {_wie_day(day, lang)}: " + "; ".join(parts) + "."
+    if result.get("better_time"):
+        text += p["better"].format(t=result["better_time"])
+    return text
+
+
+def persona_caveat(persona: str, lang: str) -> str:
+    lang = lang if lang in SUPPORTED_LANGUAGES else "en"
+    return _PERSONA_CAVEATS[lang][persona]
+
+
 # Fail loudly at import time if a table is missing a supported language, or a
 # language's row is missing a key the English row has, rather than silently
 # falling back to English (or the raw key) at render time — the whole point of
@@ -401,6 +634,11 @@ for _name, _table in (
     ("_MULTI_DAY_PHRASES", _MULTI_DAY_PHRASES),
     ("_RAIN_SO_FAR_PHRASES", _RAIN_SO_FAR_PHRASES),
     ("_FORECAST_PHRASES", _FORECAST_PHRASES),
+    ("_WIE_DAY", _WIE_DAY),
+    ("_WINDOW_PHRASES", _WINDOW_PHRASES),
+    ("_CHANGE_PHRASES", _CHANGE_PHRASES),
+    ("_SCENARIO_PHRASES", _SCENARIO_PHRASES),
+    ("_PERSONA_CAVEATS", _PERSONA_CAVEATS),
 ):
     _missing = set(SUPPORTED_LANGUAGES) - set(_table)
     if _missing:

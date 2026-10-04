@@ -440,15 +440,15 @@ def test_numbers_beside_a_window_still_ground_independently():
 def test_the_engines_own_best_window_sentence_passes_the_guardrail():
     # WIE-4's deterministic /ask sentence is the shape an LLM narration of the
     # same window would take; it must ground fully, aggregates included.
-    from main import _best_window_text, _no_suitable_window_text
+    from i18n import best_window_text, no_suitable_window_text
 
     raw = _window_raw()
-    text = _best_window_text("Chennai", "tomorrow", raw["window"])
+    text = best_window_text("Chennai", "tomorrow", raw["window"], "en")
     report = guardrail.check(text, raw)
     assert report.ok and report.matched == report.total == 4
     assert [f["unit"] for f in report.figures] == ["celsius", "percent", "speed_kmh", "clock_range"]
     # ...and a "no suitable window" sentence has no figures to ground.
-    assert guardrail.check(_no_suitable_window_text("Chennai", "tomorrow"), raw).total == 0
+    assert guardrail.check(no_suitable_window_text("Chennai", "tomorrow", "en"), raw).total == 0
 
 
 def test_translated_answers_with_native_digits_ground_the_same_way():
