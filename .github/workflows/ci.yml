@@ -46,6 +46,15 @@ jobs:
       - name: Validate docker-compose config
         run: docker compose config
 
+      # The production stack (deploy/README.md) builds the same two images, so
+      # validating its config is enough here. Placeholder passwords: the file
+      # refuses to render without them.
+      - name: Validate docker-compose.prod.yml config
+        env:
+          POSTGRES_PASSWORD: ci-placeholder
+          REDIS_PASSWORD: ci-placeholder
+        run: docker compose -f docker-compose.prod.yml --profile caddy config -q
+
       - name: Build gateway and orchestrator images
         run: docker compose build gateway orchestrator
 
