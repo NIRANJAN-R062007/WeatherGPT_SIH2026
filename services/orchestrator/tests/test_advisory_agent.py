@@ -427,3 +427,11 @@ def test_groq_is_built_with_low_reasoning_effort():
     assert params["reasoning_effort"] == "low"
     assert params["max_tokens"] == agent.MAX_OUTPUT_TOKENS
     assert model.config["model_id"] == config.GROQ_MODEL
+
+
+def test_groqs_openai_client_never_retries_on_its_own():
+    """A 429 must surface at once as a provider error (next provider, then the
+    template), not be retried inside the client until the budget is gone."""
+    model = REAL_MAKE_MODEL("groq")
+    assert model.client_args["max_retries"] == 0
+    assert model.client_args["base_url"] == config.GROQ_BASE

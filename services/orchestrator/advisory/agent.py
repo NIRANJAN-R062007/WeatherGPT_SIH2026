@@ -244,8 +244,12 @@ def make_model(provider: str, model_id: str | None = None):
         # gpt-oss is a reasoning model: its reasoning counts against max_tokens and
         # slows every turn. "low" is what narrate.py sends for the same model; on the
         # live TFA-18 run without it, replies stopped at max tokens or ran out of time.
+        # max_retries 0: the OpenAI client retries a 429 twice with backoff on its own,
+        # which spent the whole budget on rate limits in the live run and hid them as
+        # timeouts. One attempt per provider is the design (see run_agent).
         return OpenAIModel(client_args={"api_key": config.GROQ_API_KEY,
-                                        "base_url": config.GROQ_BASE},
+                                        "base_url": config.GROQ_BASE,
+                                        "max_retries": 0},
                            model_id=model_id or config.GROQ_MODEL,
                            params={**params, "max_tokens": MAX_OUTPUT_TOKENS,
                                    "reasoning_effort": "low"})
