@@ -319,7 +319,7 @@ def _agent_answer(
         if parsed is None:
             reason = f"{name}: reply was not a JSON object"
             continue
-        answer = template.finish(facts, schema.trim_cites(parsed))
+        answer = template.finish(facts, schema.trim_cites(parsed), lang)
         report = guardrail.check_advisory(answer, facts)
         if not report.ok:
             reason = f"{name}: guardrail: {'; '.join(report.problems)[:200]}"
@@ -354,7 +354,7 @@ def advise(kind: str, slots: dict, lang: str = "en", *, models=None, fetch: Fetc
             path = got_path
 
     if path == "template":
-        answer = template.template_answer(facts)  # its verdict already carries the override
+        answer = template.template_answer(facts, lang)  # its verdict carries the override
 
     return Advice(kind, answer, facts, path, reason, calls,
                   round(time.perf_counter() - started, 3))

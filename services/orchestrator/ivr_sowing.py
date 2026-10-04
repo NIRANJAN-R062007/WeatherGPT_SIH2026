@@ -124,7 +124,8 @@ def reply(call_sid: str, transcript: str, lang: str) -> str | None:
         _remember(call_sid, parsed.slots, parsed.asking)
         return advisory_slots.ask_back(parsed, lang)
     _pending.pop(call_sid, None)
-    advice = advisory_agent.advise(KIND, parsed.slots, lang)
+    # In English: spoken() translates the whole answer, then re-grounds it.
+    advice = advisory_agent.advise(KIND, parsed.slots, "en")
     return spoken(advice.answer, parsed.slots, advice.facts.raw(), lang)
 
 
