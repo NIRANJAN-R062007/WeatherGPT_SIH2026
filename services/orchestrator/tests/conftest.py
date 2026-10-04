@@ -100,6 +100,15 @@ def _clear_weather_cache():
 
 
 @pytest.fixture(autouse=True)
+def _clear_forecast_snapshots():
+    import forecast_snapshots
+
+    forecast_snapshots.clear()
+    yield
+    forecast_snapshots.clear()
+
+
+@pytest.fixture(autouse=True)
 def _clear_aviation_cache():
     import aviation
 

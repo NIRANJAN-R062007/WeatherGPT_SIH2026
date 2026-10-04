@@ -423,6 +423,7 @@ def hourly_facts(key: str, day: str = "today") -> dict | None:
     return {
         "source": snap.source,
         "is_live": snap.is_live,
+        "retrieved_at": snap.retrieved_at,
         "day": "tomorrow" if day == "tomorrow" else "today",
         "hours": hours,
     }

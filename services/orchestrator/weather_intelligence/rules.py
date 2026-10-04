@@ -61,3 +61,14 @@ def is_suitable_hour(hour: dict, activity: str | None = DEFAULT_ACTIVITY) -> boo
         and t.min_temp_c <= temp <= t.max_temp_c
         and wind < t.max_wind_kmh
     )
+
+
+# WIE-10: how far a figure must move between two retrievals of the forecast
+# for the same hour before it is reported as a change. Below these it is
+# noise between model runs, not news: "no significant change" is a valid
+# answer, a 2-point wobble is not a headline.
+CHANGE_THRESHOLDS: dict[str, float] = {
+    "rain_probability_pct": 20,  # percentage points
+    "temp_c": 3,
+    "wind_kmh": 10,
+}
