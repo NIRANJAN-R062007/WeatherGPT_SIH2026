@@ -5,8 +5,10 @@ from datetime import datetime, timedelta, timezone
 
 import config
 import intelligence_cache
+import main
 import pytest
 import redis
+from fastapi.testclient import TestClient
 
 NOW = datetime(2026, 10, 4, 12, 0, tzinfo=timezone.utc)
 
@@ -139,3 +141,83 @@ def test_a_dead_redis_is_a_miss_and_is_parked(fake, monkeypatch, caplog, error):
     intelligence_cache.put(KEY, ANSWER, live_hourly())  # tried again after the cooldown
     assert intelligence_cache.get(KEY) == ANSWER
 
+
+# --- the routes (main.py) ----------------------------------------------------
+
+client = TestClient(main.app)
+
+
+def _hour(local_time: str, rain: int = 10) -> dict:
+    return {"time_iso": f"2026-10-04T{local_time}:00Z", "local_time": local_time,
+            "rain_probability_pct": rain, "temp_c": 26, "wind_kmh": 10, "condition": "clear"}
+
+
+@pytest.fixture
+def forecast(monkeypatch, fake):
+    """main.hourly_facts as a live forecast retrieved 10 minutes ago; counts calls."""
+    calls = []
+
+    def hourly_facts(key, day):
+        calls.append((key, day))
+        hours = [_hour("09:00"), _hour("10:00"), _hour("17:00", rain=60)]
+        return {**live_hourly(age_s=600), "day": day, "hours": hours}
+
+    monkeypatch.setattr(main, "hourly_facts", hourly_facts)
+    return calls
+
+
+ROUTES = [
+    ("GET", "/intelligence/best-window",
+     {"params": {"city": "chennai", "day": "today", "activity": "outdoor"}}),
+    ("POST", "/intelligence/scenario",
+     {"json": {"city": "chennai", "day": "today", "times": ["09:00", "17:00"]}}),
+    ("POST", "/intelligence/advisory",
+     {"json": {"city": "chennai", "day": "today", "persona": "farmer"}}),
+    ("GET", "/intelligence/changes", {"params": {"city": "chennai", "day": "today"}}),
+]
+
+
+@pytest.mark.parametrize("method,path,kwargs", ROUTES)
+def test_a_repeat_request_is_served_from_the_cache(forecast, fake, method, path, kwargs):
+    first = client.request(method, path, **kwargs)
+    second = client.request(method, path, **kwargs)
+    assert first.status_code == second.status_code == 200
+    assert first.headers["x-cache"] == "MISS"
+    assert second.headers["x-cache"] == "HIT"
+    assert second.json() == first.json()
+    assert len(forecast) == 1  # the forecast was read once
+    assert list(fake.ttls.values()) == [3000]  # the forecast's remaining life
+
+
+def test_each_activity_and_day_is_its_own_entry(forecast, fake):
+    for activity, day in [("outdoor", "today"), ("farm", "today"), ("outdoor", "tomorrow")]:
+        resp = client.get("/intelligence/best-window",
+                          params={"city": "chennai", "day": day, "activity": activity})
+        assert resp.headers["x-cache"] == "MISS"
+    assert len(forecast) == 3 and len(fake.store) == 3
+
+
+def test_an_unknown_activity_is_answered_but_never_stored(forecast, fake):
+    params = {"city": "chennai", "day": "today", "activity": "skydiving"}
+    for _ in range(2):
+        resp = client.get("/intelligence/best-window", params=params)
+        assert resp.status_code == 200 and resp.headers["x-cache"] == "MISS"
+        assert resp.json()["activity"] == "skydiving"
+    assert len(forecast) == 2 and fake.store == {}
+
+
+def test_an_unavailable_answer_is_never_stored(monkeypatch, fake):
+    monkeypatch.setattr(main, "hourly_facts", lambda key, day: None)
+    for _ in range(2):
+        resp = client.get("/intelligence/changes", params={"city": "chennai", "day": "today"})
+        assert resp.json()["status"] == "unavailable" and resp.headers["x-cache"] == "MISS"
+    assert fake.store == {}
+
+
+def test_offline_fixtures_are_answered_and_never_cached():
+    # conftest: WEATHER_MODE=fixtures and an unreachable Redis — the demo-safe path.
+    params = {"city": "chennai", "day": "today"}
+    for _ in range(2):
+        resp = client.get("/intelligence/best-window", params=params)
+        assert resp.status_code == 200 and resp.headers["x-cache"] == "MISS"
+        assert resp.json()["provenance"]["is_live"] is False

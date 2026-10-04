@@ -31,6 +31,7 @@ import hotlines
 import httpx
 import i18n
 import imd_warnings as warnings_module
+import intelligence_cache
 import ivr
 import limits
 import location
@@ -763,8 +764,23 @@ def aviation_route(city: str | None = None, station: str | None = None):
     return aviation.public(icao)
 
 
+def _cached(response: Response, cache_key: str | None, compute) -> dict:
+    """WIE-15: an /intelligence/* answer from intelligence_cache, else `compute()`
+    — which returns (answer, the hourly facts it used) — stored for the rest of
+    that forecast's life. `X-Cache` says which: HIT or MISS."""
+    answer = intelligence_cache.get(cache_key)
+    if answer is not None:
+        response.headers["X-Cache"] = "HIT"
+        return answer
+    answer, hourly = compute()
+    intelligence_cache.put(cache_key, answer, hourly)
+    response.headers["X-Cache"] = "MISS"
+    return answer
+
+
 @app.get("/intelligence/best-window")
-def intelligence_best_window(city: str, day: str = "tomorrow", activity: str = "outdoor"):
+def intelligence_best_window(response: Response, city: str, day: str = "tomorrow",
+                             activity: str = "outdoor"):
     """WIE-3/WIE-13/WIE-14: the best contiguous suitable window in a day's
     hourly forecast, and the values that justify it — deterministic rules
     only (weather_intelligence/rules.py), nothing narrated by an LLM
@@ -778,6 +794,11 @@ def intelligence_best_window(city: str, day: str = "tomorrow", activity: str = "
     key = cities.resolve(city)
     if key is None:
         raise HTTPException(status_code=404, detail="unknown city")
+    return _cached(response, intelligence_cache.key("best-window", key, day, activity=activity),
+                   lambda: _best_window_answer(key, day, activity))
+
+
+def _best_window_answer(key: str, day: str, activity: str) -> tuple[dict, dict | None]:
     hourly = hourly_facts(key, day)
     if hourly is None:
         return {
@@ -788,7 +809,7 @@ def intelligence_best_window(city: str, day: str = "tomorrow", activity: str = "
             "status": "unavailable",
             "window": None,
             "provenance": None,
-        }
+        }, None
     window = find_best_window(hourly["hours"], activity)
     return {
         "city": key,
@@ -798,7 +819,7 @@ def intelligence_best_window(city: str, day: str = "tomorrow", activity: str = "
         "status": "ok" if window else "no_suitable_window",
         "window": window,
         "provenance": {"source": hourly["source"], "is_live": hourly["is_live"]},
-    }
+    }, hourly
 
 
 class ScenarioRequest(BaseModel):
@@ -809,7 +830,7 @@ class ScenarioRequest(BaseModel):
 
 
 @app.post("/intelligence/scenario")
-def intelligence_scenario(req: ScenarioRequest):
+def intelligence_scenario(req: ScenarioRequest, response: Response):
     """WIE-6/WIE-13/WIE-14: compares named times of day ("09:00" vs "17:00")
     against the decoded hourly forecast — one hour, or several. Deterministic
     rules only; a time outside the forecast's hours is reported as
@@ -819,6 +840,12 @@ def intelligence_scenario(req: ScenarioRequest):
     key = cities.resolve(req.city)
     if key is None:
         raise HTTPException(status_code=404, detail="unknown city")
+    cache_key = intelligence_cache.key("scenario", key, req.day, activity=req.activity,
+                                       times=req.times)
+    return _cached(response, cache_key, lambda: _scenario_answer(key, req))
+
+
+def _scenario_answer(key: str, req: ScenarioRequest) -> tuple[dict, dict | None]:
     hourly = hourly_facts(key, req.day)
     if hourly is None:
         return {
@@ -830,7 +857,7 @@ def intelligence_scenario(req: ScenarioRequest):
             "hours": [{"time": t, "available": False} for t in req.times],
             "better_time": None,
             "provenance": None,
-        }
+        }, None
     result = compare_scenario(hourly["hours"], req.times, req.activity)
     return {
         "city": key,
@@ -840,7 +867,7 @@ def intelligence_scenario(req: ScenarioRequest):
         "status": "ok",
         **result,
         "provenance": {"source": hourly["source"], "is_live": hourly["is_live"]},
-    }
+    }, hourly
 
 
 class AdvisoryRequest(BaseModel):
@@ -850,7 +877,7 @@ class AdvisoryRequest(BaseModel):
 
 
 @app.post("/intelligence/advisory")
-def intelligence_advisory(req: AdvisoryRequest):
+def intelligence_advisory(req: AdvisoryRequest, response: Response):
     """WIE-7: persona-aware framing over the same best-window computation
     (WIE-3) — deterministic rules only, nothing narrated by an LLM, same as
     /intelligence/best-window. farmer, traveller, general and city_official
@@ -872,6 +899,11 @@ def intelligence_advisory(req: AdvisoryRequest):
     key = cities.resolve(req.city)
     if key is None:
         raise HTTPException(status_code=404, detail="unknown city")
+    return _cached(response, intelligence_cache.key("advisory", key, req.day, persona=req.persona),
+                   lambda: _advisory_answer(key, req))
+
+
+def _advisory_answer(key: str, req: AdvisoryRequest) -> tuple[dict, dict | None]:
     hourly = hourly_facts(key, req.day)
     if hourly is None:
         return {
@@ -885,7 +917,7 @@ def intelligence_advisory(req: AdvisoryRequest):
             "hours": None,
             "caveat": CAVEATS.get(req.persona),
             "provenance": None,
-        }
+        }, None
     advisory = advise(hourly["hours"], req.persona)
     if wants_window(req.persona):
         status = "ok" if advisory["window"] else "no_suitable_window"
@@ -902,7 +934,7 @@ def intelligence_advisory(req: AdvisoryRequest):
         "hours": hourly["hours"] if advisory["label"] is None else None,
         "caveat": advisory["caveat"],
         "provenance": {"source": hourly["source"], "is_live": hourly["is_live"]},
-    }
+    }, hourly
 
 
 def _changes_result(key: str, day: str) -> tuple[dict | None, dict | None, dict | None]:
@@ -941,7 +973,7 @@ def _changes_public(key: str, day: str, hourly, result, baseline) -> dict:
 
 
 @app.get("/intelligence/changes")
-def intelligence_changes(city: str, day: str = "tomorrow"):
+def intelligence_changes(response: Response, city: str, day: str = "tomorrow"):
     """WIE-11: what changed in a day's hourly forecast since the previous
     retrieval — deterministic rules only (weather_intelligence/
     change_detector.py, thresholds in rules.py), nothing narrated by an LLM.
@@ -954,8 +986,11 @@ def intelligence_changes(city: str, day: str = "tomorrow"):
     key = cities.resolve(city)
     if key is None:
         raise HTTPException(status_code=404, detail="unknown city")
-    hourly, result, baseline = _changes_result(key, day)
-    return _changes_public(key, day, hourly, result, baseline)
+    def compute():
+        hourly, result, baseline = _changes_result(key, day)
+        return _changes_public(key, day, hourly, result, baseline), hourly
+
+    return _cached(response, intelligence_cache.key("changes", key, day), compute)
 
 
 _CHANGE_LABELS = {
