@@ -5,8 +5,9 @@ out of time, or its answer fails the guardrail. The verdict is `rubric.reference
 and every sentence is built from a value in the facts, so the answer grounds by
 construction. English only for now, like the other templated answers.
 
-`apply_override` is the §11.6 hard override that runs after the agent: whatever it
-returned, a red IMD warning or a thunderstorm METAR means "avoid".
+`apply_override` is the hard override that runs after the agent: whatever it returned,
+a red IMD warning, a thunderstorm METAR (§11.6) or a mode's avoid-level wind (TFA-7)
+means "avoid".
 """
 
 from __future__ import annotations
@@ -77,7 +78,6 @@ def apply_override(facts, answer: dict) -> dict:
     reason is added to `cons` from the facts, so the sentences still say why."""
     if rubric.hard_override(facts) is None or answer.get("verdict") == "avoid":
         return answer
-    reason = [c for c in template_answer(facts)["cons"] if "warning is in force" in c
-              or "thunderstorm" in c]
+    reason = [r for r in rubric.override_reasons(facts) if r not in answer.get("cons", [])]
     cons = [*reason, *answer.get("cons", [])][:schema.MAX_ITEMS]
     return {**answer, "verdict": "avoid", "cons": cons}

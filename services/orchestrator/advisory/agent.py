@@ -3,7 +3,8 @@
     slots (resolved, TFA-3)
       -> core facts, collected before any model call (facts.py: no round trips)
       -> agent (Gemini, then Groq): reads the facts, may call a few fact tools, returns JSON
-      -> hard override (rubric.hard_override): a red warning or a thunderstorm METAR is "avoid"
+      -> hard override (rubric.hard_override): a red warning, a thunderstorm METAR or a
+         mode's avoid-level wind is "avoid"
       -> guardrail.check_advisory: nothing outside the facts
       -> on any failure: the rule-based template answer (template.py), no model
 
