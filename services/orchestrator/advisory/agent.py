@@ -328,6 +328,10 @@ def _agent_answer(
     return {}, "", calls, reason
 
 
+# With the agent off, the template answer is the plan, not a fallback.
+AGENT_OFF = "agent disabled, offline, or no provider key"
+
+
 def advise(kind: str, slots: dict, lang: str = "en", *, models=None, fetch: Fetch | None = None,
            timeout_s: float | None = None) -> Advice:
     """The answer for resolved `slots`. `models` ([(name, strands model)]) and `fetch`
@@ -337,7 +341,7 @@ def advise(kind: str, slots: dict, lang: str = "en", *, models=None, fetch: Fetc
 
     if models is None:
         models = [(name, make_model(name)) for name in providers()]
-    reason = None if models else "agent disabled, offline, or no provider key"
+    reason = None if models else AGENT_OFF
     answer: dict = {}
     path = "template"
     calls = 0
