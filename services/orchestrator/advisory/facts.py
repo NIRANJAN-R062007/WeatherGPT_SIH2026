@@ -31,6 +31,8 @@ import cities
 import imd_warnings
 import weather_data
 from google_weather import FORECAST_DAYS
+from weather_intelligence import rules
+from weather_intelligence.window_analyzer import find_best_window
 
 from advisory import crops
 
@@ -264,7 +266,29 @@ class FarmingFactsCollector(FactsCollector):
             ]
         crop = slots.get("crop")
         if not crop:
-            out.append(_unavailable("crop", "entry", "no crop given"))
+            entry = _unavailable("crop", "entry", "no crop given")
         else:
-            out.append(crop_entry(crop, slots.get("region") or slots.get("district") or ""))
+            entry = crop_entry(crop, slots.get("region") or slots.get("district") or "")
+        out.append(entry)
+        hourly = next((s for s in out if s.kind == "hourly"), None)
+        out.append(sowing_window(entry, hourly))
         return out
+
+
+def sowing_window(entry: FactSection, hourly: FactSection | None) -> FactSection:
+    """TFA-11: today's best contiguous hours by the crop's own thresholds
+    (rules.crop_thresholds over the window engine), or unavailable with the
+    reason — never the least-bad hours, and never on generic thresholds."""
+    thresholds = rules.crop_thresholds(entry.data if entry.available else None)
+    if thresholds is None:
+        return _unavailable("location", "window", "no crop thresholds to score hours against")
+    if hourly is None or not hourly.available:
+        return _unavailable("location", "window", "no hourly forecast for today")
+    found = find_best_window(hourly.data["hours"], thresholds)
+    if found is None:
+        return _unavailable("location", "window", "no hour today meets the crop's thresholds")
+    data = {k: found[k] for k in ("start_local", "end_local", "avg_temp_c",
+                                  "max_rain_probability_pct", "max_wind_kmh")}
+    data.update(source=hourly.source, is_live=hourly.is_live)
+    return FactSection("location", "window", True, data, source=hourly.source,
+                       is_live=hourly.is_live)

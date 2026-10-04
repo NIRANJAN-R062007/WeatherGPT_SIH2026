@@ -12,6 +12,10 @@ reads from. They start out pointing at the exact same Thresholds as
 "outdoor" — plan.md's WIE-7 done-when requires identical numbers across
 personas for the same facts, and no persona-specific values have been
 agreed yet, so there is nothing to differ on yet.
+
+TFA-11: when the crop is known (the sowing advisory), its sourced thresholds
+replace the "farm" placeholder — crop_thresholds() builds them from the crop
+file's entry. "farm" stays for the farmer persona's window, which has no crop.
 """
 
 from dataclasses import dataclass
@@ -40,12 +44,29 @@ ACTIVITIES: dict[str, Thresholds] = {
 DEFAULT_ACTIVITY = "outdoor"
 
 
-def thresholds_for(activity: str | None) -> Thresholds:
+def thresholds_for(activity: "str | Thresholds | None") -> Thresholds:
+    """An activity's thresholds; a Thresholds passes straight through (a crop's)."""
+    if isinstance(activity, Thresholds):
+        return activity
     key = (activity or DEFAULT_ACTIVITY).strip().lower()
     return ACTIVITIES.get(key, OUTDOOR)
 
 
-def is_suitable_hour(hour: dict, activity: str | None = DEFAULT_ACTIVITY) -> bool:
+def crop_thresholds(entry: dict | None) -> Thresholds | None:
+    """A crop file entry (advisory/crops.py) as hour thresholds, or None when the
+    entry lacks the temperature range or the rain limit — a missing threshold is
+    never filled in. The crop file has no wind figure, so wind is the "farm"
+    activity's field-work limit (a working condition, not agronomy)."""
+    if not entry:
+        return None
+    temp, rain = entry.get("temp_range_c"), entry.get("max_rain_probability_pct")
+    if temp is None or rain is None:
+        return None
+    return Thresholds(max_rain_probability_pct=rain, min_temp_c=temp["min"],
+                      max_temp_c=temp["max"], max_wind_kmh=ACTIVITIES["farm"].max_wind_kmh)
+
+
+def is_suitable_hour(hour: dict, activity: "str | Thresholds | None" = DEFAULT_ACTIVITY) -> bool:
     """True when rain, temperature and wind all pass the activity's
     thresholds. A missing figure (None) never passes — an hour the engine
     can't fully check is never called suitable (window_analyzer treats it

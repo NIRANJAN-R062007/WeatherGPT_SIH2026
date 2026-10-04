@@ -4,6 +4,7 @@ weather_data.hourly_facts()'s `hours` entries — so every boundary and gap
 case is exact and doesn't depend on what a fixture happens to contain.
 """
 
+import pytest
 from weather_intelligence import rules
 from weather_intelligence.window_analyzer import find_best_window
 
@@ -139,3 +140,32 @@ def test_a_tied_length_run_keeps_the_earliest():
     window = find_best_window(hours)
     assert window is not None
     assert (window["start_local"], window["end_local"]) == ("06:00", "07:00")
+
+
+# --- TFA-11: a crop's own thresholds ----------------------------------------------
+
+
+CROP = {"temp_range_c": {"min": 22, "max": 30}, "max_rain_probability_pct": 40}
+
+
+def test_crop_thresholds_come_from_the_entry_and_wind_from_the_farm_activity():
+    t = rules.crop_thresholds(CROP)
+    assert (t.min_temp_c, t.max_temp_c, t.max_rain_probability_pct) == (22, 30, 40)
+    assert t.max_wind_kmh == rules.thresholds_for("farm").max_wind_kmh
+
+
+@pytest.mark.parametrize("missing", ["temp_range_c", "max_rain_probability_pct"])
+def test_a_crop_without_a_threshold_gets_none_never_a_default(missing):
+    assert rules.crop_thresholds({**CROP, missing: None}) is None
+    assert rules.crop_thresholds(None) is None
+
+
+def test_the_window_uses_the_crops_thresholds_not_outdoors():
+    """30% rain passes the crop's 40% but not outdoor's 20%; 21 degC passes outdoor's
+    20 degC floor but not the crop's 22."""
+    hours = [hour("09:00", rain=30, temp=26), hour("10:00", rain=30, temp=26),
+             hour("11:00", rain=10, temp=21)]
+    window = find_best_window(hours, rules.crop_thresholds(CROP))
+    assert (window["start_local"], window["end_local"]) == ("09:00", "10:00")
+    outdoor = find_best_window(hours, "outdoor")
+    assert (outdoor["start_local"], outdoor["end_local"]) == ("11:00", "11:00")

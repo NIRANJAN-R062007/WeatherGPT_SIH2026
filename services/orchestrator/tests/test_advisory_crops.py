@@ -106,3 +106,46 @@ def test_the_file_is_reread_when_it_changes(crop_file):
     crop_file(_entry(region="delhi"))
     os.utime(path, ns=(1, 1))  # a different mtime even within one clock tick
     assert crops.lookup("groundnut", "madurai") is None
+
+
+# --- the sowing window in the farming facts (TFA-11) --------------------------------
+
+
+SOWING = {"district": "madurai", "crop": "groundnut"}
+
+
+def _window(slots=SOWING):
+    from advisory.facts import FarmingFactsCollector
+
+    return FarmingFactsCollector().collect(slots).section("location", "window")
+
+
+def test_no_crop_file_means_no_window_rather_than_a_generic_one(crop_file):
+    window = _window()
+    assert not window.available
+    assert window.reason == "no crop thresholds to score hours against"
+
+
+def test_a_covered_crop_gets_todays_best_hours_by_its_own_thresholds(crop_file):
+    crop_file(_entry(temp_range_c=_value({"min": 0, "max": 50}),
+                     max_rain_probability_pct=_value(100)))
+    window = _window()
+    assert window.available
+    assert set(window.data) >= {"start_local", "end_local", "avg_temp_c",
+                                "max_rain_probability_pct", "max_wind_kmh"}
+
+
+def test_no_hour_inside_the_crops_range_is_said_not_softened(crop_file):
+    crop_file(_entry(temp_range_c=_value({"min": 60, "max": 70})))
+    window = _window()
+    assert not window.available
+    assert window.reason == "no hour today meets the crop's thresholds"
+
+
+def test_the_agents_window_tool_uses_the_crop_too(crop_file):
+    from advisory import agent
+
+    crop_file(_entry(temp_range_c=_value({"min": 60, "max": 70})))
+    section = agent.live_fetch("farming", SOWING)("location", "window", "today")
+    assert not section.available
+    assert section.reason == "no hour today meets the crop's thresholds"
