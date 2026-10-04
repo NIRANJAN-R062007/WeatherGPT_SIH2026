@@ -48,7 +48,9 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: weathergpt
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      # `:?` with no error text: compose names the variable itself, and
+      # GitGuardian took custom text there for a hardcoded secret (PR #48).
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
       POSTGRES_DB: weathergpt
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -68,7 +70,7 @@ services:
     # use (`docker exec ... redis-cli`).
     command: ["sh", "-c", "exec redis-server --appendonly yes --requirepass \"$$REDISCLI_AUTH\""]
     environment:
-      REDISCLI_AUTH: ${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}
+      REDISCLI_AUTH: ${REDIS_PASSWORD:?}
     volumes:
       - redis_data:/data
     healthcheck:
