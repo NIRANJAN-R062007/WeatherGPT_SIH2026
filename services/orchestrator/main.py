@@ -22,6 +22,7 @@ import aviation
 import bhashini
 import cities
 import config
+import forecast_snapshots
 import glossary
 import google_weather
 import guardrail
@@ -58,6 +59,7 @@ from narrate import is_configured as llm_configured
 from narrate import narrate
 from pydantic import BaseModel, Field
 from weather_data import daily_forecast, get_weather, hourly_facts, hourly_forecast
+from weather_intelligence.change_detector import detect_changes
 from weather_intelligence.persona_advisor import CAVEATS, advise, wants_window
 from weather_intelligence.scenario_analyzer import compare_scenario
 from weather_intelligence.window_analyzer import find_best_window
@@ -202,6 +204,18 @@ _MESSAGES = {
     # best_window branch), so it is English-only like aviation's reports.
     "best_window_english_only": {
         "en": "The best-time answer is shown in English.",
+    },
+    # WIE-11: no earlier forecast stored for these hours (a fresh start, a
+    # fixtures-mode demo, a baseline that has aged out). English only until
+    # WIE-8's five-language templates land.
+    "changes_no_baseline": {
+        "en": "There is no earlier forecast to compare with yet, so I can't say what has changed.",
+    },
+    "changes_unavailable": {
+        "en": "No hourly forecast is available to check for changes right now.",
+    },
+    "changes_english_only": {
+        "en": "The forecast-change answer is shown in English.",
     },
     "language_unsupported": {
         "en": "I couldn't recognise that language yet — answering in English.",
@@ -891,6 +905,95 @@ def intelligence_advisory(req: AdvisoryRequest):
     }
 
 
+def _changes_result(key: str, day: str) -> tuple[dict | None, dict | None, dict | None]:
+    """WIE-11: (hourly facts, change result, baseline) for one city/day. The
+    baseline is the newest forecast retrieved before the one being compared
+    (forecast_snapshots.previous), so the two retrieval times are both known."""
+    hourly = hourly_facts(key, day)
+    if hourly is None:
+        return None, None, None
+    cell = google_weather.cell_for(key)
+    baseline = (
+        forecast_snapshots.previous(cell, hourly["retrieved_at"])
+        if cell and hourly.get("retrieved_at") else None
+    )
+    return hourly, detect_changes(hourly["hours"], baseline), baseline
+
+
+def _changes_public(key: str, day: str, hourly, result, baseline) -> dict:
+    base = {"city": key, "city_name": cities.display_name(key, "en"), "day": day}
+    if hourly is None:
+        return {**base, "status": "unavailable", "changes": [], "baseline": None,
+                "provenance": None}
+    return {
+        **base,
+        "day": hourly["day"],
+        "status": result["status"],
+        "changes": result["changes"],
+        "compared_hours": result["compared_hours"],
+        "baseline": (
+            {"retrieved_at": baseline["retrieved_at"]}
+            if baseline and result["status"] != "no_baseline" else None
+        ),
+        "provenance": {"source": hourly["source"], "is_live": hourly["is_live"],
+                       "retrieved_at": hourly["retrieved_at"]},
+    }
+
+
+@app.get("/intelligence/changes")
+def intelligence_changes(city: str, day: str = "tomorrow"):
+    """WIE-11: what changed in a day's hourly forecast since the previous
+    retrieval — deterministic rules only (weather_intelligence/
+    change_detector.py, thresholds in rules.py), nothing narrated by an LLM.
+    `status`: "ok" (one or more figures moved by a reportable amount),
+    "no_significant_change" (compared, nothing moved enough), "no_baseline"
+    (no earlier forecast for these hours — never reported as "no change"),
+    or "unavailable" (no hourly forecast at all)."""
+    if day not in ("today", "tomorrow"):
+        raise HTTPException(status_code=422, detail="day must be today or tomorrow")
+    key = cities.resolve(city)
+    if key is None:
+        raise HTTPException(status_code=404, detail="unknown city")
+    hourly, result, baseline = _changes_result(key, day)
+    return _changes_public(key, day, hourly, result, baseline)
+
+
+_CHANGE_LABELS = {
+    "rain_probability_pct": ("chance of rain", "%"),
+    "temp_c": ("temperature", "°C"),
+    "wind_kmh": ("wind speed", " km/h"),
+}
+
+
+def _fmt_num(value: float) -> str:
+    return f"{value:g}"
+
+
+def _utc_minute(iso: str) -> str:
+    return f"{iso[:10]} {iso[11:16]} UTC"
+
+
+def _changes_text(city_name: str, day: str, result: dict, baseline: dict,
+                  current_retrieved_at: str) -> str:
+    """WIE-11: the forecast_change intent's deterministic English sentence,
+    built from the detector's structured result — every figure and both
+    retrieval times are the engine's own, like _best_window_text."""
+    since = (f"since the forecast retrieved {_utc_minute(baseline['retrieved_at'])} "
+             f"(now {_utc_minute(forecast_snapshots.normalize_time(current_retrieved_at))})")
+    if result["status"] == "no_significant_change":
+        return f"{city_name}: no significant change in {day}'s forecast {since}."
+    parts = []
+    for c in result["changes"]:
+        label, unit = _CHANGE_LABELS[c["metric"]]
+        span = (f"around {c['start_local']}" if c["start_local"] == c["end_local"]
+                else f"mostly {c['start_local']}–{c['end_local']}")
+        parts.append(
+            f"{label} {c['direction']} from {_fmt_num(c['from'])}{unit} to "
+            f"{_fmt_num(c['to'])}{unit} ({span})"
+        )
+    return f"{city_name}: {day}'s " + "; ".join(parts) + f" {since}."
+
+
 def _best_window_text(city_name: str, day: str, window: dict) -> str:
     """WIE-4: the best_window intent's deterministic English sentence, built
     straight from the engine's structured result (window_analyzer via
@@ -1236,6 +1339,58 @@ def ask(text: str, lang: str = "en", city: str | None = None, persona: str = per
             resp["notice"] = notice
         elif lang != "en":
             resp["notice"] = _msg("best_window_english_only", lang)
+        resp.update(_persona_fields(persona, occ))
+
+        if token is not None:
+            try:
+                history.record(token, query=text, intent=pq.intent, city=demo_key or point["label"],
+                                lang=lang, response=candidate)
+            except Exception:
+                pass  # best-effort, as above
+
+        return resp
+
+    if pq.intent == "forecast_change":
+        # WIE-11: deterministic only, like best_window above — the detector's
+        # figures and both retrieval times are the whole answer, no LLM
+        # narration. "no baseline" is its own honest answer, never "no change".
+        key = google_weather.point_key(point["lat"], point["lon"])
+        day = "tomorrow" if pq.time_window == "tomorrow" else "today"
+        hourly, result, baseline = _changes_result(key, day)
+        if hourly is None or result["status"] == "no_baseline":
+            resp = {"intent": pq.intent, "city": demo_key, "location": _public_location(loc),
+                    "message": _msg("changes_unavailable" if hourly is None
+                                    else "changes_no_baseline", lang),
+                    "status": "unavailable" if hourly is None else "no_baseline",
+                    "nlu": pq.as_dict()}
+            if hourly is not None:
+                resp["provenance"] = _provenance(hourly)
+            if notice:
+                resp["notice"] = notice
+            return resp
+
+        candidate = _changes_text(label_en, hourly["day"], result, baseline,
+                                  hourly["retrieved_at"])
+        grounding = {**asdict(guardrail.Report(ok=True, matched=0, total=0)),
+                     "fallback_used": False, "narration": "verbatim", "attempts": 0,
+                     "provider": "feed"}
+        metrics.observe_ask(intent=pq.intent, lang=lang, provider="feed", narration="verbatim",
+                            fallback_used=False, no_llm=True)
+        resp = {
+            "intent": pq.intent,
+            "city": demo_key, "location": _public_location(loc),
+            "response": candidate,
+            "status": result["status"],
+            "changes": result["changes"],
+            "baseline": {"retrieved_at": baseline["retrieved_at"]},
+            "provenance": _provenance(hourly),
+            "grounding": grounding,
+            "nlu": pq.as_dict(),
+        }
+        if notice:
+            resp["notice"] = notice
+        elif lang != "en":
+            resp["notice"] = _msg("changes_english_only", lang)
         resp.update(_persona_fields(persona, occ))
 
         if token is not None:

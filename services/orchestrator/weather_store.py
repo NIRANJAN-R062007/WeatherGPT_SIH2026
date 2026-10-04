@@ -46,6 +46,7 @@ import os
 import queue
 import threading
 import time
+from datetime import timezone
 from pathlib import Path
 
 import cities
@@ -289,7 +290,8 @@ def nearest_city(lat: float, lon: float, max_km: float) -> str | None:
 
 
 def prune() -> int:
-    """Delete weather_facts rows past the retention window. Returns row count.
+    """Delete weather_facts and forecast_snapshots rows past the retention
+    window. Returns the row count.
 
     0 (or a non-positive WEATHER_FACTS_RETENTION_DAYS) means keep everything.
     """
@@ -303,7 +305,13 @@ def prune() -> int:
                  "WHERE created_at < now() - make_interval(days => :days)"),
             {"days": days},
         )
-    return result.rowcount or 0
+        # WIE-9: the change-detection baselines age out on the same window.
+        snapshots = conn.execute(
+            text("DELETE FROM forecast_snapshots "
+                 "WHERE retrieved_at < now() - make_interval(days => :days)"),
+            {"days": days},
+        )
+    return (result.rowcount or 0) + (snapshots.rowcount or 0)
 
 
 def _maybe_prune() -> None:
@@ -406,7 +414,10 @@ def _drain() -> None:
 def _process(item: tuple) -> None:
     kind, city, fields = item
     try:
-        _write(kind, city, fields)
+        if kind == "forecast_snapshot":
+            _write_snapshot(city, fields)
+        else:
+            _write(kind, city, fields)
         _maybe_prune()
     except Exception:
         _LOG.exception("weather_facts worker: unexpected error for %s/%s", kind, city)
@@ -448,3 +459,74 @@ def _write(kind: str, city: str, fields: dict) -> None:
         _LOG.warning("postgres persist failed for %s/%s (%s); skipping weather_facts "
                      "writes for %.0f s", kind, city, " ".join(str(exc).split()),
                      _COOLDOWN_SECONDS)
+
+
+_INSERT_SNAPSHOT = text("""
+    INSERT INTO forecast_snapshots
+        (city, latitude, longitude, forecast_time, retrieved_at, temp_c,
+         rain_probability_pct, wind_kmh, condition, uv_index)
+    VALUES
+        (:city, :latitude, :longitude, :forecast_time, :retrieved_at, :temp_c,
+         :rain_probability_pct, :wind_kmh, :condition, :uv_index)
+""")
+
+
+def _write_snapshot(city: str, fields: dict) -> None:
+    """WIE-9: one live forecast_hours fetch -> one forecast_snapshots row per
+    hour, in a single transaction. Same cooldown rule as _write()."""
+    global _cooldown_until
+    if _monotonic() < _cooldown_until:
+        return
+    rows = [{"city": city, "latitude": fields["latitude"], "longitude": fields["longitude"],
+             "retrieved_at": fields["retrieved_at"], **r} for r in fields["rows"]]
+    try:
+        _ensure_schema()
+        with _engine.begin() as conn:
+            conn.execute(_INSERT_SNAPSHOT, rows)
+    except Exception as exc:
+        _cooldown_until = _monotonic() + _COOLDOWN_SECONDS
+        _LOG.warning("postgres snapshot persist failed for %s (%s); skipping writes for %.0f s",
+                     city, " ".join(str(exc).split()), _COOLDOWN_SECONDS)
+
+
+def read_snapshot_before(city: str, before_iso: str) -> dict | None:
+    """The newest forecast_snapshots retrieval of `city` strictly before
+    `before_iso`, as {"retrieved_at": iso, "hours": {forecast_time: row}}.
+
+    None on a miss, in fixtures mode, while Postgres is parked, or on any
+    error — change detection then says there is no earlier forecast, never
+    "no change". This is the one Postgres read on a request path, so a
+    failure starts the same cooldown the writer uses: a dead database costs
+    one connect timeout a minute, not one per request.
+    """
+    global _cooldown_until
+    if config.WEATHER_MODE == "fixtures" or _monotonic() < _cooldown_until:
+        return None
+    try:
+        _ensure_schema()
+        with _engine.connect() as conn:
+            when = conn.execute(
+                text("SELECT max(retrieved_at) FROM forecast_snapshots "
+                     "WHERE city = :city AND retrieved_at < :before"),
+                {"city": city, "before": before_iso},
+            ).scalar()
+            if when is None:
+                return None
+            rows = conn.execute(
+                text("SELECT forecast_time, temp_c, rain_probability_pct, wind_kmh, "
+                     "condition, uv_index FROM forecast_snapshots "
+                     "WHERE city = :city AND retrieved_at = :when"),
+                {"city": city, "when": when},
+            ).mappings().all()
+    except Exception as exc:
+        _cooldown_until = _monotonic() + _COOLDOWN_SECONDS
+        _LOG.warning("postgres snapshot read failed for %s (%s); parked for %.0f s",
+                     city, " ".join(str(exc).split()), _COOLDOWN_SECONDS)
+        return None
+    hours = {}
+    for r in rows:
+        row = dict(r)
+        key = row["forecast_time"].astimezone(timezone.utc).isoformat()
+        row["forecast_time"] = key
+        hours[key] = row
+    return {"retrieved_at": when.astimezone(timezone.utc).isoformat(), "hours": hours}

@@ -35,6 +35,7 @@ from datetime import datetime, timezone
 import budget
 import cities
 import config
+import forecast_snapshots
 import httpx
 import weather_store
 
@@ -126,6 +127,13 @@ def point_key(lat: float, lon: float) -> str:
         if (city.lat, city.lon) == (lat, lon):
             return key
     return grid_key(lat, lon)
+
+
+def cell_for(key: str) -> str | None:
+    """The cache cell a city or point key reads (None for an unknown key) —
+    what forecast_snapshots files a baseline under."""
+    coords = _coords(key)
+    return grid_key(*coords) if coords else None
 
 
 def is_point_key(key: str) -> bool:
@@ -235,6 +243,9 @@ def snapshot(kind: str, city_key: str, *, force_refresh: bool = False) -> Snapsh
               "retrieved_at": snap.retrieved_at, "source": snap.source}
     weather_store.redis_set(kind, cell, fields, ttl_seconds(kind))
     weather_store.persist(kind, cell, fields)  # enqueue only; the INSERT is off-thread
+    if kind == "forecast_hours" and snap.is_live:
+        # WIE-9: keep this fetch as a baseline for change detection.
+        forecast_snapshots.record(cell, *_coords(city_key), snap.payload, snap.retrieved_at)
     return snap
 
 
