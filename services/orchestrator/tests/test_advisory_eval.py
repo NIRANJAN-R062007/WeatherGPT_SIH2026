@@ -247,7 +247,7 @@ def test_the_prompt_carries_facts_rubric_and_slots_but_never_the_users_words():
 
 
 def test_the_prompt_lists_what_is_not_available():
-    assert "origin.warnings (warnings feed unavailable)" in _prompt("trv-en-06")
+    assert '"origin.warnings": "warnings feed unavailable"' in _prompt("trv-en-06")
     clear = _prompt("trv-en-01")
     assert "NOT AVAILABLE\nnothing" in clear and "warnings feed unavailable" not in clear
 
@@ -258,7 +258,7 @@ def test_the_prompt_forbids_quoting_thresholds_and_paths_into_missing_sections()
     text = _prompt("trv-en-06")
     assert "Never quote a number from VERDICT RULES" in text
     assert f"at most {schema.MAX_ITEMS} paths" in text
-    assert "cited by its name exactly as listed, never by a path inside it" in text
+    assert "cited by its name (the key, without the reason)" in text
 
 
 def test_the_prompt_asks_for_the_row_language():

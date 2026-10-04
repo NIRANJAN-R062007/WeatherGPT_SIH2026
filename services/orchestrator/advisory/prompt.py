@@ -58,7 +58,9 @@ def build(kind: str, slots: dict, lang: str, facts, *, tools: bool = False) -> s
     fact tools for what is not in FACTS; without, FACTS is all it has."""
     language = _LANGUAGES.get(lang.split("-")[0], "English")
     rules = rubric.TRAVEL_RUBRIC if kind == "travel" else rubric.FARMING_RUBRIC
-    missing = [f"{m['section']} ({m['reason']})" for m in facts.missing()]
+    # name -> reason, so the name a model may cite is a JSON key on its own: as
+    # "name (reason)" the live models copied the reason into their cites (TFA-18).
+    missing = {m["section"]: m["reason"] for m in facts.missing()}
     verdicts = ", ".join(f'"{v}"' for v in schema.VERDICTS[kind])
     topic = "a journey" if kind == "travel" else "sowing a crop"
     tool_note = ""
@@ -88,7 +90,8 @@ Reply with one JSON object and nothing else (no prose, no code fence):
 - Never quote a number from VERDICT RULES. The thresholds decide the verdict; they are not
   facts, so a sentence names the fact's own value ("rain chance 70%"), not the threshold.
 - "cites" holds at most {schema.MAX_ITEMS} paths, each one present in FACTS. A section listed
-  under NOT AVAILABLE is cited by its name exactly as listed, never by a path inside it.
+  under NOT AVAILABLE is cited by its name (the key, without the reason), never by a path
+  inside it.
 - A clock time may only be one that appears in the facts. "window" is null unless a "window"
   section is present, and then it is copied from it exactly.
 - If something needed is listed under NOT AVAILABLE, say so in "cons"; never treat missing as fine.
