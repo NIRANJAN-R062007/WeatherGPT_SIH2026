@@ -141,8 +141,8 @@ def is_point_key(key: str) -> bool:
 
 
 def _coords(key: str) -> tuple[float, float] | None:
-    if key in cities.CITY_KEYS:
-        city = cities.CITIES[key]
+    if key in cities.TRAVEL_KEYS:  # a demo city or a travel destination (TFA-8)
+        city = cities.TRAVEL_CITIES[key]
         return city.lat, city.lon
     if not key.startswith(_POINT_PREFIX):
         return None
@@ -185,8 +185,8 @@ def _live(kind: str, city_key: str) -> Snapshot:
 
 
 def _fixture(kind: str, city_key: str) -> Snapshot | None:
-    if city_key not in cities.CITY_KEYS:
-        return None  # snapshots exist for the demo cities only
+    if city_key not in cities.TRAVEL_KEYS:
+        return None  # snapshots exist for the registry's cities only
     cache_key = (kind, city_key)
     env = _FIXTURE_CACHE.get(cache_key)
     if env is None:

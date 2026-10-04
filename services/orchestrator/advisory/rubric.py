@@ -25,6 +25,8 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
+from advisory import wording
+
 RAIN_CAUTION_PCT = 50     # no mode given: a rain chance at or above this is "caution"
 WIND_CAUTION_KMH = 40     # so is a wind at or above this
 FARMING_DAYS = 3          # sowing is judged over this many forecast days
@@ -200,10 +202,9 @@ def thunderstorm_source(facts, role: str) -> str | None:
     return None
 
 
-def thunderstorm_sentence(role: str, source: str) -> str:
-    if source == "metar":
-        return f"The {role} airport report shows a thunderstorm."
-    return f"The {role} airport forecast (TAF) shows a thunderstorm on the trip day."
+def thunderstorm_sentence(role: str, source: str, lang: str = "en") -> str:
+    key = "storm_metar_role" if source == "metar" else "storm_taf_role"
+    return wording.say(key, lang, role=wording.role(role, lang))
 
 
 def wind_readings(facts, role: str) -> list[tuple[float, str]]:
@@ -260,21 +261,30 @@ def hard_override(facts) -> str | None:
     return _farming_override(facts)[0]
 
 
-def override_reasons(facts) -> list[str]:
-    """Why the override applies, one sentence each, built from fact values only (so
-    the sentences ground) — what `template.apply_override` puts first in `cons`."""
+def override_reasons(facts, lang: str = "en") -> list[str]:
+    """Why the override applies, one sentence each in `lang`, built from fact values
+    only (so the sentences ground) — what `template.apply_override` puts first in `cons`."""
     if facts.kind != "travel":
-        return _farming_override(facts)[1]
+        return _farming_override(facts, lang)[1]
     mode = mode_rules(facts.subject.get("mode")).mode
     out = []
     for role, why, value in _overrides(facts):
         if why == "red_warning":
-            out.append(f"A red IMD warning is in force at the {role}.")
+            out.append(warning_sentence(role, "red", lang))
         elif why == "thunderstorm":
-            out.append(thunderstorm_sentence(role, value))
+            out.append(thunderstorm_sentence(role, value, lang))
         else:
-            out.append(f"Wind at the {role} reaches {value:g} km/h, too strong for a {mode}.")
+            out.append(wording.say("wind_too_strong_role", lang, role=wording.role(role, lang),
+                                   wind=f"{value:g}", mode=wording.mode(mode, lang)))
     return out
+
+
+def warning_sentence(role: str, colour: str, lang: str = "en") -> str:
+    """"A red IMD warning is in force at the origin." — the template's sentence and the
+    override's, word for word, so the override never adds it twice."""
+    return wording.say("warning_role", lang, role=wording.role(role, lang),
+                       colour=wording.colour(colour, lang),
+                       article="An" if colour[:1] in "aeiou" else "A")
 
 
 def reference_travel(facts) -> str:
@@ -306,46 +316,46 @@ def _month(day: dict) -> str | None:
         return None
 
 
-def crop_gaps(crop: dict | None) -> list[str]:
+def crop_gaps(crop: dict | None, lang: str = "en") -> list[str]:
     """The crop file's missing thresholds, as the sentences that say so. The rain limit
     is optional: heavy rain (`HEAVY_RAIN`) is judged for every crop without it."""
     if crop is None:
-        return ["The crop file has no entry for this crop here."]
+        return [wording.say("no_crop_entry", lang)]
     if crop.get("temp_range_c") is None:
-        return ["The crop file gives no temperature range for this crop."]
+        return [wording.say("no_temp_range", lang)]
     return []
 
 
-def rain_gaps(forecast: dict | None) -> list[str]:
+def rain_gaps(forecast: dict | None, lang: str = "en") -> list[str]:
     """A sentence for each judged day with no rain amount: heavy rain can't be ruled
     out there, and missing is never read as dry."""
     days = ((forecast or {}).get("days") or [])[:FARMING_DAYS]
-    return [f"The forecast gives no rain amount for {day.get('label') or 'one day'}."
+    return [wording.say("no_rain_amount", lang, day=wording.day(day.get("label"), lang))
             for day in days if day.get("rain_category") is None]
 
 
-def out_of_season(crop: dict | None, forecast: dict | None) -> str | None:
+def out_of_season(crop: dict | None, forecast: dict | None, lang: str = "en") -> str | None:
     """A sentence when the forecast starts outside the crop's sowing months."""
     months = (crop or {}).get("sowing_months")
     days = (forecast or {}).get("days") or []
     month = _month(days[0]) if days else None
     if not months or month is None or month in months:
         return None
-    return (f"The crop file's sowing months are {' and '.join(months)}; "
-            f"this forecast is for {month}.")
+    return wording.say("out_of_season", lang, months=wording.months(months, lang),
+                       month=wording.month(month, lang))
 
 
-def _farming_override(facts) -> tuple[str | None, list[str]]:
+def _farming_override(facts, lang: str = "en") -> tuple[str | None, list[str]]:
     crop = _avail(facts, "crop", "entry")
     forecast = _avail(facts, "location", "forecast")
-    gaps = crop_gaps(crop)
+    gaps = crop_gaps(crop, lang)
     if not (forecast or {}).get("days"):
-        gaps.append("The forecast is not available.")
+        gaps.append(wording.say("forecast_unavailable", lang))
     else:
-        gaps += rain_gaps(forecast)
+        gaps += rain_gaps(forecast, lang)
     if gaps:
         return "not_available", gaps
-    season = out_of_season(crop, forecast)
+    season = out_of_season(crop, forecast, lang)
     if season:
         return "not_suitable", [season]
     return None, []

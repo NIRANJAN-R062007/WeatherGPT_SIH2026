@@ -61,7 +61,7 @@ def test_station_for_known_places(given, icao):
     assert aviation.station_for(given) == icao
 
 
-@pytest.mark.parametrize("given", ["kolkata", "VECC", "", "nowhere"])
+@pytest.mark.parametrize("given", ["patna", "VEPT", "", "nowhere"])
 def test_station_for_unknown_place(given):
     assert aviation.station_for(given) is None
 
@@ -285,8 +285,8 @@ def test_endpoint_by_city_and_by_station():
 
 
 def test_endpoint_rejects_unknown_and_missing_places():
-    assert client.get("/aviation", params={"city": "kolkata"}).status_code == 404
-    assert client.get("/aviation", params={"station": "VECC"}).status_code == 404
+    assert client.get("/aviation", params={"city": "patna"}).status_code == 404
+    assert client.get("/aviation", params={"station": "VEPT"}).status_code == 404
     assert client.get("/aviation").status_code == 422
 
 

@@ -73,7 +73,7 @@ class Advice:
 def _roles(kind: str, slots: dict) -> dict[str, str | None]:
     """role -> the city key the slots name for it (None if it does not resolve)."""
     if kind == "travel":
-        return {r: cities.resolve(slots.get(r)) for r in ("origin", "destination")}
+        return {r: cities.resolve(slots.get(r), travel=True) for r in ("origin", "destination")}
     return {"location": cities.resolve(slots.get("district"))}
 
 
@@ -319,13 +319,17 @@ def _agent_answer(
         if parsed is None:
             reason = f"{name}: reply was not a JSON object"
             continue
-        answer = template.finish(facts, schema.trim_cites(parsed))
+        answer = template.finish(facts, schema.trim_cites(parsed), lang)
         report = guardrail.check_advisory(answer, facts)
         if not report.ok:
             reason = f"{name}: guardrail: {'; '.join(report.problems)[:200]}"
             continue
         return answer, f"agent:{name}", calls, None
     return {}, "", calls, reason
+
+
+# With the agent off, the template answer is the plan, not a fallback.
+AGENT_OFF = "agent disabled, offline, or no provider key"
 
 
 def advise(kind: str, slots: dict, lang: str = "en", *, models=None, fetch: Fetch | None = None,
@@ -337,7 +341,7 @@ def advise(kind: str, slots: dict, lang: str = "en", *, models=None, fetch: Fetc
 
     if models is None:
         models = [(name, make_model(name)) for name in providers()]
-    reason = None if models else "agent disabled, offline, or no provider key"
+    reason = None if models else AGENT_OFF
     answer: dict = {}
     path = "template"
     calls = 0
@@ -350,7 +354,7 @@ def advise(kind: str, slots: dict, lang: str = "en", *, models=None, fetch: Fetc
             path = got_path
 
     if path == "template":
-        answer = template.template_answer(facts)  # its verdict already carries the override
+        answer = template.template_answer(facts, lang)  # its verdict carries the override
 
     return Advice(kind, answer, facts, path, reason, calls,
                   round(time.perf_counter() - started, 3))

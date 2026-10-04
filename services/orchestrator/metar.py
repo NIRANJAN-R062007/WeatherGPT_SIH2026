@@ -29,6 +29,21 @@ STATIONS = {
     "VABB": "Mumbai",
     "VIDP": "Delhi",
     "VOTV": "Thiruvananthapuram",
+    # TFA-8: airports for the travel advisory's added destinations. Each code was
+    # checked against a live aviationweather.gov METAR on 2026-10-05.
+    "VOGO": "Panaji",            # Goa (Dabolim)
+    "VILH": "Leh",
+    "VOPB": "Port Blair",
+    "VOCI": "Kochi",
+    "VECC": "Kolkata",
+    "VIJP": "Jaipur",
+    "VAAH": "Ahmedabad",
+    "VILK": "Lucknow",
+    "VEBN": "Varanasi",
+    "VEGT": "Guwahati",
+    "VISR": "Srinagar",
+    "VOVZ": "Visakhapatnam",
+    "VOTR": "Tiruchirappalli",
 }
 
 _INTENSITY = {"-": "light", "+": "heavy", "VC": "in the vicinity"}

@@ -47,6 +47,7 @@ import security_headers
 import taf
 import weather_data
 from advisory import agent as advisory_agent
+from advisory import cache as advisory_cache
 from advisory import slots as advisory_slots
 from auth import get_bearer_token, get_current_user
 from config import ALLOWED_ORIGINS, CORS_ALLOW_HEADERS
@@ -1091,7 +1092,9 @@ def _carried_slots(kind: str, slots: dict[str, str]) -> dict[str, str]:
         value = slots.get(slot)
         if value is None:
             continue
-        if slot in ("origin", "destination", "district"):
+        if slot in ("origin", "destination"):
+            ok = cities.resolve(value, travel=True) == value
+        elif slot == "district":
             ok = cities.resolve(value) == value
         elif slot == "day":
             ok = value in advisory_slots.DAYS
@@ -1102,7 +1105,7 @@ def _carried_slots(kind: str, slots: dict[str, str]) -> dict[str, str]:
     return keep
 
 
-def _advisory(kind: str, req: AdvisoryAsk) -> dict:
+def _advisory(kind: str, req: AdvisoryAsk, response: Response) -> dict:
     lang = req.lang if req.lang in SUPPORTED_LANGUAGES else "en"
     asking = req.asking if req.asking in advisory_slots.REQUIRED[kind] else None
     parsed = advisory_slots.parse(kind, req.text, have=_carried_slots(kind, req.slots),
@@ -1111,12 +1114,14 @@ def _advisory(kind: str, req: AdvisoryAsk) -> dict:
         return {"kind": kind, "status": "ask_back",
                 "question": advisory_slots.ask_back(parsed, lang), "slots": parsed.slots,
                 "asking": parsed.asking, "unsupported": parsed.unsupported}
+    asked = {"kind": kind, "status": "ok", "slots": parsed.slots, "assumed": parsed.assumed}
+    cache_key = advisory_cache.key(kind, parsed.slots, lang)
+    cached = advisory_cache.get(cache_key)  # TFA-20: the same question, already answered
+    if cached is not None:
+        response.headers["X-Cache"] = "HIT"
+        return {**asked, **cached}
     advice = advisory_agent.advise(kind, parsed.slots, lang)
-    return {
-        "kind": kind,
-        "status": "ok",
-        "slots": parsed.slots,
-        "assumed": parsed.assumed,
+    answered = {  # what the slots decide; `assumed` is this request's wording, never cached
         "answer": advice.answer,
         "missing": advice.facts.missing(),
         "provenance": advice.facts.provenance(),
@@ -1124,20 +1129,23 @@ def _advisory(kind: str, req: AdvisoryAsk) -> dict:
         "fallback_reason": advice.fallback_reason,
         "disclaimer": _ADVISORY_DISCLAIMER[kind],
     }
+    advisory_cache.put(cache_key, answered, advice)
+    response.headers["X-Cache"] = "MISS"
+    return {**asked, **answered}
 
 
 @app.post("/advisory/travel")
-def advisory_travel(req: AdvisoryAsk):
+def advisory_travel(req: AdvisoryAsk, response: Response):
     """TFA-17: "can I go from Chennai to Madurai tomorrow". Slots first (a missing one is
     asked for), then the agent, the hard override and the guardrail (advisory/agent.py)."""
-    return _advisory("travel", req)
+    return _advisory("travel", req, response)
 
 
 @app.post("/advisory/sowing")
-def advisory_sowing(req: AdvisoryAsk):
+def advisory_sowing(req: AdvisoryAsk, response: Response):
     """TFA-17: "when should I sow groundnut in Madurai". Answers `not_available` for every
     crop until the sourced crop file (TFA-9) exists."""
-    return _advisory("farming", req)
+    return _advisory("farming", req, response)
 
 
 @app.get("/ask")

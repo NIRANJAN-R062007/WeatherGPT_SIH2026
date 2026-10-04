@@ -229,7 +229,7 @@ class TravelFactsCollector(FactsCollector):
         flying = slots.get("mode") in (None, "flight")
         out: list[FactSection] = []
         for role in ("origin", "destination"):
-            city = cities.resolve(slots.get(role))
+            city = cities.resolve(slots.get(role), travel=True)
             if city is None:
                 out.append(_unavailable(role, "location", f"unknown {role} {slots.get(role)!r}"))
                 continue
