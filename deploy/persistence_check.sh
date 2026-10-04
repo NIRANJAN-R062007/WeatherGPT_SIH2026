@@ -3,8 +3,9 @@
 #
 # Run this ON the server that runs the containers, from the repo checkout:
 #
-#   deploy/persistence_check.sh                      # docker restart of the two data containers
-#   MODE=recreate COMPOSE_FILE=docker-compose.yml deploy/persistence_check.sh
+#   COMPOSE_FILE=docker-compose.prod.yml deploy/persistence_check.sh
+#                                                    # docker restart of the two data containers
+#   MODE=recreate COMPOSE_FILE=docker-compose.prod.yml deploy/persistence_check.sh
 #                                                    # compose down + up -d: containers are destroyed
 #                                                    # and rebuilt, so only named volumes survive
 #
@@ -12,15 +13,27 @@
 # marker is a throwaway table (deploy_persistence_check) and one Redis key
 # (weathergpt:deploy-check); both are removed at the end. Nothing else is
 # touched, and `down` is never run with -v (that would delete the volumes).
-# It also compares the row counts of weather_facts and schema_migrations before
-# and after: they must not go down.
+# It also compares the row counts of weather_facts, schema_migrations and cities
+# (the gazetteer) before and after: they must not go down.
 #
-# Exit 0 only if every check passes. Container names default to docker-compose.yml's.
+# Exit 0 only if every check passes. With COMPOSE_FILE set, the container names
+# come from that file's project (docker-compose.prod.yml leaves naming to compose);
+# without it they default to docker-compose.yml's. PG_CONTAINER / REDIS_CONTAINER
+# override either. Redis's password, if any, comes from the container's own
+# REDISCLI_AUTH, so `docker exec ... redis-cli` needs no argument.
 set -uo pipefail
 
 DOCKER="${DOCKER:-docker}"
-PG="${PG_CONTAINER:-weathergpt-postgres}"
-REDIS="${REDIS_CONTAINER:-weathergpt-redis}"
+compose_name() {  # the container compose runs for service $1, running or not
+  "$DOCKER" compose -f "$COMPOSE_FILE" ps --all --format '{{.Name}}' "$1" 2>/dev/null | head -n 1
+}
+if [ -n "${COMPOSE_FILE:-}" ]; then
+  PG="${PG_CONTAINER:-$(compose_name postgres)}"
+  REDIS="${REDIS_CONTAINER:-$(compose_name redis)}"
+else
+  PG="${PG_CONTAINER:-weathergpt-postgres}"
+  REDIS="${REDIS_CONTAINER:-weathergpt-redis}"
+fi
 PGUSER_NAME="${PGUSER_NAME:-weathergpt}"
 PGDB_NAME="${PGDB_NAME:-weathergpt}"
 MODE="${MODE:-restart}"
@@ -75,7 +88,8 @@ fi
 pass "marker written to Redis (no expiry)"
 FACTS_BEFORE="$(count_or_minus1 weather_facts)"
 MIGR_BEFORE="$(count_or_minus1 schema_migrations)"
-say "  info  weather_facts rows=$FACTS_BEFORE, schema_migrations rows=$MIGR_BEFORE (-1 = table not created yet)"
+CITIES_BEFORE="$(count_or_minus1 cities)"
+say "  info  weather_facts rows=$FACTS_BEFORE, schema_migrations rows=$MIGR_BEFORE, cities rows=$CITIES_BEFORE (-1 = table not created yet)"
 
 say; say "[restart]"
 case "$MODE" in
@@ -105,6 +119,7 @@ else
 fi
 FACTS_AFTER="$(count_or_minus1 weather_facts)"
 MIGR_AFTER="$(count_or_minus1 schema_migrations)"
+CITIES_AFTER="$(count_or_minus1 cities)"
 if [ "$FACTS_BEFORE" -ge 0 ]; then
   if [ "$FACTS_AFTER" -ge "$FACTS_BEFORE" ]; then
     pass "weather_facts rows $FACTS_BEFORE -> $FACTS_AFTER (did not shrink)"
@@ -117,6 +132,13 @@ if [ "$MIGR_BEFORE" -ge 0 ]; then
     pass "schema_migrations rows $MIGR_BEFORE -> $MIGR_AFTER (did not shrink)"
   else
     fail "schema_migrations rows $MIGR_BEFORE -> $MIGR_AFTER: the schema was lost"
+  fi
+fi
+if [ "$CITIES_BEFORE" -ge 0 ]; then
+  if [ "$CITIES_AFTER" -ge "$CITIES_BEFORE" ]; then
+    pass "cities rows $CITIES_BEFORE -> $CITIES_AFTER (did not shrink)"
+  else
+    fail "cities rows $CITIES_BEFORE -> $CITIES_AFTER: the gazetteer was lost"
   fi
 fi
 
