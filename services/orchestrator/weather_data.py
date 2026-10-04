@@ -165,6 +165,9 @@ def multi_day_facts(key: str, days_requested: int) -> dict | None:
             "rain_probability_pct": ef.get("rain_probability_pct"),
             "high_c": ef.get("high_c"),
             "low_c": ef.get("low_c"),
+            "rain_mm": _day_rain_mm(days[i]),
+            # IMD's band for that amount: the sowing rule's heavy-rain check reads it
+            "rain_category": google_weather.decode_precip_category(_day_rain_mm(days[i])),
         })
 
     return {
@@ -175,6 +178,14 @@ def multi_day_facts(key: str, days_requested: int) -> dict | None:
         "days_counted": counted,
         "days": out_days,
     }
+
+
+def _day_rain_mm(entry: dict) -> float | None:
+    """A forecast day's rain in mm, day plus night, or None when the feed gives neither."""
+    qpf = [q for q in (_dig(entry, "daytimeForecast.precipitation.qpf.quantity"),
+                       _dig(entry, "nighttimeForecast.precipitation.qpf.quantity"))
+           if q is not None]
+    return round(sum(qpf), 2) if qpf else None
 
 
 def _entry_date(key: str, entry: dict) -> str | None:
@@ -227,9 +238,7 @@ def daily_forecast(key: str, days: int) -> dict | None:
         _period_figures(day, nighttime, "night_")
         _put(day, "high_c", _dig(entry, "maxTemperature.degrees"))
         _put(day, "low_c", _dig(entry, "minTemperature.degrees"))
-        qpf = [q for q in (_dig(daytime, "precipitation.qpf.quantity"),
-                           _dig(nighttime, "precipitation.qpf.quantity")) if q is not None]
-        _put(day, "rain_mm", round(sum(qpf), 2) if qpf else None)
+        _put(day, "rain_mm", _day_rain_mm(entry))
         _put(day, "wind_kmh", _dig(daytime, "wind.speed.value"))
         _put(day, "wind_dir",
              google_weather.decode_cardinal(_dig(daytime, "wind.direction.cardinal")) or None)

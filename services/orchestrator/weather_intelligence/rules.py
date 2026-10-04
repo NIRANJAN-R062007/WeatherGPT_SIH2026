@@ -55,8 +55,10 @@ def thresholds_for(activity: "str | Thresholds | None") -> Thresholds:
 def crop_thresholds(entry: dict | None) -> Thresholds | None:
     """A crop file entry (advisory/crops.py) as hour thresholds, or None when the
     entry lacks the temperature range or the rain limit — a missing threshold is
-    never filled in. The crop file has no wind figure, so wind is the "farm"
-    activity's field-work limit (a working condition, not agronomy)."""
+    never filled in. The rain limit is optional in the crop file (sources rarely
+    give one), so a crop without it is judged by day but has no hourly window.
+    The crop file has no wind figure, so wind is the "farm" activity's field-work
+    limit (a working condition, not agronomy)."""
     if not entry:
         return None
     temp, rain = entry.get("temp_range_c"), entry.get("max_rain_probability_pct")

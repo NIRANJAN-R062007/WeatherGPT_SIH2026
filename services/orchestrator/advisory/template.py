@@ -82,6 +82,8 @@ def template_answer(facts) -> dict:
         cons += rubric.crop_gaps(crop)
         if not (forecast or {}).get("days"):
             cons.append("The forecast is not available.")
+        elif rubric.rain_gaps(forecast):
+            cons += rubric.rain_gaps(forecast)
         elif not rubric.crop_gaps(crop):
             season = rubric.out_of_season(crop, forecast)
             if season:
@@ -96,11 +98,14 @@ def template_answer(facts) -> dict:
             day = forecast["days"][0 if i is None else i]
             k = 0 if i is None else i
             when = day["label"] if day["label"] in ("today", "tomorrow") else f"on {day['label']}"
+            if i is not None and rubric.is_heavy_rain(day):
+                cons.append(f"Heavy rain is forecast {when}: {day['rain_mm']} mm. IMD advises "
+                            "postponing sowing in heavy rain.")
             (pros if i is None else cons).append(
-                f"Rain chance {when} is {day['rain_probability_pct']}%, with a high of "
-                f"{day['high_c']}°C and a low of {day['low_c']}°C.")
+                f"Rain chance {when} is {day['rain_probability_pct']}% ({day['rain_mm']} mm), "
+                f"with a high of {day['high_c']}°C and a low of {day['low_c']}°C.")
             cites += [f"location.forecast.days[{k}].{f}"
-                      for f in ("rain_probability_pct", "high_c", "low_c")]
+                      for f in ("rain_probability_pct", "rain_mm", "high_c", "low_c")]
             cites.append("crop.entry")
         if crop and not crop.get("reviewed"):
             cons.append(CROP_NOT_REVIEWED)

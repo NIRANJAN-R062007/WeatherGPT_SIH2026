@@ -5,8 +5,10 @@ Facts are the real fixture collector output with an eval scenario pinned on top
 """
 
 import calendar
+import copy
 import json
 import sys
+from dataclasses import replace
 from datetime import date
 
 import config
@@ -219,14 +221,57 @@ def test_a_rain_chance_at_the_crops_limit_is_not_suitable():
     assert rubric.reference_farming(facts) == "not_suitable"
 
 
-@pytest.mark.parametrize("missing, sentence", [
-    ("temp_range_c", "The crop file gives no temperature range for this crop."),
-    ("max_rain_probability_pct", "The crop file gives no rain limit for this crop."),
-])
-def test_a_missing_crop_threshold_is_not_available_never_guessed(missing, sentence):
-    facts = _sow("sow_ok", crop=_crop(**{missing: None}))
+def test_a_missing_temperature_range_is_not_available_never_guessed():
+    facts = _sow("sow_ok", crop=_crop(temp_range_c=None))
     answer = template.template_answer(facts)
-    assert answer["verdict"] == "not_available" and sentence in answer["cons"]
+    assert answer["verdict"] == "not_available"
+    assert "The crop file gives no temperature range for this crop." in answer["cons"]
+    assert guardrail.check_advisory(answer, facts).ok
+
+
+def test_a_crop_with_no_rain_limit_is_still_judged_by_the_heavy_rain_rule():
+    """Sources rarely give a rain-chance limit, so it is optional (TFA-9)."""
+    facts = _sow("sow_ok", crop=_crop(max_rain_probability_pct=None))
+    answer = template.template_answer(facts)
+    assert rubric.reference_farming(facts) == "suitable" == answer["verdict"]
+    assert guardrail.check_advisory(answer, facts).ok
+
+
+def _with_rain(facts, day: int, mm: float | None, category: str | None):
+    forecast = facts.section("location", "forecast")
+    data = copy.deepcopy(forecast.data)
+    data["days"][day].update(rain_mm=mm, rain_category=category)
+    scenarios._replace(facts, replace(forecast, data=data))
+    return facts
+
+
+@pytest.mark.parametrize("category", rubric.HEAVY_RAIN)
+def test_heavy_rain_on_a_judged_day_is_not_suitable_whatever_the_crop(category):
+    facts = _with_rain(_sow("sow_ok", crop=_crop(max_rain_probability_pct=None)),
+                       1, 80.5, category)
+    answer = template.template_answer(facts)
+    assert rubric.reference_farming(facts) == "not_suitable" == answer["verdict"]
+    assert answer["window"] is None
+    assert any("Heavy rain is forecast" in c and "80.5 mm" in c for c in answer["cons"])
+    assert guardrail.check_advisory(answer, facts).ok
+
+
+def test_heavy_rain_after_the_judged_days_does_not_count():
+    facts = _with_rain(_sow("sow_ok"), rubric.FARMING_DAYS, 80.5, "heavy")
+    assert rubric.reference_farming(facts) == "suitable"
+
+
+def test_moderate_rain_is_not_the_heavy_rain_rule():
+    facts = _with_rain(_sow("sow_ok", crop=_crop(max_rain_probability_pct=None)),
+                       0, 40.0, "moderate")
+    assert rubric.reference_farming(facts) == "suitable"
+
+
+def test_a_judged_day_with_no_rain_amount_is_not_available_never_read_as_dry():
+    facts = _with_rain(_sow("sow_ok"), 2, None, None)
+    answer = template.template_answer(facts)
+    assert rubric.reference_farming(facts) == "not_available" == answer["verdict"]
+    assert any("no rain amount" in c for c in answer["cons"])
     assert guardrail.check_advisory(answer, facts).ok
 
 

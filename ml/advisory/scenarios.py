@@ -28,6 +28,7 @@ from advisory.facts import AdvisoryFacts, FactSection  # noqa: E402
 
 # Pinned values. The thresholds in advisory/rubric.py are written against these.
 CALM_RAIN_PCT = 10
+CALM_RAIN_MM = 1.2  # IMD "light": below the sowing rule's heavy band
 CALM_WIND_KMH = 10
 RAINY_PCT = 60
 WINDY_KMH = 45
@@ -112,6 +113,8 @@ def _calm_forecast(d: dict) -> None:
     for day in d.get("days", []):
         day.update(condition="partly_cloudy", rain_probability_pct=CALM_RAIN_PCT,
                    high_c=32, low_c=25)
+        if "rain_mm" in day:  # the multi-day forecast (farming); a single day has none
+            day.update(rain_mm=CALM_RAIN_MM, rain_category="light")
 
 
 def _calm_hourly(d: dict) -> None:

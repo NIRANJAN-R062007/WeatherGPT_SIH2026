@@ -17,6 +17,8 @@ A value counts only with a non-empty `source` and `quote`: one without either is
 treated as not given (null) and logged, never used. Checking each number against
 its quote is the validator's job (TFA-10); this module only refuses what is
 plainly unsourced. A district entry wins over its state's entry.
+`max_rain_probability_pct` is optional: sources rarely give one, and heavy rain
+is judged for every crop without it (advisory/rubric.py `HEAVY_RAIN`).
 """
 
 from __future__ import annotations

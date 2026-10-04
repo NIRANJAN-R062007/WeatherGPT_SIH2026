@@ -11,9 +11,11 @@ with no mode uses `ANY_MODE`. The thresholds are **drafts** for review (Niranjan
 TFA-7), not sourced figures: they are set so the eval scenarios
 (`ml/advisory/scenarios.py`) are unambiguous and the modes differ where their
 exposure differs — rail is the least weather-bound, a ferry the most. Farming
-has no numbers of its own (TFA-11): every threshold is the crop file's
-(`advisory/crops.py`), so it is a fact the answer may quote. Change the
-scenarios and these together.
+has no crop numbers of its own (TFA-11): every crop threshold is the crop
+file's (`advisory/crops.py`), so it is a fact the answer may quote. The one
+rule it adds is shared by every crop: heavy rain in the judged days is "not
+suitable" (`HEAVY_RAIN`), because agronomy sources give no rain-chance
+limit to put in the crop file. Change the scenarios and these together.
 """
 
 from __future__ import annotations
@@ -25,6 +27,12 @@ from datetime import date
 RAIN_CAUTION_PCT = 50     # no mode given: a rain chance at or above this is "caution"
 WIND_CAUTION_KMH = 40     # so is a wind at or above this
 FARMING_DAYS = 3          # sowing is judged over this many forecast days
+# A day whose rain falls in IMD's "heavy" band or above (rain_category, from
+# data/decoders/precipitation_categories.json) is "not suitable" for sowing, for every
+# crop. IMD's agromet bulletins pair a heavy-rainfall warning with "Postpone sowing"
+# (Agrimet Bulletin No. 5, 2 Dec 2025: "Postpone sowing of groundnut" for the
+# Chennai-region districts). The band is IMD's, so the rule carries no number of ours.
+HEAVY_RAIN = ("heavy", "very_heavy", "extremely_heavy")
 
 
 @dataclass(frozen=True)
@@ -80,14 +88,16 @@ TRAVEL_RUBRIC = travel_rubric()  # no mode given
 
 FARMING_RUBRIC = f"""\
 The crop facts (crop.entry) come from the sourced crop file: sowing_months, a
-temperature range (temp_range_c) and a rain limit (max_rain_probability_pct). Look at
-the first {FARMING_DAYS} forecast days.
-- "not_available": the crop facts or the forecast facts are missing, or the crop facts
-  give no temp_range_c or no max_rain_probability_pct. Never guess a threshold the facts
-  do not give.
+temperature range (temp_range_c) and, only when a source gives one, a rain limit
+(max_rain_probability_pct). Look at the first {FARMING_DAYS} forecast days.
+- "not_available": the crop facts or the forecast facts are missing, the crop facts
+  give no temp_range_c, or one of those days has no rain_category. Never guess a
+  threshold the facts do not give.
 - "not_suitable": the first forecast day's date falls outside sowing_months (when given);
-  or any of those days has rain_probability_pct at or above max_rain_probability_pct,
-  high_c above the temp_range_c max, or low_c below its min.
+  or any of those days has a rain_category of {", ".join(HEAVY_RAIN)} (IMD advises
+  postponing sowing in heavy rain), rain_probability_pct at or above
+  max_rain_probability_pct (when given), high_c above the temp_range_c max, or low_c
+  below its min.
 - "suitable": none of the above. Then copy "window" from location.window if present.
 If crop.entry.reviewed is false, say in "cons" that the crop thresholds have not been
 reviewed by an agronomist.
@@ -191,15 +201,21 @@ def _month(day: dict) -> str | None:
 
 
 def crop_gaps(crop: dict | None) -> list[str]:
-    """The crop file's missing thresholds, as the sentences that say so."""
+    """The crop file's missing thresholds, as the sentences that say so. The rain limit
+    is optional: heavy rain (`HEAVY_RAIN`) is judged for every crop without it."""
     if crop is None:
         return ["The crop file has no entry for this crop here."]
-    out = []
     if crop.get("temp_range_c") is None:
-        out.append("The crop file gives no temperature range for this crop.")
-    if crop.get("max_rain_probability_pct") is None:
-        out.append("The crop file gives no rain limit for this crop.")
-    return out
+        return ["The crop file gives no temperature range for this crop."]
+    return []
+
+
+def rain_gaps(forecast: dict | None) -> list[str]:
+    """A sentence for each judged day with no rain amount: heavy rain can't be ruled
+    out there, and missing is never read as dry."""
+    days = ((forecast or {}).get("days") or [])[:FARMING_DAYS]
+    return [f"The forecast gives no rain amount for {day.get('label') or 'one day'}."
+            for day in days if day.get("rain_category") is None]
 
 
 def out_of_season(crop: dict | None, forecast: dict | None) -> str | None:
@@ -219,6 +235,8 @@ def _farming_override(facts) -> tuple[str | None, list[str]]:
     gaps = crop_gaps(crop)
     if not (forecast or {}).get("days"):
         gaps.append("The forecast is not available.")
+    else:
+        gaps += rain_gaps(forecast)
     if gaps:
         return "not_available", gaps
     season = out_of_season(crop, forecast)
@@ -228,13 +246,19 @@ def _farming_override(facts) -> tuple[str | None, list[str]]:
 
 
 def breaching_day(crop: dict, forecast: dict) -> int | None:
-    """The first of the judged days outside the crop's thresholds, or None."""
+    """The first of the judged days outside the crop's thresholds or with heavy rain,
+    or None."""
     lo, hi = crop["temp_range_c"]["min"], crop["temp_range_c"]["max"]
+    limit = crop.get("max_rain_probability_pct")
     for i, day in enumerate(forecast["days"][:FARMING_DAYS]):
-        if (day["rain_probability_pct"] >= crop["max_rain_probability_pct"]
-                or day["high_c"] > hi or day["low_c"] < lo):
+        if (is_heavy_rain(day) or day["high_c"] > hi or day["low_c"] < lo
+                or (limit is not None and day["rain_probability_pct"] >= limit)):
             return i
     return None
+
+
+def is_heavy_rain(day: dict) -> bool:
+    return day.get("rain_category") in HEAVY_RAIN
 
 
 def reference_farming(facts) -> str:

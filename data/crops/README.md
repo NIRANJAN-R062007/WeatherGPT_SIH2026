@@ -46,11 +46,18 @@ it expects:
 - `sowing_months`: month numbers 1-12. Outside them the answer is "not
   suitable". If it is `null`, the season is not checked, and the answer says
   so.
-- `temp_range_c` and `max_rain_probability_pct`: for "suitable", the first
-  three forecast days must stay inside the temperature range, with the rain
-  chance below the limit. Today's best sowing hours are scored against the
-  same values. **Both are required**: without either, the crop answers "not
-  available" rather than guessing.
+- `temp_range_c`: for "suitable", the first three forecast days must stay
+  inside the temperature range. **Required**: without it, the crop answers
+  "not available" rather than guessing.
+- `max_rain_probability_pct`: **optional**, since agronomy sources rarely give
+  a rain-chance limit. When given, the first three days' rain chance must stay
+  below it, and today's best sowing hours are scored against it and the
+  temperature range; without it there is no hourly window.
+- Heavy rain needs no entry: for every crop, a day in the first three whose
+  rain is in IMD's "heavy" band or above (64.5 mm/day,
+  `data/decoders/precipitation_categories.json`) is "not suitable", as IMD's
+  agromet bulletins advise postponing sowing in heavy rain. A day with no
+  rain amount is "not available".
 - `reviewed`: `true` only after the agronomy sign-off (plan.md §11.9). Until
   then every answer says the thresholds have not been reviewed.
 

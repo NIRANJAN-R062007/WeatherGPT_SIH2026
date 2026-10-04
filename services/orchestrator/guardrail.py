@@ -38,6 +38,7 @@ FIELD_UNITS: dict[str, str] = {
     "relativeHumidity": "percent",
     "precipitation.probability.percent": "percent",
     "wind.speed.value": "speed_kmh",
+    "rain_mm": "millimetres",
     "rain_so_far_mm": "millimetres",
     "rain_last_24h_mm": "millimetres",
     "precipitation.qpf.quantity": "millimetres",
