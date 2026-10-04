@@ -258,8 +258,14 @@ def check_advisory(output, facts) -> AdvisoryReport:
                 f"window {window['start_local']}–{window['end_local']} is not a window in the facts"
             )
 
+    # A section the facts record as unavailable may be cited by its exact name
+    # ("origin.warnings"): the prompt asks for a missing section to be named in
+    # `cons`, and that is the honest source for such a sentence. Nothing deeper
+    # than the name is accepted, and no figure can ground from it — an
+    # unavailable section is absent from `raw` (TFA-19, live Groq run).
+    missing = {m["section"] for m in facts.missing()}
     for path in output.get("cites", []):
-        if not _has_path(raw, path):
+        if not _has_path(raw, path) and path not in missing:
             problems.append(f"cites {path!r}, which is not in the facts")
 
     grounding = Report(ok=not any(not f["matched"] for f in figures), matched=matched,

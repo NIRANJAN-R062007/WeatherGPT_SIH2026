@@ -247,9 +247,18 @@ def test_the_prompt_carries_facts_rubric_and_slots_but_never_the_users_words():
 
 
 def test_the_prompt_lists_what_is_not_available():
-    assert "origin.warnings (warnings feed unavailable)" in _prompt("trv-en-06")
+    assert '"origin.warnings": "warnings feed unavailable"' in _prompt("trv-en-06")
     clear = _prompt("trv-en-01")
     assert "NOT AVAILABLE\nnothing" in clear and "warnings feed unavailable" not in clear
+
+
+def test_the_prompt_forbids_quoting_thresholds_and_paths_into_missing_sections():
+    """TFA-18/19: the live models quoted rubric thresholds ("20", "25") as facts and
+    cited a section listed as not available; both failed the guardrail."""
+    text = _prompt("trv-en-06")
+    assert "Never quote a number from VERDICT RULES" in text
+    assert f"at most {schema.MAX_ITEMS} paths" in text
+    assert "cited by its name (the key, without the reason)" in text
 
 
 def test_the_prompt_asks_for_the_row_language():
@@ -297,3 +306,62 @@ def test_the_strands_candidate_applies_the_hard_override(monkeypatch):
     cand = run_eval.make_candidate("strands:gemini", timeout=1)
     assert json.loads(cand(row, facts))["verdict"] == "avoid"
     assert cand.last_tool_calls == 0
+
+
+# --- the summary (TFA-18) ---------------------------------------------------------
+
+
+def _scored(row_id: str, *, tool_calls, latency=1.0, error=None) -> dict:
+    return {"id": row_id, "lang": "en", "kind": "travel", "type": "answer",
+            "slots": {"status": "pass"}, "latency_s": latency, "tool_calls": tool_calls,
+            "error": error,
+            "model": {"valid_json": True, "rubric": True, "guardrail": True, "passed": True}}
+
+
+def test_the_summary_reports_tool_calls_per_row():
+    results = [_scored("a", tool_calls=0), _scored("b", tool_calls=2),
+               _scored("c", tool_calls=2), _scored("d", tool_calls=4)]
+    summary = run_eval.summarise(results)
+    assert summary["tool_calls_mean"] == 2
+    assert summary["tool_calls_max"] == 4
+    assert summary["tool_calls_per_row"] == {"0": 1, "2": 2, "4": 1}
+
+
+def test_the_oracle_has_no_tool_call_figures():
+    """No agent, no tool calls: the summary leaves them out instead of claiming zero."""
+    results = [run_eval.run_row(BY_ID["trv-en-01"], run_eval.Oracle())]
+    assert "tool_calls_mean" not in run_eval.summarise(results)
+
+
+@pytest.mark.parametrize("error, kind", [
+    (None, None),
+    ("AgentError: ModelThrottledException: 429 RESOURCE_EXHAUSTED", "rate_limited"),
+    ("AgentError: no reply within 8s", "timeout"),
+    ("AgentError: ServerError: 503 UNAVAILABLE", "provider_unavailable"),
+    ("AgentError: ValueError: bad thing", "other"),
+])
+def test_call_errors_are_sorted_by_why(error, kind):
+    assert run_eval.error_kind(error) == kind
+
+
+def test_the_summary_counts_call_errors_by_kind():
+    results = [_scored("a", tool_calls=0),
+               _scored("b", tool_calls=0, error="AgentError: no reply within 8s"),
+               _scored("c", tool_calls=0, error="AgentError: 429 Too Many Requests"),
+               _scored("d", tool_calls=0, error="AgentError: 429 Too Many Requests")]
+    assert run_eval.summarise(results)["call_errors"] == {"rate_limited": 2, "timeout": 1}
+
+
+def test_pause_spaces_out_only_the_rows_that_call_a_model():
+    rows = [BY_ID["trv-en-01"], ROWS[[r["type"] for r in ROWS].index("ask_back")],
+            BY_ID["trv-en-02"], BY_ID["frm-en-01"]]
+    slept = []
+    results = run_eval.run_rows(rows, run_eval.Oracle(), pause=3, sleep=slept.append)
+    assert len(results) == 4
+    assert slept == [3, 3]  # before the 2nd and 3rd answer rows; never before the first
+
+
+def test_no_pause_never_sleeps():
+    slept = []
+    run_eval.run_rows(ANSWERS[:3], run_eval.Oracle(), sleep=slept.append)
+    assert slept == []

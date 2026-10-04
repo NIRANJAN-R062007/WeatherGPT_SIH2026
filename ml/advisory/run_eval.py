@@ -2,7 +2,7 @@
 
     python ml/advisory/run_eval.py --model oracle
     python ml/advisory/run_eval.py --model strands:gemini --out gemini.json
-    python ml/advisory/run_eval.py --model strands:groq
+    python ml/advisory/run_eval.py --model strands:groq --pause 4
     python ml/advisory/run_eval.py --model strands:ollama:llama3.2:3b
 
 For each `answer` row it builds the facts (real fixture collectors plus one named
@@ -160,10 +160,12 @@ class StrandsAgent(Candidate):
         finally:
             self.last_tool_calls = box.calls
         parsed = schema.parse(reply)
-        # The hard override runs after the agent in production, so it is scored too.
+        # The cite trim and hard override run after the agent in production, so they
+        # are scored too.
         if parsed is None:
             return reply
-        return json.dumps(template.apply_override(facts, parsed), ensure_ascii=False)
+        return json.dumps(template.apply_override(facts, schema.trim_cites(parsed)),
+                          ensure_ascii=False)
 
 
 def make_candidate(spec: str, *, timeout: float) -> Candidate:
@@ -224,6 +226,21 @@ def run_row(row: dict, candidate: Candidate) -> dict:
     return out
 
 
+def run_rows(rows: list[dict], candidate: Candidate, *, pause: float = 0.0,
+             sleep=time.sleep) -> list[dict]:
+    """Every row in order. `pause` spaces the model calls out: on a free tier a
+    burst of 54 agent runs is mostly measuring the rate limiter (plan.md TFA-18).
+    Ask-back rows make no call, so they never wait."""
+    results = []
+    called = False
+    for row in rows:
+        if pause and called and row["type"] == "answer":
+            sleep(pause)
+        results.append(run_row(row, candidate))
+        called = called or row["type"] == "answer"
+    return results
+
+
 # --- report ------------------------------------------------------------------------
 
 
@@ -231,9 +248,26 @@ def _pct(n: int, d: int) -> str:
     return f"{n / d:.0%}" if d else "-"
 
 
+def error_kind(error: str | None) -> str | None:
+    """A failed call, sorted by why: a free-tier rate limit is not the agent being
+    wrong, and a timeout is the budget talking, so TFA-18 reads them apart."""
+    if not error:
+        return None
+    text = error.lower()
+    if any(s in text for s in ("throttl", "429", "resource_exhausted", "rate limit")):
+        return "rate_limited"
+    if "no reply within" in text or "timeout" in text or "timed out" in text:
+        return "timeout"
+    if any(s in text for s in ("503", "unavailable", "overloaded")):
+        return "provider_unavailable"
+    return "other"
+
+
 def summarise(results: list[dict]) -> dict:
     scored = [r for r in results if "model" in r]
     summary: dict = {"answer_rows": len(scored)}
+    kinds = [error_kind(r.get("error")) for r in scored]
+    summary["call_errors"] = {k: kinds.count(k) for k in sorted({k for k in kinds if k})}
     for key in ("valid_json", "rubric", "guardrail", "passed"):
         summary[key] = sum(r["model"][key] for r in scored)
     latencies = sorted(r["latency_s"] for r in scored)
@@ -241,6 +275,13 @@ def summarise(results: list[dict]) -> dict:
         summary["latency_p50_s"] = round(statistics.median(latencies), 3)
         summary["latency_p95_s"] = round(latencies[min(len(latencies) - 1,
                                                        int(0.95 * len(latencies)))], 3)
+    # TFA-18: tool calls per row, for an agent candidate only (the oracle makes none
+    # and reports None, which is left out rather than counted as zero).
+    calls = [r["tool_calls"] for r in scored if r.get("tool_calls") is not None]
+    if calls:
+        summary["tool_calls_mean"] = round(statistics.mean(calls), 2)
+        summary["tool_calls_max"] = max(calls)
+        summary["tool_calls_per_row"] = {str(n): calls.count(n) for n in sorted(set(calls))}
     summary["slot_stage"] = {s: sum(r["slots"]["status"] == s for r in results)
                              for s in ("pass", "fail", "known_gap", "gap_closed")}
     return summary
@@ -263,6 +304,13 @@ def print_report(name: str, results: list[dict], summary: dict) -> None:
                   f"({len(rows)} rows)")
         if "latency_p50_s" in summary:
             print(f"\nlatency  p50={summary['latency_p50_s']}s  p95={summary['latency_p95_s']}s")
+        if summary["call_errors"]:
+            print("call errors  " + "  ".join(
+                f"{k}={v}" for k, v in summary["call_errors"].items()))
+        if "tool_calls_mean" in summary:
+            spread = "  ".join(f"{n}:{c}" for n, c in summary["tool_calls_per_row"].items())
+            print(f"tool calls per row  mean={summary['tool_calls_mean']}  "
+                  f"max={summary['tool_calls_max']}  (calls:rows {spread})")
         failed = [r for r in scored if not r["model"]["passed"]]
         if failed:
             print(f"\n{'id':<11}problems")
@@ -293,6 +341,8 @@ def main() -> int:
     ap.add_argument("--min-pass", type=float, default=None,
                     help="exit 1 if the all-three pass rate is below this (0-1)")
     ap.add_argument("--out", default=None, help="write the full results as JSON here")
+    ap.add_argument("--pause", type=float, default=0.0,
+                    help="seconds to wait between answer rows (free-tier rate limits)")
     args = ap.parse_args()
 
     rows = load_rows()
@@ -305,7 +355,7 @@ def main() -> int:
             and (not args.lang or r["lang"].split("-")[0] == args.lang)]
 
     candidate = make_candidate(args.model, timeout=args.timeout)
-    results = [run_row(row, candidate) for row in rows]
+    results = run_rows(rows, candidate, pause=args.pause)
     summary = summarise(results)
     print_report(candidate.name, results, summary)
 

@@ -55,6 +55,18 @@ def parse(text: str) -> dict | None:
     return value if isinstance(value, dict) else None
 
 
+def trim_cites(output: dict) -> dict:
+    """Keep the first MAX_ITEMS cites of a parsed reply. Cites only point at facts
+    (each one is still checked by the guardrail), so a list that runs long loses
+    nothing the answer says; pros and cons are content and are never cut — an
+    over-long one still fails validate(). Live models went past eight cites on
+    3 of 40 answered rows (TFA-18, 2026-10-04)."""
+    cites = output.get("cites")
+    if isinstance(cites, list) and len(cites) > MAX_ITEMS:
+        return {**output, "cites": cites[:MAX_ITEMS]}
+    return output
+
+
 def minutes(value) -> int | None:
     """"HH:MM" -> minutes since midnight, or None if it isn't a valid time."""
     if not isinstance(value, str):

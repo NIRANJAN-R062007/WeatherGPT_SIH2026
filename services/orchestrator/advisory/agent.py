@@ -232,15 +232,27 @@ def make_model(provider: str, model_id: str | None = None):
     params = {"temperature": 0}
     if provider == "gemini":
         from strands.models.gemini import GeminiModel
+        # Flash is a thinking model and its thoughts count against max_output_tokens:
+        # without a budget of 0 most live runs (TFA-18, 2026-10-04) stopped with
+        # MaxTokensReachedException before writing any JSON. narrate.py does the same.
         return GeminiModel(client_args={"api_key": config.GEMINI_API_KEY},
                            model_id=model_id or config.GEMINI_MODEL,
-                           params={**params, "max_output_tokens": MAX_OUTPUT_TOKENS})
+                           params={**params, "max_output_tokens": MAX_OUTPUT_TOKENS,
+                                   "thinking_config": {"thinking_budget": 0}})
     if provider == "groq":
         from strands.models.openai import OpenAIModel
+        # gpt-oss is a reasoning model: its reasoning counts against max_tokens and
+        # slows every turn. "low" is what narrate.py sends for the same model; on the
+        # live TFA-18 run without it, replies stopped at max tokens or ran out of time.
+        # max_retries 0: the OpenAI client retries a 429 twice with backoff on its own,
+        # which spent the whole budget on rate limits in the live run and hid them as
+        # timeouts. One attempt per provider is the design (see run_agent).
         return OpenAIModel(client_args={"api_key": config.GROQ_API_KEY,
-                                        "base_url": config.GROQ_BASE},
+                                        "base_url": config.GROQ_BASE,
+                                        "max_retries": 0},
                            model_id=model_id or config.GROQ_MODEL,
-                           params={**params, "max_tokens": MAX_OUTPUT_TOKENS})
+                           params={**params, "max_tokens": MAX_OUTPUT_TOKENS,
+                                   "reasoning_effort": "low"})
     if provider == "ollama":  # the eval harness only; offline mode never runs the agent
         from strands.models.ollama import OllamaModel
         return OllamaModel(config.OLLAMA_BASE, model_id=model_id or config.OLLAMA_MODEL,
@@ -301,7 +313,7 @@ def _agent_answer(
         if parsed is None:
             reason = f"{name}: reply was not a JSON object"
             continue
-        answer = template.apply_override(facts, parsed)
+        answer = template.apply_override(facts, schema.trim_cites(parsed))
         report = guardrail.check_advisory(answer, facts)
         if not report.ok:
             reason = f"{name}: guardrail: {'; '.join(report.problems)[:200]}"

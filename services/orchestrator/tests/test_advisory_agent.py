@@ -20,6 +20,7 @@ from fastapi.testclient import TestClient
 TRIP = {"origin": "chennai", "destination": "madurai", "day": "today"}
 SOWING = {"district": "madurai", "crop": "groundnut"}
 client = TestClient(main.app)
+REAL_MAKE_MODEL = agent.make_model  # the fixture below stubs it; the provider tests need it
 
 
 @pytest.fixture(autouse=True)
@@ -403,3 +404,55 @@ def test_the_advisory_routes_share_the_ask_rate_limit():
     import limits
 
     assert {"/advisory/travel", "/advisory/sowing"} <= limits.LIMITED_PATHS
+
+
+# --- provider settings (TFA-18) ----------------------------------------------------
+
+
+def test_gemini_is_built_with_thinking_off(monkeypatch):
+    """Thinking tokens count against the output budget: with them on, live runs
+    stopped at max tokens before any JSON was written."""
+    model = REAL_MAKE_MODEL("gemini")
+    params = model.config["params"]
+    assert params["thinking_config"] == {"thinking_budget": 0}
+    assert params["max_output_tokens"] == agent.MAX_OUTPUT_TOKENS
+    # And Strands really passes it into the request config.
+    request = model._format_request_config(None, "system", params)
+    assert request.thinking_config.thinking_budget == 0
+
+
+def test_groq_is_built_with_low_reasoning_effort():
+    model = REAL_MAKE_MODEL("groq")
+    params = model.config["params"]
+    assert params["reasoning_effort"] == "low"
+    assert params["max_tokens"] == agent.MAX_OUTPUT_TOKENS
+    assert model.config["model_id"] == config.GROQ_MODEL
+
+
+def test_groqs_openai_client_never_retries_on_its_own():
+    """A 429 must surface at once as a provider error (next provider, then the
+    template), not be retried inside the client until the budget is gone."""
+    model = REAL_MAKE_MODEL("groq")
+    assert model.client_args["max_retries"] == 0
+    assert model.client_args["base_url"] == config.GROQ_BASE
+
+
+def test_more_than_eight_cites_are_trimmed_not_rejected(monkeypatch):
+    facts = _facts()
+    good = json.loads(_good(facts))
+    paths = ["origin.current.temp_c", "destination.current.temp_c"] * 5
+    good["cites"] = paths
+    monkeypatch.setattr(agent, "run_agent", lambda *a, **k: json.dumps(good))
+    advice = agent.advise("travel", TRIP)
+    assert advice.path == "agent:gemini"
+    assert advice.answer["cites"] == paths[:8]
+
+
+def test_trim_cites_never_touches_pros_or_cons():
+    from advisory import schema
+
+    long = {"verdict": "go", "pros": ["a"] * 9, "cons": [], "cites": ["x"] * 9}
+    out = schema.trim_cites(long)
+    assert len(out["cites"]) == 8 and len(out["pros"]) == 9
+    assert schema.trim_cites({"verdict": "go", "pros": [], "cons": []}) == {
+        "verdict": "go", "pros": [], "cons": []}
