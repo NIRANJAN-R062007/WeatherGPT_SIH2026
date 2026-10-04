@@ -136,6 +136,28 @@ def test_generate_groq_sets_json_object_mode(monkeypatch):
     assert captured["response_format"] == {"type": "json_object"}
 
 
+def test_generate_groq_leaves_room_for_reasoning(monkeypatch):
+    # WIE-16 (2026-10-05): gpt-oss reasons for 245-425 tokens on a persona
+    # prompt even at "low"; a 300 budget ended with finish_reason "length" and
+    # no answer, so about half of persona answers fell to the template.
+    captured = {}
+
+    class _Resp:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"choices": [{"message": {"content": "ok"}, "finish_reason": "stop"}]}
+
+    def _post(url, *, headers, json, timeout):
+        captured.update(json)
+        return _Resp()
+
+    monkeypatch.setattr(httpx, "post", _post)
+    narrate.generate_groq("p", model="m", key="k")
+    assert captured["max_tokens"] >= 1000 and captured["reasoning_effort"] == "low"
+
+
 def test_feedback_appended_to_prompt():
     prompt = narrate.build_prompt("current_weather", "Chennai", FACTS,
                                   feedback="99°C, 4 inches")
