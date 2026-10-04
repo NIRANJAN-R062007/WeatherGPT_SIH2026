@@ -313,7 +313,7 @@ def _agent_answer(
         if parsed is None:
             reason = f"{name}: reply was not a JSON object"
             continue
-        answer = template.apply_override(facts, parsed)
+        answer = template.apply_override(facts, schema.trim_cites(parsed))
         report = guardrail.check_advisory(answer, facts)
         if not report.ok:
             reason = f"{name}: guardrail: {'; '.join(report.problems)[:200]}"

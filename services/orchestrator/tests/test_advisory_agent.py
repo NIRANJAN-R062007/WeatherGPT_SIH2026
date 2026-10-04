@@ -435,3 +435,24 @@ def test_groqs_openai_client_never_retries_on_its_own():
     model = REAL_MAKE_MODEL("groq")
     assert model.client_args["max_retries"] == 0
     assert model.client_args["base_url"] == config.GROQ_BASE
+
+
+def test_more_than_eight_cites_are_trimmed_not_rejected(monkeypatch):
+    facts = _facts()
+    good = json.loads(_good(facts))
+    paths = ["origin.current.temp_c", "destination.current.temp_c"] * 5
+    good["cites"] = paths
+    monkeypatch.setattr(agent, "run_agent", lambda *a, **k: json.dumps(good))
+    advice = agent.advise("travel", TRIP)
+    assert advice.path == "agent:gemini"
+    assert advice.answer["cites"] == paths[:8]
+
+
+def test_trim_cites_never_touches_pros_or_cons():
+    from advisory import schema
+
+    long = {"verdict": "go", "pros": ["a"] * 9, "cons": [], "cites": ["x"] * 9}
+    out = schema.trim_cites(long)
+    assert len(out["cites"]) == 8 and len(out["pros"]) == 9
+    assert schema.trim_cites({"verdict": "go", "pros": [], "cons": []}) == {
+        "verdict": "go", "pros": [], "cons": []}

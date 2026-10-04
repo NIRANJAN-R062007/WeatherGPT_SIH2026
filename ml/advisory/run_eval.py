@@ -160,10 +160,12 @@ class StrandsAgent(Candidate):
         finally:
             self.last_tool_calls = box.calls
         parsed = schema.parse(reply)
-        # The hard override runs after the agent in production, so it is scored too.
+        # The cite trim and hard override run after the agent in production, so they
+        # are scored too.
         if parsed is None:
             return reply
-        return json.dumps(template.apply_override(facts, parsed), ensure_ascii=False)
+        return json.dumps(template.apply_override(facts, schema.trim_cites(parsed)),
+                          ensure_ascii=False)
 
 
 def make_candidate(spec: str, *, timeout: float) -> Candidate:
