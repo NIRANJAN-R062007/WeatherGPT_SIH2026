@@ -160,11 +160,11 @@ class StrandsAgent(Candidate):
         finally:
             self.last_tool_calls = box.calls
         parsed = schema.parse(reply)
-        # The cite trim and hard override run after the agent in production, so they
-        # are scored too.
+        # The cite trim, hard override and caveats run after the agent in production,
+        # so they are scored too.
         if parsed is None:
             return reply
-        return json.dumps(template.apply_override(facts, schema.trim_cites(parsed)),
+        return json.dumps(template.finish(facts, schema.trim_cites(parsed)),
                           ensure_ascii=False)
 
 

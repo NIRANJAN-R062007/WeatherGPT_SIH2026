@@ -46,9 +46,10 @@ it expects:
 - `sowing_months`: month numbers 1-12. Outside them the answer is "not
   suitable". If it is `null`, the season is not checked, and the answer says
   so.
-- `temp_range_c` and `max_rain_probability_pct`: the forecast days must stay
-  inside these for "suitable", and the best sowing hours today are scored
-  against them. **Both are required**: without either, the crop answers "not
+- `temp_range_c` and `max_rain_probability_pct`: for "suitable", the first
+  three forecast days must stay inside the temperature range, with the rain
+  chance below the limit. Today's best sowing hours are scored against the
+  same values. **Both are required**: without either, the crop answers "not
   available" rather than guessing.
 - `reviewed`: `true` only after the agronomy sign-off (plan.md §11.9). Until
   then every answer says the thresholds have not been reviewed.

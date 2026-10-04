@@ -5,14 +5,17 @@ out of time, or its answer fails the guardrail. The verdict is `rubric.reference
 and every sentence is built from a value in the facts, so the answer grounds by
 construction. English only for now, like the other templated answers.
 
-`apply_override` is the hard override that runs after the agent: whatever it returned,
-a red IMD warning, a thunderstorm METAR (§11.6) or a mode's avoid-level wind (TFA-7)
-means "avoid".
+`finish` is what runs after the agent: the hard override (whatever it returned, a red
+IMD warning, a thunderstorm METAR (§11.6) or a mode's avoid-level wind (TFA-7) means
+"avoid"; a crop the file gives no thresholds for is "not_available", and one outside
+its sowing months "not_suitable", TFA-11), then the unreviewed-crop caveat.
 """
 
 from __future__ import annotations
 
 from advisory import rubric, schema
+
+CROP_NOT_REVIEWED = "The crop thresholds have not yet been reviewed by an agronomist."
 
 
 def _window(facts) -> dict | None:
@@ -75,28 +78,69 @@ def template_answer(facts) -> dict:
                         "confirmed; check the ferry operator.")
     else:
         crop = raw.get("crop", {}).get("entry")
-        days = (raw.get("location", {}).get("forecast") or {}).get("days")
-        if crop is None:
-            cons.append("The crop file has no entry for this crop.")
-        if not days:
+        forecast = raw.get("location", {}).get("forecast")
+        cons += rubric.crop_gaps(crop)
+        if not (forecast or {}).get("days"):
             cons.append("The forecast is not available.")
-        if crop and days:
-            day = days[0]
-            ok = verdict == "suitable"
-            (pros if ok else cons).append(
-                f"Rain chance is {day['rain_probability_pct']}% with a high of {day['high_c']}°C.")
-            cites += ["location.forecast.days[0].rain_probability_pct",
-                      "location.forecast.days[0].high_c"]
+        elif not rubric.crop_gaps(crop):
+            season = rubric.out_of_season(crop, forecast)
+            if season:
+                cons.append(season)
+            elif crop.get("sowing_months"):
+                pros.append(f"The forecast falls within the crop file's sowing months "
+                            f"({' and '.join(crop['sowing_months'])}).")
+            else:
+                cons.append("The crop file gives no sowing months, so the season was not "
+                            "checked.")
+            i = rubric.breaching_day(crop, forecast)
+            day = forecast["days"][0 if i is None else i]
+            k = 0 if i is None else i
+            when = day["label"] if day["label"] in ("today", "tomorrow") else f"on {day['label']}"
+            (pros if i is None else cons).append(
+                f"Rain chance {when} is {day['rain_probability_pct']}%, with a high of "
+                f"{day['high_c']}°C and a low of {day['low_c']}°C.")
+            cites += [f"location.forecast.days[{k}].{f}"
+                      for f in ("rain_probability_pct", "high_c", "low_c")]
+            cites.append("crop.entry")
+        if crop and not crop.get("reviewed"):
+            cons.append(CROP_NOT_REVIEWED)
 
-    return {"verdict": verdict, "pros": pros, "cons": cons, "window": _window(facts),
-            "cites": cites}
+    window = _window(facts)
+    if facts.kind == "farming" and verdict != "suitable":
+        window = None  # no time to sow is suggested when sowing is not advised
+    return {"verdict": verdict, "pros": pros[:schema.MAX_ITEMS], "cons": cons[:schema.MAX_ITEMS],
+            "window": window, "cites": cites[:schema.MAX_ITEMS]}
 
 
 def apply_override(facts, answer: dict) -> dict:
-    """`answer` with the hard override applied. When it changes the verdict, the
-    reason is added to `cons` from the facts, so the sentences still say why."""
-    if rubric.hard_override(facts) is None or answer.get("verdict") == "avoid":
+    """`answer` with the hard override applied (rubric.hard_override). When it changes
+    the verdict, the reason is added to `cons` from the facts, so the sentences still
+    say why; a farming answer forced off "suitable" loses its window."""
+    verdict = rubric.hard_override(facts)
+    if verdict is None or answer.get("verdict") == verdict:
         return answer
     reason = [r for r in rubric.override_reasons(facts) if r not in answer.get("cons", [])]
     cons = [*reason, *answer.get("cons", [])][:schema.MAX_ITEMS]
-    return {**answer, "verdict": "avoid", "cons": cons}
+    out = {**answer, "verdict": verdict, "cons": cons}
+    if facts.kind == "farming":
+        out["window"] = None
+    return out
+
+
+def add_caveats(facts, answer: dict) -> dict:
+    """What every farming answer must say, whoever wrote it: an unreviewed crop entry
+    is named as such (plan.md §11.7: "the answer says so")."""
+    crop = facts.raw().get("crop", {}).get("entry")
+    if facts.kind != "farming" or not crop or crop.get("reviewed"):
+        return answer
+    cons = answer.get("cons", [])
+    if CROP_NOT_REVIEWED in cons:
+        return answer
+    # Last, after the reasons for the verdict, but never the one trimmed off.
+    return {**answer, "cons": [*cons[:schema.MAX_ITEMS - 1], CROP_NOT_REVIEWED]}
+
+
+def finish(facts, answer: dict) -> dict:
+    """The rules the code applies to an agent's answer, in order: the override, then
+    the caveats. The template answer already carries both."""
+    return add_caveats(facts, apply_override(facts, answer))

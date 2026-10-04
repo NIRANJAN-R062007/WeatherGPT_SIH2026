@@ -10,13 +10,17 @@ Travel has one rule table per transport mode (TFA-7, `TRAVEL_MODES`); a request
 with no mode uses `ANY_MODE`. The thresholds are **drafts** for review (Niranjan,
 TFA-7), not sourced figures: they are set so the eval scenarios
 (`ml/advisory/scenarios.py`) are unambiguous and the modes differ where their
-exposure differs — rail is the least weather-bound, a ferry the most. Farming's
-are TFA-11's. Change the scenarios and these together.
+exposure differs — rail is the least weather-bound, a ferry the most. Farming
+has no numbers of its own (TFA-11): every threshold is the crop file's
+(`advisory/crops.py`), so it is a fact the answer may quote. Change the
+scenarios and these together.
 """
 
 from __future__ import annotations
 
+import calendar
 from dataclasses import dataclass
+from datetime import date
 
 RAIN_CAUTION_PCT = 50     # no mode given: a rain chance at or above this is "caution"
 WIND_CAUTION_KMH = 40     # so is a wind at or above this
@@ -75,14 +79,18 @@ Never say a trip is "safe"."""
 TRAVEL_RUBRIC = travel_rubric()  # no mode given
 
 FARMING_RUBRIC = f"""\
-The crop facts give a temperature range and a maximum rain chance. Look at the first
-{FARMING_DAYS} forecast days.
-- "not_suitable": any of those days has rain_probability_pct above the crop's
-  max_rain_probability_pct, or high_c above its temp_range_c max, or low_c below its
-  temp_range_c min.
-- "suitable": none of the above.
-- "not_available": the crop facts or the forecast facts are missing. Never guess a
-  threshold the facts do not give.
+The crop facts (crop.entry) come from the sourced crop file: sowing_months, a
+temperature range (temp_range_c) and a rain limit (max_rain_probability_pct). Look at
+the first {FARMING_DAYS} forecast days.
+- "not_available": the crop facts or the forecast facts are missing, or the crop facts
+  give no temp_range_c or no max_rain_probability_pct. Never guess a threshold the facts
+  do not give.
+- "not_suitable": the first forecast day's date falls outside sowing_months (when given);
+  or any of those days has rain_probability_pct at or above max_rain_probability_pct,
+  high_c above the temp_range_c max, or low_c below its min.
+- "suitable": none of the above. Then copy "window" from location.window if present.
+If crop.entry.reviewed is false, say in "cons" that the crop thresholds have not been
+reviewed by an agronomist.
 Never say "sow now" and never promise a yield."""
 
 
@@ -124,20 +132,24 @@ def _overrides(facts) -> list[tuple[str, str, float | None]]:
 
 
 def hard_override(facts) -> str | None:
-    """The verdict a model may never talk its way past: "avoid" for travel when an
-    IMD warning at the origin or destination is red, a METAR shows a thunderstorm
-    at either airport (§11.6), or the wind reaches the mode's avoid level (TFA-7,
-    ferry only today). None when no override applies (and always for farming)."""
-    if facts.kind != "travel":
-        return None
-    return "avoid" if _overrides(facts) else None
+    """The verdict a model may never talk its way past. Travel: "avoid" when an IMD
+    warning at the origin or destination is red, a METAR shows a thunderstorm at
+    either airport (§11.6), or the wind reaches the mode's avoid level (TFA-7, ferry
+    only today). Farming (TFA-11): "not_available" when the crop file gives no
+    thresholds or there is no forecast to judge by, and "not_suitable" outside the
+    crop's sowing months — where a model would otherwise be guessing or
+    contradicting the crop file.
+    None when no override applies."""
+    if facts.kind == "travel":
+        return "avoid" if _overrides(facts) else None
+    return _farming_override(facts)[0]
 
 
 def override_reasons(facts) -> list[str]:
     """Why the override applies, one sentence each, built from fact values only (so
     the sentences ground) — what `template.apply_override` puts first in `cons`."""
     if facts.kind != "travel":
-        return []
+        return _farming_override(facts)[1]
     mode = mode_rules(facts.subject.get("mode")).mode
     out = []
     for role, why, value in _overrides(facts):
@@ -171,17 +183,66 @@ def reference_travel(facts) -> str:
     return "caution" if rules.needs_marine else "go"
 
 
-def reference_farming(facts) -> str:
+def _month(day: dict) -> str | None:
+    try:
+        return calendar.month_name[date.fromisoformat(day["date"]).month]
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
+def crop_gaps(crop: dict | None) -> list[str]:
+    """The crop file's missing thresholds, as the sentences that say so."""
+    if crop is None:
+        return ["The crop file has no entry for this crop here."]
+    out = []
+    if crop.get("temp_range_c") is None:
+        out.append("The crop file gives no temperature range for this crop.")
+    if crop.get("max_rain_probability_pct") is None:
+        out.append("The crop file gives no rain limit for this crop.")
+    return out
+
+
+def out_of_season(crop: dict | None, forecast: dict | None) -> str | None:
+    """A sentence when the forecast starts outside the crop's sowing months."""
+    months = (crop or {}).get("sowing_months")
+    days = (forecast or {}).get("days") or []
+    month = _month(days[0]) if days else None
+    if not months or month is None or month in months:
+        return None
+    return (f"The crop file's sowing months are {' and '.join(months)}; "
+            f"this forecast is for {month}.")
+
+
+def _farming_override(facts) -> tuple[str | None, list[str]]:
     crop = _avail(facts, "crop", "entry")
     forecast = _avail(facts, "location", "forecast")
-    if crop is None or forecast is None:
-        return "not_available"
+    gaps = crop_gaps(crop)
+    if not (forecast or {}).get("days"):
+        gaps.append("The forecast is not available.")
+    if gaps:
+        return "not_available", gaps
+    season = out_of_season(crop, forecast)
+    if season:
+        return "not_suitable", [season]
+    return None, []
+
+
+def breaching_day(crop: dict, forecast: dict) -> int | None:
+    """The first of the judged days outside the crop's thresholds, or None."""
     lo, hi = crop["temp_range_c"]["min"], crop["temp_range_c"]["max"]
-    for day in forecast["days"][:FARMING_DAYS]:
-        if (day["rain_probability_pct"] > crop["max_rain_probability_pct"]
+    for i, day in enumerate(forecast["days"][:FARMING_DAYS]):
+        if (day["rain_probability_pct"] >= crop["max_rain_probability_pct"]
                 or day["high_c"] > hi or day["low_c"] < lo):
-            return "not_suitable"
-    return "suitable"
+            return i
+    return None
+
+
+def reference_farming(facts) -> str:
+    override = _farming_override(facts)[0]
+    if override:
+        return override
+    crop, forecast = _avail(facts, "crop", "entry"), _avail(facts, "location", "forecast")
+    return "suitable" if breaching_day(crop, forecast) is None else "not_suitable"
 
 
 def reference_verdict(facts) -> str:
