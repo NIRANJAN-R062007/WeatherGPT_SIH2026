@@ -1,9 +1,11 @@
 # Crop file (`crops.json`)
 
 The sowing advisory (`POST /advisory/sowing`, plan.md §11.7) reads its crop
-thresholds from `crops.json` in this folder. The file is **TFA-9** (drafted
-from TNAU Agritech, ICAR/KVK crop calendars and IMD GKMS advisories) and is
-not written yet: until it is, every crop answers "not available".
+thresholds from `crops.json` in this folder. The file is **TFA-9**, drafted
+from TNAU Agritech (first entries 2026-10-04): groundnut for Madurai and
+Coimbatore, and ragi for Tamil Nadu (sowing months only: the source gives no
+temperature range, so ragi answers "not available"). A crop or district not in
+the file answers "not available". Nothing in it is agronomy-reviewed yet.
 
 The reader is `services/orchestrator/advisory/crops.py`. This is the format
 it expects:

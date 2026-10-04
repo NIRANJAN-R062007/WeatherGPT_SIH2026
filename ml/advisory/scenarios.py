@@ -263,8 +263,8 @@ def apply(name: str, facts: AdvisoryFacts) -> AdvisoryFacts:
     elif name == "sow_no_forecast":
         for kind in ("forecast", "hourly", "rain"):
             _drop(facts, "location", kind, "forecast unavailable (eval scenario)")
-    elif name == "crop_missing":
-        pass  # the collector's own state: no crop file yet
+    elif name == "crop_missing":  # pinned, so the real crop file (TFA-9) can't fill it
+        _drop(facts, "crop", "entry", "crop/region not in the sourced crop file")
     if facts.kind == "farming" and name not in ("crop_missing",):
         _add_crop(facts, next_month=name == "sow_out_of_season")
     return facts

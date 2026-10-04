@@ -193,3 +193,30 @@ def test_an_uncovered_crop_says_so_rather_than_guessing(crop_file, client):
     assert "The crop file has no entry for this crop here." in answer["cons"]
     assert {"section": "crop.entry",
             "reason": "crop/region not in the sourced crop file"} in body["missing"]
+
+
+# --- the real crop file (TFA-9) ---------------------------------------------------
+
+
+def test_the_real_crop_file_loads_every_entry_and_every_given_value(caplog):
+    """Every entry is read, and no value it gives is dropped as unsourced or malformed
+    (both would only be logged). Checking each number against its quote is TFA-10."""
+    raw = json.loads(crops.PATH.read_text(encoding="utf-8"))["entries"]
+    crops._cache.update(key=None, entries=[])
+    with caplog.at_level("WARNING", logger="weathergpt.advisory"):
+        loaded = crops.entries()
+    assert caplog.records == []
+    assert [(e["crop"], e["region"]) for e in loaded] == [(e["crop"], e["region"]) for e in raw]
+    for entry, got in zip(raw, loaded):
+        given = {f for f, v in entry["values"].items() if v.get("value") is not None}
+        assert given == {s["field"] for s in got["sources"]}
+        assert all(s["url"].startswith("https://") for s in got["sources"])
+        assert got["reviewed"] is False  # no agronomy sign-off yet (plan.md §11.9)
+
+
+def test_every_real_entry_names_a_registered_district_or_its_state():
+    import cities
+
+    regions = set(cities.CITIES) | {crops.state_slug(k) for k in cities.CITIES}
+    raw = json.loads(crops.PATH.read_text(encoding="utf-8"))["entries"]
+    assert {e["region"] for e in raw} <= regions
