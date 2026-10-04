@@ -30,6 +30,7 @@ from advisory.facts import AdvisoryFacts, FactSection  # noqa: E402
 
 # Pinned values. The thresholds in advisory/rubric.py are written against these.
 CALM_RAIN_PCT = 10
+CALM_RAIN_MM = 1.2  # IMD "light": below the sowing rule's heavy band
 CALM_WIND_KMH = 10
 RAINY_PCT = 60
 WINDY_KMH = 45
@@ -114,6 +115,8 @@ def _calm_forecast(d: dict) -> None:
     for day in d.get("days", []):
         day.update(condition="partly_cloudy", rain_probability_pct=CALM_RAIN_PCT,
                    high_c=32, low_c=25)
+        if "rain_mm" in day:  # the multi-day forecast (farming); a single day has none
+            day.update(rain_mm=CALM_RAIN_MM, rain_category="light")
 
 
 def _calm_hourly(d: dict) -> None:
@@ -291,8 +294,8 @@ def apply(name: str, facts: AdvisoryFacts) -> AdvisoryFacts:
     elif name == "sow_no_forecast":
         for kind in ("forecast", "hourly", "rain"):
             _drop(facts, "location", kind, "forecast unavailable (eval scenario)")
-    elif name == "crop_missing":
-        pass  # the collector's own state: no crop file yet
+    elif name == "crop_missing":  # pinned, so the real crop file (TFA-9) can't fill it
+        _drop(facts, "crop", "entry", "crop/region not in the sourced crop file")
     if facts.kind == "farming" and name not in ("crop_missing",):
         _add_crop(facts, next_month=name == "sow_out_of_season")
     return facts

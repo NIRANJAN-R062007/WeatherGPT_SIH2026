@@ -1,0 +1,109 @@
+{
+  "_meta": {
+    "task": "plan.md §8 TFA-9",
+    "retrieved": "2026-10-04",
+    "note": "Values copied from the sources' own wording; quotes are verbatim page text (table cells joined with ' | ' in page order, separate rows with ' ... '). temp_range_c uses the groundnut table's T. Min / T. Max (the range it tolerates), not T. Optimum (25-35 C), which most Tamil Nadu nights fall below. No source gives a rain-chance limit, so max_rain_probability_pct is null; heavy rain is judged for every crop by the IMD rule (advisory/rubric.py HEAVY_RAIN). Nothing here is agronomy-reviewed (reviewed: false, plan.md §11.9)."
+  },
+  "entries": [
+    {
+      "crop": "groundnut",
+      "region": "madurai",
+      "reviewed": false,
+      "values": {
+        "sowing_months": {
+          "value": [
+            6,
+            7,
+            12,
+            1
+          ],
+          "source": "TNAU Agritech Portal, Crop Production :: Oil Seeds :: Groundnut (Climate Requirement; Groundnut Seasons of Tamilnadu)",
+          "url": "https://agritech.tnau.ac.in/agriculture/Crop-improvement%20-1.html",
+          "quote": "June-July | Anipattam | Coimbatore, Tiruppur, Erode, Theni, Dindigul, Karur, Pudukkottai, Madurai, Sivagangai, Thiruvallur, Cuddalore, Vellore, Salem, Dharmapuri, Krishnagiri, Tiruchirapalli ... Dec- Jan | Margazhipattam | Erode, Theni, Dindigul, Karur, Pudukkottai, Madurai, Virudhunagar, Thiruvallur, Kancheepuram, Perambalur, Ariyalur, Tiruchirapalli, Thanjavur, Thiruvarur, Nagapattinam, Thanjavur, Mayiladuthurai"
+        },
+        "temp_range_c": {
+          "value": {
+            "min": 15,
+            "max": 40
+          },
+          "source": "TNAU Agritech Portal, Crop Production :: Oil Seeds :: Groundnut (Climate Requirement; Groundnut Seasons of Tamilnadu)",
+          "url": "https://agritech.tnau.ac.in/agriculture/Crop-improvement%20-1.html",
+          "quote": "T. Max | T. Min | T. Optimum | Rainfall | Altitude | 40 o C | 15 o C | 25 - 35 o C | 500 - 700 mm | 1160 m"
+        },
+        "max_rain_probability_pct": {
+          "value": null,
+          "source": "TNAU Agritech Portal, Crop Production :: Oil Seeds :: Groundnut (Climate Requirement; Groundnut Seasons of Tamilnadu)",
+          "url": "https://agritech.tnau.ac.in/agriculture/Crop-improvement%20-1.html",
+          "quote": ""
+        }
+      }
+    },
+    {
+      "crop": "groundnut",
+      "region": "coimbatore",
+      "reviewed": false,
+      "values": {
+        "sowing_months": {
+          "value": [
+            4,
+            5,
+            6,
+            7
+          ],
+          "source": "TNAU Agritech Portal, Crop Production :: Oil Seeds :: Groundnut (Climate Requirement; Groundnut Seasons of Tamilnadu)",
+          "url": "https://agritech.tnau.ac.in/agriculture/Crop-improvement%20-1.html",
+          "quote": "April - May | Chithiraipattam | Coimbatore, Tiruppur, Villupuram and Kallakurichi ... June-July | Anipattam | Coimbatore, Tiruppur, Erode, Theni, Dindigul, Karur, Pudukkottai, Madurai, Sivagangai, Thiruvallur, Cuddalore, Vellore, Salem, Dharmapuri, Krishnagiri, Tiruchirapalli"
+        },
+        "temp_range_c": {
+          "value": {
+            "min": 15,
+            "max": 40
+          },
+          "source": "TNAU Agritech Portal, Crop Production :: Oil Seeds :: Groundnut (Climate Requirement; Groundnut Seasons of Tamilnadu)",
+          "url": "https://agritech.tnau.ac.in/agriculture/Crop-improvement%20-1.html",
+          "quote": "T. Max | T. Min | T. Optimum | Rainfall | Altitude | 40 o C | 15 o C | 25 - 35 o C | 500 - 700 mm | 1160 m"
+        },
+        "max_rain_probability_pct": {
+          "value": null,
+          "source": "TNAU Agritech Portal, Crop Production :: Oil Seeds :: Groundnut (Climate Requirement; Groundnut Seasons of Tamilnadu)",
+          "url": "https://agritech.tnau.ac.in/agriculture/Crop-improvement%20-1.html",
+          "quote": ""
+        }
+      }
+    },
+    {
+      "crop": "ragi",
+      "region": "tamil_nadu",
+      "reviewed": false,
+      "values": {
+        "sowing_months": {
+          "value": [
+            12,
+            1,
+            4,
+            5,
+            6,
+            7,
+            9,
+            10
+          ],
+          "source": "TNAU Agritech Portal, Crop Production :: Millets :: Ragi (seasons table; Season)",
+          "url": "https://agritech.tnau.ac.in/agriculture/millets_ragi.html",
+          "quote": "Marghazipattam (Dec - Jan) All districts except Kanyakumari & Nilgiris ... Chithiraipattam (April - May) All districts except Kanyakumari & Nilgiris ... Adipattam (June - July) All districts except Kanyakumari & Nilgiris ... Puratasipattam (September - October) All districts except Kanyakumari & Nilgiris"
+        },
+        "temp_range_c": {
+          "value": null,
+          "source": "TNAU Agritech Portal, Crop Production :: Millets :: Ragi (seasons table; Season)",
+          "url": "https://agritech.tnau.ac.in/agriculture/millets_ragi.html",
+          "quote": ""
+        },
+        "max_rain_probability_pct": {
+          "value": null,
+          "source": "TNAU Agritech Portal, Crop Production :: Millets :: Ragi (seasons table; Season)",
+          "url": "https://agritech.tnau.ac.in/agriculture/millets_ragi.html",
+          "quote": ""
+        }
+      }
+    }
+  ]
+}

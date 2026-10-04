@@ -159,9 +159,9 @@ def test_the_template_answer_always_grounds(monkeypatch):
         assert guardrail.check_advisory(advice.answer, advice.facts).ok
 
 
-def test_farming_has_no_crop_file_yet_so_it_is_not_available(monkeypatch):
+def test_a_crop_the_crop_file_does_not_cover_is_not_available(monkeypatch):
     monkeypatch.setattr(config, "ADVISORY_AGENT_ENABLED", False)
-    advice = agent.advise("farming", SOWING)
+    advice = agent.advise("farming", {**SOWING, "crop": "rice"})
     assert advice.answer["verdict"] == "not_available"
     assert {"section": "crop.entry", "reason": "crop/region not in the sourced crop file"} \
         in advice.facts.missing()
@@ -388,12 +388,22 @@ def test_carried_slots_that_we_could_not_have_produced_are_dropped():
     assert body["slots"] == {"destination": "madurai"}
 
 
-def test_sowing_is_not_available_until_the_crop_file_exists(monkeypatch):
+def test_sowing_a_crop_the_crop_file_does_not_cover_is_not_available(monkeypatch):
+    monkeypatch.setattr(config, "ADVISORY_AGENT_ENABLED", False)
+    body = client.post("/advisory/sowing",
+                       json={"text": "when should I sow rice in Madurai"}).json()
+    assert body["status"] == "ok" and body["answer"]["verdict"] == "not_available"
+    assert "KVK" in body["disclaimer"]
+
+
+def test_sowing_groundnut_in_madurai_is_judged_from_the_real_crop_file(monkeypatch):
+    """TFA-9: the fixture forecast is for September, outside TNAU's Madurai sowing
+    months (June-July, Dec-Jan), so the answer is "not suitable" and says why."""
     monkeypatch.setattr(config, "ADVISORY_AGENT_ENABLED", False)
     body = client.post("/advisory/sowing",
                        json={"text": "when should I sow groundnut in Madurai"}).json()
-    assert body["status"] == "ok" and body["answer"]["verdict"] == "not_available"
-    assert "KVK" in body["disclaimer"]
+    assert body["status"] == "ok" and body["answer"]["verdict"] == "not_suitable"
+    assert any("sowing months are" in c for c in body["answer"]["cons"])
 
 
 def test_free_text_is_length_capped():

@@ -181,8 +181,8 @@ def test_no_metar_taf_report_is_unavailable(monkeypatch):
     assert "aviation" not in kinds(facts, "origin")
 
 
-def test_crop_is_unavailable_until_the_crop_file_exists():
-    facts = FarmingFactsCollector().collect(SOWING)
+def test_a_crop_the_crop_file_does_not_cover_is_unavailable():
+    facts = FarmingFactsCollector().collect({**SOWING, "crop": "rice"})
     assert "crop" not in facts.raw()
     expected = {"section": "crop.entry", "reason": "crop/region not in the sourced crop file"}
     assert expected in facts.missing()
