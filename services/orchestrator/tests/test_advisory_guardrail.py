@@ -110,6 +110,21 @@ def test_citing_an_unavailable_section_fails():
     assert not guardrail.check_advisory(answer(cites=["origin.warnings.colour"]), facts).ok
 
 
+def test_an_unavailable_section_may_be_cited_by_its_exact_name():
+    """TFA-19: the prompt asks for a missing section to be named in `cons`; that
+    sentence's honest source is the NOT AVAILABLE entry, spelled as missing() spells it."""
+    facts = travel_facts()
+    assert {"section": "origin.warnings", "reason": "warnings feed unavailable"} in facts.missing()
+    out = answer(verdict="caution", cons=["IMD warnings are not available for Chennai."],
+                 cites=["origin.warnings", "destination.warnings"])
+    assert guardrail.check_advisory(out, facts).ok
+
+
+def test_a_made_up_section_name_still_fails():
+    out = answer(cites=["origin.cyclone_track"])
+    assert not guardrail.check_advisory(out, travel_facts()).ok
+
+
 def test_a_figure_from_an_unavailable_section_fails(monkeypatch):
     facts = travel_facts()
     first = facts.raw()["destination"]["hourly"]["hours"][0]

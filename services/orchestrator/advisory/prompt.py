@@ -87,8 +87,8 @@ Reply with one JSON object and nothing else (no prose, no code fence):
   unit, exactly as it appears in the facts. Do not round, convert or compute new numbers.
 - Never quote a number from VERDICT RULES. The thresholds decide the verdict; they are not
   facts, so a sentence names the fact's own value ("rain chance 70%"), not the threshold.
-- "cites" holds at most {schema.MAX_ITEMS} paths, each one present in FACTS. Never cite a
-  section listed under NOT AVAILABLE.
+- "cites" holds at most {schema.MAX_ITEMS} paths, each one present in FACTS. A section listed
+  under NOT AVAILABLE is cited by its name exactly as listed, never by a path inside it.
 - A clock time may only be one that appears in the facts. "window" is null unless a "window"
   section is present, and then it is copied from it exactly.
 - If something needed is listed under NOT AVAILABLE, say so in "cons"; never treat missing as fine.

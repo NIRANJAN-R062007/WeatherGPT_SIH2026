@@ -252,13 +252,13 @@ def test_the_prompt_lists_what_is_not_available():
     assert "NOT AVAILABLE\nnothing" in clear and "warnings feed unavailable" not in clear
 
 
-def test_the_prompt_forbids_quoting_thresholds_and_citing_missing_sections():
+def test_the_prompt_forbids_quoting_thresholds_and_paths_into_missing_sections():
     """TFA-18/19: the live models quoted rubric thresholds ("20", "25") as facts and
     cited a section listed as not available; both failed the guardrail."""
     text = _prompt("trv-en-06")
     assert "Never quote a number from VERDICT RULES" in text
     assert f"at most {schema.MAX_ITEMS} paths" in text
-    assert "Never cite a\n  section listed under NOT AVAILABLE" in text
+    assert "cited by its name exactly as listed, never by a path inside it" in text
 
 
 def test_the_prompt_asks_for_the_row_language():
