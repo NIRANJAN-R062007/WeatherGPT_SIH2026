@@ -21,6 +21,10 @@ loadtest/results/spike-*.json
 loadtest/results/abuse-*.json
 loadtest/results/llm-*.json
 
+# advisory eval results (ml/advisory/run_eval.py --out; kept for --resume, the
+# numbers go into plan.md TFA-18)
+ml/advisory/*.json
+
 # IVR simulated-call output (services/orchestrator/ivr_simulate.py)
 ivr-sim-output/
 

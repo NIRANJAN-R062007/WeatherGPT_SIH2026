@@ -362,6 +362,16 @@ def test_the_summary_counts_call_errors_by_kind():
     assert run_eval.summarise(results)["call_errors"] == {"rate_limited": 2, "timeout": 1}
 
 
+def test_rate_limited_rows_are_left_out_of_the_latency_and_counted_apart():
+    results = [_scored("a", tool_calls=0, latency=2.0),
+               _scored("b", tool_calls=0, latency=4.0),
+               _scored("c", tool_calls=0, latency=0.3, error="AgentError: 429 Too Many Requests")]
+    results[2]["model"] = {**results[2]["model"], "passed": False}
+    summary = run_eval.summarise(results)
+    assert summary["latency_p50_s"] == 3.0
+    assert (summary["answered"], summary["answered_passed"]) == (2, 2)
+
+
 def test_pause_spaces_out_only_the_rows_that_call_a_model():
     rows = [BY_ID["trv-en-01"], ROWS[[r["type"] for r in ROWS].index("ask_back")],
             BY_ID["trv-en-02"], BY_ID["frm-en-01"]]
@@ -375,3 +385,85 @@ def test_no_pause_never_sleeps():
     slept = []
     run_eval.run_rows(ANSWERS[:3], run_eval.Oracle(), sleep=slept.append)
     assert slept == []
+
+
+# --- resuming a run across days (TFA-18) ---------------------------------------------
+
+
+class _Counting(run_eval.Oracle):
+    """The oracle, remembering which rows it was asked."""
+
+    def __init__(self):
+        self.asked = []
+
+    def __call__(self, row, facts):
+        self.asked.append(row["id"])
+        return super().__call__(row, facts)
+
+
+def _earlier_run(*errors) -> dict:
+    """An earlier run of the first answer rows, by id; row i failed with errors[i]."""
+    out = {}
+    for row, error in zip(ANSWERS, errors):
+        result = run_eval.run_row(row, run_eval.Oracle())
+        result["error"] = error
+        out[row["id"]] = result
+    return out
+
+
+def test_resume_asks_only_the_rate_limited_and_missing_rows():
+    previous = _earlier_run(None, "AgentError: 429 RESOURCE_EXHAUSTED", None)
+    cand = _Counting()
+    results = run_eval.run_rows(ANSWERS[:4], cand, previous=previous)
+    assert cand.asked == [ANSWERS[1]["id"], ANSWERS[3]["id"]]
+    assert [r["id"] for r in results] == [r["id"] for r in ANSWERS[:4]]
+    assert results[0]["ran_on"] == previous[ANSWERS[0]["id"]]["ran_on"]
+
+
+def test_resume_keeps_a_timeout_and_a_503_as_measurements():
+    previous = _earlier_run("AgentError: no reply within 8s",
+                            "AgentError: ServerError: 503 UNAVAILABLE")
+    cand = _Counting()
+    results = run_eval.run_rows(ANSWERS[:2], cand, previous=previous)
+    assert cand.asked == []
+    assert run_eval.summarise(results)["call_errors"] == {
+        "provider_unavailable": 1, "timeout": 1}
+
+
+def test_resume_asks_again_for_a_row_edited_since():
+    previous = _earlier_run(None)
+    edited = {**ANSWERS[0], "text": ANSWERS[0]["text"] + " please"}
+    cand = _Counting()
+    run_eval.run_rows([edited], cand, previous=previous)
+    assert cand.asked == [edited["id"]]
+
+
+def test_resume_refuses_a_file_from_another_model_or_budget(tmp_path):
+    path = tmp_path / "run.json"
+    path.write_text(json.dumps({"model": "strands:groq", "timeout_s": 8.0, "rows": []}),
+                    encoding="utf-8")
+    with pytest.raises(SystemExit):
+        run_eval.load_previous(path, "strands:gemini", 8.0)
+    with pytest.raises(SystemExit):
+        run_eval.load_previous(path, "strands:groq", 5.0)
+    assert run_eval.load_previous(path, "strands:groq", 8.0) == {}
+
+
+def test_resume_from_a_file_not_written_yet_asks_every_row(tmp_path):
+    assert run_eval.load_previous(tmp_path / "gemini.json", "strands:gemini", 8.0) == {}
+
+
+def test_progress_reports_each_answer_row_and_whether_it_was_kept():
+    previous = _earlier_run(None)
+    rows = [ANSWERS[0], ROWS[[r["type"] for r in ROWS].index("ask_back")], ANSWERS[1]]
+    seen = []
+    run_eval.run_rows(rows, run_eval.Oracle(), previous=previous,
+                      progress=lambda result, kept: seen.append((result["id"], kept)))
+    assert seen == [(ANSWERS[0]["id"], True), (ANSWERS[1]["id"], False)]
+
+
+def test_the_summary_says_which_day_each_row_ran():
+    results = [{**_scored("a", tool_calls=0), "ran_on": "2026-10-05"},
+               {**_scored("b", tool_calls=0), "ran_on": "2026-10-06"},
+               {**_scored("c", tool_calls=0), "ran_on": "2026-10-06"}]
+    assert run_eval.summarise(results)["ran_on"] == {"2026-10-05": 1, "2026-10-06": 2}
