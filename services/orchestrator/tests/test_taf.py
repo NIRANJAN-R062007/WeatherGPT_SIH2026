@@ -193,9 +193,9 @@ def test_briefing_wording_of_each_indicator():
 
 
 def test_briefing_names_station_without_a_display_name():
-    d = taf.decode("TAF VECC 300500Z 3006/3106 09008KT 5000")
+    d = taf.decode("TAF VEPT 300500Z 3006/3106 09008KT 5000")
     assert d["station_name"] is None
-    assert taf.briefing(d).startswith("Station VECC, terminal forecast (TAF)")
+    assert taf.briefing(d).startswith("Station VEPT, terminal forecast (TAF)")
 
 
 def test_briefing_says_when_nothing_was_decoded_in_a_group():

@@ -197,7 +197,7 @@ def _route_roles(text: str, asking: str | None, have: dict) -> tuple[dict, list[
     else is assumed to be the destination (and flagged as assumed)."""
     roles: dict = {}
     assumed: list[str] = []
-    found = cities.mentions(text)
+    found = cities.mentions(text, travel=True)
     uncued: list[str] = []
     for key, start, end in found:
         before, after = text[:start].lower(), text[end:]
@@ -300,7 +300,7 @@ def _unsupported_place(text: str, slot: str, result: SlotResult) -> None:
         if m.group(1).lower() not in wanted:
             continue
         name = _clean_name(m.group(2))
-        if name and not cities.resolve(name):
+        if name and not cities.resolve(name, travel=True):
             result.unsupported.setdefault(slot, name)
             return
 
@@ -376,7 +376,8 @@ _LANGS = ("en", "hi", "ta", "te", "mr")
 def _options(slot: str, lang: str) -> str:
     if slot == "crop":
         return ", ".join(CROPS)  # crop names stay as keys until TFA-9 gives localised ones
-    return ", ".join(cities.display_name(k, lang) for k in cities.CITIES)
+    places = cities.CITIES if slot == "district" else cities.TRAVEL_CITIES
+    return ", ".join(cities.display_name(k, lang) for k in places)
 
 
 def ask_back(result: SlotResult, lang: str = "en") -> str | None:

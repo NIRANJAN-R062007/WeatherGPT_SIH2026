@@ -1092,7 +1092,9 @@ def _carried_slots(kind: str, slots: dict[str, str]) -> dict[str, str]:
         value = slots.get(slot)
         if value is None:
             continue
-        if slot in ("origin", "destination", "district"):
+        if slot in ("origin", "destination"):
+            ok = cities.resolve(value, travel=True) == value
+        elif slot == "district":
             ok = cities.resolve(value) == value
         elif slot == "day":
             ok = value in advisory_slots.DAYS

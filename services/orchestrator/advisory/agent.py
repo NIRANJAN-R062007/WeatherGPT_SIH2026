@@ -73,7 +73,7 @@ class Advice:
 def _roles(kind: str, slots: dict) -> dict[str, str | None]:
     """role -> the city key the slots name for it (None if it does not resolve)."""
     if kind == "travel":
-        return {r: cities.resolve(slots.get(r)) for r in ("origin", "destination")}
+        return {r: cities.resolve(slots.get(r), travel=True) for r in ("origin", "destination")}
     return {"location": cities.resolve(slots.get("district"))}
 
 

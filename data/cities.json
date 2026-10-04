@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "note": "Source of truth for demo cities. place_id is the GeoNames id the gazetteer (data/gazetteer/in_places.json.gz) and the Postgres cities table use for the same place. Backend loader: services/orchestrator/cities.py. The frontend CITIES object in prototype/frontend/WeatherGPT.dc.html must stay in sync until it fetches GET /cities. Lat/lon and Tamil names copied verbatim from that frontend object. hi/te/mr names are a first-draft transliteration, not native-speaker verified (plan.md §13 open item) — TODO QA before demo.",
+  "note": "Source of truth for demo cities, plus travel-advisory destinations marked travel_only (TFA-8: the travel advisory knows them, nothing else does; names from the gazetteer, Tamil/Telugu gaps filled by hand, TODO native_qa). place_id is the GeoNames id the gazetteer (data/gazetteer/in_places.json.gz) and the Postgres cities table use for the same place. Backend loader: services/orchestrator/cities.py. The frontend CITIES object in prototype/frontend/WeatherGPT.dc.html must stay in sync until it fetches GET /cities. Lat/lon and Tamil names copied verbatim from that frontend object. hi/te/mr names are a first-draft transliteration, not native-speaker verified (plan.md §13 open item) — TODO QA before demo.",
   "cities": [
     {
       "key": "chennai",
@@ -82,6 +82,168 @@
       "region": {"en": "Kerala", "ta": "கேரளா"},
       "timezone": "Asia/Kolkata",
       "aliases": ["trivandrum"]
+    },
+    {
+      "key": "panaji",
+      "travel_only": true,
+      "place_id": "gn:1260607",
+      "lat": 15.4957,
+      "lon": 73.8262,
+      "names": {"en": "Panaji", "ta": "பணஜி", "hi": "पणजी", "te": "పనజీ", "mr": "पणजी"},
+      "region": {"en": "Goa", "ta": "கோவா"},
+      "timezone": "Asia/Kolkata",
+      "aliases": ["goa", "panjim", "கோவா", "गोवा", "గోవా"]
+    },
+    {
+      "key": "leh",
+      "travel_only": true,
+      "place_id": "gn:1264976",
+      "lat": 34.165,
+      "lon": 77.584,
+      "names": {"en": "Leh", "ta": "லே", "hi": "लेह", "te": "లేహ్", "mr": "लेह"},
+      "region": {"en": "Ladakh", "ta": "லடாக்"},
+      "timezone": "Asia/Kolkata",
+      "aliases": ["ladakh", "லடாக்", "लद्दाख"]
+    },
+    {
+      "key": "port_blair",
+      "travel_only": true,
+      "place_id": "gn:1259385",
+      "lat": 11.6661,
+      "lon": 92.7464,
+      "names": {"en": "Port Blair", "ta": "போர்ட் பிளேர்", "hi": "पोर्ट ब्लेयर", "te": "పోర్ట్ బ్లెయిర్",
+                "mr": "पोर्ट ब्लेर"},
+      "region": {"en": "Andaman and Nicobar", "ta": "அந்தமான் நிக்கோபார்"},
+      "timezone": "Asia/Kolkata",
+      "aliases": ["sri vijaya puram", "andaman", "andamans", "அந்தமான்", "अंडमान"]
+    },
+    {
+      "key": "kochi",
+      "travel_only": true,
+      "place_id": "gn:1273874",
+      "lat": 9.9399,
+      "lon": 76.2602,
+      "names": {"en": "Kochi", "ta": "கொச்சி", "hi": "कोच्चि", "te": "కొచ్చి", "mr": "कोची"},
+      "region": {"en": "Kerala", "ta": "கேரளா"},
+      "timezone": "Asia/Kolkata",
+      "aliases": ["cochin", "ernakulam"]
+    },
+    {
+      "key": "kolkata",
+      "travel_only": true,
+      "place_id": "gn:1275004",
+      "lat": 22.5626,
+      "lon": 88.363,
+      "names": {"en": "Kolkata", "ta": "கொல்கத்தா", "hi": "कोलकाता", "te": "కోల్‌కాతా",
+                "mr": "कोलकाता"},
+      "region": {"en": "West Bengal", "ta": "மேற்கு வங்காளம்"},
+      "timezone": "Asia/Kolkata",
+      "aliases": ["calcutta"]
+    },
+    {
+      "key": "jaipur",
+      "travel_only": true,
+      "place_id": "gn:1269515",
+      "lat": 26.9196,
+      "lon": 75.7878,
+      "names": {"en": "Jaipur", "ta": "ஜெய்ப்பூர்", "hi": "जयपुर", "te": "జైపూర్", "mr": "जयपूर"},
+      "region": {"en": "Rajasthan", "ta": "ராஜஸ்தான்"},
+      "timezone": "Asia/Kolkata",
+      "aliases": ["செய்ப்பூர்"]
+    },
+    {
+      "key": "ahmedabad",
+      "travel_only": true,
+      "place_id": "gn:1279233",
+      "lat": 23.0258,
+      "lon": 72.5873,
+      "names": {"en": "Ahmedabad", "ta": "அகமதாபாத்", "hi": "अहमदाबाद", "te": "అహ్మదాబాద్",
+                "mr": "अहमदाबाद"},
+      "region": {"en": "Gujarat", "ta": "குஜராத்"},
+      "timezone": "Asia/Kolkata",
+      "aliases": ["amdavad", "अमदाबाद"]
+    },
+    {
+      "key": "pune",
+      "travel_only": true,
+      "place_id": "gn:1259229",
+      "lat": 18.5196,
+      "lon": 73.8554,
+      "names": {"en": "Pune", "ta": "புணே", "hi": "पुणे", "te": "పూణే", "mr": "पुणे"},
+      "region": {"en": "Maharashtra", "ta": "மகாராஷ்டிரா"},
+      "timezone": "Asia/Kolkata",
+      "aliases": ["poona", "புனே"]
+    },
+    {
+      "key": "lucknow",
+      "travel_only": true,
+      "place_id": "gn:1264733",
+      "lat": 26.8393,
+      "lon": 80.9231,
+      "names": {"en": "Lucknow", "ta": "லக்னோ", "hi": "लखनऊ", "te": "లక్నో", "mr": "लखनौ"},
+      "region": {"en": "Uttar Pradesh", "ta": "உத்தரப் பிரதேசம்"},
+      "timezone": "Asia/Kolkata",
+      "aliases": ["இலக்னோ"]
+    },
+    {
+      "key": "varanasi",
+      "travel_only": true,
+      "place_id": "gn:1253405",
+      "lat": 25.3167,
+      "lon": 83.0104,
+      "names": {"en": "Varanasi", "ta": "வாரணாசி", "hi": "वाराणसी", "te": "వారణాసి",
+                "mr": "वाराणसी"},
+      "region": {"en": "Uttar Pradesh", "ta": "உத்தரப் பிரதேசம்"},
+      "timezone": "Asia/Kolkata",
+      "aliases": ["benares", "banaras", "kashi", "काशी"]
+    },
+    {
+      "key": "guwahati",
+      "travel_only": true,
+      "place_id": "gn:1271476",
+      "lat": 26.1844,
+      "lon": 91.7458,
+      "names": {"en": "Guwahati", "ta": "குவஹாத்தி", "hi": "गुवाहाटी", "te": "గౌహతి",
+                "mr": "गुवाहाटी"},
+      "region": {"en": "Assam", "ta": "அசாம்"},
+      "timezone": "Asia/Kolkata",
+      "aliases": ["gauhati", "குவகாத்தி"]
+    },
+    {
+      "key": "srinagar",
+      "travel_only": true,
+      "place_id": "gn:1255634",
+      "lat": 34.0857,
+      "lon": 74.8056,
+      "names": {"en": "Srinagar", "ta": "ஸ்ரீநகர்", "hi": "श्रीनगर", "te": "శ్రీనగర్",
+                "mr": "श्रीनगर"},
+      "region": {"en": "Jammu and Kashmir", "ta": "ஜம்மு காஷ்மீர்"},
+      "timezone": "Asia/Kolkata",
+      "aliases": ["சிறிநகர்"]
+    },
+    {
+      "key": "visakhapatnam",
+      "travel_only": true,
+      "place_id": "gn:1253102",
+      "lat": 17.6801,
+      "lon": 83.2016,
+      "names": {"en": "Visakhapatnam", "ta": "விசாகப்பட்டினம்", "hi": "विशाखापत्तनम", "te": "విశాఖపట్నం",
+                "mr": "विशाखापट्टणम"},
+      "region": {"en": "Andhra Pradesh", "ta": "ஆந்திரப் பிரதேசம்"},
+      "timezone": "Asia/Kolkata",
+      "aliases": ["vizag", "vishakhapatnam", "విశాఖ"]
+    },
+    {
+      "key": "tiruchirappalli",
+      "travel_only": true,
+      "place_id": "gn:1254388",
+      "lat": 10.8155,
+      "lon": 78.6965,
+      "names": {"en": "Tiruchirappalli", "ta": "திருச்சிராப்பள்ளி", "hi": "तिरुचिरापल्ली", "te": "తిరుచిరాపల్లి",
+                "mr": "तिरुचिरापल्ली"},
+      "region": {"en": "Tamil Nadu", "ta": "தமிழ்நாடு"},
+      "timezone": "Asia/Kolkata",
+      "aliases": ["trichy", "tiruchi", "திருச்சி"]
     }
   ]
 }
