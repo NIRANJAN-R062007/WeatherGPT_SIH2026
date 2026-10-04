@@ -249,7 +249,7 @@ def _prompt(row_id: str, **kw) -> str:
 def test_the_prompt_carries_facts_rubric_and_slots_but_never_the_users_words():
     row = BY_ID["trv-en-10"]  # the injection row
     text = _prompt("trv-en-10")
-    assert rubric.travel_rubric(row["slots"].get("mode")) in text  # the row's mode (flight)
+    assert rubric.travel_rubric(row["slots"].get("mode"), row["slots"].get("day")) in text
     assert row["text"] not in text and json.dumps(row["text"]) not in text
     assert json.dumps(row["slots"], sort_keys=True) in text
     assert '"temp_c"' in text

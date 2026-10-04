@@ -1,0 +1,11 @@
+# TLS in front of the gateway for docker-compose.prod.yml's `caddy` profile.
+# SITE_ADDRESS is the public host name; Caddy gets and renews its certificate.
+#
+# Caddy replaces any X-Forwarded-For a client sends with the address it saw,
+# and the gateway appends its own hop, so TRUSTED_PROXY_HOPS=2 keys the rate
+# limiter on the real client. Don't add `trusted_proxies` here unless another
+# proxy sits in front of Caddy, and raise TRUSTED_PROXY_HOPS with it.
+{$SITE_ADDRESS} {
+	encode gzip
+	reverse_proxy gateway:8000
+}
