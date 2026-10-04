@@ -1,0 +1,33 @@
+# Build context for services/orchestrator/Dockerfile (built from the repo root:
+# docker-compose.yml, ci.yml, security.yml). The Dockerfile copies only
+# services/orchestrator, data and prototype/frontend, so this file's job is to
+# keep local, untracked things inside those directories out of the image.
+# Without it a working-tree build copied the developer's
+# services/orchestrator/.venv (~400 MB, a different Python, dev tools) into the
+# image — CI never saw it because it builds from a clean checkout (TFA-22).
+
+# Local environments and caches
+**/.venv
+**/venv
+**/__pycache__
+**/*.py[cod]
+**/.pytest_cache
+**/.ruff_cache
+**/.mypy_cache
+**/node_modules
+
+# Secrets: never in an image (the containers get them through env_file/secrets)
+.env
+.env.local
+**/.env.local
+
+# Not used by any image built from this context
+.git
+.github
+.claude
+branding
+mobile
+web
+ml
+k8s
+monitoring
