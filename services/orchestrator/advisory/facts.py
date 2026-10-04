@@ -15,7 +15,7 @@ has (weather_data, aviation, imd_warnings); they add no data source.
 
 The two concrete collectors are deliberately minimal — origin and destination
 city only for travel, one district for farming. Route legs and the airports
-along them are TFA-6; the crop file (TFA-9) plugs in through `crop_lookup`.
+along them are TFA-6; the crop file (TFA-9) is read through `crop_lookup`.
 """
 
 from __future__ import annotations
@@ -31,6 +31,10 @@ import cities
 import imd_warnings
 import weather_data
 from google_weather import FORECAST_DAYS
+from weather_intelligence import rules
+from weather_intelligence.window_analyzer import find_best_window
+
+from advisory import crops
 
 _LOG = logging.getLogger("weathergpt.advisory")
 
@@ -183,14 +187,11 @@ def warnings(role: str, city: str) -> FactSection:
     return _gather(role, "warnings", fetch, "warnings feed unavailable")
 
 
-# TFA-9 plugs the sourced crop file in here: (crop, region) -> the entry, or
-# None when the crop/region isn't covered. Until then no crop is, and the
-# section says so rather than letting a model fill the gap from memory.
-def _no_crop_file(crop: str, region: str) -> dict | None:
-    return None
-
-
-crop_lookup: Callable[[str, str], dict | None] = _no_crop_file
+# (crop, region) -> the sourced crop file's entry, or None when the crop/region
+# isn't covered (advisory/crops.py; the file itself is TFA-9). Until the file
+# exists no crop is, and the section says so rather than letting a model fill
+# the gap from memory.
+crop_lookup: Callable[[str, str], dict | None] = crops.lookup
 
 
 def crop_entry(crop: str, region: str) -> FactSection:
@@ -265,7 +266,29 @@ class FarmingFactsCollector(FactsCollector):
             ]
         crop = slots.get("crop")
         if not crop:
-            out.append(_unavailable("crop", "entry", "no crop given"))
+            entry = _unavailable("crop", "entry", "no crop given")
         else:
-            out.append(crop_entry(crop, slots.get("region") or slots.get("district") or ""))
+            entry = crop_entry(crop, slots.get("region") or slots.get("district") or "")
+        out.append(entry)
+        hourly = next((s for s in out if s.kind == "hourly"), None)
+        out.append(sowing_window(entry, hourly))
         return out
+
+
+def sowing_window(entry: FactSection, hourly: FactSection | None) -> FactSection:
+    """TFA-11: today's best contiguous hours by the crop's own thresholds
+    (rules.crop_thresholds over the window engine), or unavailable with the
+    reason — never the least-bad hours, and never on generic thresholds."""
+    thresholds = rules.crop_thresholds(entry.data if entry.available else None)
+    if thresholds is None:
+        return _unavailable("location", "window", "no crop thresholds to score hours against")
+    if hourly is None or not hourly.available:
+        return _unavailable("location", "window", "no hourly forecast for today")
+    found = find_best_window(hourly.data["hours"], thresholds)
+    if found is None:
+        return _unavailable("location", "window", "no hour today meets the crop's thresholds")
+    data = {k: found[k] for k in ("start_local", "end_local", "avg_temp_c",
+                                  "max_rain_probability_pct", "max_wind_kmh")}
+    data.update(source=hourly.source, is_live=hourly.is_live)
+    return FactSection("location", "window", True, data, source=hourly.source,
+                       is_live=hourly.is_live)

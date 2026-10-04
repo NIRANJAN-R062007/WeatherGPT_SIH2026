@@ -3,7 +3,8 @@
     slots (resolved, TFA-3)
       -> core facts, collected before any model call (facts.py: no round trips)
       -> agent (Gemini, then Groq): reads the facts, may call a few fact tools, returns JSON
-      -> hard override (rubric.hard_override): a red warning or a thunderstorm METAR is "avoid"
+      -> hard override (rubric.hard_override): a red warning, a thunderstorm METAR or a
+         mode's avoid-level wind is "avoid"
       -> guardrail.check_advisory: nothing outside the facts
       -> on any failure: the rule-based template answer (template.py), no model
 
@@ -79,6 +80,9 @@ def _roles(kind: str, slots: dict) -> dict[str, str | None]:
 def live_fetch(kind: str, slots: dict) -> Fetch:
     """The production fetch: the same gatherers the core collectors use."""
     roles = _roles(kind, slots)
+    crop = (facts_module.crop_entry(slots.get("crop") or "",
+                                    slots.get("region") or slots.get("district") or "")
+            if kind == "farming" else None)
 
     def fetch(role: str, what: str, day: str) -> FactSection:
         city = roles.get(role)
@@ -96,8 +100,10 @@ def live_fetch(kind: str, slots: dict) -> Fetch:
             hourly = facts_module.hourly_forecast(role, city, day)
             if not hourly.available:
                 return facts_module._unavailable(role, "window", hourly.reason or "no hourly")
-            activity = "farm" if kind == "farming" else "travel"
-            found = find_best_window(hourly.data["hours"], activity)
+            if kind == "farming":  # the crop's own thresholds (TFA-11), never generic ones
+                window = facts_module.sowing_window(crop, hourly)
+                return replace(window, role=role)
+            found = find_best_window(hourly.data["hours"], "travel")
             if found is None:
                 return facts_module._unavailable(role, "window", "no suitable window")
             data = {k: found[k] for k in ("start_local", "end_local", "avg_temp_c",
@@ -313,7 +319,7 @@ def _agent_answer(
         if parsed is None:
             reason = f"{name}: reply was not a JSON object"
             continue
-        answer = template.apply_override(facts, schema.trim_cites(parsed))
+        answer = template.finish(facts, schema.trim_cites(parsed))
         report = guardrail.check_advisory(answer, facts)
         if not report.ok:
             reason = f"{name}: guardrail: {'; '.join(report.problems)[:200]}"

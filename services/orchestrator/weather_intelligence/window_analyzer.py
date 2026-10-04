@@ -22,13 +22,16 @@ def _minutes(local_time: str | None) -> int | None:
 
 
 def find_best_window(
-    hours: list[dict], activity: str | None = rules_module.DEFAULT_ACTIVITY,
+    hours: list[dict],
+    activity: "str | rules_module.Thresholds | None" = rules_module.DEFAULT_ACTIVITY,
 ) -> dict | None:
     """`hours` is weather_data.hourly_facts()'s `hours` list, already time-
-    ordered. Finds the longest contiguous run of suitable hours (ties go to
-    the earliest start). A run never bridges a gap — an hour more than 60
-    minutes after the previous suitable one starts a new run — so the
-    window never silently spans an hour that wasn't actually forecast.
+    ordered. `activity` is a rules.py activity name, or a crop's Thresholds
+    (rules.crop_thresholds, TFA-11). Finds the longest contiguous run of
+    suitable hours (ties go to the earliest start). A run never bridges a
+    gap — an hour more than 60 minutes after the previous suitable one
+    starts a new run — so the window never silently spans an hour that
+    wasn't actually forecast.
     """
     runs: list[list[dict]] = []
     current: list[dict] = []

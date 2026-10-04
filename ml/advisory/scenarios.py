@@ -14,6 +14,7 @@ this module is agronomy.
 
 from __future__ import annotations
 
+import calendar
 import copy
 import re
 import sys
@@ -37,15 +38,20 @@ WINDOW = {"start_local": "08:00", "end_local": "11:00",
 CROP_FIXTURE = {  # made-up thresholds so the farming rows have something to read
     "temp_range_c": {"min": 20, "max": 35},
     "max_rain_probability_pct": 50,
+    "sowing_months": None,  # set per build: the forecast's own month (or the next one)
+    "reviewed": False,
+    "sources": [],
     "source": "EVAL FIXTURE - invented thresholds, not agronomy (the sourced file is TFA-9)",
     "is_live": False,
 }
+CALM_HOUR_C = 28  # inside the crop fixture's range, so a calm day has sowing hours
 
 TRAVEL_SCENARIOS = (
     "clear", "clear_window", "rain_showers", "strong_wind", "thunderstorm_metar",
     "red_warning", "orange_warning", "warnings_off", "no_data",
 )
-FARMING_SCENARIOS = ("sow_ok", "sow_too_wet", "sow_too_hot", "sow_no_forecast", "crop_missing")
+FARMING_SCENARIOS = ("sow_ok", "sow_too_wet", "sow_too_hot", "sow_no_forecast", "crop_missing",
+                     "sow_out_of_season")
 SCENARIOS = TRAVEL_SCENARIOS + FARMING_SCENARIOS
 
 
@@ -111,7 +117,7 @@ def _calm_forecast(d: dict) -> None:
 def _calm_hourly(d: dict) -> None:
     for hour in d["hours"]:
         hour.update(condition="partly_cloudy", rain_probability_pct=CALM_RAIN_PCT,
-                    wind_kmh=CALM_WIND_KMH)
+                    wind_kmh=CALM_WIND_KMH, temp_c=CALM_HOUR_C)
 
 
 _WEATHER_SENTENCE = re.compile(r" Weather: [^.]*\.")
@@ -257,11 +263,31 @@ def apply(name: str, facts: AdvisoryFacts) -> AdvisoryFacts:
     elif name == "crop_missing":
         pass  # the collector's own state: no crop file yet
     if facts.kind == "farming" and name not in ("crop_missing",):
-        crop, region = facts.subject.get("crop"), facts.subject.get("district")
-        _replace(facts, FactSection("crop", "entry", True,
-                                    {"crop": crop, "region": region, **CROP_FIXTURE},
-                                    source=CROP_FIXTURE["source"], is_live=False))
+        _add_crop(facts, next_month=name == "sow_out_of_season")
     return facts
+
+
+def _forecast_month(facts: AdvisoryFacts) -> int | None:
+    forecast = facts.section("location", "forecast")
+    if forecast is None or not forecast.available or not forecast.data.get("days"):
+        return None
+    return int(forecast.data["days"][0]["date"][5:7])
+
+
+def _add_crop(facts: AdvisoryFacts, *, next_month: bool) -> None:
+    """The fixture crop entry, in season (the forecast's own month) unless
+    `next_month`, then today's sowing window by its thresholds — the same
+    function the collector uses, so the window is what production would show."""
+    month = _forecast_month(facts)
+    months = None
+    if month is not None:
+        months = [calendar.month_name[month % 12 + 1 if next_month else month]]
+    entry = FactSection("crop", "entry", True,
+                        {"crop": facts.subject.get("crop"), "region": facts.subject.get("district"),
+                         **CROP_FIXTURE, "sowing_months": months},
+                        source=CROP_FIXTURE["source"], is_live=False)
+    _replace(facts, entry)
+    _replace(facts, facts_module.sowing_window(entry, facts.section("location", "hourly")))
 
 
 def build(kind: str, slots: dict, scenario: str) -> AdvisoryFacts:

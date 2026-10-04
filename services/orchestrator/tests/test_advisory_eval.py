@@ -57,6 +57,12 @@ def test_each_indic_language_has_enough_rows_to_score_on(lang):
     assert sum(r["type"] == "ask_back" for r in ROWS if r["lang"] == lang) >= 1
 
 
+def test_every_travel_mode_is_scored():
+    """TFA-7: each mode's table is exercised by at least one answer row."""
+    modes = {r["slots"].get("mode") for r in ANSWERS if r["kind"] == "travel"}
+    assert set(rubric.TRAVEL_MODES) <= modes
+
+
 def test_non_english_rows_are_flagged_as_not_native_reviewed():
     """Same convention as ml/nlu/eval_set.jsonl: author-written, no native QA yet."""
     assert {r["native_qa"] for r in ROWS if r["lang"] != "en"} == {False}
@@ -85,13 +91,17 @@ def test_scenario_values_sit_on_the_right_side_of_the_rubric_thresholds():
     assert scenarios.CROP_FIXTURE["max_rain_probability_pct"] < scenarios.STORM_PCT
     assert scenarios.HOT_HIGH_C > scenarios.CROP_FIXTURE["temp_range_c"]["max"]
     assert 25 >= scenarios.CROP_FIXTURE["temp_range_c"]["min"]  # the calm low must pass
+    lo, hi = scenarios.CROP_FIXTURE["temp_range_c"].values()
+    assert lo <= scenarios.CALM_HOUR_C <= hi  # so a calm day has sowing hours
 
 
 @pytest.mark.parametrize("row", ANSWERS, ids=[r["id"] for r in ANSWERS])
 def test_the_expected_verdict_follows_from_the_scenario_facts(row):
     facts = scenarios.build(row["kind"], row["slots"], row["scenario"])
     assert rubric.reference_verdict(facts) in row["expected"]["verdict"]
-    assert (facts.section("destination", "window") is not None) == row["expected"]["window"]
+    # The rule-based answer carries a window exactly when the row expects one (farming:
+    # only a "suitable" verdict with a sowing window, TFA-11).
+    assert bool(template.template_answer(facts)["window"]) == row["expected"]["window"]
 
 
 def test_only_the_thunderstorm_scenario_has_a_thunderstorm_in_the_facts():
@@ -239,7 +249,7 @@ def _prompt(row_id: str, **kw) -> str:
 def test_the_prompt_carries_facts_rubric_and_slots_but_never_the_users_words():
     row = BY_ID["trv-en-10"]  # the injection row
     text = _prompt("trv-en-10")
-    assert rubric.TRAVEL_RUBRIC in text
+    assert rubric.travel_rubric(row["slots"].get("mode")) in text  # the row's mode (flight)
     assert row["text"] not in text and json.dumps(row["text"]) not in text
     assert json.dumps(row["slots"], sort_keys=True) in text
     assert '"temp_c"' in text
