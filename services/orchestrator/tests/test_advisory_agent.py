@@ -20,6 +20,7 @@ from fastapi.testclient import TestClient
 TRIP = {"origin": "chennai", "destination": "madurai", "day": "today"}
 SOWING = {"district": "madurai", "crop": "groundnut"}
 client = TestClient(main.app)
+REAL_MAKE_MODEL = agent.make_model  # the fixture below stubs it; the provider tests need it
 
 
 @pytest.fixture(autouse=True)
@@ -403,3 +404,18 @@ def test_the_advisory_routes_share_the_ask_rate_limit():
     import limits
 
     assert {"/advisory/travel", "/advisory/sowing"} <= limits.LIMITED_PATHS
+
+
+# --- provider settings (TFA-18) ----------------------------------------------------
+
+
+def test_gemini_is_built_with_thinking_off(monkeypatch):
+    """Thinking tokens count against the output budget: with them on, live runs
+    stopped at max tokens before any JSON was written."""
+    model = REAL_MAKE_MODEL("gemini")
+    params = model.config["params"]
+    assert params["thinking_config"] == {"thinking_budget": 0}
+    assert params["max_output_tokens"] == agent.MAX_OUTPUT_TOKENS
+    # And Strands really passes it into the request config.
+    request = model._format_request_config(None, "system", params)
+    assert request.thinking_config.thinking_budget == 0

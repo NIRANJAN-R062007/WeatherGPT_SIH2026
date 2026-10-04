@@ -232,9 +232,13 @@ def make_model(provider: str, model_id: str | None = None):
     params = {"temperature": 0}
     if provider == "gemini":
         from strands.models.gemini import GeminiModel
+        # Flash is a thinking model and its thoughts count against max_output_tokens:
+        # without a budget of 0 most live runs (TFA-18, 2026-10-04) stopped with
+        # MaxTokensReachedException before writing any JSON. narrate.py does the same.
         return GeminiModel(client_args={"api_key": config.GEMINI_API_KEY},
                            model_id=model_id or config.GEMINI_MODEL,
-                           params={**params, "max_output_tokens": MAX_OUTPUT_TOKENS})
+                           params={**params, "max_output_tokens": MAX_OUTPUT_TOKENS,
+                                   "thinking_config": {"thinking_budget": 0}})
     if provider == "groq":
         from strands.models.openai import OpenAIModel
         return OpenAIModel(client_args={"api_key": config.GROQ_API_KEY,
