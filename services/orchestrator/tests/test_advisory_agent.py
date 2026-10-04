@@ -419,3 +419,11 @@ def test_gemini_is_built_with_thinking_off(monkeypatch):
     # And Strands really passes it into the request config.
     request = model._format_request_config(None, "system", params)
     assert request.thinking_config.thinking_budget == 0
+
+
+def test_groq_is_built_with_low_reasoning_effort():
+    model = REAL_MAKE_MODEL("groq")
+    params = model.config["params"]
+    assert params["reasoning_effort"] == "low"
+    assert params["max_tokens"] == agent.MAX_OUTPUT_TOKENS
+    assert model.config["model_id"] == config.GROQ_MODEL

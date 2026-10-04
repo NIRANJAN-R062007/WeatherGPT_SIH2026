@@ -241,10 +241,14 @@ def make_model(provider: str, model_id: str | None = None):
                                    "thinking_config": {"thinking_budget": 0}})
     if provider == "groq":
         from strands.models.openai import OpenAIModel
+        # gpt-oss is a reasoning model: its reasoning counts against max_tokens and
+        # slows every turn. "low" is what narrate.py sends for the same model; on the
+        # live TFA-18 run without it, replies stopped at max tokens or ran out of time.
         return OpenAIModel(client_args={"api_key": config.GROQ_API_KEY,
                                         "base_url": config.GROQ_BASE},
                            model_id=model_id or config.GROQ_MODEL,
-                           params={**params, "max_tokens": MAX_OUTPUT_TOKENS})
+                           params={**params, "max_tokens": MAX_OUTPUT_TOKENS,
+                                   "reasoning_effort": "low"})
     if provider == "ollama":  # the eval harness only; offline mode never runs the agent
         from strands.models.ollama import OllamaModel
         return OllamaModel(config.OLLAMA_BASE, model_id=model_id or config.OLLAMA_MODEL,
