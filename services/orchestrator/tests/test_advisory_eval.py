@@ -297,3 +297,28 @@ def test_the_strands_candidate_applies_the_hard_override(monkeypatch):
     cand = run_eval.make_candidate("strands:gemini", timeout=1)
     assert json.loads(cand(row, facts))["verdict"] == "avoid"
     assert cand.last_tool_calls == 0
+
+
+# --- the summary (TFA-18) ---------------------------------------------------------
+
+
+def _scored(row_id: str, *, tool_calls, latency=1.0, error=None) -> dict:
+    return {"id": row_id, "lang": "en", "kind": "travel", "type": "answer",
+            "slots": {"status": "pass"}, "latency_s": latency, "tool_calls": tool_calls,
+            "error": error,
+            "model": {"valid_json": True, "rubric": True, "guardrail": True, "passed": True}}
+
+
+def test_the_summary_reports_tool_calls_per_row():
+    results = [_scored("a", tool_calls=0), _scored("b", tool_calls=2),
+               _scored("c", tool_calls=2), _scored("d", tool_calls=4)]
+    summary = run_eval.summarise(results)
+    assert summary["tool_calls_mean"] == 2
+    assert summary["tool_calls_max"] == 4
+    assert summary["tool_calls_per_row"] == {"0": 1, "2": 2, "4": 1}
+
+
+def test_the_oracle_has_no_tool_call_figures():
+    """No agent, no tool calls: the summary leaves them out instead of claiming zero."""
+    results = [run_eval.run_row(BY_ID["trv-en-01"], run_eval.Oracle())]
+    assert "tool_calls_mean" not in run_eval.summarise(results)

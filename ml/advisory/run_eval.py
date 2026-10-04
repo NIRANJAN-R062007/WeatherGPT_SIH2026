@@ -241,6 +241,13 @@ def summarise(results: list[dict]) -> dict:
         summary["latency_p50_s"] = round(statistics.median(latencies), 3)
         summary["latency_p95_s"] = round(latencies[min(len(latencies) - 1,
                                                        int(0.95 * len(latencies)))], 3)
+    # TFA-18: tool calls per row, for an agent candidate only (the oracle makes none
+    # and reports None, which is left out rather than counted as zero).
+    calls = [r["tool_calls"] for r in scored if r.get("tool_calls") is not None]
+    if calls:
+        summary["tool_calls_mean"] = round(statistics.mean(calls), 2)
+        summary["tool_calls_max"] = max(calls)
+        summary["tool_calls_per_row"] = {str(n): calls.count(n) for n in sorted(set(calls))}
     summary["slot_stage"] = {s: sum(r["slots"]["status"] == s for r in results)
                              for s in ("pass", "fail", "known_gap", "gap_closed")}
     return summary
@@ -263,6 +270,10 @@ def print_report(name: str, results: list[dict], summary: dict) -> None:
                   f"({len(rows)} rows)")
         if "latency_p50_s" in summary:
             print(f"\nlatency  p50={summary['latency_p50_s']}s  p95={summary['latency_p95_s']}s")
+        if "tool_calls_mean" in summary:
+            spread = "  ".join(f"{n}:{c}" for n, c in summary["tool_calls_per_row"].items())
+            print(f"tool calls per row  mean={summary['tool_calls_mean']}  "
+                  f"max={summary['tool_calls_max']}  (calls:rows {spread})")
         failed = [r for r in scored if not r["model"]["passed"]]
         if failed:
             print(f"\n{'id':<11}problems")
