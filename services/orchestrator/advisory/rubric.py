@@ -20,11 +20,14 @@ from __future__ import annotations
 
 import calendar
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 RAIN_CAUTION_PCT = 50     # no mode given: a rain chance at or above this is "caution"
 WIND_CAUTION_KMH = 40     # so is a wind at or above this
 FARMING_DAYS = 3          # sowing is judged over this many forecast days
+DAY_OFFSET = {"today": 0, "tomorrow": 1, "day_after_tomorrow": 2}
+IST = ZoneInfo("Asia/Kolkata")  # every advisory place is in India
 
 
 @dataclass(frozen=True)
@@ -46,7 +49,10 @@ TRAVEL_MODES: dict[str, ModeRules] = {
     "flight": ModeRules("flight", rain_caution_pct=50, wind_caution_kmh=40),
     "road": ModeRules("road", rain_caution_pct=50, wind_caution_kmh=40),
     "train": ModeRules("train", rain_caution_pct=70, wind_caution_kmh=50),
-    "ferry": ModeRules("ferry", rain_caution_pct=40, wind_caution_kmh=30, wind_avoid_kmh=45,
+    # 39 km/h: where IMD's "strong wind" band starts, and fishers are advised not to
+    # go to sea (data/imd_reference/imd_reference.json, wind_strong). Niranjan's TFA-7
+    # review; the only sourced figure in this table.
+    "ferry": ModeRules("ferry", rain_caution_pct=40, wind_caution_kmh=30, wind_avoid_kmh=39,
                        needs_marine=True),
 }
 
@@ -55,22 +61,29 @@ def mode_rules(mode: str | None) -> ModeRules:
     return TRAVEL_MODES.get(mode or "", ANY_MODE)
 
 
-def travel_rubric(mode: str | None = None) -> str:
-    """The travel rules for one mode, as the agent's prompt states them."""
+def travel_rubric(mode: str | None = None, day: str | None = None) -> str:
+    """The travel rules for one mode and trip day, as the agent's prompt states them."""
     r = mode_rules(mode)
     by = f" by {r.mode}" if r.mode != "any" else ""
+    if (day or "today") == "today":
+        winds = "the current conditions and the hourly forecast"
+        storm = "the METAR weather, or in a TAF group whose period covers today,"
+    else:
+        winds = ("the trip day's hourly forecast only (the current conditions and the "
+                 "METAR describe now, not the trip day)")
+        storm = "a TAF group whose period covers the trip day"
     avoid_wind = (f"; or a wind_kmh of {r.wind_avoid_kmh:g} or more at the origin or "
                   "destination" if r.wind_avoid_kmh is not None else "")
     marine = ("\n- Sea state (waves, swell) is not in the facts, so a ferry trip is never \"go\":"
               "\n  answer \"caution\" at best and say so in \"cons\"." if r.needs_marine else "")
     return f"""\
-Pick exactly one verdict for travel{by}:
+Pick exactly one verdict for travel{by}. Judge wind by {winds}.
 - "avoid": an IMD warning with colour "red" at the origin or destination; or, when
-  METAR/TAF facts are present, a thunderstorm in the METAR weather at either airport{avoid_wind}.
+  METAR/TAF facts are present, a thunderstorm in {storm} at either airport{avoid_wind}.
 - "caution": a warning with colour "orange" or "yellow"; or the warnings facts are
   missing (they cannot be confirmed clear, so never answer "go" without them); or a
   rain_probability_pct of {r.rain_caution_pct:g} or more in a forecast; or a wind_kmh of
-  {r.wind_caution_kmh:g} or more.
+  {r.wind_caution_kmh:g} or more; or no wind_kmh for the trip day (it cannot be confirmed calm).
 - "go": none of the above, and the warnings are present and green.
 - "not_available": the forecast for the origin or the destination is missing.{marine}
 Never say a trip is "safe"."""
@@ -102,29 +115,120 @@ def _avail(facts, role: str, kind: str):
     return section.data if section is not None and section.available else None
 
 
+def trip_day(facts) -> str:
+    return facts.subject.get("day") or "today"
+
+
+def trip_date(facts) -> date | None:
+    """The trip day's date in India, counted from when the facts were collected."""
+    offset = DAY_OFFSET.get(trip_day(facts))
+    if offset is None:
+        return None
+    return datetime.fromisoformat(facts.collected_at).astimezone(IST).date() + timedelta(offset)
+
+
+def _thunderstorm_in(weather) -> bool:
+    return any("thunderstorm" in (w.get("text") or "") for w in weather or [])
+
+
 def _has_thunderstorm(aviation: dict) -> bool:
-    weather = (aviation.get("metar") or {}).get("decoded", {}).get("weather") or []
-    return any("thunderstorm" in (w.get("text") or "") for w in weather)
+    return _thunderstorm_in((aviation.get("metar") or {}).get("decoded", {}).get("weather"))
+
+
+def _taf_time(issued: datetime, point: dict | None) -> datetime | None:
+    """A TAF time (day of month, UTC hour and minute) as a datetime, taken as the first
+    such day on or after the issue date. Hour 24 is midnight at the end of the day."""
+    if not point or point.get("day") is None:
+        return None
+    day = issued.replace(hour=0, minute=0, second=0, microsecond=0)
+    for _ in range(32):
+        if day.day == point["day"]:
+            return day + timedelta(hours=point.get("hour") or 0, minutes=point.get("minute") or 0)
+        day += timedelta(days=1)
+    return None
+
+
+def _taf_thunderstorm_on(taf: dict | None, on: date | None) -> bool:
+    """Whether any TAF group with a thunderstorm overlaps the date `on` (in India).
+    TEMPO/PROB groups last their own period; base, BECMG and FM conditions last to
+    the end of the TAF's validity. The month comes from when the TAF was retrieved,
+    so an old snapshot never matches a later date."""
+    decoded = (taf or {}).get("decoded") or {}
+    if on is None or not taf.get("retrieved_at") or decoded.get("nil") or decoded.get("cancelled"):
+        return False
+    issued_at = decoded.get("issued") or {}
+    issued = datetime.fromisoformat(taf["retrieved_at"]).astimezone(timezone.utc)
+    for _ in range(32):  # back to the issue day, which is on or before retrieval
+        if issued.day == issued_at.get("day"):
+            break
+        issued -= timedelta(days=1)
+    valid = decoded.get("valid") or {}
+    valid_from, valid_to = _taf_time(issued, valid.get("from")), _taf_time(issued, valid.get("to"))
+    groups = [(valid_from, valid_to, (decoded.get("base") or {}).get("weather"))]
+    for change in decoded.get("changes") or []:
+        until = (_taf_time(issued, change.get("to"))
+                 if "TEMPO" in change["kind"] or change["kind"].startswith("PROB") else valid_to)
+        groups.append((_taf_time(issued, change.get("from")), until,
+                       (change.get("conditions") or {}).get("weather")))
+    start = datetime(on.year, on.month, on.day, tzinfo=IST)
+    end = start + timedelta(days=1)
+    return any(begin is not None and until is not None and begin < end and until > start
+               and _thunderstorm_in(weather) for begin, until, weather in groups)
+
+
+def thunderstorm_source(facts, role: str) -> str | None:
+    """"metar" when the trip is today and the METAR reports a thunderstorm now, "taf"
+    when a TAF group with a thunderstorm covers the trip day, else None. The METAR
+    describes now, so it never decides a later day."""
+    aviation = _avail(facts, role, "aviation")
+    if not aviation:
+        return None
+    if trip_day(facts) == "today" and _has_thunderstorm(aviation):
+        return "metar"
+    if _taf_thunderstorm_on(aviation.get("taf"), trip_date(facts)):
+        return "taf"
+    return None
+
+
+def thunderstorm_sentence(role: str, source: str) -> str:
+    if source == "metar":
+        return f"The {role} airport report shows a thunderstorm."
+    return f"The {role} airport forecast (TAF) shows a thunderstorm on the trip day."
+
+
+def wind_readings(facts, role: str) -> list[tuple[float, str]]:
+    """(km/h, fact path) for each wind the facts give for the trip day at `role`: the
+    current wind only when the trip is today (it describes now), and each hour of the
+    trip day's hourly forecast."""
+    day = trip_day(facts)
+    out = []
+    now = (_avail(facts, role, "current") or {}).get("wind_kmh")
+    if day == "today" and now is not None:
+        out.append((now, f"{role}.current.wind_kmh"))
+    hourly = _avail(facts, role, "hourly") or {}
+    if hourly.get("day", day) == day:  # never another day's hours
+        for i, hour in enumerate(hourly.get("hours", [])):
+            if hour.get("wind_kmh") is not None:
+                out.append((hour["wind_kmh"], f"{role}.hourly.hours[{i}].wind_kmh"))
+    return out
 
 
 def max_wind(facts, role: str) -> float | None:
-    """The strongest wind the facts give for `role` (now, and each hour), or None."""
-    winds = [(_avail(facts, role, "current") or {}).get("wind_kmh")]
-    winds += [h.get("wind_kmh") for h in (_avail(facts, role, "hourly") or {}).get("hours", [])]
-    winds = [w for w in winds if w is not None]
+    """The strongest wind the facts give for the trip day at `role`, or None."""
+    winds = [w for w, _ in wind_readings(facts, role)]
     return max(winds) if winds else None
 
 
-def _overrides(facts) -> list[tuple[str, str, float | None]]:
+def _overrides(facts) -> list[tuple[str, str, float | str | None]]:
     """(role, why, value) for each rule that forces "avoid"."""
     found = []
     rules = mode_rules(facts.subject.get("mode"))
     for role in ("origin", "destination"):
         if (_avail(facts, role, "warnings") or {}).get("colour") == "red":
             found.append((role, "red_warning", None))
-        aviation = _avail(facts, role, "aviation")
-        if aviation and _has_thunderstorm(aviation):
-            found.append((role, "thunderstorm", None))
+        storm = thunderstorm_source(facts, role)
+        if storm:
+            found.append((role, "thunderstorm", storm))
         wind = max_wind(facts, role)
         if rules.wind_avoid_kmh is not None and wind is not None and wind >= rules.wind_avoid_kmh:
             found.append((role, "wind", wind))
@@ -133,9 +237,10 @@ def _overrides(facts) -> list[tuple[str, str, float | None]]:
 
 def hard_override(facts) -> str | None:
     """The verdict a model may never talk its way past. Travel: "avoid" when an IMD
-    warning at the origin or destination is red, a METAR shows a thunderstorm at
-    either airport (§11.6), or the wind reaches the mode's avoid level (TFA-7, ferry
-    only today). Farming (TFA-11): "not_available" when the crop file gives no
+    warning at the origin or destination is red, an airport shows a thunderstorm on
+    the trip day (the METAR for a trip today, a TAF group for any day; §11.6), or
+    the trip day's wind reaches the mode's avoid level (TFA-7, ferry only so far).
+    Farming (TFA-11): "not_available" when the crop file gives no
     thresholds or there is no forecast to judge by, and "not_suitable" outside the
     crop's sowing months — where a model would otherwise be guessing or
     contradicting the crop file.
@@ -156,7 +261,7 @@ def override_reasons(facts) -> list[str]:
         if why == "red_warning":
             out.append(f"A red IMD warning is in force at the {role}.")
         elif why == "thunderstorm":
-            out.append(f"The {role} airport report shows a thunderstorm.")
+            out.append(thunderstorm_sentence(role, value))
         else:
             out.append(f"Wind at the {role} reaches {value:g} km/h, too strong for a {mode}.")
     return out
@@ -178,7 +283,8 @@ def reference_travel(facts) -> str:
     for role in roles:
         if forecasts[role]["rain_probability_pct"] >= rules.rain_caution_pct:
             return "caution"
-        if (max_wind(facts, role) or 0) >= rules.wind_caution_kmh:
+        wind = max_wind(facts, role)
+        if wind is None or wind >= rules.wind_caution_kmh:  # unknown is not calm
             return "caution"
     return "caution" if rules.needs_marine else "go"
 

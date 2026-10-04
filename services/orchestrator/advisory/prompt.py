@@ -57,7 +57,8 @@ def build(kind: str, slots: dict, lang: str, facts, *, tools: bool = False) -> s
     """`slots` are canonical values only. With `tools`, the model may call the
     fact tools for what is not in FACTS; without, FACTS is all it has."""
     language = _LANGUAGES.get(lang.split("-")[0], "English")
-    rules = rubric.travel_rubric(slots.get("mode")) if kind == "travel" else rubric.FARMING_RUBRIC
+    rules = (rubric.travel_rubric(slots.get("mode"), slots.get("day")) if kind == "travel"
+             else rubric.FARMING_RUBRIC)
     # name -> reason, so the name a model may cite is a JSON key on its own: as
     # "name (reason)" the live models copied the reason into their cites (TFA-18).
     missing = {m["section"]: m["reason"] for m in facts.missing()}
