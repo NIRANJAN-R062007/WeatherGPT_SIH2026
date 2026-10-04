@@ -34,6 +34,13 @@ MESSAGES: dict[str, dict[str, str]] = {
         "te": "{role}: వర్షం పడే అవకాశం {pct}%.",
         "mr": "{role}: पावसाची शक्यता {pct}% आहे.",
     },
+    "no_rain_chance_role": {
+        "en": "The rain chance for the {role} is not available.",
+        "hi": "{role}: बारिश की संभावना की जानकारी उपलब्ध नहीं है।",
+        "ta": "{role}: மழை வாய்ப்பு தகவல் கிடைக்கவில்லை.",
+        "te": "{role}: వర్షం పడే అవకాశం సమాచారం అందుబాటులో లేదు.",
+        "mr": "{role}: पावसाच्या शक्यतेची माहिती उपलब्ध नाही.",
+    },
     "no_wind_role": {
         "en": "No wind forecast for the trip day is available for the {role}.",
         "hi": "{role}: यात्रा के दिन का हवा का पूर्वानुमान उपलब्ध नहीं है।",
@@ -125,6 +132,20 @@ MESSAGES: dict[str, dict[str, str]] = {
         "te": "సూచనలో {day} రోజుకు వర్షపాతం మొత్తం లేదు.",
         "mr": "अंदाजात {day} साठी पावसाचे प्रमाण दिलेले नाही.",
     },
+    "no_temperature": {
+        "en": "The forecast gives no high or low temperature for {day}.",
+        "hi": "पूर्वानुमान में {day} के लिए अधिकतम या न्यूनतम तापमान नहीं दिया गया है।",
+        "ta": "{day} நாளுக்கான அதிகபட்ச அல்லது குறைந்தபட்ச வெப்பநிலை முன்னறிவிப்பில் இல்லை.",
+        "te": "సూచనలో {day} రోజుకు గరిష్ఠ లేదా కనిష్ఠ ఉష్ణోగ్రత లేదు.",
+        "mr": "अंदाजात {day} साठी कमाल किंवा किमान तापमान दिलेले नाही.",
+    },
+    "no_rain_chance": {
+        "en": "The forecast gives no rain chance for {day}.",
+        "hi": "पूर्वानुमान में {day} के लिए बारिश की संभावना नहीं दी गई है।",
+        "ta": "{day} நாளுக்கான மழை வாய்ப்பு முன்னறிவிப்பில் இல்லை.",
+        "te": "సూచనలో {day} రోజుకు వర్షం పడే అవకాశం లేదు.",
+        "mr": "अंदाजात {day} साठी पावसाची शक्यता दिलेली नाही.",
+    },
     "forecast_unavailable": {
         "en": "The forecast is not available.",
         "hi": "मौसम पूर्वानुमान उपलब्ध नहीं है।",
@@ -177,6 +198,13 @@ MESSAGES: dict[str, dict[str, str]] = {
               "కనిష్ఠం {low}°C.",
         "mr": "{when} पावसाची शक्यता {pct}% ({mm} mm) आहे, कमाल तापमान {high}°C आणि किमान "
               "{low}°C.",
+    },
+    "rain_amount_day": {  # `rain_day` for a day the forecast gives no rain chance for
+        "en": "Rain {when} is {mm} mm, with a high of {high}°C and a low of {low}°C.",
+        "hi": "{when} बारिश {mm} mm है, अधिकतम तापमान {high}°C और न्यूनतम {low}°C।",
+        "ta": "{when} மழை அளவு {mm} mm, அதிகபட்ச வெப்பநிலை {high}°C, குறைந்தபட்சம் {low}°C.",
+        "te": "{when} వర్షపాతం {mm} mm, గరిష్ఠ ఉష్ణోగ్రత {high}°C, కనిష్ఠం {low}°C.",
+        "mr": "{when} पावसाचे प्रमाण {mm} mm आहे, कमाल तापमान {high}°C आणि किमान {low}°C.",
     },
     "crop_not_reviewed": {
         "en": "The crop thresholds have not yet been reviewed by an agronomist.",
