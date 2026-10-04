@@ -1,0 +1,166 @@
+# Production stack for the bare box (plan.md Phase 7, B4; runbook: deploy/README.md).
+# docker-compose.yml is the development file and is not safe on an internet-facing
+# host; this file differs from it on purpose:
+#
+# - no database port is published, and Postgres and Redis both need a password
+#   from .env (the compose file refuses to start without them);
+# - the app ports are bound to 127.0.0.1 only, so the only way in from outside
+#   is the TLS proxy (on 2026-10-04 the old box answered on :8001 directly,
+#   which skipped Caddy and let a caller pick its own rate-limit key);
+# - no --reload and no bind mounts: the containers run the image as built;
+# - Redis keeps an append-only file, so a restart doesn't lose recent keys;
+# - the app containers run like k8s/base: read-only root, /tmp only, no
+#   capabilities, no privilege escalation, a 1 GB memory ceiling;
+# - container logs are rotated, so a small disk can't fill up.
+#
+# Run it from the repo root so that both `.env` lookups (interpolation and
+# env_file) find the root .env:
+#
+#   docker compose -f docker-compose.prod.yml up -d --build --wait
+#   # TLS from this file too, when the host has no reverse proxy of its own:
+#   SITE_ADDRESS=3-108-52-61.sslip.io docker compose -f docker-compose.prod.yml \
+#     --profile caddy up -d --build --wait
+#
+# Topology: internet -> Caddy -> gateway -> orchestrator, so TRUSTED_PROXY_HOPS
+# is 2 for both services (services/orchestrator/limits.py). That holds whether
+# Caddy runs on the host (pointed at 127.0.0.1:8000) or in the `caddy` profile.
+
+name: weathergpt-prod
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-hardened: &hardened
+  read_only: true
+  tmpfs:
+    - /tmp
+  cap_drop: ["ALL"]
+  security_opt:
+    - no-new-privileges:true
+  mem_limit: 1g
+
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: weathergpt
+      # `:?` with no error text: compose names the variable itself, and
+      # GitGuardian took custom text there for a hardcoded secret (PR #48).
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+      POSTGRES_DB: weathergpt
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U weathergpt -d weathergpt"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    logging: *logging
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # --appendonly: every write goes to an append-only file in the volume, on
+    # top of the default snapshots. The password is read by redis-cli from
+    # REDISCLI_AUTH, which is what the healthcheck and deploy/persistence_check.sh
+    # use (`docker exec ... redis-cli`).
+    command: ["sh", "-c", "exec redis-server --appendonly yes --requirepass \"$$REDISCLI_AUTH\""]
+    environment:
+      REDISCLI_AUTH: ${REDIS_PASSWORD:?}
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    logging: *logging
+
+  orchestrator:
+    <<: *hardened
+    build:
+      context: .
+      dockerfile: services/orchestrator/Dockerfile
+    image: weathergpt-orchestrator:prod
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://weathergpt:${POSTGRES_PASSWORD}@postgres:5432/weathergpt
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      TRUSTED_PROXY_HOPS: "2"
+      FRONTEND_DIR: /app/prototype/frontend
+    # No depends_on for postgres/redis, as in docker-compose.yml: both are
+    # best-effort for the orchestrator and must never hold up its startup.
+    # No ports: only the gateway talks to it.
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/livez', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+    logging: *logging
+
+  gateway:
+    <<: *hardened
+    build:
+      context: ./services/gateway
+      dockerfile: Dockerfile
+    image: weathergpt-gateway:prod
+    restart: unless-stopped
+    # Only what the gateway reads; none of the provider keys in .env.
+    environment:
+      DATABASE_URL: postgresql://weathergpt:${POSTGRES_PASSWORD}@postgres:5432/weathergpt
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      ORCHESTRATOR_URL: http://orchestrator:8001
+      TRUSTED_PROXY_HOPS: "2"
+      MAX_BODY_BYTES: ${MAX_BODY_BYTES:-2097152}
+      METRICS_TOKEN: ${METRICS_TOKEN:-}
+    ports:
+      - "127.0.0.1:${GATEWAY_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      orchestrator:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/livez', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+    logging: *logging
+
+  # TLS termination, only with `--profile caddy`. Leave it off when the host
+  # already runs Caddy (or nginx): point that at 127.0.0.1:8000 instead. Both
+  # can't hold ports 80 and 443 at once.
+  caddy:
+    image: caddy:2-alpine
+    profiles: ["caddy"]
+    restart: unless-stopped
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-3-108-52-61.sslip.io}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      gateway:
+        condition: service_healthy
+    logging: *logging
+
+volumes:
+  postgres_data:
+  redis_data:
+  caddy_data:
+  caddy_config:

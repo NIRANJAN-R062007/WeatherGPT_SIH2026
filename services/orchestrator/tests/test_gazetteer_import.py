@@ -174,6 +174,22 @@ def test_sync_places_upserts_names_text_and_keys_demo_rows_by_city(monkeypatch, 
     assert "திருச்சிராப்பள்ளி" in by_key["gn:1254388"]["names_norm"]
 
 
+def test_migrate_sync_places_loads_the_committed_file(monkeypatch, capsys):
+    """A new database gets the gazetteer from the file the image carries
+    (deploy/README.md), not from a GeoNames download."""
+    import migrate
+
+    engine = _Engine()
+    monkeypatch.setattr(weather_store, "_engine", engine)
+    monkeypatch.setattr(weather_store, "_SCHEMA_READY", True)
+    assert migrate.main(["--sync-places"]) == 0
+    places = json.loads(gzip.decompress(_GAZETTEER.read_bytes()))["places"]
+    assert f"synced {len(places)} places" in capsys.readouterr().out
+    keys = {r["key"] for r in engine.rows}
+    assert len(keys) == len(places)
+    assert set(DEMO_PLACE_IDS) <= keys  # demo rows keep their city key
+
+
 # --- the committed file --------------------------------------------------------------
 
 def test_committed_gazetteer_is_small_and_agrees_with_the_demo_list():

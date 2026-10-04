@@ -14,7 +14,9 @@ Three groups of checks:
   ask       One /ask per app language (en, hi, ta, te, mr): HTTP 200, a reply
             that is not empty, grounding ok with every figure matched, and (for
             the four Indic languages) a reply written in that script, so an
-            English fallback does not pass as a translation.
+            English fallback does not pass as a translation. Plus one place
+            outside the demo cities (Kochi), which fails on a database whose
+            gazetteer was never seeded (migrate.py --sync-places).
   current   Routes and data that only a build of `main` has: all 8 demo cities,
             /warnings with a `status`, /aviation, /intelligence/best-window,
             /glossary, /forecast/daily with sunrise, /forecast/hourly, /facts'
@@ -51,6 +53,8 @@ EXPECTED_CITIES = {
     "chennai", "madurai", "coimbatore", "bengaluru",
     "hyderabad", "mumbai", "delhi", "thiruvananthapuram",
 }
+
+KOCHI = "gn:1273874"  # GeoNames id, data/gazetteer/in_places.json.gz
 
 ASK_TIMEOUT = 45  # /ask is the slow one: narration plus translation
 GET_TIMEOUT = 20
@@ -159,6 +163,21 @@ def check_ask(base: str, rep: Report) -> None:
         if not problems and narration == "template":
             rep.add("ask", f"/ask lang={lang} used the template", INFO,
                     "valid and grounded, but no LLM answered; check provider keys and quota")
+
+    # A migrated but empty `cities` table answers not_found for every place
+    # outside the demo cities, while those cities themselves keep working.
+    status, body, secs = fetch(base, "/ask", {"text": "weather in Kochi", "lang": "en"},
+                               timeout=ASK_TIMEOUT)
+    body = body if isinstance(body, dict) else {}
+    loc = body.get("location") or {}
+    if status == 200 and loc.get("place_id") == KOCHI and body.get("response"):
+        rep.add("ask", "/ask outside the demo cities", PASS, f"{secs:.1f}s {loc.get('label')}")
+    elif body.get("not_found"):
+        rep.add("ask", "/ask outside the demo cities", FAIL,
+                "Kochi not found: seed the gazetteer (migrate.py --sync-places)")
+    else:
+        rep.add("ask", "/ask outside the demo cities", FAIL,
+                f"HTTP {status}, location={loc or None}")
 
 
 def check_current(base: str, rep: Report) -> None:
