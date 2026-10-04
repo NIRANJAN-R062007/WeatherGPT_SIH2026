@@ -19,11 +19,13 @@ import copy
 import re
 import sys
 from dataclasses import replace
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "services" / "orchestrator"))
 
 from advisory import facts as facts_module  # noqa: E402
+from advisory import rubric  # noqa: E402
 from advisory.facts import AdvisoryFacts, FactSection  # noqa: E402
 
 # Pinned values. The thresholds in advisory/rubric.py are written against these.
@@ -171,11 +173,40 @@ def _calm(facts: AdvisoryFacts) -> None:
 # --- the scenarios --------------------------------------------------------------
 
 
+def _taf_point(t: datetime) -> dict:
+    return {"day": t.day, "hour": t.hour, "minute": t.minute, "time_utc": t.strftime("%H:%M"),
+            "time_ist": t.astimezone(rubric.IST).strftime("%H:%M")}
+
+
+def _taf_thunderstorm(taf: dict, on) -> None:
+    """A TAF issued the evening before `on`, with a TEMPO thunderstorm from 06:00 to
+    12:00 UTC on `on` (11:30-17:30 IST). Retrieved at issue, so the dates resolve."""
+    issued = datetime(on.year, on.month, on.day, tzinfo=timezone.utc) - timedelta(hours=7)
+    decoded = taf["decoded"]
+    taf["retrieved_at"] = issued.isoformat()
+    decoded["issued"] = {"day": issued.day, "time_utc": "17:00", "time_ist": "22:30"}
+    decoded["valid"] = {"from": _taf_point(issued + timedelta(hours=1)),
+                        "to": _taf_point(issued + timedelta(hours=31))}
+    storm = datetime(on.year, on.month, on.day, 6, tzinfo=timezone.utc)
+    decoded["changes"] = [{"kind": "TEMPO", "probability": None, "from": _taf_point(storm),
+                           "to": _taf_point(storm + timedelta(hours=6)),
+                           "conditions": {"weather": [
+                               {"code": "TSRA", "intensity": None, "descriptor": "TS",
+                                "phenomena": ["rain"], "text": "thunderstorm with rain"}]}}]
+    taf["briefing"] = taf["briefing"].replace(
+        "No significant weather expected.", "Temporarily on the trip day: thunderstorm with rain.")
+    taf["lines"] = [taf["lines"][0], "Temporarily on the trip day: thunderstorm with rain."]
+
+
 def _thunderstorm_metar(facts: AdvisoryFacts, role: str = "destination") -> None:
+    """A thunderstorm at the airport: in the METAR, and for a trip on a later day
+    also in the TAF on the trip day, since the METAR only describes now."""
     for i, s in _each(facts, "aviation"):
         if s.role == role:
             data = copy.deepcopy(s.data)
             _set_metar_weather(data["metar"], "thunderstorm with rain")
+            if rubric.trip_day(facts) != "today" and data.get("taf"):
+                _taf_thunderstorm(data["taf"], rubric.trip_date(facts))
             facts.sections[i] = replace(s, data=data)
 
 

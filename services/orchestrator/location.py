@@ -237,15 +237,36 @@ _PG_NEAREST = """
 """
 
 
+_PG_PLACE_COUNT = "SELECT count(*) FROM cities WHERE place_id IS NOT NULL"
+_pg_seeded_until = 0.0  # _monotonic() until which the last seeded check holds
+
+
+def _require_seeded(conn) -> None:
+    """Raise unless `cities` holds at least the file's places. A new database is
+    migrated by its first write but holds no places until `migrate.py
+    --sync-places`, and asked first it answered "not found" for every place, the
+    demo cities included. Raising sends _pg() to the file for the cooldown; the
+    check runs again after it, and once per cooldown while it passes."""
+    global _pg_seeded_until
+    if _monotonic() < _pg_seeded_until:
+        return
+    count = conn.execute(text(_PG_PLACE_COUNT)).scalar() or 0
+    if count < len(_GAZETTEER.places):
+        raise RuntimeError(f"cities holds {count} of {len(_GAZETTEER.places)} places; "
+                           "run migrate.py --sync-places")
+    _pg_seeded_until = _monotonic() + _PG_COOLDOWN_SECONDS
+
+
 def _pg(sql: str, params: dict, *, fuzzy_floor: float | None = None) -> list | None:
-    """Rows from Postgres, or None when it is down or not migrated (the
-    caller then uses the file). Never raises."""
+    """Rows from Postgres, or None when it is down, not migrated or not yet
+    seeded (the caller then uses the file). Never raises."""
     global _pg_down_until
     if _monotonic() < _pg_down_until:
         return None
     try:
         import weather_store  # its engine, and tests/conftest.py's kill switch
         with weather_store._engine.begin() as conn:
+            _require_seeded(conn)
             if fuzzy_floor is not None:
                 conn.execute(text("SELECT set_config('pg_trgm.word_similarity_threshold', "
                                   ":floor, true)"), {"floor": str(fuzzy_floor)})
