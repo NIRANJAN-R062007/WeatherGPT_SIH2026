@@ -322,3 +322,22 @@ def test_the_oracle_has_no_tool_call_figures():
     """No agent, no tool calls: the summary leaves them out instead of claiming zero."""
     results = [run_eval.run_row(BY_ID["trv-en-01"], run_eval.Oracle())]
     assert "tool_calls_mean" not in run_eval.summarise(results)
+
+
+@pytest.mark.parametrize("error, kind", [
+    (None, None),
+    ("AgentError: ModelThrottledException: 429 RESOURCE_EXHAUSTED", "rate_limited"),
+    ("AgentError: no reply within 8s", "timeout"),
+    ("AgentError: ServerError: 503 UNAVAILABLE", "provider_unavailable"),
+    ("AgentError: ValueError: bad thing", "other"),
+])
+def test_call_errors_are_sorted_by_why(error, kind):
+    assert run_eval.error_kind(error) == kind
+
+
+def test_the_summary_counts_call_errors_by_kind():
+    results = [_scored("a", tool_calls=0),
+               _scored("b", tool_calls=0, error="AgentError: no reply within 8s"),
+               _scored("c", tool_calls=0, error="AgentError: 429 Too Many Requests"),
+               _scored("d", tool_calls=0, error="AgentError: 429 Too Many Requests")]
+    assert run_eval.summarise(results)["call_errors"] == {"rate_limited": 2, "timeout": 1}

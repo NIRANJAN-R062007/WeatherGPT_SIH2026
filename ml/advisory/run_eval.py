@@ -231,9 +231,26 @@ def _pct(n: int, d: int) -> str:
     return f"{n / d:.0%}" if d else "-"
 
 
+def error_kind(error: str | None) -> str | None:
+    """A failed call, sorted by why: a free-tier rate limit is not the agent being
+    wrong, and a timeout is the budget talking, so TFA-18 reads them apart."""
+    if not error:
+        return None
+    text = error.lower()
+    if any(s in text for s in ("throttl", "429", "resource_exhausted", "rate limit")):
+        return "rate_limited"
+    if "no reply within" in text or "timeout" in text or "timed out" in text:
+        return "timeout"
+    if any(s in text for s in ("503", "unavailable", "overloaded")):
+        return "provider_unavailable"
+    return "other"
+
+
 def summarise(results: list[dict]) -> dict:
     scored = [r for r in results if "model" in r]
     summary: dict = {"answer_rows": len(scored)}
+    kinds = [error_kind(r.get("error")) for r in scored]
+    summary["call_errors"] = {k: kinds.count(k) for k in sorted({k for k in kinds if k})}
     for key in ("valid_json", "rubric", "guardrail", "passed"):
         summary[key] = sum(r["model"][key] for r in scored)
     latencies = sorted(r["latency_s"] for r in scored)
@@ -270,6 +287,9 @@ def print_report(name: str, results: list[dict], summary: dict) -> None:
                   f"({len(rows)} rows)")
         if "latency_p50_s" in summary:
             print(f"\nlatency  p50={summary['latency_p50_s']}s  p95={summary['latency_p95_s']}s")
+        if summary["call_errors"]:
+            print("call errors  " + "  ".join(
+                f"{k}={v}" for k, v in summary["call_errors"].items()))
         if "tool_calls_mean" in summary:
             spread = "  ".join(f"{n}:{c}" for n, c in summary["tool_calls_per_row"].items())
             print(f"tool calls per row  mean={summary['tool_calls_mean']}  "
