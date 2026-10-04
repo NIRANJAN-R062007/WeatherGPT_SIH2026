@@ -63,4 +63,17 @@ it expects:
 - `reviewed`: `true` only after the agronomy sign-off (plan.md §11.9). Until
   then every answer says the thresholds have not been reviewed.
 
-Checking each number against its quote is the validator's job (TFA-10).
+## Checking the file (TFA-10)
+
+```bash
+python scripts/check_crops.py           # every number against its quote
+python scripts/check_crops.py --fetch   # ... and every quote against its page
+```
+
+It rejects an unknown crop or region, a crop and region given twice, a field
+with no `source` or https `url` (null values too), a value with no `quote`, a
+malformed value, and any number its quote doesn't contain: each sowing month by
+name or abbreviation, both ends of `temp_range_c`, and the rain limit. A quote
+may join several passages of one page with ` ... `, with table cells joined by
+` | ` in page order. `--fetch` needs the network, so the test suite runs only
+the offline check, on this file, in CI.
