@@ -149,3 +149,47 @@ def test_the_agents_window_tool_uses_the_crop_too(crop_file):
     section = agent.live_fetch("farming", SOWING)("location", "window", "today")
     assert not section.available
     assert section.reason == "no hour today meets the crop's thresholds"
+
+
+# --- end to end through POST /advisory/sowing (TFA-11 done-when) ------------------------
+
+
+@pytest.fixture
+def client(monkeypatch):
+    import config
+    import main
+    from fastapi.testclient import TestClient
+
+    monkeypatch.setattr(config, "ADVISORY_AGENT_ENABLED", False)  # the rules alone
+    return TestClient(main.app)
+
+
+def test_a_covered_crop_gets_a_grounded_sowing_window(crop_file, client):
+    import guardrail
+    from advisory.facts import FarmingFactsCollector
+
+    crop_file(_entry(sowing_months=_value(list(range(1, 13))),
+                     temp_range_c=_value({"min": 0, "max": 50}),
+                     max_rain_probability_pct=_value(100)))
+    body = client.post("/advisory/sowing",
+                       json={"text": "When should I sow groundnut in Madurai?"}).json()
+    assert body["status"] == "ok" and body["path"] == "template"
+    answer = body["answer"]
+    assert answer["verdict"] == "suitable"
+    assert set(answer["window"]) == {"start_local", "end_local"}
+    assert "The crop thresholds have not yet been reviewed by an agronomist." in answer["cons"]
+    assert any(p["section"] == "crop.entry" and "not yet reviewed" in p["source"]
+               for p in body["provenance"])
+    facts = FarmingFactsCollector().collect(body["slots"])
+    assert guardrail.check_advisory(answer, facts).ok
+
+
+def test_an_uncovered_crop_says_so_rather_than_guessing(crop_file, client):
+    crop_file(_entry())  # groundnut in Madurai only
+    body = client.post("/advisory/sowing",
+                       json={"text": "When should I sow rice in Madurai?"}).json()
+    answer = body["answer"]
+    assert answer["verdict"] == "not_available" and answer["window"] is None
+    assert "The crop file has no entry for this crop here." in answer["cons"]
+    assert {"section": "crop.entry",
+            "reason": "crop/region not in the sourced crop file"} in body["missing"]
