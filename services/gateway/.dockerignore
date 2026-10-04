@@ -1,0 +1,9 @@
+# Build context for this directory's Dockerfile, which does `COPY . .`: keep
+# local caches and environments out of the gateway image (TFA-22).
+.venv
+venv
+**/__pycache__
+**/*.py[cod]
+.pytest_cache
+.ruff_cache
+.env
