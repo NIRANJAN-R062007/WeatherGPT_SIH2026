@@ -87,7 +87,7 @@ function NoVerdict({ data, glossary }: { data: WarningsUnavailable; glossary: Gl
 
 /** The featured card: tinted by the feed's own colour, headline up front,
  *  the legend and provenance behind "View details". */
-function Verdict({
+export function Verdict({
   data,
   glossary,
   expanded,

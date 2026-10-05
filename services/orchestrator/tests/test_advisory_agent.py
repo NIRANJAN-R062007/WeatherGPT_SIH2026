@@ -510,3 +510,86 @@ def test_trim_cites_never_touches_pros_or_cons():
     assert len(out["cites"]) == 8 and len(out["pros"]) == 9
     assert schema.trim_cites({"verdict": "go", "pros": [], "cons": []}) == {
         "verdict": "go", "pros": [], "cons": []}
+
+
+# --- what a client is told about a fallback (TFA-25) ------------------------------------
+
+
+def test_a_provider_error_reaches_the_client_as_a_code_only(monkeypatch):
+    # A Groq 429's own message names the organisation and the live usage: that stays in
+    # the log, and the response says only "rate_limited".
+    def run(model, box, system, timeout):
+        raise agent.AgentError("RateLimitError: Error code: 429 - Rate limit reached for model "
+                               "`openai/gpt-oss-120b` in organization `org_01SECRET` on tokens "
+                               "per day (TPD): Limit 200000, Used 199000")
+
+    monkeypatch.setattr(agent, "run_agent", run)
+    resp = client.post("/advisory/travel", json={"text": "Chennai to Madurai today"})
+    body = resp.json()
+    assert body["path"] == "template" and body["fallback_reason"] == "rate_limited"
+    assert "org_" not in resp.text and "199000" not in resp.text
+
+
+@pytest.mark.parametrize("error, code", [
+    (agent.AgentError("no reply within 8s"), "timeout"),
+    (agent.AgentError("ClientError: 429 RESOURCE_EXHAUSTED. quota exceeded"), "rate_limited"),
+    (agent.AgentError("ServerError: 503 UNAVAILABLE"), "provider_error"),
+])
+def test_provider_failures_map_to_fixed_codes(monkeypatch, error, code):
+    def run(model, box, system, timeout):
+        raise error
+
+    monkeypatch.setattr(agent, "run_agent", run)
+    advice = agent.advise("travel", TRIP)
+    assert advice.fallback_code == code and advice.fallback_code in agent.FALLBACK_CODES
+    assert str(error) in advice.fallback_reason  # the detail is kept for the server
+
+
+def test_every_fallback_code_is_one_of_the_fixed_set(monkeypatch):
+    monkeypatch.setattr(agent, "run_agent", lambda model, box, system, timeout: "Sure! Go.")
+    assert agent.advise("travel", TRIP).fallback_code == "not_json"
+    monkeypatch.setattr(agent, "run_agent", lambda model, box, system, timeout: json.dumps(
+        {"verdict": "go", "pros": ["It is 99°C."], "cons": [], "window": None}))
+    assert agent.advise("travel", TRIP).fallback_code == "guardrail"
+    assert agent.advise("travel", TRIP, timeout_s=0.1).fallback_code == "out_of_time"
+    monkeypatch.setattr(config, "ADVISORY_AGENT_ENABLED", False)
+    advice = agent.advise("travel", TRIP)
+    assert advice.fallback_code == "agent_off" and advice.fallback_reason == agent.AGENT_OFF
+
+
+# --- the verdict floor (TFA-26) -------------------------------------------------------
+
+
+def _says(verdict):
+    return lambda model, box, system, timeout: json.dumps(
+        {"verdict": verdict, "pros": [], "cons": [], "window": None, "cites": []})
+
+
+def test_a_model_go_under_a_warning_is_served_as_the_rules_caution(monkeypatch):
+    # Madurai's fixture warning is yellow, so the rule table says "caution" for this trip.
+    facts = _facts()
+    assert template.rubric.reference_verdict(facts) == "caution"
+    monkeypatch.setattr(agent, "run_agent", _says("go"))
+    advice = agent.advise("travel", TRIP)
+    assert advice.path == "agent:gemini"
+    assert advice.answer["verdict"] == "caution"
+    assert advice.answer["cons"]  # says why, from the facts
+    assert guardrail.check_advisory(advice.answer, advice.facts).ok
+
+
+@pytest.mark.parametrize("verdict", ["caution", "avoid", "not_available"])
+def test_a_verdict_as_cautious_as_the_rules_or_more_is_kept(monkeypatch, verdict):
+    monkeypatch.setattr(agent, "run_agent", _says(verdict))
+    assert agent.advise("travel", TRIP).answer["verdict"] == verdict
+
+
+def test_the_floor_reaches_the_endpoint(monkeypatch):
+    monkeypatch.setattr(agent, "run_agent", _says("go"))
+    body = client.post("/advisory/travel", json={"text": "Chennai to Madurai today"}).json()
+    assert body["path"] == "agent:gemini" and body["answer"]["verdict"] == "caution"
+
+
+def test_the_floor_leaves_a_malformed_reply_to_the_guardrail():
+    facts = _facts()
+    bad = {"verdict": "go", "pros": [], "cons": "not a list", "window": None, "cites": []}
+    assert template.apply_floor(facts, bad) is bad

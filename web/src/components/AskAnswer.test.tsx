@@ -65,6 +65,52 @@ describe('the warnings-unavailable panel', () => {
   });
 });
 
+describe('a warnings verdict carries the simulated-data label (Phase 7 B2)', () => {
+  // The /ask body for "is there any warning for Chennai?" with the fixture on.
+  const label = 'Simulated data — pending official feed access';
+  const warning = {
+    city: 'chennai',
+    district: 'Chennai',
+    colour: 'orange',
+    colour_label: 'Orange',
+    category: 'Heavy rainfall',
+    category_label: 'Heavy rainfall',
+    headline: 'Orange alert: heavy rainfall expected',
+    advice: 'Avoid low-lying and waterlogging-prone areas; keep essential travel to a minimum.',
+    valid_from: '2026-09-14T06:00:00+05:30',
+    valid_to: '2026-09-15T06:00:00+05:30',
+    issued_by: 'IMD (fixture)',
+    source: 'fixture',
+    disclaimer: label,
+  };
+  const body = {
+    city: 'chennai',
+    location: { label: 'Chennai', source: 'demo_fixture', lat: 13.08, lon: 80.27, place_id: 'gn:1264527' },
+    response: warning.headline,
+    status: 'active',
+    warning,
+    legend,
+    provenance: {
+      source: 'fixture',
+      issued_by: 'IMD (fixture)',
+      valid_from: warning.valid_from,
+      valid_to: warning.valid_to,
+      is_live: false,
+      retrieved_at: '2026-10-05T12:15:55+00:00',
+    },
+    grounding: { ok: true, matched: 0, total: 0, figures: [], fallback_used: false, narration: 'verbatim', attempts: 0, provider: 'feed' },
+  };
+
+  it('on an active warning', () => {
+    expect(render(body)).toContain(label);
+  });
+
+  it('on a clear (green) verdict, with the detail on', () => {
+    const clear = { ...body, status: 'clear', warning: { ...warning, colour: 'green', colour_label: 'Green' } };
+    expect(render(clear, { detail: true })).toContain(label);
+  });
+});
+
 describe('a warnings location reply is a fallback panel with the places and the location button', () => {
   it('lists the places to tap when several share the name', () => {
     const candidates = [

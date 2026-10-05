@@ -182,6 +182,25 @@ def test_ask_warnings_active_carries_the_simulated_label(_warnings_enabled):
     assert body["warning"]["disclaimer"] == warnings_module.SIMULATED_LABEL
 
 
+# Every fixture on disk, not just CITIES, so a fixture added later is covered.
+_FIXTURE_CITIES = sorted(p.name.split(".")[1] for p in WARN_DIR.glob("warnings.*.json"))
+
+
+@pytest.mark.parametrize("lang", LANGS)
+@pytest.mark.parametrize("city", _FIXTURE_CITIES)
+def test_no_fixture_warning_leaves_without_the_simulated_label(_warnings_enabled, city, lang):
+    # Phase 7 B2: while fixtures are the only source, no warning may reach a
+    # client unlabelled, in any language, through either route.
+    assert _FIXTURE_CITIES, "no warning fixtures found"
+    for body in (
+        client.get("/warnings", params={"city": city, "lang": lang}).json(),
+        _ask(f"is there any warning for {city}?", lang=lang),
+    ):
+        assert body["status"] in {"active", "clear"}
+        assert body["warning"]["source"] == "fixture"
+        assert body["warning"]["disclaimer"] == "Simulated data — pending official feed access"
+
+
 def test_madurai_is_yellow_thunderstorm(_warnings_enabled):
     body = client.get("/warnings", params={"city": "madurai"}).json()
     assert body["status"] == "active"
