@@ -1,5 +1,5 @@
 # Supply-chain scanning (plan.md §8 Phase 8, SEC-N18; finding F10). Any finding
-# fails the job. Dependency *updates* come from .github/dependabot.yml.
+# fails the job. Dependabot was removed 2026-10-05; dependency pins are bumped by hand.
 #
 # gitleaks and Trivy are installed from their GitHub releases at a pinned
 # version with the published checksum verified, not via third-party actions:
