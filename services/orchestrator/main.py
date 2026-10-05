@@ -1085,8 +1085,9 @@ _ADVISORY_DISCLAIMER = {
 
 def _carried_slots(kind: str, slots: dict[str, str]) -> dict[str, str]:
     """The slots a client sent back from the last turn, kept only if each is a value we
-    could have produced: a registered city key, a known day, a known crop. Anything else
-    is dropped and asked for again, so no client text reaches the facts or the prompt."""
+    could have produced: a registered city key, a known day, a known crop, and for travel
+    the optional mode if it is one the slot parser knows. Anything else is dropped and
+    asked for again, so no client text reaches the facts or the prompt."""
     keep: dict[str, str] = {}
     for slot in advisory_slots.REQUIRED[kind]:
         value = slots.get(slot)
@@ -1102,6 +1103,8 @@ def _carried_slots(kind: str, slots: dict[str, str]) -> dict[str, str]:
             ok = value in advisory_slots.CROPS
         if ok:
             keep[slot] = value
+    if kind == advisory_slots.TRAVEL and slots.get("mode") in advisory_slots.MODES:
+        keep["mode"] = slots["mode"]  # optional, so not in REQUIRED, but it picks the rule table
     return keep
 
 
