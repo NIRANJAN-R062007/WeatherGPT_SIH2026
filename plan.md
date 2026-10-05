@@ -542,6 +542,7 @@ This phase closes those gaps before IVR or the alert engine goes live on any pub
     - **Trivy** builds both images and fails on any *fixable* HIGH/CRITICAL finding.
 
     gitleaks 8.28.0 and Trivy 0.74.0 are pinned release binaries with their checksums verified, not third-party actions. `.github/dependabot.yml` covers pip, npm, pub, docker and github-actions weekly, with minor/patch bumps grouped.
+  - 2026-10-05 — Dependabot removed (`.github/dependabot.yml` deleted, its 8 open PRs closed) to stop upgrade-PR noise before the demo. Dependency pins are now bumped by hand. The four scanning jobs above still fail CI on any known vulnerability, so a CVE in a pin is still caught.
 
     Baseline before gating: full history 3 findings, all the public anon key (now allowlisted); pip-audit and npm audit clean. Both images had 13 fixable HIGHs: Debian openssl/pcre2, plus pip's vendored urllib3/msgpack and the ensurepip setuptools wheel, which no pip upgrade fixes. Both Dockerfiles now `apt-get upgrade` and then uninstall pip/setuptools/wheel and `ensurepip` after installing requirements; rebuilt images scan clean, and the containers import and answer `/ask`.
 
