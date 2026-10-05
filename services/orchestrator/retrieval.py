@@ -12,6 +12,15 @@ Pure Python, no new dependency: a corpus of ~25 short entries doesn't need a
 real IR library. Never raises — a retrieval bug must not break narration, so
 callers wrap this anyway, but the functions here already return safely on a
 missing/empty corpus.
+
+A passage that describes one band of a scale (a UV band, a rainfall
+category, a wind range) carries a `when` condition, and is only eligible when
+the facts are in that band: BM25 can't tell "UV index 0" from "UV index 9",
+so without it every UV answer got the Low and Moderate passages, telling a
+reader at UV 9 that no protection is needed and one at UV 0 to wear
+sunscreen and sunglasses. `when` maps a fact key to a value the fact must
+equal, or to [min, max] with min <= value < max (null = open). A missing
+fact makes the passage ineligible.
 """
 
 from __future__ import annotations
@@ -42,6 +51,7 @@ class Passage:
     text: str
     keywords: list[str] = field(default_factory=list)
     source: str = ""
+    when: dict = field(default_factory=dict)
 
 
 @dataclass
@@ -86,6 +96,7 @@ def _build_corpus() -> _Corpus:
             text=entry.get("text", ""),
             keywords=list(entry.get("keywords") or []),
             source=entry.get("source", ""),
+            when=dict(entry.get("when") or {}),
         )
         blob = passage.text + " " + " ".join(passage.keywords)
         tokens = _tokenize(blob)
@@ -162,6 +173,23 @@ def _build_query(intent: str, facts: dict, parameter: str | None) -> str:
     return " ".join(p for p in parts if p)
 
 
+def _applies(passage: Passage, facts: dict) -> bool:
+    """Whether the facts are in the band a passage's `when` describes."""
+    for key, want in passage.when.items():
+        got = facts.get(key)
+        if got is None:
+            return False
+        if isinstance(want, list):
+            low, high = want
+            if isinstance(got, bool) or not isinstance(got, (int, float)):
+                return False
+            if (low is not None and got < low) or (high is not None and got >= high):
+                return False
+        elif got != want:
+            return False
+    return True
+
+
 def retrieve(intent: str, facts: dict, parameter: str | None = None, k: int = 2) -> list[Passage]:
     """Return up to `k` passages most relevant to this intent/facts/parameter.
 
@@ -169,15 +197,17 @@ def retrieve(intent: str, facts: dict, parameter: str | None = None, k: int = 2)
     yields fewer (or zero) results.
     """
     try:
+        facts = facts or {}
         corpus = _build_corpus()
         if not corpus.docs:
             return []
-        query_tokens = _tokenize(_build_query(intent, facts or {}, parameter))
+        query_tokens = _tokenize(_build_query(intent, facts, parameter))
         if not query_tokens:
             return []
         scored = [
             (_bm25_score(query_tokens, doc, corpus), doc.passage)
             for doc in corpus.docs
+            if _applies(doc.passage, facts)
         ]
         scored = [(s, p) for s, p in scored if s > 0]
         scored.sort(key=lambda sp: sp[0], reverse=True)

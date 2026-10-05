@@ -32,6 +32,7 @@
     "topic": "rainfall_category",
     "text": "Light rain is classified as rainfall of less than 15.6 millimetres in a day.",
     "keywords": ["light rain", "rainfall category", "rain", "drizzle", "mm"],
+    "when": {"rain_category": "light"},
     "source": "IMD rainfall intensity classification"
   },
   {
@@ -39,6 +40,7 @@
     "topic": "rainfall_category",
     "text": "Moderate rain is classified as rainfall between 15.6 and 64.4 millimetres in a day.",
     "keywords": ["moderate rain", "rainfall category", "rain", "mm"],
+    "when": {"rain_category": "moderate"},
     "source": "IMD rainfall intensity classification"
   },
   {
@@ -46,6 +48,7 @@
     "topic": "rainfall_category",
     "text": "Heavy rain is classified as rainfall between 64.5 and 115.5 millimetres in a day.",
     "keywords": ["heavy rain", "rainfall category", "rain", "mm", "downpour"],
+    "when": {"rain_category": "heavy"},
     "source": "IMD rainfall intensity classification"
   },
   {
@@ -53,6 +56,7 @@
     "topic": "rainfall_category",
     "text": "Very heavy rain is classified as rainfall between 115.6 and 204.4 millimetres in a day.",
     "keywords": ["very heavy rain", "rainfall category", "rain", "mm"],
+    "when": {"rain_category": "very_heavy"},
     "source": "IMD rainfall intensity classification"
   },
   {
@@ -60,6 +64,7 @@
     "topic": "rainfall_category",
     "text": "Extremely heavy rain is classified as rainfall of 204.5 millimetres or more in a day.",
     "keywords": ["extremely heavy rain", "rainfall category", "rain", "mm", "flood"],
+    "when": {"rain_category": "extremely_heavy"},
     "source": "IMD rainfall intensity classification"
   },
   {
@@ -88,6 +93,7 @@
     "topic": "wind",
     "text": "Calm winds are those below about 1 km/h, with smoke rising vertically and no noticeable air movement felt.",
     "keywords": ["calm", "wind", "still air", "no wind"],
+    "when": {"wind_kmh": [null, 1]},
     "source": "IMD wind descriptor scale (Beaufort-based)"
   },
   {
@@ -95,6 +101,7 @@
     "topic": "wind",
     "text": "Light wind (roughly 6-19 km/h) is enough to rustle leaves and be felt on the face, but causes no difficulty for normal outdoor activity.",
     "keywords": ["light wind", "breeze", "wind"],
+    "when": {"wind_kmh": [6, 20]},
     "source": "IMD wind descriptor scale (Beaufort-based)"
   },
   {
@@ -102,6 +109,7 @@
     "topic": "wind",
     "text": "Moderate wind (roughly 20-38 km/h) raises dust and loose paper and moves small branches; small boats and light fishing gear should be handled with care.",
     "keywords": ["moderate wind", "wind", "gusty", "fishing"],
+    "when": {"wind_kmh": [20, 39]},
     "source": "IMD wind descriptor scale (Beaufort-based)"
   },
   {
@@ -109,6 +117,7 @@
     "topic": "wind",
     "text": "Strong wind (roughly 39-61 km/h) sways large branches and makes walking against it difficult; fishers are advised not to venture into the sea under these conditions.",
     "keywords": ["strong wind", "wind", "gale", "fishermen", "fishers", "sea", "do not venture"],
+    "when": {"wind_kmh": [39, 62]},
     "source": "IMD wind descriptor scale (Beaufort-based)"
   },
   {
@@ -116,13 +125,15 @@
     "topic": "wind",
     "text": "Gale-force wind (roughly 62 km/h and above) can break branches and damage structures; all boats should stay in harbour and outdoor activity should be avoided.",
     "keywords": ["gale", "wind", "storm", "damage", "harbour", "boats"],
+    "when": {"wind_kmh": [62, null]},
     "source": "IMD wind descriptor scale (Beaufort-based)"
   },
   {
     "id": "uv_low",
     "topic": "uv_band",
-    "text": "A UV index of 0-2 is Low: no protection is generally needed, though sunglasses help on bright days.",
+    "text": "A UV index of 0-2 is Low: no sun protection is needed.",
     "keywords": ["uv", "uv index", "low", "sun", "ultraviolet"],
+    "when": {"uv_band": "low"},
     "source": "WHO/IMD UV index bands"
   },
   {
@@ -130,6 +141,7 @@
     "topic": "uv_band",
     "text": "A UV index of 3-5 is Moderate: seek shade during midday hours and wear sunscreen, a hat and sunglasses.",
     "keywords": ["uv", "uv index", "moderate", "sun", "sunscreen", "ultraviolet"],
+    "when": {"uv_band": "moderate"},
     "source": "WHO/IMD UV index bands"
   },
   {
@@ -137,6 +149,7 @@
     "topic": "uv_band",
     "text": "A UV index of 6-7 is High: reduce time in the sun between 10am and 4pm and use sunscreen, protective clothing, a hat and sunglasses.",
     "keywords": ["uv", "uv index", "high", "sun", "sunscreen", "ultraviolet"],
+    "when": {"uv_band": "high"},
     "source": "WHO/IMD UV index bands"
   },
   {
@@ -144,6 +157,7 @@
     "topic": "uv_band",
     "text": "A UV index of 8-10 is Very High: minimise sun exposure during midday hours and take full precautions — sunscreen, protective clothing, a hat and sunglasses.",
     "keywords": ["uv", "uv index", "very high", "sun", "sunscreen", "ultraviolet"],
+    "when": {"uv_band": "very_high"},
     "source": "WHO/IMD UV index bands"
   },
   {
@@ -151,6 +165,7 @@
     "topic": "uv_band",
     "text": "A UV index of 11 or above is Extreme: avoid sun exposure between 10am and 4pm and take all precautions, as unprotected skin and eyes can be damaged in minutes.",
     "keywords": ["uv", "uv index", "extreme", "sun", "sunscreen", "ultraviolet", "skin"],
+    "when": {"uv_band": "extreme"},
     "source": "WHO/IMD UV index bands"
   },
   {

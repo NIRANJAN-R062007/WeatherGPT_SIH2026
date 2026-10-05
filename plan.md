@@ -354,6 +354,11 @@ Sequential build order — each phase should be working end-to-end before the ne
 - ~~Guardrail/validator: every number in the answer must exist in the tool's raw response.~~ ✅ done (Sep 12) — one regenerate-with-feedback attempt before template fallback — **Mahesh**
 - ~~NLU eval set: test queries with expected intent/entities across all five languages.~~ ✅ done (Sep 12) — `ml/nlu/eval_set.jsonl` (70 rows); the ta/hi/te/mr rows are author-written and flagged `native_qa: false` — the Sep 13 native-speaker review (commit fce2ad9) covered the `i18n.py`/`main.py` hi/te/mr strings only, not these rows, so they still need native-speaker QA — **Mahesh**. 2026-09-21: 98 rows after the `warnings`-intent additions (both sides of the warnings/out-of-scope boundary in all five languages); rules path 61/61, the new hi/te/mr LLM rows not yet run against Gemini/Groq.
 - ~~RAG (§7 AI/LLM role): ground narration wording on IMD reference text.~~ ✅ done (Sep 14) — `retrieval.py` (pure-Python BM25) over `data/imd_reference/` (colour codes, rainfall categories, UV bands, glossary; 27 entries) feeds ≤2 passages into the narration prompt for category wording only; guardrail still grounds every figure against the weather facts. `RAG_ENABLED` toggle. — **Mahesh**
+  - 2026-10-05 — **bug, fixed** (**Mahesh**; found by the occupation live check, Phase 4 "any occupation" entry).
+    - **What was wrong:** BM25 can't tell one band of a scale from another. Every answer with a UV index got the `uv_low` and `uv_moderate` passages, whatever the index was: at UV 0 the model read "wear sunscreen, a hat and sunglasses", which persona answers turned into "sunglasses helpful", and at UV 9 or 12 it read "no protection is generally needed". A 45% chance of light rain got "extremely heavy rain" (`rain_extremely_heavy`).
+    - **Fix:** the 15 passages that describe one band now carry a `when` condition: the five UV bands on `uv_band`, the five rainfall categories on `rain_category`, the five wind descriptors on a `wind_kmh` range. `retrieval.py` skips a passage whose band the facts aren't in, or whose fact is missing. So a chance of rain with no millimetre figure gets the "chance of rain vs rain so far" glossary entry instead of a rainfall category, and a 21 km/h wind gets "moderate", never "gale" ("all boats should stay in harbour").
+    - `uv_low` now reads "no sun protection is needed", the WHO wording for Low.
+    - Tests in `tests/test_retrieval.py`: each UV band and wind speed gets only its own passage, a chance of rain gets no rainfall category, every banded passage names a valid band.
 - *Output:* ✅ working `/ask` endpoint — text in, grounded English answer with provenance out (translation into the other four added in Phase 3).
 
 ### Phase 3 — Channels & UI
@@ -407,7 +412,7 @@ Sequential build order — each phase should be working end-to-end before the ne
       - 12 of 18 custom answers and 6 of 9 stress answers add "sunglasses helpful" at UV index 0, often cloudy or raining. It comes from the RAG passage `uv_low` in `data/imd_reference/imd_reference.json` ("…sunglasses help on bright days"); no baseline answer does it, and WIE-16's persona answers show the same (22 of 48).
       - The custom framing is generic ("teachers should consider shade").
       - The Marathi mason got "plan field work", the same misreading as the classifier.
-      - **Proposed, not changed here:** only offer the sunglasses clause when the UV band is above low, or drop it from `uv_low`.
+      - ~~**Proposed, not changed here:** only offer the sunglasses clause when the UV band is above low, or drop it from `uv_low`.~~ **Fixed 2026-10-05 (Mahesh)**, and the cause was wider: retrieval ignored the band. The fix is in the RAG entry (§8 Phase 2). Afterwards, 11 custom answers for the same English occupations (two small Groq samples, cut short by the daily token limit) mention sunglasses 0 times; the same rows did 3 times in 5 before.
 
 ### Phase 5 — Differentiators (only if time remains)
 - Cyclone map — data. — **Syed**

@@ -5,6 +5,7 @@ sanity check documenting why the prompt forbids quoting reference numbers.
 """
 
 import config
+import google_weather
 import guardrail
 import narrate
 import pytest
@@ -28,20 +29,89 @@ def test_corpus_loads_and_entries_are_well_formed():
 # --- retrieve() -----------------------------------------------------------
 
 FACTS_RAIN = {"condition": "showers", "rain_probability_pct": 80, "temp_c": 27}
-FACTS_UV = {"condition": "sunny", "uv_index": 9, "temp_c": 34}
+FACTS_UV = {"condition": "sunny", "uv_index": 9, "uv_band": "very_high", "temp_c": 34}
+_BANDED = {"uv_band": "uv_band", "rainfall_category": "rain_category", "wind": "wind_kmh"}
 
 
-def test_retrieve_will_it_rain_ranks_rainfall_category_first():
+def _ids(passages, topic):
+    return [p.id for p in passages if p.topic == topic]
+
+
+def test_retrieve_rain_so_far_gets_only_its_own_rainfall_category():
+    retrieval.clear_cache()
+    facts = {"condition": "rain", "rain_so_far_mm": 30, "rain_category": "moderate"}
+    passages = retrieval.retrieve("rainfall_so_far_today", facts)
+    assert _ids(passages, "rainfall_category") == ["rain_moderate"]
+
+
+def test_retrieve_a_chance_of_rain_gets_no_rainfall_category():
+    # a probability says nothing about millimetres: no "extremely heavy" for 80%
     retrieval.clear_cache()
     passages = retrieval.retrieve("will_it_rain", FACTS_RAIN)
-    assert passages
-    assert passages[0].topic == "rainfall_category"
+    assert _ids(passages, "rainfall_category") == []
+    assert "glossary_chance_vs_so_far" in [p.id for p in passages]
 
 
 def test_retrieve_current_weather_surfaces_uv_band():
     retrieval.clear_cache()
     passages = retrieval.retrieve("current_weather", FACTS_UV)
-    assert any(p.topic == "uv_band" for p in passages)
+    assert _ids(passages, "uv_band") == ["uv_very_high"]
+
+
+@pytest.mark.parametrize("band", [b["key"] for b in google_weather.load_bands("uv_bands")])
+def test_retrieve_gets_the_passage_for_the_facts_uv_band_only(band):
+    retrieval.clear_cache()
+    passages = retrieval.retrieve("current_weather", {"uv_index": 1, "uv_band": band})
+    assert _ids(passages, "uv_band") == [f"uv_{band}"]
+
+
+def test_retrieve_suggests_no_sun_protection_at_a_low_uv_index():
+    # persona answers turned "UV index 0" into "sunglasses helpful" (plan.md,
+    # "any occupation" item, 2026-10-05)
+    retrieval.clear_cache()
+    facts = {"condition": "cloudy", "uv_index": 0, "uv_band": "low", "wind_kmh": 21}
+    text = " ".join(p.text for p in retrieval.retrieve("current_weather", facts)).lower()
+    assert "sunglasses" not in text and "sunscreen" not in text
+
+
+@pytest.mark.parametrize("kmh,expected", [
+    (0, ["wind_calm"]), (3, []), (10, ["wind_light"]), (20, ["wind_moderate"]),
+    (38, ["wind_moderate"]), (39, ["wind_strong"]), (70, ["wind_gale"]),
+])
+def test_retrieve_gets_the_wind_passage_for_the_facts_speed_only(kmh, expected):
+    retrieval.clear_cache()
+    passages = retrieval.retrieve("current_weather", {"wind_kmh": kmh}, k=5)
+    assert _ids(passages, "wind") == expected
+
+
+def test_every_banded_passage_names_its_band():
+    retrieval.clear_cache()
+    keys = {
+        "uv_band": {b["key"] for b in google_weather.load_bands("uv_bands")},
+        "rain_category": {b["key"] for b in google_weather.load_bands("precipitation_categories")},
+    }
+    for doc in retrieval._build_corpus().docs:
+        p = doc.passage
+        if p.topic not in _BANDED:
+            continue
+        assert list(p.when) == [_BANDED[p.topic]], p.id
+        want = p.when[_BANDED[p.topic]]
+        if p.topic == "wind":
+            low, high = want
+            assert low is None or high is None or low < high, p.id
+        else:
+            assert want in keys[_BANDED[p.topic]], p.id
+
+
+def test_applies_needs_the_fact_and_a_matching_value():
+    p = retrieval.Passage("x", "t", "text", when={"uv_band": "low", "wind_kmh": [6, 20]})
+    assert retrieval._applies(p, {"uv_band": "low", "wind_kmh": 6})
+    assert not retrieval._applies(p, {"uv_band": "low", "wind_kmh": 20})  # max is exclusive
+    assert not retrieval._applies(p, {"uv_band": "high", "wind_kmh": 10})
+    assert not retrieval._applies(p, {"uv_band": "low"})                  # missing fact
+    assert not retrieval._applies(p, {"uv_band": "low", "wind_kmh": True})
+    assert not retrieval._applies(p, {"uv_band": "low", "wind_kmh": "10"})
+    assert retrieval._applies(retrieval.Passage("y", "t", "text"), {})    # no condition
 
 
 def test_retrieve_missing_corpus_dir_returns_empty(monkeypatch, tmp_path):
