@@ -25,6 +25,7 @@ from __future__ import annotations
 import concurrent.futures
 import json
 import logging
+import re
 import threading
 import time
 from dataclasses import dataclass, replace
@@ -62,9 +63,25 @@ class Advice:
     answer: dict
     facts: AdvisoryFacts
     path: str                       # "agent:gemini" | "agent:groq" | "template"
-    fallback_reason: str | None     # why the agent path was not used, if it wasn't
+    fallback_reason: str | None     # why the agent path was not used, if it wasn't (server only)
     tool_calls: int
     latency_s: float
+    fallback_code: str | None = None  # the same, as one of FALLBACK_CODES: what a client sees
+
+
+# What a client is told about a fallback (TFA-25). `fallback_reason` holds the provider's
+# own error text, which can name the account (a Groq 429 gives the organisation ID and
+# the live token usage), so it stays in the log and the Advice; the response gets a code.
+FALLBACK_CODES = ("agent_off", "out_of_time", "timeout", "rate_limited", "provider_error",
+                  "not_json", "guardrail")
+_RATE_LIMITED = re.compile(r"429|rate.?limit|resource.?exhausted|throttl|quota", re.I)
+
+
+def _error_code(exc: AgentError) -> str:
+    text = str(exc)
+    if text.startswith("no reply within"):
+        return "timeout"
+    return "rate_limited" if _RATE_LIMITED.search(text) else "provider_error"
 
 
 # --- the fact tools ------------------------------------------------------------------
@@ -294,16 +311,18 @@ def run_agent(model, box: Toolbox, system_prompt: str, timeout_s: float) -> str:
 def _agent_answer(
     kind: str, slots: dict, lang: str, facts: AdvisoryFacts, fetch: Fetch,
     models: list[tuple[str, object]], budget_s: float,
-) -> tuple[dict, str, int, str | None]:
+) -> tuple[dict, str, int, str | None, str | None]:
     """The first provider whose answer is valid and grounded: (answer, path, tool calls,
-    why not, if none). Each failure is noted and the next provider is tried."""
+    why not and its code, if none). Each failure is noted and the next provider is tried."""
     deadline = time.monotonic() + budget_s
     reason: str | None = None
+    code: str | None = None
     calls = 0
     for name, model in models:
         left = deadline - time.monotonic()
         if left <= 0.5:
-            reason = reason or "out of time"
+            if reason is None:
+                reason, code = "out of time", "out_of_time"
             break
         box = Toolbox(facts, fetch, config.ADVISORY_AGENT_MAX_TOOL_CALLS)
         system = prompt.build(kind, slots, lang, facts, tools=True)
@@ -311,21 +330,21 @@ def _agent_answer(
             reply = run_agent(model, box, system, left)
         except AgentError as exc:
             calls += box.calls
-            reason = f"{name}: {exc}"
+            reason, code = f"{name}: {exc}", _error_code(exc)
             _LOG.warning("advisory agent %s failed: %s", name, exc)
             continue
         calls += box.calls
         parsed = schema.parse(reply)
         if parsed is None:
-            reason = f"{name}: reply was not a JSON object"
+            reason, code = f"{name}: reply was not a JSON object", "not_json"
             continue
         answer = template.finish(facts, schema.trim_cites(parsed), lang)
         report = guardrail.check_advisory(answer, facts)
         if not report.ok:
-            reason = f"{name}: guardrail: {'; '.join(report.problems)[:200]}"
+            reason, code = f"{name}: guardrail: {'; '.join(report.problems)[:200]}", "guardrail"
             continue
-        return answer, f"agent:{name}", calls, None
-    return {}, "", calls, reason
+        return answer, f"agent:{name}", calls, None, None
+    return {}, "", calls, reason, code
 
 
 # With the agent off, the template answer is the plan, not a fallback.
@@ -342,12 +361,13 @@ def advise(kind: str, slots: dict, lang: str = "en", *, models=None, fetch: Fetc
     if models is None:
         models = [(name, make_model(name)) for name in providers()]
     reason = None if models else AGENT_OFF
+    code = None if models else "agent_off"
     answer: dict = {}
     path = "template"
     calls = 0
 
     if models:
-        answer, got_path, calls, reason = _agent_answer(
+        answer, got_path, calls, reason, code = _agent_answer(
             kind, slots, lang, facts, fetch or live_fetch(kind, slots), models,
             timeout_s if timeout_s is not None else config.ADVISORY_AGENT_TIMEOUT_S)
         if answer:
@@ -357,4 +377,4 @@ def advise(kind: str, slots: dict, lang: str = "en", *, models=None, fetch: Fetc
         answer = template.template_answer(facts, lang)  # its verdict carries the override
 
     return Advice(kind, answer, facts, path, reason, calls,
-                  round(time.perf_counter() - started, 3))
+                  round(time.perf_counter() - started, 3), code)

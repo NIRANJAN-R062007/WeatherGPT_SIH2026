@@ -1088,7 +1088,7 @@ def _advisory(kind: str, req: AdvisoryAsk, response: Response) -> dict:
         "missing": advice.facts.missing(),
         "provenance": advice.facts.provenance(),
         "path": advice.path,
-        "fallback_reason": advice.fallback_reason,
+        "fallback_reason": advice.fallback_code,  # a code, never provider text (TFA-25)
         "disclaimer": _ADVISORY_DISCLAIMER[kind],
     }
     advisory_cache.put(cache_key, answered, advice)

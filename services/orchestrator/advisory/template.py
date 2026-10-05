@@ -8,7 +8,9 @@ construction. Sentences come from `wording.py` in the request's language (TFA-23
 `finish` is what runs after the agent: the hard override (whatever it returned, a red
 IMD warning, a thunderstorm METAR (§11.6) or a mode's avoid-level wind (TFA-7) means
 "avoid"; a crop the file gives no thresholds for is "not_available", and one outside
-its sowing months "not_suitable", TFA-11), then the unreviewed-crop caveat.
+its sowing months "not_suitable", TFA-11), then the floor (TFA-26: never a verdict less
+cautious than the rule table's own, so a model can't turn an orange warning into "go"),
+then the unreviewed-crop caveat.
 """
 
 from __future__ import annotations
@@ -138,6 +140,33 @@ def apply_override(facts, answer: dict, lang: str = "en") -> dict:
     return out
 
 
+# How cautious each verdict is. "not_available" is left alone: a model that says it can't
+# judge isn't softer than the rules, and the rules' own "not_available" comes as an override.
+_CAUTION = {
+    "travel": {"go": 0, "caution": 1, "avoid": 2},
+    "farming": {"suitable": 0, "not_suitable": 1},
+}
+
+
+def apply_floor(facts, answer: dict, lang: str = "en") -> dict:
+    """`answer` raised to `rubric.reference_verdict` when the model's verdict is less
+    cautious (TFA-26). The rule-based answer's `cons` go first so the sentences say why,
+    and its `cites` with them; both are built from the facts, so the answer still grounds."""
+    rank = _CAUTION[facts.kind]
+    verdict, floor = answer.get("verdict"), rubric.reference_verdict(facts)
+    if verdict not in rank or floor not in rank or rank[verdict] >= rank[floor]:
+        return answer
+    if not all(isinstance(answer.get(k, []), list) for k in ("cons", "cites")):
+        return answer  # a malformed reply: left for the guardrail to reject, not repaired
+    rules = template_answer(facts, lang)
+    cons = list(dict.fromkeys([*rules["cons"], *answer.get("cons", [])]))[:schema.MAX_ITEMS]
+    cites = list(dict.fromkeys([*rules["cites"], *answer.get("cites", [])]))[:schema.MAX_ITEMS]
+    out = {**answer, "verdict": floor, "cons": cons, "cites": cites}
+    if facts.kind == "farming":
+        out["window"] = None  # no time to sow is suggested when sowing is not advised
+    return out
+
+
 def add_caveats(facts, answer: dict, lang: str = "en") -> dict:
     """What every farming answer must say, whoever wrote it: an unreviewed crop entry
     is named as such (plan.md §11.7: "the answer says so")."""
@@ -153,6 +182,6 @@ def add_caveats(facts, answer: dict, lang: str = "en") -> dict:
 
 
 def finish(facts, answer: dict, lang: str = "en") -> dict:
-    """The rules the code applies to an agent's answer, in order: the override, then
-    the caveats, worded in `lang`. The template answer already carries both."""
-    return add_caveats(facts, apply_override(facts, answer, lang), lang)
+    """The rules the code applies to an agent's answer, in order: the override, the
+    floor, then the caveats, worded in `lang`. The template answer already carries all three."""
+    return add_caveats(facts, apply_floor(facts, apply_override(facts, answer, lang), lang), lang)
