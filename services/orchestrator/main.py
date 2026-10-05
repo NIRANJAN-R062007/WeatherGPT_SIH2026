@@ -85,6 +85,10 @@ app.add_middleware(
     allow_methods=["GET", "POST", "DELETE"],
     allow_headers=CORS_ALLOW_HEADERS,
 )
+# BodyCap sits inside RequestLimits: the Content-Length check and the rate limit
+# answer first, and this counts the body of a request that passed them (a chunked
+# upload has no Content-Length to check).
+app.add_middleware(limits.BodyCap)
 app.add_middleware(limits.RequestLimits)
 # Outermost so it also counts the 413s/429s limits.py returns (plan.md §14
 # observability track). Route label comes from scope["route"], set once the
