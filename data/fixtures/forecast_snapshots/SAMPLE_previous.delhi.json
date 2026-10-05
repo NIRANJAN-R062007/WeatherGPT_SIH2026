@@ -1,0 +1,213 @@
+{
+ "_meta": {
+  "sample": true,
+  "label": "SAMPLE: a made-up earlier forecast for offline demos, not a real past forecast",
+  "city": "delhi",
+  "derived_from": "forecast_hours.delhi.json",
+  "retrieved_at": "2026-09-23T19:58:24.190918+00:00",
+  "edited": {
+   "metric": "rain_probability_pct",
+   "shift": 30,
+   "forecast_times": [
+    "2026-09-24T05:30:00+00:00",
+    "2026-09-24T06:30:00+00:00",
+    "2026-09-24T07:30:00+00:00"
+   ]
+  },
+  "produced_by": "services/orchestrator/seed_sample_snapshots.py"
+ },
+ "rows": [
+  {
+   "forecast_time": "2026-09-24T01:30:00+00:00",
+   "temp_c": 27.5,
+   "rain_probability_pct": 0,
+   "wind_kmh": 10,
+   "condition": "CLEAR",
+   "uv_index": 0
+  },
+  {
+   "forecast_time": "2026-09-24T02:30:00+00:00",
+   "temp_c": 28.6,
+   "rain_probability_pct": 0,
+   "wind_kmh": 11,
+   "condition": "MOSTLY_CLEAR",
+   "uv_index": 1
+  },
+  {
+   "forecast_time": "2026-09-24T03:30:00+00:00",
+   "temp_c": 29.8,
+   "rain_probability_pct": 0,
+   "wind_kmh": 11,
+   "condition": "MOSTLY_CLEAR",
+   "uv_index": 3
+  },
+  {
+   "forecast_time": "2026-09-24T04:30:00+00:00",
+   "temp_c": 31.1,
+   "rain_probability_pct": 0,
+   "wind_kmh": 10,
+   "condition": "CLEAR",
+   "uv_index": 5
+  },
+  {
+   "forecast_time": "2026-09-24T05:30:00+00:00",
+   "temp_c": 32.4,
+   "rain_probability_pct": 30,
+   "wind_kmh": 10,
+   "condition": "CLEAR",
+   "uv_index": 7
+  },
+  {
+   "forecast_time": "2026-09-24T06:30:00+00:00",
+   "temp_c": 32.8,
+   "rain_probability_pct": 30,
+   "wind_kmh": 8,
+   "condition": "CLEAR",
+   "uv_index": 7
+  },
+  {
+   "forecast_time": "2026-09-24T07:30:00+00:00",
+   "temp_c": 33.2,
+   "rain_probability_pct": 30,
+   "wind_kmh": 6,
+   "condition": "CLEAR",
+   "uv_index": 6
+  },
+  {
+   "forecast_time": "2026-09-24T08:30:00+00:00",
+   "temp_c": 33.6,
+   "rain_probability_pct": 0,
+   "wind_kmh": 6,
+   "condition": "CLEAR",
+   "uv_index": 5
+  },
+  {
+   "forecast_time": "2026-09-24T09:30:00+00:00",
+   "temp_c": 33.7,
+   "rain_probability_pct": 0,
+   "wind_kmh": 6,
+   "condition": "CLEAR",
+   "uv_index": 3
+  },
+  {
+   "forecast_time": "2026-09-24T10:30:00+00:00",
+   "temp_c": 33.4,
+   "rain_probability_pct": 0,
+   "wind_kmh": 8,
+   "condition": "CLEAR",
+   "uv_index": 1
+  },
+  {
+   "forecast_time": "2026-09-24T11:30:00+00:00",
+   "temp_c": 32.5,
+   "rain_probability_pct": 15,
+   "wind_kmh": 6,
+   "condition": "CLEAR",
+   "uv_index": 0
+  },
+  {
+   "forecast_time": "2026-09-24T12:30:00+00:00",
+   "temp_c": 31.3,
+   "rain_probability_pct": 0,
+   "wind_kmh": 8,
+   "condition": "CLEAR",
+   "uv_index": 0
+  },
+  {
+   "forecast_time": "2026-09-24T13:30:00+00:00",
+   "temp_c": 29.9,
+   "rain_probability_pct": 0,
+   "wind_kmh": 10,
+   "condition": "CLEAR",
+   "uv_index": 0
+  },
+  {
+   "forecast_time": "2026-09-24T14:30:00+00:00",
+   "temp_c": 28.9,
+   "rain_probability_pct": 0,
+   "wind_kmh": 10,
+   "condition": "CLEAR",
+   "uv_index": 0
+  },
+  {
+   "forecast_time": "2026-09-24T15:30:00+00:00",
+   "temp_c": 28.2,
+   "rain_probability_pct": 0,
+   "wind_kmh": 13,
+   "condition": "CLEAR",
+   "uv_index": 0
+  },
+  {
+   "forecast_time": "2026-09-24T16:30:00+00:00",
+   "temp_c": 27.7,
+   "rain_probability_pct": 0,
+   "wind_kmh": 13,
+   "condition": "CLEAR",
+   "uv_index": 0
+  },
+  {
+   "forecast_time": "2026-09-24T17:30:00+00:00",
+   "temp_c": 27.2,
+   "rain_probability_pct": 0,
+   "wind_kmh": 13,
+   "condition": "CLEAR",
+   "uv_index": 0
+  },
+  {
+   "forecast_time": "2026-09-24T18:30:00+00:00",
+   "temp_c": 26.8,
+   "rain_probability_pct": 0,
+   "wind_kmh": 13,
+   "condition": "CLEAR",
+   "uv_index": 0
+  },
+  {
+   "forecast_time": "2026-09-24T19:30:00+00:00",
+   "temp_c": 26.2,
+   "rain_probability_pct": 0,
+   "wind_kmh": 11,
+   "condition": "CLEAR",
+   "uv_index": 0
+  },
+  {
+   "forecast_time": "2026-09-24T20:30:00+00:00",
+   "temp_c": 25.6,
+   "rain_probability_pct": 0,
+   "wind_kmh": 11,
+   "condition": "CLEAR",
+   "uv_index": 0
+  },
+  {
+   "forecast_time": "2026-09-24T21:30:00+00:00",
+   "temp_c": 25.2,
+   "rain_probability_pct": 0,
+   "wind_kmh": 10,
+   "condition": "CLEAR",
+   "uv_index": 0
+  },
+  {
+   "forecast_time": "2026-09-24T22:30:00+00:00",
+   "temp_c": 24.8,
+   "rain_probability_pct": 0,
+   "wind_kmh": 10,
+   "condition": "CLEAR",
+   "uv_index": 0
+  },
+  {
+   "forecast_time": "2026-09-24T23:30:00+00:00",
+   "temp_c": 24.4,
+   "rain_probability_pct": 0,
+   "wind_kmh": 8,
+   "condition": "CLEAR",
+   "uv_index": 0
+  },
+  {
+   "forecast_time": "2026-09-25T00:30:00+00:00",
+   "temp_c": 24.6,
+   "rain_probability_pct": 0,
+   "wind_kmh": 6,
+   "condition": "CLEAR",
+   "uv_index": 0
+  }
+ ]
+}

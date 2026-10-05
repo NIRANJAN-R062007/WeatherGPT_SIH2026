@@ -77,11 +77,36 @@ def test_a_sub_threshold_wobble_is_no_significant_change(monkeypatch):
     assert body["baseline"] == {"retrieved_at": EARLIER}
 
 
-def test_a_fixtures_mode_request_has_no_baseline():
-    """The committed fixtures are one frozen snapshot: nothing earlier exists."""
+def test_a_fixtures_mode_request_compares_with_the_labelled_sample(monkeypatch):
+    """WIE-12: the committed fixtures are one frozen snapshot, so the baseline
+    is the city's sample, and the response says it is one."""
+    monkeypatch.setattr(weather_store, "read_snapshot_before", lambda cell, before: None)
     body = client.get("/intelligence/changes", params={"city": "chennai", "day": "today"}).json()
-    assert body["status"] in ("no_baseline", "unavailable")
-    assert body["changes"] == []
+    assert body["status"] == "ok" and body["provenance"]["is_live"] is False
+    assert body["baseline"]["sample"] is True
+    assert {c["metric"] for c in body["changes"]} == {"rain_probability_pct"}
+
+
+def test_every_demo_city_has_a_sample_that_shows_a_change(monkeypatch):
+    import cities
+
+    monkeypatch.setattr(weather_store, "read_snapshot_before", lambda cell, before: None)
+    for key in sorted(cities.CITY_KEYS):
+        body = client.get("/intelligence/changes", params={"city": key, "day": "today"}).json()
+        assert body["status"] == "ok", key
+        assert body["baseline"]["sample"] is True, key
+
+
+def test_a_live_forecast_never_falls_back_to_the_sample(monkeypatch):
+    monkeypatch.setattr(weather_store, "read_snapshot_before", lambda cell, before: None)
+    _seed(monkeypatch, earlier=None, now={14: 70})
+    body = client.get("/intelligence/changes", params={"city": "chennai", "day": "today"}).json()
+    assert body["status"] == "no_baseline" and body["baseline"] is None
+
+
+def test_a_sample_newer_than_the_forecast_is_not_used():
+    assert forecast_snapshots.sample("chennai", "2000-01-01T00:00:00Z") is None
+    assert forecast_snapshots.sample("atlantis", "2999-01-01T00:00:00Z") is None
 
 
 def test_no_hourly_forecast_is_unavailable(monkeypatch):
@@ -128,6 +153,21 @@ def test_ask_with_no_earlier_forecast_is_an_honest_no_baseline(monkeypatch):
     assert "no earlier forecast" in body["message"].lower()
     assert "no change" not in body["message"].lower()
     assert "response" not in body
+
+
+def test_ask_in_fixtures_mode_says_its_baseline_is_a_sample(monkeypatch):
+    monkeypatch.setattr(weather_store, "read_snapshot_before", lambda cell, before: None)
+    body = _ask("has the forecast changed in Chennai").json()
+    assert body["status"] == "ok" and body["baseline"]["sample"] is True
+    assert "is a sample, not a real past forecast" in body["response"]
+    tamil = _ask("has the forecast changed in Chennai", lang="ta").json()
+    assert "மாதிரி" in tamil["response"]
+
+
+def test_ask_with_a_real_baseline_carries_no_sample_note(monkeypatch):
+    _seed(monkeypatch, earlier={14: 30}, now={14: 80})
+    body = _ask("has the forecast changed in Chennai").json()
+    assert "sample" not in body["baseline"] and "sample" not in body["response"]
 
 
 def test_ask_with_a_small_move_says_no_significant_change(monkeypatch):

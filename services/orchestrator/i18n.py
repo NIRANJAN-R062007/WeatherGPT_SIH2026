@@ -449,6 +449,7 @@ _CHANGE_PHRASES = {
         "since": "since the forecast retrieved {then} (now {now})",
         "ok": "{city}: {day}'s {items} {since}.",
         "none": "{city}: no significant change in {day}'s forecast {since}.",
+        "sample": " The earlier forecast compared here is a sample, not a real past forecast.",
     },
     "hi": {
         "rain_probability_pct": "बारिश की संभावना", "temp_c": "तापमान",
@@ -459,6 +460,8 @@ _CHANGE_PHRASES = {
         "since": "{then} पर लिए गए पूर्वानुमान की तुलना में (अभी {now})",
         "ok": "{city}: {day} के पूर्वानुमान में, {since}: {items}।",
         "none": "{city}: {day} के पूर्वानुमान में {since} कोई खास बदलाव नहीं है।",
+        "sample": " यहाँ तुलना किया गया पिछला पूर्वानुमान एक नमूना है, "  # TODO: native_qa
+                  "असली पिछला पूर्वानुमान नहीं।",
     },
     "ta": {
         "rain_probability_pct": "மழை வாய்ப்பு", "temp_c": "வெப்பநிலை",
@@ -469,6 +472,8 @@ _CHANGE_PHRASES = {
         "since": "{then} அன்று பெறப்பட்ட முன்னறிவிப்புடன் ஒப்பிடுகையில் (இப்போது {now})",
         "ok": "{city}: {day} முன்னறிவிப்பில், {since}: {items}.",
         "none": "{city}: {day} முன்னறிவிப்பில் {since} குறிப்பிடத்தக்க மாற்றம் இல்லை.",
+        "sample": " இங்கே ஒப்பிடப்பட்ட முந்தைய முன்னறிவிப்பு ஒரு மாதிரி, "  # TODO: native_qa
+                  "உண்மையான முந்தைய முன்னறிவிப்பு அல்ல.",
     },
     "te": {
         "rain_probability_pct": "వర్షం అవకాశం", "temp_c": "ఉష్ణోగ్రత",
@@ -479,6 +484,7 @@ _CHANGE_PHRASES = {
         "since": "{then}న తీసుకున్న సూచనతో పోలిస్తే (ఇప్పుడు {now})",
         "ok": "{city}: {day} సూచనలో, {since}: {items}.",
         "none": "{city}: {day} సూచనలో {since} గణనీయమైన మార్పు లేదు.",
+        "sample": " ఇక్కడ పోల్చిన మునుపటి సూచన ఒక నమూనా మాత్రమే, నిజమైన గత సూచన కాదు.",  # TODO: native_qa
     },
     "mr": {
         "rain_probability_pct": "पावसाची शक्यता", "temp_c": "तापमान",
@@ -489,6 +495,7 @@ _CHANGE_PHRASES = {
         "since": "{then} रोजी घेतलेल्या अंदाजाच्या तुलनेत (आता {now})",
         "ok": "{city}: {day}च्या अंदाजात, {since}: {items}.",
         "none": "{city}: {day}च्या अंदाजात {since} लक्षणीय बदल नाही.",
+        "sample": " येथे तुलना केलेला आधीचा अंदाज हा नमुना आहे, खरा आधीचा अंदाज नाही.",  # TODO: native_qa
     },
 }
 _CHANGE_UNITS = {"rain_probability_pct": "%", "temp_c": "°C", "wind_kmh": " km/h"}
@@ -571,14 +578,17 @@ def no_suitable_window_text(city: str, day: str, lang: str) -> str:
     return _WINDOW_PHRASES[lang]["none"].format(city=city, day=_wie_day(day, lang))
 
 
-def changes_text(city: str, day: str, result: dict, then: str, now: str, lang: str) -> str:
+def changes_text(city: str, day: str, result: dict, then: str, now: str, lang: str,
+                 sample: bool = False) -> str:
     """WIE-11's forecast-change sentence from change_detector's result; `then`
-    and `now` are the two retrieval times, already formatted."""
+    and `now` are the two retrieval times, already formatted. `sample`: the
+    baseline is WIE-12's sample, and the sentence says so."""
     lang = lang if lang in SUPPORTED_LANGUAGES else "en"
     p = _CHANGE_PHRASES[lang]
     day_word, since = _wie_day(day, lang), p["since"].format(then=then, now=now)
+    note = p["sample"] if sample else ""
     if result["status"] == "no_significant_change":
-        return p["none"].format(city=city, day=day_word, since=since)
+        return p["none"].format(city=city, day=day_word, since=since) + note
     items = []
     for c in result["changes"]:
         unit = _CHANGE_UNITS[c["metric"]]
@@ -588,7 +598,7 @@ def changes_text(city: str, day: str, result: dict, then: str, now: str, lang: s
             label=p[c["metric"]], direction=p[c["direction"]],
             frm=f"{_num(c['from'])}{unit}", to=f"{_num(c['to'])}{unit}", span=span,
         ))
-    return p["ok"].format(city=city, day=day_word, items="; ".join(items), since=since)
+    return p["ok"].format(city=city, day=day_word, items="; ".join(items), since=since) + note
 
 
 def scenario_text(city: str, day: str, result: dict, lang: str) -> str:

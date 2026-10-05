@@ -8,14 +8,20 @@ a restart does not lose the baseline). previous() asks for the most recent
 retrieval made BEFORE a given one, which is the forecast the user is being
 told has changed.
 
-Nothing here is read in WEATHER_MODE=fixtures: the committed fixtures are one
-frozen snapshot, so there is nothing earlier to compare with (WIE-12 seeds a
-labelled sample baseline for offline demos).
+The committed fixtures are one frozen snapshot, so in WEATHER_MODE=fixtures
+there is nothing earlier to compare with. WIE-12: sample() reads a hand-made
+earlier forecast per demo city (data/fixtures/forecast_snapshots/, written by
+seed_sample_snapshots.py) so change detection can be shown offline. It is
+marked `"sample": True` and every answer built on it says so; it is never
+used against a live forecast.
 """
 
+import json
 import threading
 from datetime import datetime, timezone
 
+import cities
+import config
 import weather_store
 
 KIND = "forecast_snapshot"
@@ -104,6 +110,31 @@ def previous(cell: str, before: str) -> dict | None:
     if earlier:
         return earlier[-1]
     return weather_store.read_snapshot_before(cell, cutoff)
+
+
+SAMPLE_DIR = config.FIXTURES_DIR / "forecast_snapshots"
+
+
+def sample_path(city_key: str):
+    return SAMPLE_DIR / f"SAMPLE_previous.{city_key}.json"
+
+
+def sample(city_key: str, before: str) -> dict | None:
+    """WIE-12: the labelled sample baseline for a demo city, shaped like
+    previous()'s result plus `"sample": True`, or None when the city has no
+    sample or the sample is not earlier than `before`."""
+    cutoff = normalize_time(before)
+    if city_key not in cities.CITY_KEYS or cutoff is None:
+        return None
+    path = sample_path(city_key)
+    if not path.exists():
+        return None
+    env = json.loads(path.read_text(encoding="utf-8"))
+    when = normalize_time(env["_meta"]["retrieved_at"])
+    if when is None or when >= cutoff:
+        return None
+    return {"retrieved_at": when, "hours": {r["forecast_time"]: r for r in env["rows"]},
+            "sample": True}
 
 
 def clear() -> None:

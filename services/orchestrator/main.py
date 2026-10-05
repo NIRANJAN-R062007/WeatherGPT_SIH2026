@@ -949,7 +949,9 @@ def _advisory_answer(key: str, req: AdvisoryRequest) -> tuple[dict, dict | None]
 def _changes_result(key: str, day: str) -> tuple[dict | None, dict | None, dict | None]:
     """WIE-11: (hourly facts, change result, baseline) for one city/day. The
     baseline is the newest forecast retrieved before the one being compared
-    (forecast_snapshots.previous), so the two retrieval times are both known."""
+    (forecast_snapshots.previous), so the two retrieval times are both known.
+    WIE-12: a forecast that is not live (fixtures) with no stored baseline is
+    compared with the city's labelled sample one instead."""
     hourly = hourly_facts(key, day)
     if hourly is None:
         return None, None, None
@@ -958,7 +960,18 @@ def _changes_result(key: str, day: str) -> tuple[dict | None, dict | None, dict 
         forecast_snapshots.previous(cell, hourly["retrieved_at"])
         if cell and hourly.get("retrieved_at") else None
     )
+    if baseline is None and not hourly.get("is_live") and hourly.get("retrieved_at"):
+        baseline = forecast_snapshots.sample(key, hourly["retrieved_at"])
     return hourly, detect_changes(hourly["hours"], baseline), baseline
+
+
+def _baseline_public(baseline: dict) -> dict:
+    """What a response says about the baseline: when it was retrieved, and
+    `"sample": True` when it is WIE-12's sample rather than a real forecast."""
+    out = {"retrieved_at": baseline["retrieved_at"]}
+    if baseline.get("sample"):
+        out["sample"] = True
+    return out
 
 
 def _changes_public(key: str, day: str, hourly, result, baseline) -> dict:
@@ -973,7 +986,7 @@ def _changes_public(key: str, day: str, hourly, result, baseline) -> dict:
         "changes": result["changes"],
         "compared_hours": result["compared_hours"],
         "baseline": (
-            {"retrieved_at": baseline["retrieved_at"]}
+            _baseline_public(baseline)
             if baseline and result["status"] != "no_baseline" else None
         ),
         "provenance": {"source": hourly["source"], "is_live": hourly["is_live"],
@@ -1014,6 +1027,7 @@ def _changes_text(city_name: str, day: str, result: dict, baseline: dict,
     return i18n.changes_text(
         city_name, day, result, _utc_minute(baseline["retrieved_at"]),
         _utc_minute(forecast_snapshots.normalize_time(current_retrieved_at)), lang,
+        sample=bool(baseline.get("sample")),
     )
 
 
@@ -1383,7 +1397,7 @@ def ask(text: str, lang: str = "en", city: str | None = None, persona: str = per
             "response": candidate,
             "status": result["status"],
             "changes": result["changes"],
-            "baseline": {"retrieved_at": baseline["retrieved_at"]},
+            "baseline": _baseline_public(baseline),
             "provenance": _provenance(hourly),
             "grounding": grounding,
             "nlu": pq.as_dict(),

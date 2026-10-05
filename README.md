@@ -39,6 +39,7 @@ The key rule: **the LLM routes questions, the data answers them.** Every number 
 | **Five languages** | English, Hindi, Tamil, Telugu and Marathi as text, with voice input and output through [Bhashini](https://bhashini.gov.in). |
 | **Many channels** | Flutter mobile app, React web dashboard, HTML demo page, and an IVR phone line (Exotel). |
 | **Weather Intelligence Engine** | Rule-based, no LLM: finds the **best time window** for an activity, compares **what-if** times ("5 PM vs 9 AM"), and gives **persona advice** (farmer, traveller, general…). |
+| **Travel and sowing advice** | `POST /advisory/travel` ("can I go from Chennai to Madurai tomorrow?") answers **go / caution / avoid**; `POST /advisory/sowing` ("when should I sow groundnut in Madurai?") answers **suitable / not suitable**, with pros, cons and a time window. A Strands agent (Gemini, then Groq) writes the answer from facts the code collected first. Code then enforces two safety rules: a red warning or a thunderstorm report always means "avoid", and the guardrail checks every number. If the agent is off or fails, a rule-based template answers. |
 | **Personas** | General citizen, farmer, fisherman, aviation, city official and traveller. Same data, framed for each user. Each persona also sets the app's colour theme. |
 | **IMD-style warnings** | Red / Orange / Yellow / Green warning levels with official category text in all five languages. |
 | **Aviation briefing** | Decodes live METAR and TAF reports for the eight demo airports into plain language. |
@@ -169,6 +170,12 @@ curl "http://localhost:8001/health"
 curl "http://localhost:8001/ask?text=what's the weather in Chennai&lang=en"
 curl "http://localhost:8001/ask?text=will it rain in Madurai tomorrow&lang=ta"
 curl "http://localhost:8001/intelligence/best-window?city=chennai&day=tomorrow&activity=outdoor"
+
+# travel and sowing advisories (a missing city, crop or day is asked back, not guessed)
+curl -X POST http://localhost:8001/advisory/travel -H "Content-Type: application/json" \
+  -d '{"text": "can I fly from Chennai to Madurai tomorrow", "lang": "en"}'
+curl -X POST http://localhost:8001/advisory/sowing -H "Content-Type: application/json" \
+  -d '{"text": "when should I sow groundnut in Madurai", "lang": "en"}'
 ```
 
 ### 3. Web app
@@ -201,6 +208,9 @@ All settings live in `.env` (see `.env.example` for the full list with comments)
 | `BHASHINI_USER_ID`, `BHASHINI_ULCA_API_KEY` | Translation and voice |
 | `WEATHER_MODE` | `auto` (live, falls back to fixtures) · `live` · `fixtures` |
 | `OFFLINE_MODE` | `1` = fixtures + local Ollama only (demo backup) |
+| `ADVISORY_AGENT_ENABLED` | `1` = travel/sowing answers go through the Strands agent; `0` = rule-based template only (also the result with `OFFLINE_MODE=1` or no Gemini/Groq key) |
+| `ADVISORY_AGENT_TIMEOUT_S` | Time budget for one whole agent run, every provider included (default `8`); past it the template answers |
+| `ADVISORY_AGENT_MAX_TOOL_CALLS` | Most fact-tool calls per run (default `4`); `0` = one facts-only model call |
 | `SUPABASE_URL`, `SUPABASE_ANON_KEY` | Accounts and query history |
 | `ALLOWED_ORIGINS` | CORS allow-list |
 | `RATE_LIMIT_PER_MINUTE`, `TRUSTED_PROXY_HOPS` | Per-client rate limiting |
@@ -244,7 +254,8 @@ Tests block real network calls and use the saved fixtures, so they run without A
 
 - **Warnings use simulated data.** The official NDMA/SACHET CAP feed isn't connected yet, so warnings come from fixtures and are labelled *"Simulated data — pending official feed access"*.
 - **IVR is built but not live.** The Exotel number is waiting on KYC; a simulated call path (`ivr_simulate.py`) is used for demos.
-- **Forecast change detection** ("what changed since this morning?") is not built yet.
+- **Sowing advice covers only a draft crop file.** `data/crops/crops.json` has groundnut for Madurai and Coimbatore, plus ragi for Tamil Nadu. Ragi has sowing months only, with no temperature range, so it answers "not available". No agronomist has reviewed the file yet. Any other crop or district answers `not_available`; the agent never fills the gap from memory.
+- **Forecast change detection** ("what changed since this morning?") works from stored forecast snapshots (`GET /intelligence/changes`). With `WEATHER_MODE=fixtures` it compares the forecast with a sample earlier forecast for each demo city, and the answer says the baseline is a sample.
 - **WhatsApp bot, cyclone map and climate trends** are on the roadmap.
 - **LLM-path latency:** p95 measured at 8.3 s on free-tier keys (target 2 s). The template path is p95 16 ms at 150 req/s.
 
