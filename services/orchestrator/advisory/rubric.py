@@ -92,7 +92,8 @@ Pick exactly one verdict for travel{by}. Judge wind by {winds}.
   METAR/TAF facts are present, a thunderstorm in {storm} at either airport{avoid_wind}.
 - "caution": a warning with colour "orange" or "yellow"; or the warnings facts are
   missing (they cannot be confirmed clear, so never answer "go" without them); or a
-  rain_probability_pct of {r.rain_caution_pct:g} or more in a forecast; or a wind_kmh of
+  rain_probability_pct of {r.rain_caution_pct:g} or more in a forecast; or a forecast
+  with no rain_probability_pct (the chance cannot be confirmed low); or a wind_kmh of
   {r.wind_caution_kmh:g} or more; or no wind_kmh for the trip day (it cannot be confirmed calm).
 - "go": none of the above, and the warnings are present and green.
 - "not_available": the forecast for the origin or the destination is missing.{marine}
@@ -106,8 +107,9 @@ The crop facts (crop.entry) come from the sourced crop file: sowing_months, a
 temperature range (temp_range_c) and, only when a source gives one, a rain limit
 (max_rain_probability_pct). Look at the first {FARMING_DAYS} forecast days.
 - "not_available": the crop facts or the forecast facts are missing, the crop facts
-  give no temp_range_c, or one of those days has no rain_category. Never guess a
-  threshold the facts do not give.
+  give no temp_range_c, or one of those days has no rain_category, no high_c or no low_c,
+  or no rain_probability_pct when the crop facts give a max_rain_probability_pct. Never
+  guess a threshold or a figure the facts do not give.
 - "not_suitable": the first forecast day's date falls outside sowing_months (when given);
   or any of those days has a rain_category of {", ".join(HEAVY_RAIN)} (IMD advises
   postponing sowing in heavy rain), rain_probability_pct at or above
@@ -301,7 +303,8 @@ def reference_travel(facts) -> str:
     if any(w is None or w.get("colour") != "green" for w in warnings.values()):
         return "caution"
     for role in roles:
-        if forecasts[role]["rain_probability_pct"] >= rules.rain_caution_pct:
+        rain = forecasts[role].get("rain_probability_pct")
+        if rain is None or rain >= rules.rain_caution_pct:  # unknown is not dry
             return "caution"
         wind = max_wind(facts, role)
         if wind is None or wind >= rules.wind_caution_kmh:  # unknown is not calm
@@ -326,12 +329,23 @@ def crop_gaps(crop: dict | None, lang: str = "en") -> list[str]:
     return []
 
 
-def rain_gaps(forecast: dict | None, lang: str = "en") -> list[str]:
-    """A sentence for each judged day with no rain amount: heavy rain can't be ruled
-    out there, and missing is never read as dry."""
+def forecast_gaps(crop: dict | None, forecast: dict | None, lang: str = "en") -> list[str]:
+    """A sentence for each figure a judged day leaves out that the verdict needs: the rain
+    amount (heavy rain can't be ruled out), the high and low (they can't be held to the
+    crop's range) and, when the crop file gives a rain limit, the rain chance. Missing is
+    never read as dry or mild."""
     days = ((forecast or {}).get("days") or [])[:FARMING_DAYS]
-    return [wording.say("no_rain_amount", lang, day=wording.day(day.get("label"), lang))
-            for day in days if day.get("rain_category") is None]
+    limit = (crop or {}).get("max_rain_probability_pct")
+    out = []
+    for day in days:
+        label = wording.day(day.get("label"), lang)
+        if day.get("rain_category") is None:
+            out.append(wording.say("no_rain_amount", lang, day=label))
+        if day.get("high_c") is None or day.get("low_c") is None:
+            out.append(wording.say("no_temperature", lang, day=label))
+        if limit is not None and day.get("rain_probability_pct") is None:
+            out.append(wording.say("no_rain_chance", lang, day=label))
+    return out
 
 
 def out_of_season(crop: dict | None, forecast: dict | None, lang: str = "en") -> str | None:
@@ -352,7 +366,7 @@ def _farming_override(facts, lang: str = "en") -> tuple[str | None, list[str]]:
     if not (forecast or {}).get("days"):
         gaps.append(wording.say("forecast_unavailable", lang))
     else:
-        gaps += rain_gaps(forecast, lang)
+        gaps += forecast_gaps(crop, forecast, lang)
     if gaps:
         return "not_available", gaps
     season = out_of_season(crop, forecast, lang)
@@ -363,7 +377,8 @@ def _farming_override(facts, lang: str = "en") -> tuple[str | None, list[str]]:
 
 def breaching_day(crop: dict, forecast: dict) -> int | None:
     """The first of the judged days outside the crop's thresholds or with heavy rain,
-    or None."""
+    or None. Only for a forecast with no `forecast_gaps`: every figure it compares is
+    then there."""
     lo, hi = crop["temp_range_c"]["min"], crop["temp_range_c"]["max"]
     limit = crop.get("max_rain_probability_pct")
     for i, day in enumerate(forecast["days"][:FARMING_DAYS]):

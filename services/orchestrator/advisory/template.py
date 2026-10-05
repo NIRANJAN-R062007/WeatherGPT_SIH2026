@@ -52,10 +52,13 @@ def template_answer(facts, lang: str = "en") -> dict:
             if "forecast" not in raw.get(role, {}):
                 cons.append(say("forecast_unavailable_role", lang, role=place))
                 continue
-            pct = raw[role]["forecast"]["rain_probability_pct"]
-            (cons if pct >= rules.rain_caution_pct else pros).append(
-                say("rain_chance_role", lang, role=place, pct=pct))
-            cites.append(f"{role}.forecast.rain_probability_pct")
+            pct = raw[role]["forecast"].get("rain_probability_pct")
+            if pct is None:  # the feed gave none: not read as dry, so nothing to quote
+                cons.append(say("no_rain_chance_role", lang, role=place))
+            else:
+                (cons if pct >= rules.rain_caution_pct else pros).append(
+                    say("rain_chance_role", lang, role=place, pct=pct))
+                cites.append(f"{role}.forecast.rain_probability_pct")
             wind, path = _strongest_wind(facts, role)
             if wind is None:
                 cons.append(say("no_wind_role", lang, role=place))
@@ -79,10 +82,11 @@ def template_answer(facts, lang: str = "en") -> dict:
         crop = raw.get("crop", {}).get("entry")
         forecast = raw.get("location", {}).get("forecast")
         cons += rubric.crop_gaps(crop, lang)
+        gaps = rubric.forecast_gaps(crop, forecast, lang)
         if not (forecast or {}).get("days"):
             cons.append(say("forecast_unavailable", lang))
-        elif rubric.rain_gaps(forecast):
-            cons += rubric.rain_gaps(forecast, lang)
+        elif gaps:
+            cons += gaps
         elif not rubric.crop_gaps(crop):
             season = rubric.out_of_season(crop, forecast, lang)
             if season:
@@ -98,11 +102,16 @@ def template_answer(facts, lang: str = "en") -> dict:
             when = wording.when(day["label"], lang)
             if i is not None and rubric.is_heavy_rain(day):
                 cons.append(say("heavy_rain", lang, when=when, mm=day["rain_mm"]))
+            pct = day.get("rain_probability_pct")  # judged only if the crop file gives a limit
+            figures = {"mm": day["rain_mm"], "high": day["high_c"], "low": day["low_c"]}
             (pros if i is None else cons).append(
-                say("rain_day", lang, when=when, pct=day["rain_probability_pct"],
-                    mm=day["rain_mm"], high=day["high_c"], low=day["low_c"]))
+                say("rain_amount_day", lang, when=when, **figures) if pct is None
+                else say("rain_day", lang, when=when, pct=pct, **figures))
+            if pct is None:
+                cons.append(say("no_rain_chance", lang, day=wording.day(day["label"], lang)))
             cites += [f"location.forecast.days[{k}].{f}"
-                      for f in ("rain_probability_pct", "rain_mm", "high_c", "low_c")]
+                      for f in ("rain_probability_pct", "rain_mm", "high_c", "low_c")
+                      if day.get(f) is not None]
             cites.append("crop.entry")
         if crop and not crop.get("reviewed"):
             cons.append(crop_not_reviewed(lang))
