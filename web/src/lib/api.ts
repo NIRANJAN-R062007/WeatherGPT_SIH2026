@@ -193,15 +193,19 @@ export interface AskWarningsResponse {
   notice?: string;
 }
 
-/** `warnings` intent, feed off or fixture unusable. Carries `message` instead
- *  of `response` and has NO provenance — explicitly not an all-clear. */
+/** `warnings` intent, feed off, fixture unusable, or the place isn't a demo
+ *  city (no warning feed for it: `city` is null and `location` names it).
+ *  Carries `message` instead of `response` and has NO provenance —
+ *  explicitly not an all-clear. The backend always sends `status` and
+ *  `legend` here; they are optional so a reply without them still renders. */
 export interface AskWarningsUnavailableResponse {
   intent: 'warnings';
-  city: string;
+  city: string | null;
+  location?: AskLocation;
   message: string;
-  status: 'unavailable';
-  warning: null;
-  legend: LegendRow[];
+  status?: 'unavailable';
+  warning?: null;
+  legend?: LegendRow[];
   nlu: Nlu;
   notice?: string;
 }
@@ -260,17 +264,33 @@ export type AskOutcome =
   | { kind: 'ungrounded'; data: AskUngroundedResponse }
   | { kind: 'fallback'; data: AskFallbackResponse };
 
+/** The keys main.py's location replies set: which place? (`ambiguous`), not
+ *  found, no place given (`needs_location`), India only, and offline with no
+ *  saved data for the place. */
+const LOCATION_REPLY_KEYS = ['ambiguous', 'not_found', 'needs_location', 'outside_india', 'offline'] as const;
+
+function isLocationReply(data: AskResponse): boolean {
+  const flags = data as unknown as Record<string, unknown>;
+  return LOCATION_REPLY_KEYS.some((key) => Boolean(flags[key]));
+}
+
 /** Sort a raw /ask body into its branch. Order matters:
  *  - `intent === "warnings"` returns early in main.py, so it can never be a
  *    weather success; inside it, `response` vs `message` splits the two.
+ *  - a warnings location reply (which place?, not found, no place given,
+ *    India only, offline) has `message` but no `city`, `status` or `legend`:
+ *    it is a fallback, which lists the places to tap and the location button.
+ *    Only the warnings-unavailable verdict (a demo city with no usable feed,
+ *    or a resolved place that isn't one) is the "no verdict" panel.
  *  - a success also carries `grounding`, so `response` must be checked before
  *    the ungrounded test.
  *  - ungrounded is the only `message` branch that carries `grounding`.
  */
 export function classifyAsk(data: AskResponse): AskOutcome {
   if (data.intent === 'warnings') {
-    return 'response' in data
-      ? { kind: 'warnings', data: data as AskWarningsResponse }
+    if ('response' in data) return { kind: 'warnings', data: data as AskWarningsResponse };
+    return isLocationReply(data)
+      ? { kind: 'fallback', data: data as AskFallbackResponse }
       : { kind: 'warnings-unavailable', data: data as AskWarningsUnavailableResponse };
   }
   if ('response' in data) {

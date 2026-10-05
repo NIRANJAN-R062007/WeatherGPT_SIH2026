@@ -316,12 +316,16 @@ export default function AskAnswer({
               <span className="material-symbols-outlined text-[18px]">help</span>
               {t('No warning verdict')}
             </span>
+            {/* A demo city, or the resolved place's own label when it has no
+                warning feed (city is null then). */}
+            {(outcome.data.city || outcome.data.location) && (
+              <Chip>
+                <span className="material-symbols-outlined text-[11px] align-middle">location_on</span>{' '}
+                {placeLabel(outcome.data.city, outcome.data.location, t)}
+              </Chip>
+            )}
             <Chip>
-              <span className="material-symbols-outlined text-[11px] align-middle">location_on</span>{' '}
-              {t(cityLabel(outcome.data.city))}
-            </Chip>
-            <Chip>
-              {t('STATUS')}: {t(outcome.data.status).toUpperCase()}
+              {t('STATUS')}: {t(outcome.data.status ?? 'unavailable').toUpperCase()}
             </Chip>
           </div>
 
@@ -329,7 +333,7 @@ export default function AskAnswer({
 
           <p className="font-body-md text-body-md text-on-surface">{outcome.data.message}</p>
 
-          {detail && <Legend rows={outcome.data.legend} />}
+          {detail && outcome.data.legend && <Legend rows={outcome.data.legend} />}
         </div>
       )}
 
