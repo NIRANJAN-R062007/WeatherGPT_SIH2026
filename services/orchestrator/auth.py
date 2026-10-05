@@ -26,14 +26,23 @@ async def _fetch_user(token: str) -> dict:
         key = require("SUPABASE_ANON_KEY", SUPABASE_ANON_KEY)
     except config.ConfigError:  # attribute lookup survives test reloads of config
         raise HTTPException(status_code=503, detail="Sign-in is not configured on this server")
-    async with httpx.AsyncClient(timeout=5) as client:
-        resp = await client.get(
-            f"{url}/auth/v1/user",
-            headers={"Authorization": f"Bearer {token}", "apikey": key},
-        )
+    # Supabase down, slow or answering garbage is our outage, not a bad session:
+    # 503 like the "not configured" branch above, never an unhandled 500.
+    unavailable = HTTPException(status_code=503, detail="Sign-in isn't available right now")
+    try:
+        async with httpx.AsyncClient(timeout=5) as client:
+            resp = await client.get(
+                f"{url}/auth/v1/user",
+                headers={"Authorization": f"Bearer {token}", "apikey": key},
+            )
+    except httpx.HTTPError:
+        raise unavailable from None
     if resp.status_code != 200:
         raise HTTPException(status_code=401, detail="Invalid or expired session")
-    return resp.json()
+    try:
+        return resp.json()
+    except ValueError:
+        raise unavailable from None
 
 
 async def get_current_user(authorization: str | None = Header(default=None)) -> dict:

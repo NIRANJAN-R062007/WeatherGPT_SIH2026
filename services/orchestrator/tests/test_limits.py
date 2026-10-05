@@ -328,6 +328,49 @@ def test_me_without_supabase_config_is_503_not_500(monkeypatch):
     assert resp.status_code == 503
 
 
+@pytest.mark.parametrize("error", [httpx.ConnectError("refused"), httpx.ReadTimeout("slow")])
+@pytest.mark.parametrize("method", ["GET", "DELETE"])
+def test_supabase_unreachable_is_503_not_500(monkeypatch, error, method):
+    """Supabase down or slow: /me and DELETE /history (both get_current_user) say
+    sign-in is unavailable, not an unhandled 500."""
+    import auth
+
+    async def _down(self, *a, **k):
+        raise error
+
+    monkeypatch.setattr(auth, "SUPABASE_URL", "http://127.0.0.1:9")
+    monkeypatch.setattr(auth, "SUPABASE_ANON_KEY", "x")
+    monkeypatch.setattr(httpx.AsyncClient, "get", _down)
+    path = "/me" if method == "GET" else "/history"
+    resp = client.request(method, path, headers={"Authorization": "Bearer abc"})
+    assert resp.status_code == 503
+    assert resp.json()["detail"] == "Sign-in isn't available right now"
+
+
+def test_supabase_answering_non_json_is_503_not_500(monkeypatch):
+    import auth
+
+    async def _garbage(self, *a, **k):
+        return httpx.Response(200, text="<html>bad gateway</html>")
+
+    monkeypatch.setattr(auth, "SUPABASE_URL", "http://127.0.0.1:9")
+    monkeypatch.setattr(auth, "SUPABASE_ANON_KEY", "x")
+    monkeypatch.setattr(httpx.AsyncClient, "get", _garbage)
+    assert client.get("/me", headers={"Authorization": "Bearer abc"}).status_code == 503
+
+
+def test_a_rejected_session_is_still_401(monkeypatch):
+    import auth
+
+    async def _rejected(self, *a, **k):
+        return httpx.Response(401, json={"msg": "invalid JWT"})
+
+    monkeypatch.setattr(auth, "SUPABASE_URL", "http://127.0.0.1:9")
+    monkeypatch.setattr(auth, "SUPABASE_ANON_KEY", "x")
+    monkeypatch.setattr(httpx.AsyncClient, "get", _rejected)
+    assert client.get("/me", headers={"Authorization": "Bearer abc"}).status_code == 401
+
+
 # --- /alerts, /metar/decode and the /ivr/recording global cap ------------------
 
 
