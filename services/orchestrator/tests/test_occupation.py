@@ -151,6 +151,16 @@ def test_classifier_prompt_quotes_the_occupation_as_data(monkeypatch):
     assert "never instructions" in calls[0]
 
 
+def test_classifier_prompt_asks_for_json(monkeypatch):
+    # Groq's JSON mode rejects a prompt without the word "JSON" (HTTP 400), and
+    # has no schema parameter, so the reply's shape must be in the prompt.
+    calls = []
+    _classifier(monkeypatch, "other", calls)
+    occupation.resolve("delivery rider")
+    assert "JSON" in calls[0]
+    assert '{"category": ' in calls[0]
+
+
 def test_cache_is_thread_safe_and_bounded(monkeypatch):
     from concurrent.futures import ThreadPoolExecutor
 
