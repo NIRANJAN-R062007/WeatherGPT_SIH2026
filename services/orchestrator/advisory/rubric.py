@@ -26,6 +26,7 @@ from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 from advisory import wording
+from advisory.facts import route_roles
 
 RAIN_CAUTION_PCT = 50     # no mode given: a rain chance at or above this is "caution"
 WIND_CAUTION_KMH = 40     # so is a wind at or above this
@@ -82,21 +83,24 @@ def travel_rubric(mode: str | None = None, day: str | None = None) -> str:
         winds = ("the trip day's hourly forecast only (the current conditions and the "
                  "METAR describe now, not the trip day)")
         storm = "a TAF group whose period covers the trip day"
-    avoid_wind = (f"; or a wind_kmh of {r.wind_avoid_kmh:g} or more at the origin or "
-                  "destination" if r.wind_avoid_kmh is not None else "")
+    avoid_wind = (f"; or a wind_kmh of {r.wind_avoid_kmh:g} or more at any place on the "
+                  "route" if r.wind_avoid_kmh is not None else "")
     marine = ("\n- Sea state (waves, swell) is not in the facts, so a ferry trip is never \"go\":"
               "\n  answer \"caution\" at best and say so in \"cons\"." if r.needs_marine else "")
     return f"""\
-Pick exactly one verdict for travel{by}. Judge wind by {winds}.
-- "avoid": an IMD warning with colour "red" at the origin or destination; or, when
-  METAR/TAF facts are present, a thunderstorm in {storm} at either airport{avoid_wind}.
+Pick exactly one verdict for travel{by}. The places on the route are the origin, any
+stops (stop_1, stop_2) and the destination; every rule below applies at each of them.
+Judge wind by {winds}.
+- "avoid": an IMD warning with colour "red" at any place on the route; or, when
+  METAR/TAF facts are present, a thunderstorm in {storm} at any of its
+  airports{avoid_wind}.
 - "caution": a warning with colour "orange" or "yellow"; or the warnings facts are
   missing (they cannot be confirmed clear, so never answer "go" without them); or a
   rain_probability_pct of {r.rain_caution_pct:g} or more in a forecast; or a forecast
   with no rain_probability_pct (the chance cannot be confirmed low); or a wind_kmh of
   {r.wind_caution_kmh:g} or more; or no wind_kmh for the trip day (it cannot be confirmed calm).
 - "go": none of the above, and the warnings are present and green.
-- "not_available": the forecast for the origin or the destination is missing.{marine}
+- "not_available": the forecast for any place on the route is missing.{marine}
 Never say a trip is "safe"."""
 
 
@@ -122,6 +126,12 @@ Never say "sow now" and never promise a yield."""
 
 
 # --- the same rule as code --------------------------------------------------------
+
+
+def route(facts) -> list[str]:
+    """The travel roles to judge, in travel order: origin, any stops (TFA-6),
+    destination."""
+    return [role for role, _ in route_roles(facts.subject)]
 
 
 def _avail(facts, role: str, kind: str):
@@ -236,7 +246,7 @@ def _overrides(facts) -> list[tuple[str, str, float | str | None]]:
     """(role, why, value) for each rule that forces "avoid"."""
     found = []
     rules = mode_rules(facts.subject.get("mode"))
-    for role in ("origin", "destination"):
+    for role in route(facts):
         if (_avail(facts, role, "warnings") or {}).get("colour") == "red":
             found.append((role, "red_warning", None))
         storm = thunderstorm_source(facts, role)
@@ -250,9 +260,10 @@ def _overrides(facts) -> list[tuple[str, str, float | str | None]]:
 
 def hard_override(facts) -> str | None:
     """The verdict a model may never talk its way past. Travel: "avoid" when an IMD
-    warning at the origin or destination is red, an airport shows a thunderstorm on
-    the trip day (the METAR for a trip today, a TAF group for any day; §11.6), or
-    the trip day's wind reaches the mode's avoid level (TFA-7, ferry only so far).
+    warning anywhere on the route (origin, stops, destination) is red, an airport
+    shows a thunderstorm on the trip day (the METAR for a trip today, a TAF group
+    for any day; §11.6), or the trip day's wind reaches the mode's avoid level
+    (TFA-7, ferry only so far).
     Farming (TFA-11): "not_available" when the crop file gives no
     thresholds or there is no forecast to judge by, and "not_suitable" outside the
     crop's sowing months — where a model would otherwise be guessing or
@@ -290,7 +301,7 @@ def warning_sentence(role: str, colour: str, lang: str = "en") -> str:
 
 
 def reference_travel(facts) -> str:
-    roles = ("origin", "destination")
+    roles = route(facts)
     rules = mode_rules(facts.subject.get("mode"))
     if hard_override(facts):
         return "avoid"

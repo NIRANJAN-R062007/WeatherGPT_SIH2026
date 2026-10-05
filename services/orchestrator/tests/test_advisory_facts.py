@@ -212,3 +212,29 @@ def test_unknown_district_is_reported_and_the_crop_still_looked_up():
 
 def test_fact_section_name():
     assert FactSection("origin", "current", False, reason="x").name == "origin.current"
+
+
+# --- TFA-21: sections are gathered in parallel ---------------------------------
+
+
+def test_gather_all_runs_side_by_side_and_keeps_the_order():
+    import threading
+
+    barrier = threading.Barrier(3, timeout=5)  # only passes if all three run at once
+
+    def call(i):
+        def run():
+            barrier.wait()
+            return FactSection("origin", f"k{i}", True, {"i": i})
+        return run
+
+    out = facts_module.gather_all([call(i) for i in range(3)])
+    assert [s.kind for s in out] == ["k0", "k1", "k2"]
+
+
+def test_parallel_collection_matches_the_sequential_order(monkeypatch):
+    parallel = TravelFactsCollector().collect({**TRIP, "mode": "flight"})
+    monkeypatch.setattr(facts_module, "gather_all", lambda calls: [c() for c in calls])
+    sequential = TravelFactsCollector().collect({**TRIP, "mode": "flight"})
+    assert [s.name for s in parallel.sections] == [s.name for s in sequential.sections]
+    assert parallel.raw() == sequential.raw()

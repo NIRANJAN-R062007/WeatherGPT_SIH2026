@@ -49,7 +49,7 @@ def template_answer(facts, lang: str = "en") -> dict:
 
     if facts.kind == "travel":
         rules = rubric.mode_rules(facts.subject.get("mode"))
-        for role in ("origin", "destination"):
+        for role in rubric.route(facts):
             place = wording.role(role, lang)
             if "forecast" not in raw.get(role, {}):
                 cons.append(say("forecast_unavailable_role", lang, role=place))

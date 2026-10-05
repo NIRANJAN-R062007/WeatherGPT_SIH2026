@@ -1078,6 +1078,12 @@ def _carried_slots(kind: str, slots: dict[str, str]) -> dict[str, str]:
             keep[slot] = value
     if kind == advisory_slots.TRAVEL and slots.get("mode") in advisory_slots.MODES:
         keep["mode"] = slots["mode"]  # optional, so not in REQUIRED, but it picks the rule table
+    via = slots.get("via") if kind == advisory_slots.TRAVEL else None
+    if via:  # TFA-6: every stop a registered city key, and no more than the route allows
+        stops = via.split(",")
+        if (len(stops) <= advisory_slots.MAX_STOPS
+                and all(cities.resolve(k, travel=True) == k for k in stops)):
+            keep["via"] = via
     return keep
 
 
@@ -1091,6 +1097,8 @@ def _advisory(kind: str, req: AdvisoryAsk, response: Response) -> dict:
                 "question": advisory_slots.ask_back(parsed, lang), "slots": parsed.slots,
                 "asking": parsed.asking, "unsupported": parsed.unsupported}
     asked = {"kind": kind, "status": "ok", "slots": parsed.slots, "assumed": parsed.assumed}
+    if parsed.ignored_stops:  # TFA-6: named, but not checked — the answer must not imply it
+        asked["ignored_stops"] = parsed.ignored_stops
     cache_key = advisory_cache.key(kind, parsed.slots, lang)
     cached = advisory_cache.get(cache_key)  # TFA-20: the same question, already answered
     if cached is not None:

@@ -1,7 +1,8 @@
 """TFA-3: shared slot parsing and ask-back for travel and farming.
 
 Turns what a user typed into the slots a collector needs (facts.py) — travel:
-`origin`, `destination`, `day` (+ optional `mode`); farming: `crop`, `district` —
+`origin`, `destination`, `day` (+ optional `mode` and `via`, the stops on a
+multi-leg route, TFA-6); farming: `crop`, `district` —
 and, when a required one is missing, the single follow-up question to ask. A
 missing slot is asked for, never guessed (plan.md §2 principle 3).
 
@@ -39,6 +40,9 @@ REQUIRED: dict[str, tuple[str, ...]] = {
 }
 _CITY_SLOTS = {"origin", "destination", "district"}
 
+# TFA-6: most stops a route may name (the `via` slot); facts.py makes each a role.
+MAX_STOPS = 2
+
 DAYS = ("today", "tomorrow", "day_after_tomorrow")  # what advisory/facts.py can fetch
 
 # Crops we can recognise by name, with their aliases. TODO(TFA-9): the sourced
@@ -75,6 +79,17 @@ _POST_DEST = re.compile(
     r"|^\s*(?:तक|को)(?!\w)|^\s*जा"      # hi  TODO: native_qa
     r"|^\s*(?:కు|కి|వెళ్)"               # te  TODO: native_qa
     r"|^\s*(?:ला|पर्यंत)")                # mr  TODO: native_qa
+
+# TFA-6: a stop on the route ("via Madurai", "changing at Delhi"). English only so
+# far; an Indic stop cue is not recognised yet, so such a city is not a stop.
+_PRE_VIA = re.compile(
+    r"(?:\bvia|\bthrough|\bstopping\s+(?:at|in)|\bstop(?:over)?\s+(?:at|in)"
+    r"|\bchang(?:e|ing)\s+(?:at|in)|\bconnecting\s+(?:at|in|through))\s*$", re.I)
+# "via Madurai and Kochi": a city right after a stop, joined by "and" or a comma.
+_VIA_JOIN = re.compile(r"\s*(?:,|and|&)\s*", re.I)
+_VIA_PLACE = re.compile(
+    r"\b(?:via|through)\s+([A-Za-z][A-Za-z\- ]{1,29}?)"
+    r"(?=\s+(?:from|to|by|on|and|today|tomorrow|tonight)\b|[?.!,]|$)", re.I)
 
 _ROUTE_SEP = re.compile(r"\s*(?:-|–|—|→|->|=>)\s*")
 
@@ -134,6 +149,9 @@ class SlotResult:
     missing: list[str] = field(default_factory=list)
     unsupported: dict = field(default_factory=dict)
     assumed: list[str] = field(default_factory=list)
+    # TFA-6: stops named but not used — a place we don't have, or one past
+    # MAX_STOPS — so the answer can say they were not checked.
+    ignored_stops: list[str] = field(default_factory=list)
 
     @property
     def complete(self) -> bool:
@@ -191,6 +209,25 @@ def _mode_in(text: str) -> str | None:
     return found.pop() if len(found) == 1 else None  # two modes named: don't pick
 
 
+def _stops(text: str, found: list) -> tuple[list[str], list]:
+    """`(stop keys, the other mentions)`: the cities `text` names as stops, in
+    order, and the mentions left for origin/destination."""
+    stops: list[str] = []
+    rest = []
+    prev_stop_end = None
+    for key, start, end in found:
+        before = text[:start]
+        joined = prev_stop_end is not None and _VIA_JOIN.fullmatch(text[prev_stop_end:start])
+        if _PRE_VIA.search(before.lower()) or joined:
+            if key not in stops:
+                stops.append(key)
+            prev_stop_end = end
+        else:
+            rest.append((key, start, end))
+            prev_stop_end = None
+    return stops, rest
+
+
 def _route_roles(text: str, asking: str | None, have: dict) -> tuple[dict, list[str]]:
     """`(roles, assumed)`: origin/destination city keys from the mentions in
     `text`. Cues decide; a leftover city next to a cued one takes the other
@@ -198,7 +235,9 @@ def _route_roles(text: str, asking: str | None, have: dict) -> tuple[dict, list[
     else is assumed to be the destination (and flagged as assumed)."""
     roles: dict = {}
     assumed: list[str] = []
-    found = cities.mentions(text, travel=True)
+    stops, found = _stops(text, cities.mentions(text, travel=True))
+    if stops:
+        roles["via"] = stops
     uncued: list[str] = []
     for key, start, end in found:
         before, after = text[:start].lower(), text[end:]
@@ -252,8 +291,19 @@ def parse(kind: str, text: str, *, have: dict | None = None,
         for slot, other in (("origin", "destination"), ("destination", "origin")):
             if roles.get(slot) and roles[slot] == (roles.get(other) or have.get(other)):
                 roles.pop(slot)  # "Chennai to Chennai" is not a trip: ask again
+        stops = roles.pop("via", [])
         result.slots.update(roles)
         result.assumed = [s for s in assumed if s in roles]
+        if stops:
+            ends = {result.slots.get("origin"), result.slots.get("destination")}
+            stops = [k for k in stops if k not in ends]  # the trip's own ends are not stops
+            result.ignored_stops += stops[MAX_STOPS:]
+            if stops[:MAX_STOPS]:
+                result.slots["via"] = ",".join(stops[:MAX_STOPS])
+        for m in _VIA_PLACE.finditer(text):
+            name = _clean_name(m.group(1))
+            if name and not cities.resolve(name, travel=True):
+                result.ignored_stops.append(name)
 
         day, far = _day_in(text)
         if day:

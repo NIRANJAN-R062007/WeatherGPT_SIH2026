@@ -74,7 +74,7 @@ class Advice:
 # the live token usage), so it stays in the log and the Advice; the response gets a code.
 FALLBACK_CODES = ("agent_off", "out_of_time", "timeout", "rate_limited", "provider_error",
                   "not_json", "guardrail")
-_RATE_LIMITED = re.compile(r"429|rate.?limit|resource.?exhausted|throttl|quota", re.I)
+_RATE_LIMITED = re.compile(r"\b429\b|rate.?limit|resource.?exhausted|throttl|quota", re.I)
 
 
 def _error_code(exc: AgentError) -> str:
@@ -90,7 +90,7 @@ def _error_code(exc: AgentError) -> str:
 def _roles(kind: str, slots: dict) -> dict[str, str | None]:
     """role -> the city key the slots name for it (None if it does not resolve)."""
     if kind == "travel":
-        return {r: cities.resolve(slots.get(r), travel=True) for r in ("origin", "destination")}
+        return {r: cities.resolve(v, travel=True) for r, v in facts_module.route_roles(slots)}
     return {"location": cities.resolve(slots.get("district"))}
 
 
@@ -201,35 +201,35 @@ class Toolbox:
         @tool
         def get_forecast(role: str, day: str = "today") -> str:
             """Daily forecast (temperature, rain chance, wind) for one place in the request.
-            role: the place, e.g. "origin", "destination" or "location".
+            role: the place, e.g. "origin", "stop_1", "destination" or "location".
             day: "today", "tomorrow" or "day_after_tomorrow"."""
             return box._run(role, "forecast", day)
 
         @tool
         def get_hourly(role: str, day: str = "today") -> str:
             """Hour-by-hour forecast for one place in the request.
-            role: "origin", "destination" or "location". day: "today", "tomorrow" or
-            "day_after_tomorrow"."""
+            role: "origin", a stop ("stop_1"), "destination" or "location".
+            day: "today", "tomorrow" or "day_after_tomorrow"."""
             return box._run(role, "hourly", day)
 
         @tool
         def get_rain_so_far(role: str) -> str:
             """Rainfall so far today for one place in the request.
-            role: "origin", "destination" or "location"."""
+            role: "origin", a stop ("stop_1"), "destination" or "location"."""
             return box._run(role, "rain")
 
         @tool
         def get_metar_taf(role: str) -> str:
             """The airport weather report (METAR) and forecast (TAF) for one place, if it has
-            an airport we cover. role: "origin" or "destination"."""
+            an airport we cover. role: "origin", a stop ("stop_1") or "destination"."""
             return box._run(role, "aviation")
 
         @tool
         def get_best_window(role: str, day: str = "today") -> str:
             """The best contiguous time window of the day by the weather rules, or not available
             if no hour qualifies. Use it when the answer needs a time to go or to sow.
-            role: "origin", "destination" or "location". day: "today", "tomorrow" or
-            "day_after_tomorrow"."""
+            role: "origin", a stop ("stop_1"), "destination" or "location".
+            day: "today", "tomorrow" or "day_after_tomorrow"."""
             return box._run(role, "window", day)
 
         return [get_forecast, get_hourly, get_rain_so_far, get_metar_taf, get_best_window]

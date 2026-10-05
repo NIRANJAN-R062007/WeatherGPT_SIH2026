@@ -13,15 +13,17 @@ narration citing it fails grounding — "not available", never fair weather
 (plan.md §2 principle 3). The gatherers below only wrap what the stack already
 has (weather_data, aviation, imd_warnings); they add no data source.
 
-The two concrete collectors are deliberately minimal — origin and destination
-city only for travel, one district for farming. Route legs and the airports
-along them are TFA-6; the crop file (TFA-9) is read through `crop_lookup`.
+Travel covers every place on the route: the origin, up to `MAX_STOPS` stops
+(the `via` slot, TFA-6) and the destination, each with the same sections, so
+the airports along the way get their METAR/TAF and each stop its warnings.
+Farming covers one district; the crop file (TFA-9) is read through `crop_lookup`.
 """
 
 from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Callable
@@ -35,10 +37,26 @@ from weather_intelligence import rules
 from weather_intelligence.window_analyzer import find_best_window
 
 from advisory import crops
+from advisory.slots import MAX_STOPS
 
 _LOG = logging.getLogger("weathergpt.advisory")
 
 _DAY_OFFSET = {"today": 0, "tomorrow": 1, "day_after_tomorrow": 2}
+
+# TFA-6: a route's stops between origin and destination. The `via` slot holds
+# their city keys, comma-separated, in travel order; each becomes role "stop_N".
+
+
+def via_keys(slots: dict) -> list[str]:
+    """The stops in the `via` slot, in order (at most MAX_STOPS)."""
+    return [v for v in (slots.get("via") or "").split(",") if v][:MAX_STOPS]
+
+
+def route_roles(slots: dict) -> list[tuple[str, str | None]]:
+    """(role, slot value) for each place on a trip, in travel order: origin,
+    stop_1, stop_2, destination."""
+    stops = [(f"stop_{i}", key) for i, key in enumerate(via_keys(slots), start=1)]
+    return [("origin", slots.get("origin")), *stops, ("destination", slots.get("destination"))]
 
 
 @dataclass(frozen=True)
@@ -199,6 +217,23 @@ def crop_entry(crop: str, region: str) -> FactSection:
                    "crop/region not in the sourced crop file")
 
 
+# TFA-21: the sections of one answer are independent source calls (each waits on
+# its own network fetch on a cold cache), so they run side by side. Bounded so
+# one request can't open a burst of upstream connections.
+MAX_PARALLEL = 8
+
+
+def gather_all(calls: list[Callable[[], FactSection]]) -> list[FactSection]:
+    """Run the gatherers in parallel and return their sections in the order
+    given, so `sections()` reads the same either way. A gatherer never raises
+    (`_gather` turns a failure into an unavailable section)."""
+    if len(calls) <= 1:
+        return [call() for call in calls]
+    with ThreadPoolExecutor(max_workers=min(MAX_PARALLEL, len(calls)),
+                            thread_name_prefix="advisory-facts") as pool:
+        return list(pool.map(lambda call: call(), calls))
+
+
 # --- the interface ------------------------------------------------------------
 
 
@@ -219,29 +254,32 @@ class FactsCollector(ABC):
 
 class TravelFactsCollector(FactsCollector):
     """slots: `origin`, `destination` (city keys), `day` ("today"/"tomorrow"/
-    "day_after_tomorrow", default today) and optional `mode`. METAR/TAF are
-    gathered for flights, or when no mode is given."""
+    "day_after_tomorrow", default today), optional `mode` and optional `via`
+    (stops, TFA-6). METAR/TAF are gathered for flights, or when no mode is given,
+    at every place on the route that has an airport."""
 
     kind = "travel"
 
     def sections(self, slots: dict) -> list[FactSection]:
         day = slots.get("day", "today")
         flying = slots.get("mode") in (None, "flight")
-        out: list[FactSection] = []
-        for role in ("origin", "destination"):
-            city = cities.resolve(slots.get(role), travel=True)
+        calls: list[Callable[[], FactSection]] = []
+        for role, value in route_roles(slots):
+            city = cities.resolve(value, travel=True)
             if city is None:
-                out.append(_unavailable(role, "location", f"unknown {role} {slots.get(role)!r}"))
+                reason = f"unknown {role} {value!r}"
+                calls.append(
+                    lambda role=role, reason=reason: _unavailable(role, "location", reason))
                 continue
-            out += [
-                current_weather(role, city),
-                daily_forecast(role, city, day),
-                hourly_forecast(role, city, day),
-                warnings(role, city),
+            calls += [
+                lambda role=role, city=city: current_weather(role, city),
+                lambda role=role, city=city: daily_forecast(role, city, day),
+                lambda role=role, city=city: hourly_forecast(role, city, day),
+                lambda role=role, city=city: warnings(role, city),
             ]
             if flying:
-                out.append(aviation_reports(role, city))
-        return out
+                calls.append(lambda role=role, city=city: aviation_reports(role, city))
+        return gather_all(calls)
 
 
 class FarmingFactsCollector(FactsCollector):
@@ -255,21 +293,24 @@ class FarmingFactsCollector(FactsCollector):
     def sections(self, slots: dict) -> list[FactSection]:
         city = cities.resolve(slots.get("district"))
         if city is None:
-            out = [_unavailable("location", "location",
-                                f"unknown district {slots.get('district')!r}")]
+            calls: list[Callable[[], FactSection]] = [
+                lambda: _unavailable("location", "location",
+                                     f"unknown district {slots.get('district')!r}")]
         else:
-            out = [
-                multi_day_forecast("location", city),
-                hourly_forecast("location", city, "today"),
-                rain_so_far("location", city),
-                warnings("location", city),
+            calls = [
+                lambda: multi_day_forecast("location", city),
+                lambda: hourly_forecast("location", city, "today"),
+                lambda: rain_so_far("location", city),
+                lambda: warnings("location", city),
             ]
         crop = slots.get("crop")
         if not crop:
-            entry = _unavailable("crop", "entry", "no crop given")
+            calls.append(lambda: _unavailable("crop", "entry", "no crop given"))
         else:
-            entry = crop_entry(crop, slots.get("region") or slots.get("district") or "")
-        out.append(entry)
+            region = slots.get("region") or slots.get("district") or ""
+            calls.append(lambda: crop_entry(crop, region))
+        out = gather_all(calls)
+        entry = out[-1]
         hourly = next((s for s in out if s.kind == "hourly"), None)
         out.append(sowing_window(entry, hourly))
         return out

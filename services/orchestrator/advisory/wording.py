@@ -221,6 +221,11 @@ ROLES = {
                "te": "బయలుదేరే చోటు", "mr": "प्रस्थान ठिकाण"},
     "destination": {"en": "destination", "hi": "गंतव्य", "ta": "சேருமிடம்",
                     "te": "గమ్యస్థానం", "mr": "गंतव्य"},
+    # TFA-6: stops on the route, in travel order. TODO: native_qa
+    "stop_1": {"en": "first stop", "hi": "पहला पड़ाव", "ta": "முதல் நிறுத்தம்",
+               "te": "మొదటి మజిలీ", "mr": "पहिला थांबा"},
+    "stop_2": {"en": "second stop", "hi": "दूसरा पड़ाव", "ta": "இரண்டாம் நிறுத்தம்",
+               "te": "రెండో మజిలీ", "mr": "दुसरा थांबा"},
 }
 COLOURS = {
     "red": {"en": "red", "hi": "लाल", "ta": "சிவப்பு", "te": "ఎరుపు", "mr": "लाल"},
