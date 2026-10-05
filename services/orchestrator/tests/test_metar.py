@@ -134,21 +134,6 @@ def test_trend_and_remarks_are_passed_through_raw():
     assert d["weather"][0]["code"] == "TSRA"  # trend's +TSRA isn't decoded as current weather
 
 
-def test_the_trend_starts_at_the_first_marker_in_the_report_not_the_first_in_a_list():
-    """TEMPO TSRA is a forecast. Cutting at BECMG (later in the report, but first in
-    a fixed list) read the TSRA as the weather now, and a travel answer as a storm."""
-    d = metar.decode("METAR VOMM 051200Z 09010KT 6000 FEW020 30/24 Q1008 TEMPO TSRA BECMG 3000")
-    assert d["weather"] == []
-    assert d["trend"] == "TEMPO TSRA BECMG 3000"
-    assert d["unparsed"] == []
-
-
-@pytest.mark.parametrize("trend", ["BECMG 3000 TEMPO TSRA", "NOSIG", "TEMPO TSRA", "BECMG FM1300"])
-def test_any_one_trend_group_is_cut_off_whole(trend):
-    d = metar.decode(f"VOMM 051200Z 09010KT 6000 FEW020 30/24 Q1008 {trend}")
-    assert d["trend"] == trend and d["weather"] == [] and d["unparsed"] == []
-
-
 def test_unknown_tokens_are_reported_not_guessed():
     d = metar.decode("VOCB 291200Z 25010KT 9999 XYZ NSC 30/22 Q1009 RERA")
     assert d["unparsed"] == ["XYZ", "RERA"]

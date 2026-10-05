@@ -3,9 +3,7 @@
 /ask, /asr and /tts have no auth and every one of them can fan out to paid
 Bhashini/LLM calls. Two cheap guards cover that:
 
-- a body-size cap (413) so a multi-megabyte /asr upload never reaches Bhashini:
-  Content-Length is checked up front, and `BodyCap` counts the bytes as they arrive
-  for a body that has none (chunked) or whose length is untrue;
+- a body-size cap (413) so a multi-megabyte /asr upload never reaches Bhashini;
 - a per-client sliding-window rate limit (429) on the expensive routes.
 
 Client identity: every proxy in front of us appends the address it accepted
@@ -214,41 +212,3 @@ class RequestLimits(BaseHTTPMiddleware):
                     headers={"Retry-After": "60"},
                 )
         return await call_next(request)
-
-
-class BodyCap:
-    """Pure ASGI middleware: the body cap for a request whose Content-Length is missing or
-    untrue. A chunked upload sends none, so the header check in `RequestLimits` never sees
-    it and the whole body would be read into memory. The body is read here chunk by chunk
-    into a buffer, the answer is 413 the moment the total crosses MAX_BODY_BYTES (nothing
-    more is read), and a body within the cap is replayed to the app as it came. The app
-    never holds more than the cap plus one chunk. services/gateway counts the stream the
-    same way (`_read_body`)."""
-
-    def __init__(self, app):
-        self.app = app
-
-    async def __call__(self, scope, receive, send):
-        if scope["type"] != "http":
-            await self.app(scope, receive, send)
-            return
-
-        buffered: list[dict] = []
-        total = 0
-        while True:
-            message = await receive()
-            buffered.append(message)
-            if message["type"] != "http.request":  # the client went away mid-body
-                break
-            total += len(message.get("body", b""))
-            if total > config.MAX_BODY_BYTES:
-                await JSONResponse({"detail": "request body too large"},
-                                   status_code=413)(scope, receive, send)
-                return
-            if not message.get("more_body"):
-                break
-
-        async def replay():
-            return buffered.pop(0) if buffered else await receive()
-
-        await self.app(scope, replay, send)

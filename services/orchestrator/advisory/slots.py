@@ -101,7 +101,6 @@ _MODES = (
     ("road", re.compile(r"\b(?:drive|driving|road|car|bus|bike)\b", re.I)),
     ("ferry", re.compile(r"\b(?:ferry|boat|ship|cruise)\b", re.I)),
 )
-MODES = tuple(mode for mode, _ in _MODES)  # what `parse` can put in the `mode` slot
 
 # "day after tomorrow" must be tried before "tomorrow" (it contains it). For
 # travel, which looks forward, Hindi "कल" is taken as tomorrow.

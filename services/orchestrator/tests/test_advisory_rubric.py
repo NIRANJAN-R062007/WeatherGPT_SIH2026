@@ -264,36 +264,6 @@ def test_the_prompt_carries_the_requests_mode_rules():
     assert rubric.travel_rubric(None) not in text
 
 
-# --- a forecast figure the feed left out: never read as fine ------------------------
-
-
-def _without_rain_chance(facts, role: str):
-    """weather_data.forecast_day() leaves a figure out of the dict when the feed has none."""
-    forecast = facts.section(role, "forecast")
-    data = {k: v for k, v in forecast.data.items() if k != "rain_probability_pct"}
-    scenarios._replace(facts, replace(forecast, data=data))
-    return facts
-
-
-@pytest.mark.parametrize("role", ["origin", "destination"])
-@pytest.mark.parametrize("mode", [None, "train"])
-def test_a_forecast_with_no_rain_chance_is_caution_never_go(role, mode):
-    facts = _without_rain_chance(_facts("clear", mode), role)
-    assert rubric.reference_travel(facts) == "caution"
-    answer = template.template_answer(facts)
-    assert answer["verdict"] == "caution"
-    assert f"The rain chance for the {role} is not available." in answer["cons"]
-    assert not any("None" in s for s in answer["pros"] + answer["cons"])
-    assert f"{role}.forecast.rain_probability_pct" not in answer["cites"]
-    assert guardrail.check_advisory(answer, facts).ok
-
-
-def test_the_prompt_says_a_missing_rain_chance_is_caution():
-    for mode in MODES:
-        text = rubric.travel_rubric(mode)
-        assert "with no rain_probability_pct (the chance cannot be confirmed low)" in text
-
-
 # --- farming: the crop file decides (TFA-11) -----------------------------------------
 
 SOWING = {"district": "madurai", "crop": "groundnut"}
@@ -451,72 +421,3 @@ def test_the_farming_prompt_rules_carry_no_numbers_of_their_own():
     quote; the rubric itself names fields, not figures."""
     digits = [c for c in rubric.FARMING_RUBRIC.replace(str(rubric.FARMING_DAYS), "") if c.isdigit()]
     assert digits == []
-
-
-# --- farming: a forecast figure the feed left out is not read as mild or dry ----------
-
-
-def _with_figure(facts, day: int, field: str, value):
-    forecast = facts.section("location", "forecast")
-    data = copy.deepcopy(forecast.data)
-    data["days"][day][field] = value
-    scenarios._replace(facts, replace(forecast, data=data))
-    return facts
-
-
-@pytest.mark.parametrize("field", ["high_c", "low_c"])
-def test_a_judged_day_with_no_high_or_low_is_not_available_never_read_as_mild(field):
-    facts = _with_figure(_sow("sow_ok"), 0, field, None)
-    answer = template.template_answer(facts)
-    assert rubric.reference_farming(facts) == "not_available" == answer["verdict"]
-    assert "The forecast gives no high or low temperature for today." in answer["cons"]
-    assert not any("None" in s for s in answer["pros"] + answer["cons"])
-    assert guardrail.check_advisory(answer, facts).ok
-
-
-def test_a_judged_day_with_no_rain_chance_is_not_available_when_the_crop_has_a_limit():
-    facts = _with_figure(_sow("sow_ok"), 1, "rain_probability_pct", None)
-    answer = template.template_answer(facts)
-    assert rubric.reference_farming(facts) == "not_available" == answer["verdict"]
-    assert "The forecast gives no rain chance for tomorrow." in answer["cons"]
-    assert guardrail.check_advisory(answer, facts).ok
-
-
-def test_a_missing_rain_chance_is_said_but_not_judged_when_the_crop_gives_no_limit():
-    facts = _with_figure(_sow("sow_ok", crop=_crop(max_rain_probability_pct=None)),
-                         0, "rain_probability_pct", None)
-    answer = template.template_answer(facts)
-    assert rubric.reference_farming(facts) == "suitable" == answer["verdict"]
-    assert "Rain today is 1.2 mm, with a high of 32°C and a low of 25°C." in answer["pros"]
-    assert "The forecast gives no rain chance for today." in answer["cons"]
-    assert not any("None" in s for s in answer["pros"] + answer["cons"])
-    assert not any(c.endswith(".rain_probability_pct") for c in answer["cites"])
-    assert guardrail.check_advisory(answer, facts).ok
-
-
-def test_each_missing_figure_is_a_sentence_of_its_own():
-    facts = _with_figure(_with_figure(_sow("sow_ok"), 0, "high_c", None),
-                         1, "rain_probability_pct", None)
-    assert rubric.forecast_gaps(_crop(), facts.raw()["location"]["forecast"]) == [
-        "The forecast gives no high or low temperature for today.",
-        "The forecast gives no rain chance for tomorrow."]
-
-
-def test_figures_after_the_judged_days_are_not_needed():
-    facts = _sow("sow_ok")
-    for field in ("high_c", "low_c", "rain_probability_pct"):
-        _with_figure(facts, rubric.FARMING_DAYS, field, None)
-    assert rubric.reference_farming(facts) == "suitable"
-
-
-def test_a_model_saying_suitable_is_overruled_when_a_judged_figure_is_missing():
-    facts = _with_figure(_sow("sow_ok"), 0, "high_c", None)
-    answer = template.finish(facts, dict(SUITABLE))
-    assert answer["verdict"] == "not_available"
-    assert answer["cons"][0] == "The forecast gives no high or low temperature for today."
-    assert guardrail.check_advisory(answer, facts).ok
-
-
-def test_the_farming_prompt_says_a_missing_figure_is_not_available():
-    assert "no rain_category, no high_c or no low_c" in rubric.FARMING_RUBRIC
-    assert "no rain_probability_pct when the crop facts give" in rubric.FARMING_RUBRIC

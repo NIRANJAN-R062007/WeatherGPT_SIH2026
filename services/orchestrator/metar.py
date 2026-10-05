@@ -172,12 +172,12 @@ def decode(raw: str) -> dict:
         remarks = " ".join(tokens[i + 1:]) or None
         tokens = tokens[:i]
     trend = None
-    # The earliest marker in the report starts the trend, whichever kind it is: a
-    # "TEMPO TSRA" before a "BECMG" is still a forecast, not the weather now.
-    i = next((n for n, tok in enumerate(tokens) if tok in ("NOSIG", "BECMG", "TEMPO")), None)
-    if i is not None:
-        trend = " ".join(tokens[i:])
-        tokens = tokens[:i]
+    for marker in ("NOSIG", "BECMG", "TEMPO"):
+        if marker in tokens:
+            i = tokens.index(marker)
+            trend = " ".join(tokens[i:])
+            tokens = tokens[:i]
+            break
 
     out = {
         "raw": text,

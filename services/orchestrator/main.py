@@ -85,10 +85,6 @@ app.add_middleware(
     allow_methods=["GET", "POST", "DELETE"],
     allow_headers=CORS_ALLOW_HEADERS,
 )
-# BodyCap sits inside RequestLimits: the Content-Length check and the rate limit
-# answer first, and this counts the body of a request that passed them (a chunked
-# upload has no Content-Length to check).
-app.add_middleware(limits.BodyCap)
 app.add_middleware(limits.RequestLimits)
 # Outermost so it also counts the 413s/429s limits.py returns (plan.md §14
 # observability track). Route label comes from scope["route"], set once the
@@ -493,7 +489,7 @@ async def clear_history(user: dict = Depends(get_current_user),
         history.clear_for_user(token, user["id"])
     except config.ConfigError as e:
         raise HTTPException(status_code=503, detail="History is not configured") from e
-    except httpx.HTTPError as e:  # an error status from Supabase, or no answer from it at all
+    except httpx.HTTPStatusError as e:
         raise HTTPException(status_code=502, detail="Could not clear history") from e
     return {"cleared": True}
 
@@ -1089,9 +1085,8 @@ _ADVISORY_DISCLAIMER = {
 
 def _carried_slots(kind: str, slots: dict[str, str]) -> dict[str, str]:
     """The slots a client sent back from the last turn, kept only if each is a value we
-    could have produced: a registered city key, a known day, a known crop, and for travel
-    the optional mode if it is one the slot parser knows. Anything else is dropped and
-    asked for again, so no client text reaches the facts or the prompt."""
+    could have produced: a registered city key, a known day, a known crop. Anything else
+    is dropped and asked for again, so no client text reaches the facts or the prompt."""
     keep: dict[str, str] = {}
     for slot in advisory_slots.REQUIRED[kind]:
         value = slots.get(slot)
@@ -1107,8 +1102,6 @@ def _carried_slots(kind: str, slots: dict[str, str]) -> dict[str, str]:
             ok = value in advisory_slots.CROPS
         if ok:
             keep[slot] = value
-    if kind == advisory_slots.TRAVEL and slots.get("mode") in advisory_slots.MODES:
-        keep["mode"] = slots["mode"]  # optional, so not in REQUIRED, but it picks the rule table
     return keep
 
 

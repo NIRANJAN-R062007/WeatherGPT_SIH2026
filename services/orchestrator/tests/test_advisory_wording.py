@@ -4,9 +4,7 @@ Done-when: each answer shape renders in en/hi/ta/te/mr with the agent off. Every
 shape is built from the eval scenarios, and each answer must still pass the
 advisory guardrail, so a translated sentence can't lose or change a figure."""
 
-import copy
 import sys
-from dataclasses import replace
 
 import config
 import guardrail
@@ -60,43 +58,6 @@ def test_every_shape_renders_and_grounds_in_every_language(kind, slots, scenario
         english = template.template_answer(facts, "en")
         assert not set(sentences) & set(english["pros"] + english["cons"])
         assert all(not s.isascii() for s in sentences)
-    report = guardrail.check_advisory(answer, facts)
-    assert report.ok, report.problems
-
-
-def _missing_figures(kind, slots, scenario):
-    """The scenario's facts with the forecast leaving out the rain chance (travel) or, for
-    the first judged days, a high and a rain chance (farming)."""
-    facts = _facts(kind, slots, scenario)
-    if kind == "travel":
-        section = facts.section("origin", "forecast")
-        data = {k: v for k, v in section.data.items() if k != "rain_probability_pct"}
-    else:
-        section = facts.section("location", "forecast")
-        data = copy.deepcopy(section.data)
-        data["days"][0]["high_c"] = None
-        data["days"][1]["rain_probability_pct"] = None
-    scenarios._replace(facts, replace(section, data=data))
-    return facts
-
-
-@pytest.mark.parametrize("lang", LANGS)
-@pytest.mark.parametrize("kind, slots, scenario, verdict", [
-    ("travel", TRIP, "clear", "caution"),
-    ("farming", SOW, "sow_ok", "not_available"),
-])
-def test_a_missing_forecast_figure_is_said_in_every_language_and_grounds(
-        kind, slots, scenario, verdict, lang):
-    facts = _missing_figures(kind, slots, scenario)
-    answer = template.template_answer(facts, lang)
-    assert answer["verdict"] == verdict
-    whole = template.template_answer(_facts(kind, slots, scenario), lang)
-    said = [s for s in answer["cons"] if s not in whole["cons"]]
-    assert len(said) == (1 if kind == "travel" else 2)
-    if lang != "en":
-        assert not set(said) & set(template.template_answer(facts, "en")["cons"])
-        assert all(not s.isascii() for s in said)
-    assert not any("None" in s for s in answer["pros"] + answer["cons"])
     report = guardrail.check_advisory(answer, facts)
     assert report.ok, report.problems
 

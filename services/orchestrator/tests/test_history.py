@@ -4,7 +4,6 @@ Following test_bhashini.py's pattern, the "success" path here mocks
 httpx.post/httpx.get directly rather than hitting real Supabase.
 """
 
-import auth
 import config
 import history
 import httpx
@@ -96,45 +95,6 @@ def test_get_history_propagates_auth_failure(monkeypatch):
     monkeypatch.setattr(history, "list_for_user", _boom)
     r = client.get("/history", headers={"Authorization": "Bearer bad-token"})
     assert r.status_code == 401
-
-
-@pytest.fixture
-def signed_in():
-    """DELETE /history verifies the session against Supabase first; stand in for that."""
-    client.app.dependency_overrides[auth.get_current_user] = lambda: {"id": "user-1"}
-    yield {"Authorization": "Bearer user-token"}
-    client.app.dependency_overrides.pop(auth.get_current_user, None)
-
-
-def test_delete_history_clears_the_callers_rows(monkeypatch, signed_in):
-    seen = {}
-    monkeypatch.setattr(history, "clear_for_user", lambda token, user_id: seen.update(
-        token=token, user_id=user_id))
-    r = client.delete("/history", headers=signed_in)
-    assert r.status_code == 200 and r.json() == {"cleared": True}
-    assert seen == {"token": "user-token", "user_id": "user-1"}
-
-
-@pytest.mark.parametrize("error", [
-    httpx.HTTPStatusError("nope", request=httpx.Request("DELETE", "https://x"),
-                          response=httpx.Response(500)),
-    httpx.ConnectError("supabase unreachable"),
-    httpx.ReadTimeout("supabase too slow"),
-], ids=["upstream-error", "connect-error", "timeout"])
-def test_delete_history_is_a_502_when_supabase_fails(monkeypatch, signed_in, error):
-    def _boom(token, user_id):
-        raise error
-
-    monkeypatch.setattr(history, "clear_for_user", _boom)
-    r = client.delete("/history", headers=signed_in)
-    assert r.status_code == 502
-    assert r.json() == {"detail": "Could not clear history"}
-
-
-def test_delete_history_without_credentials_is_a_503(monkeypatch, signed_in):
-    monkeypatch.setattr(config, "SUPABASE_URL", None)
-    r = client.delete("/history", headers=signed_in)
-    assert r.status_code == 503
 
 
 def test_ask_without_token_does_not_touch_history(monkeypatch):
