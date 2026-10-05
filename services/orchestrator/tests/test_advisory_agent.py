@@ -245,6 +245,20 @@ def test_the_window_tool_comes_from_the_engine_and_grounds():
     assert guardrail.check_advisory(answer, box.facts).ok
 
 
+def test_the_travel_window_tool_ends_the_window_at_the_end_of_its_last_hour(monkeypatch):
+    """Issue #64: a lone suitable hour 14:00 is the window 14:00-15:00, not 14:00-14:00."""
+    from advisory import facts as facts_module
+
+    hours = [{"time_iso": f"2026-10-01T{h:02d}:00Z", "local_time": f"{h:02d}:00",
+              "rain_probability_pct": 10 if h == 14 else 70, "temp_c": 26, "wind_kmh": 10,
+              "condition": "clear"} for h in range(10, 20)]
+    monkeypatch.setattr(facts_module, "hourly_forecast",
+                        lambda role, city, day: FactSection(role, "hourly", True, {"hours": hours},
+                                                            source="fixture", is_live=False))
+    section = agent.live_fetch("travel", TRIP)("destination", "window", "today")
+    assert (section.data["start_local"], section.data["end_local"]) == ("14:00", "15:00")
+
+
 def test_the_real_strands_tools_register_with_their_schemas():
     pytest.importorskip("strands")
     tools = _box().tools()

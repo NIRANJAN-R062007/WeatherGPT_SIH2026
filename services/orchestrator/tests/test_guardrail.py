@@ -307,11 +307,12 @@ def _hour(local_time, *, rain=10, temp=26, wind=10):
 
 
 def _window_raw():
-    """Engine result for a day with exactly one suitable run, 08:00-11:00."""
+    """Engine result for a day with exactly one suitable run: the hours 08:00, 09:00
+    and 10:00, so the window is 08:00-11:00 (it ends where its last hour ends)."""
     from weather_intelligence.window_analyzer import find_best_window
 
     hours = [_hour("06:00", rain=70), _hour("07:00", rain=60),
-             _hour("08:00"), _hour("09:00"), _hour("10:00"), _hour("11:00"),
+             _hour("08:00"), _hour("09:00"), _hour("10:00"), _hour("11:00", rain=50),
              _hour("12:00", rain=50), _hour("13:00", rain=80)]
     window = find_best_window(hours)
     assert (window["start_local"], window["end_local"]) == ("08:00", "11:00")
@@ -344,7 +345,7 @@ def test_window_the_engine_did_not_produce_fails():
     for answer in (
         "The best window is 8 AM–10 AM.",   # real hours, wrong pair
         "The best window is 9 AM–11 AM.",
-        "The best window is 8 AM–12 PM.",   # end of the last hour, not the engine's end
+        "The best window is 8 AM–12 PM.",   # an hour too long: 11:00 is rainy
         "The best window is 2 PM–5 PM.",    # no such hours at all
         "The best window is 14:00–17:00.",
         "The best window is 11 AM–8 AM.",   # reversed
@@ -362,6 +363,44 @@ def test_window_quoted_when_the_engine_found_none_fails():
     raw = {"window": None, "hours": hours}
     report = guardrail.check("The best window is 8 AM–9 AM.", raw)
     assert not report.ok
+
+
+def test_a_one_hour_window_grounds_as_start_to_the_end_of_that_hour():
+    from i18n import best_window_text
+    from weather_intelligence.window_analyzer import find_best_window
+
+    hours = [_hour("13:00", rain=70), _hour("14:00"), _hour("15:00", rain=70)]
+    window = find_best_window(hours)
+    raw = {"window": window, "hours": hours}
+    assert (window["start_local"], window["end_local"]) == ("14:00", "15:00")
+    for answer in ("Best window 2 PM–3 PM.", "Best window 14:00–15:00.",
+                   best_window_text("Chennai", "today", window, "en")):
+        assert guardrail.check(answer, raw).ok, answer
+    # the old "14:00–14:00" reading is no longer a window the engine returned
+    assert not guardrail.check("Best window 14:00–14:00.", raw).ok
+    assert not guardrail.check("Best window 2 PM–4 PM.", raw).ok
+
+
+def test_a_window_through_the_last_hour_of_the_day_grounds_up_to_midnight():
+    from i18n import best_window_text
+    from weather_intelligence.window_analyzer import find_best_window
+
+    hours = [_hour("21:00", rain=70), _hour("22:00"), _hour("23:00")]
+    window = find_best_window(hours)
+    raw = {"window": window, "hours": hours}
+    assert (window["start_local"], window["end_local"]) == ("22:00", "24:00")
+    for answer in ("Best window 22:00–24:00.", "Best window 10 PM–12 AM.",
+                   "Best window 22:00 to 00:00.", "Between 10 PM and 12 AM.",
+                   best_window_text("Chennai", "today", window, "en")):
+        report = guardrail.check(answer, raw)
+        assert report.ok, answer
+        assert report.figures[-1]["unit"] == "clock_range", answer
+        assert (report.figures[-1]["value"], report.figures[-1]["end_value"]) == (22 * 60, 24 * 60)
+    assert not guardrail.check("Best window 10 PM–11 PM.", raw).ok
+    assert not guardrail.check("Best window 9 PM–12 AM.", raw).ok
+    # 24:00 is the end of the day only: 24:30 is not a time, and 24:00 still has to be in the result
+    assert not guardrail.check("Clears at 24:30.", raw).ok
+    assert not guardrail.check("Clears at 24:00.", {"hours": hours}).ok
 
 
 def test_a_single_time_must_be_a_time_in_the_result():

@@ -135,6 +135,30 @@ def test_a_covered_crop_gets_todays_best_hours_by_its_own_thresholds(crop_file):
                                 "max_rain_probability_pct", "max_wind_kmh"}
 
 
+def _hourly_section(hours):
+    return facts_module.FactSection("location", "hourly", True, {"hours": hours},
+                                    source="fixture", is_live=False)
+
+
+def _synthetic_hour(local_time, temp):
+    return {"time_iso": f"2026-10-01T{local_time}:00Z", "local_time": local_time,
+            "rain_probability_pct": 10, "temp_c": temp, "wind_kmh": 10, "condition": "clear"}
+
+
+def test_the_sowing_window_ends_where_its_last_hour_ends(crop_file):
+    """Issue #64: one suitable hour is 14:00-15:00 (not 14:00-14:00), and a run through the
+    23:00 hour ends at the end of the day."""
+    crop_file(_entry())  # 20-30 degC, rain up to 60%
+    entry = facts_module.crop_entry("groundnut", "madurai")
+    one = [_synthetic_hour("13:00", 40), _synthetic_hour("14:00", 25), _synthetic_hour("15:00", 40)]
+    window = facts_module.sowing_window(entry, _hourly_section(one))
+    assert (window.data["start_local"], window.data["end_local"]) == ("14:00", "15:00")
+    late = [_synthetic_hour("21:00", 40), _synthetic_hour("22:00", 25),
+            _synthetic_hour("23:00", 25)]
+    window = facts_module.sowing_window(entry, _hourly_section(late))
+    assert (window.data["start_local"], window.data["end_local"]) == ("22:00", "24:00")
+
+
 def test_no_hour_inside_the_crops_range_is_said_not_softened(crop_file):
     crop_file(_entry(temp_range_c=_value({"min": 60, "max": 70})))
     window = _window()

@@ -9,7 +9,7 @@ nothing else (plan.md §11.6/§11.7):
                  "not_available",                    # either: the facts don't cover it
       "pros":    ["short sentence quoting the facts", ...],
       "cons":    ["...", ...],
-      "window":  {"start_local": "08:00", "end_local": "11:00"} | null,
+      "window":  {"start_local": "08:00", "end_local": "11:00"} | null,  # 3 hours: 08, 09, 10
       "cites":   ["origin.current.temp_c", ...]       # optional: fact paths relied on
     }
 
@@ -77,11 +77,17 @@ def minutes(value) -> int | None:
     return int(m[1]) * 60 + int(m[2])
 
 
+END_OF_DAY = "24:00"
+
+
 def window_bounds(window) -> tuple[int, int] | None:
-    """`(start, end)` minutes of a well-formed window dict, else None."""
+    """`(start, end)` minutes of a well-formed window dict, else None. A window
+    through the day's last hour ends at "24:00" (window_analyzer.find_best_window),
+    which is valid here as an end and nowhere else."""
     if not isinstance(window, dict) or set(window) != {"start_local", "end_local"}:
         return None
-    start, end = minutes(window["start_local"]), minutes(window["end_local"])
+    start = minutes(window["start_local"])
+    end = 24 * 60 if window["end_local"] == END_OF_DAY else minutes(window["end_local"])
     if start is None or end is None or start > end:
         return None
     return start, end

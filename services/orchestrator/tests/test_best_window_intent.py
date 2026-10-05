@@ -51,8 +51,8 @@ def test_ask_best_window_answers_with_a_suitable_window(monkeypatch):
     assert body["status"] == "ok"
     assert body["label"] == "outdoor"
     assert body["window"]["start_local"] == "09:00"
-    assert body["window"]["end_local"] == "10:00"
-    assert "09:00" in body["response"] and "10:00" in body["response"]
+    assert body["window"]["end_local"] == "11:00"  # the 10:00 hour runs until 11:00
+    assert "09:00–11:00" in body["response"]
     assert "safe" not in body["response"].lower() and "unsafe" not in body["response"].lower()
     assert body["provenance"] == {
         "source": "fixture",
@@ -64,6 +64,17 @@ def test_ask_best_window_answers_with_a_suitable_window(monkeypatch):
     assert (g["narration"], g["provider"], g["total"], g["ok"]) == ("verbatim", "feed", 0, True)
     assert body["nlu"]["intent"] == "best_window" and body["nlu"]["source"] == "rules"
     assert "notice" not in body
+
+
+def test_ask_best_window_of_a_single_hour_reads_start_to_the_end_of_that_hour(monkeypatch):
+    # Issue #64: only 14:00 passes the rules, and the window reads 14:00–15:00, not 14:00–14:00.
+    hours = [hour(f"{h:02d}:00", rain=60) for h in range(10, 20)]
+    hours[4] = hour("14:00")
+    monkeypatch.setattr(weather_data, "hourly_facts", lambda key, day: _hourly(hours, day=day))
+    body = _ask("when is the best time to go outside today in Chennai").json()
+    assert (body["window"]["start_local"], body["window"]["end_local"]) == ("14:00", "15:00")
+    assert "is 14:00–15:00 (" in body["response"]
+    assert body["grounding"]["ok"] is True
 
 
 def test_ask_best_window_response_numbers_match_the_window_exactly(monkeypatch):

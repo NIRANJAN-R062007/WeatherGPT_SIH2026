@@ -90,7 +90,7 @@ def test_clear_window_is_returned_with_justifying_values():
     window = find_best_window(hours)
     assert window is not None
     assert window["start_local"] == "09:00"
-    assert window["end_local"] == "11:00"
+    assert window["end_local"] == "12:00"  # the 11:00 hour is suitable, so it ends at 12:00
     assert window["max_rain_probability_pct"] == 15
     assert window["max_wind_kmh"] == 12
     assert window["avg_temp_c"] == round((24 + 28 + 30) / 3, 1)
@@ -107,7 +107,7 @@ def test_split_day_picks_the_longer_run():
     ]
     window = find_best_window(hours)
     assert window is not None
-    assert (window["start_local"], window["end_local"]) == ("14:00", "16:00")
+    assert (window["start_local"], window["end_local"]) == ("14:00", "17:00")
 
 
 def test_fully_unsuitable_day_returns_none_not_the_least_bad_hour():
@@ -126,7 +126,7 @@ def test_window_never_spans_a_missing_hour():
     window = find_best_window(hours)
     assert window is not None
     # Both hours are length-1 runs; the earlier one wins the tie.
-    assert window["start_local"] == window["end_local"] == "09:00"
+    assert (window["start_local"], window["end_local"]) == ("09:00", "10:00")
 
 
 def test_a_tied_length_run_keeps_the_earliest():
@@ -139,7 +139,29 @@ def test_a_tied_length_run_keeps_the_earliest():
     ]
     window = find_best_window(hours)
     assert window is not None
-    assert (window["start_local"], window["end_local"]) == ("06:00", "07:00")
+    assert (window["start_local"], window["end_local"]) == ("06:00", "08:00")
+
+
+def test_a_one_hour_window_ends_an_hour_after_it_starts():
+    """The issue #64 repro: only 14:00 passes, so the window is 14:00-15:00, not 14:00-14:00."""
+    hours = [hour(f"{h:02d}:00", rain=60) for h in range(10, 20)]
+    hours[4] = hour("14:00", rain=10)
+    window = find_best_window(hours)
+    assert window is not None
+    assert (window["start_local"], window["end_local"]) == ("14:00", "15:00")
+    assert [h["local_time"] for h in window["hours"]] == ["14:00"]
+
+
+def test_a_window_through_the_last_hour_of_the_day_ends_at_2400():
+    """23:00 is the last hour of a day, so the window ends at the end of the day. "24:00",
+    not "00:00": start < end holds as plain clock strings and "00:00" reads as a start."""
+    hours = [hour("21:00", rain=60), hour("22:00"), hour("23:00")]
+    window = find_best_window(hours)
+    assert (window["start_local"], window["end_local"]) == ("22:00", "24:00")
+    only = find_best_window([hour("22:00", rain=60), hour("23:00")])
+    assert (only["start_local"], only["end_local"]) == ("23:00", "24:00")
+    whole_day = find_best_window([hour(f"{h:02d}:00") for h in range(24)])
+    assert (whole_day["start_local"], whole_day["end_local"]) == ("00:00", "24:00")
 
 
 # --- TFA-11: a crop's own thresholds ----------------------------------------------
@@ -166,6 +188,6 @@ def test_the_window_uses_the_crops_thresholds_not_outdoors():
     hours = [hour("09:00", rain=30, temp=26), hour("10:00", rain=30, temp=26),
              hour("11:00", rain=10, temp=21)]
     window = find_best_window(hours, rules.crop_thresholds(CROP))
-    assert (window["start_local"], window["end_local"]) == ("09:00", "10:00")
+    assert (window["start_local"], window["end_local"]) == ("09:00", "11:00")
     outdoor = find_best_window(hours, "outdoor")
-    assert (outdoor["start_local"], outdoor["end_local"]) == ("11:00", "11:00")
+    assert (outdoor["start_local"], outdoor["end_local"]) == ("11:00", "12:00")

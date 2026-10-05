@@ -151,6 +151,23 @@ def test_a_window_the_facts_carry_passes_and_one_they_dont_fails():
         assert not report.ok and "is not a window in the facts" in report.problems[0]
 
 
+def test_a_window_ending_at_midnight_is_valid_when_the_facts_carry_it():
+    """A run through the 23:00 hour ends at "24:00" (find_best_window); the schema accepts
+    that as an end only, and the window still has to be the facts' own."""
+    late = {**WINDOW, "start_local": "22:00", "end_local": "24:00"}
+    facts = travel_facts(late)
+    ok = answer(pros=["Go between 10 PM and 12 AM."],
+                window={"start_local": "22:00", "end_local": "24:00"})
+    assert guardrail.check_advisory(ok, facts).ok
+    # ...and "24:00" is not a window the 08:00-11:00 facts carry, nor a valid start
+    assert not guardrail.check_advisory(ok, travel_facts()).ok
+    for window in ({"start_local": "24:00", "end_local": "24:00"},
+                   {"start_local": "22:00", "end_local": "24:30"},
+                   {"start_local": "22:00", "end_local": "25:00"}):
+        report = guardrail.check_advisory(answer(window=window), facts)
+        assert not report.ok and "window must be null" in report.problems[0], window
+
+
 def test_a_window_with_no_window_in_the_facts_fails():
     out = answer(window={"start_local": "08:00", "end_local": "11:00"})
     assert not guardrail.check_advisory(out, travel_facts(window=None)).ok
@@ -215,6 +232,11 @@ def test_schema_parse_and_minutes():
     assert schema.parse("not json") is None and schema.parse(5) is None
     assert schema.minutes("08:00") == 480 and schema.minutes("24:00") is None
     assert schema.minutes("8:5") is None and schema.minutes(None) is None
+    # "24:00" is no time of day; only a window's end may be it
+    bounds = schema.window_bounds
+    assert bounds({"start_local": "22:00", "end_local": "24:00"}) == (22 * 60, 24 * 60)
+    assert bounds({"start_local": "24:00", "end_local": "24:00"}) is None
+    assert bounds({"start_local": "22:00", "end_local": "24:01"}) is None
 
 
 def test_unknown_kind_is_rejected():

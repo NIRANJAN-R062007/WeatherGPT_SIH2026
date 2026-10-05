@@ -61,7 +61,7 @@ def test_farmer_traveller_general_give_identical_numbers_from_identical_facts():
     assert farmer["label"] != traveller["label"] != general["label"]
     assert farmer["window"] == traveller["window"] == general["window"]
     assert farmer["window"]["start_local"] == "09:00"
-    assert farmer["window"]["end_local"] == "10:00"
+    assert farmer["window"]["end_local"] == "11:00"
 
 
 def test_city_official_also_gets_the_outdoor_window():

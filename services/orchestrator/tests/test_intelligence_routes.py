@@ -61,7 +61,7 @@ def test_best_window_with_a_suitable_run(monkeypatch):
     body = resp.json()
     assert body["status"] == "ok"
     assert body["window"]["start_local"] == "09:00"
-    assert body["window"]["end_local"] == "10:00"
+    assert body["window"]["end_local"] == "11:00"  # the 10:00 hour runs until 11:00
     assert body["provenance"] == {"source": "fixture", "is_live": False}
     assert body["city"] == "chennai"
     assert body["activity"] == "outdoor"
@@ -186,7 +186,7 @@ def test_advisory_with_a_suitable_window(monkeypatch):
     assert body["status"] == "ok"
     assert body["label"] == "farm"
     assert body["window"]["start_local"] == "09:00"
-    assert body["window"]["end_local"] == "10:00"
+    assert body["window"]["end_local"] == "11:00"
     assert body["hours"] is None
     assert body["caveat"] is None
     assert body["provenance"] == {"source": "fixture", "is_live": False}

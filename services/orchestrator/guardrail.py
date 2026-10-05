@@ -411,6 +411,8 @@ def _clock_minutes(hour: int, minute: int, meridiem: str | None) -> int | None:
     if minute > 59:
         return None
     if meridiem is None:  # 24-hour clock, as the engine writes it
+        if hour == 24 and minute == 0:
+            return 24 * 60  # the end of the day: a window through the 23:00 hour ends here
         return hour * 60 + minute if hour <= 23 else None
     if not 1 <= hour <= 12:
         return None
@@ -466,6 +468,10 @@ def _extract_clock(text: str) -> tuple[list[tuple[str, int, int | None]], str]:
             if _RANGE_GAP_RE.fullmatch(gap) or (
                 _AND_GAP_RE.fullmatch(gap) and _BETWEEN_RE.search(text[:pos])
             ):
+                if n_minutes == 0 and minutes > 0:
+                    # "10 PM–12 AM" / "22:00–00:00" run to midnight: the window's
+                    # end is "24:00" (find_best_window), not the start of the day
+                    n_minutes = 24 * 60
                 found.append((pos, n_stop, minutes, n_minutes, text[pos:n_stop]))
                 i += 2
                 continue

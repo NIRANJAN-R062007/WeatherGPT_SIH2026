@@ -52,10 +52,20 @@ def _no_placeholders(text):
 def test_best_window_renders_and_grounds_in_every_language(lang):
     text = i18n.best_window_text("Chennai", "tomorrow", WINDOW, lang)
     _no_placeholders(text)
-    assert "08:00–11:00" in text
+    assert "08:00–12:00" in text  # hours 08:00-11:00 are suitable; the window ends at 12:00
     report = guardrail.check(text, {"window": WINDOW, "hours": HOURS})
     assert report.ok and report.matched == report.total == 4
     assert "safe" not in text.lower()
+
+
+@pytest.mark.parametrize("lang", LANGS)
+def test_a_one_hour_window_reads_as_that_hour_in_every_language(lang):
+    hours = [_hour(f"{h:02d}:00", rain=60) for h in range(10, 20)]
+    hours[4] = _hour("14:00")
+    window = find_best_window(hours)
+    text = i18n.best_window_text("Chennai", "today", window, lang)
+    assert "14:00–15:00" in text and "14:00–14:00" not in text
+    assert guardrail.check(text, {"window": window, "hours": hours}).ok
 
 
 @pytest.mark.parametrize("lang", LANGS)
@@ -109,7 +119,7 @@ def test_what_if_renders_each_hour_and_never_invents_a_missing_one(lang):
 
 def test_english_sentences_are_unchanged():
     assert i18n.best_window_text("Chennai", "tomorrow", WINDOW, "en") == (
-        "Chennai: the most suitable window to be outdoors tomorrow is 08:00–11:00 "
+        "Chennai: the most suitable window to be outdoors tomorrow is 08:00–12:00 "
         f"(around {WINDOW['avg_temp_c']}°C, up to 10% chance of rain, winds up to "
         f"{WINDOW['max_wind_kmh']} km/h)."
     )
