@@ -1,0 +1,1394 @@
+{
+  "summary": {
+    "persona": {
+      "rows": 48,
+      "first_try": 48,
+      "regenerated": 0,
+      "template": 0,
+      "no_llm": 0,
+      "tripped_guardrail": 0,
+      "providers": {
+        "groq": 48
+      },
+      "p50_s": 1.4905000000000002,
+      "p95_s": 1.83855,
+      "max_s": 2.075
+    },
+    "window": {
+      "rows": 32,
+      "first_try": 32,
+      "regenerated": 0,
+      "template": 0,
+      "no_llm": 0,
+      "tripped_guardrail": 0,
+      "providers": {
+        "groq": 32
+      },
+      "p50_s": 1.4845,
+      "p95_s": 1.8487,
+      "max_s": 1.879
+    }
+  },
+  "rows": [
+    {
+      "id": "persona:bengaluru:general",
+      "kind": "persona",
+      "persona": "general",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.482,
+      "answer": "Bengaluru: cloudy, 21.6°C actual, feels like 24.4°C, humidity 84%, UV index 0 (low), wind from WSW at 21 km/h.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.482,
+          "text": "Bengaluru: cloudy, 21.6°C actual, feels like 24.4°C, humidity 84%, UV index 0 (low), wind from WSW at 21 km/h.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:bengaluru:farmer",
+      "kind": "persona",
+      "persona": "farmer",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.535,
+      "answer": "Bengaluru: cloudy, temperature 21.6°C, feels like 24.4°C, humidity 84%, UV index 0 (low), wind from WSW at 21 km/h, so plan spraying in calmer periods and use sunglasses.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.535,
+          "text": "Bengaluru: cloudy, temperature 21.6°C, feels like 24.4°C, humidity 84%, UV index 0 (low), wind from WSW at 21 km/h, so plan spraying in calmer periods and use sunglasses.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:bengaluru:traveller",
+      "kind": "persona",
+      "persona": "traveller",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.247,
+      "answer": "Bengaluru: cloudy with a temperature of 21.6°C, feels like 24.4°C, humidity 84%, UV index 0 (low) and wind from WSW at 21 km/h, so carry water and sunglasses but wind is breezy.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.247,
+          "text": "Bengaluru: cloudy with a temperature of 21.6°C, feels like 24.4°C, humidity 84%, UV index 0 (low) and wind from WSW at 21 km/h, so carry water and sunglasses but wind is breezy.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:bengaluru:fisherman",
+      "kind": "persona",
+      "persona": "fisherman",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.675,
+      "answer": "Bengaluru: cloudy with a temperature of 21.6°C feeling like 24.4°C, humidity 84%, UV index 0 (low, sunglasses helpful), wind from WSW at 21 km/h, so watch wind closely and check the IMD fishermen warning before going out.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.675,
+          "text": "Bengaluru: cloudy with a temperature of 21.6°C feeling like 24.4°C, humidity 84%, UV index 0 (low, sunglasses helpful), wind from WSW at 21 km/h, so watch wind closely and check the IMD fishermen warning before going out.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:bengaluru:aviation",
+      "kind": "persona",
+      "persona": "aviation",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.595,
+      "answer": "Bengaluru: WSW 21 km/h wind, cloudy with temperature 21.6°C feels like 24.4°C, humidity 84%, UV index 0 low; this is a city forecast, not an airport observation.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.594,
+          "text": "Bengaluru: WSW 21 km/h wind, cloudy with temperature 21.6°C feels like 24.4°C, humidity 84%, UV index 0 low; this is a city forecast, not an airport observation.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:bengaluru:city_official",
+      "kind": "persona",
+      "persona": "city_official",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.499,
+      "answer": "Bengaluru: cloudy with temperature 21.6°C, feels like 24.4°C, humidity 84%, UV index 0 (low) and wind from WSW at 21 km/h, so ensure sunglasses and secure loose structures.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.499,
+          "text": "Bengaluru: cloudy with temperature 21.6°C, feels like 24.4°C, humidity 84%, UV index 0 (low) and wind from WSW at 21 km/h, so ensure sunglasses and secure loose structures.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "window:bengaluru:general",
+      "kind": "window",
+      "persona": "general",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.532,
+      "answer": "Bengaluru: expect 22.5°C, 10% rain chance, light 19 km/h winds from 18:00 to 23:00.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.532,
+          "text": "Bengaluru: expect 22.5°C, 10% rain chance, light 19 km/h winds from 18:00 to 23:00.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "window:bengaluru:farmer",
+      "kind": "window",
+      "persona": "farmer",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.852,
+      "answer": "Bengaluru: temperature around 22.5°C, rain chance 10%, wind up to 19 km/h, making it suitable for spraying in cooler parts of the day.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.852,
+          "text": "Bengaluru: temperature around 22.5°C, rain chance 10%, wind up to 19 km/h, making it suitable for spraying in cooler parts of the day.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "window:bengaluru:traveller",
+      "kind": "window",
+      "persona": "traveller",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.477,
+      "answer": "Bengaluru: average temperature 22.5°C, rain chance 10% and wind up to 19 km/h, so it favours going out now with light water and sun protection.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.477,
+          "text": "Bengaluru: average temperature 22.5°C, rain chance 10% and wind up to 19 km/h, so it favours going out now with light water and sun protection.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "window:bengaluru:city_official",
+      "kind": "window",
+      "persona": "city_official",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.626,
+      "answer": "Bengaluru: temperature around 22.5°C, rain chance 10%, wind up to 19 km/h, with the best window from 18:00 to 23:00, so monitor drainage and secure trees or loose structures.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.626,
+          "text": "Bengaluru: temperature around 22.5°C, rain chance 10%, wind up to 19 km/h, with the best window from 18:00 to 23:00, so monitor drainage and secure trees or loose structures.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:chennai:general",
+      "kind": "persona",
+      "persona": "general",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.369,
+      "answer": "Chennai: cloudy, temperature 28°C, feels like 32.5°C, humidity 81%, UV index 0 (low), wind from SSW at 16 km/h.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.369,
+          "text": "Chennai: cloudy, temperature 28°C, feels like 32.5°C, humidity 81%, UV index 0 (low), wind from SSW at 16 km/h.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:chennai:farmer",
+      "kind": "persona",
+      "persona": "farmer",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.655,
+      "answer": "Chennai: cloudy, temperature 28°C feels like 32.5°C, humidity 81%, UV index 0 (low, sunglasses helpful), wind 16 km/h from SSW, so spray in cooler morning hours to avoid heat.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.655,
+          "text": "Chennai: cloudy, temperature 28°C feels like 32.5°C, humidity 81%, UV index 0 (low, sunglasses helpful), wind 16 km/h from SSW, so spray in cooler morning hours to avoid heat.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:chennai:traveller",
+      "kind": "persona",
+      "persona": "traveller",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.5,
+      "answer": "Chennai: cloudy with temperature 28°C, feels like 32.5°C, humidity 81%, UV index 0 (low) and wind from SSW at 16 km/h, so carry water and sunglasses.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.499,
+          "text": "Chennai: cloudy with temperature 28°C, feels like 32.5°C, humidity 81%, UV index 0 (low) and wind from SSW at 16 km/h, so carry water and sunglasses.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:chennai:fisherman",
+      "kind": "persona",
+      "persona": "fisherman",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.595,
+      "answer": "Chennai: cloudy with a temperature of 28°C feeling like 32.5°C, humidity 81%, UV index 0 (low, sunglasses helpful), wind from SSW at 16 km/h, watch wind closely and check the official IMD fishermen warning before going out.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.595,
+          "text": "Chennai: cloudy with a temperature of 28°C feeling like 32.5°C, humidity 81%, UV index 0 (low, sunglasses helpful), wind from SSW at 16 km/h, watch wind closely and check the official IMD fishermen warning before going out.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:chennai:aviation",
+      "kind": "persona",
+      "persona": "aviation",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.726,
+      "answer": "Chennai: wind from SSW at 16 km/h, temperature 28°C, feels like 32.5°C, humidity 81%, UV index 0 (low), cloudy, this is a city forecast, not an airport observation.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.725,
+          "text": "Chennai: wind from SSW at 16 km/h, temperature 28°C, feels like 32.5°C, humidity 81%, UV index 0 (low), cloudy, this is a city forecast, not an airport observation.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:chennai:city_official",
+      "kind": "persona",
+      "persona": "city_official",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.519,
+      "answer": "Chennai: cloudy with temperature 28°C, feels like 32.5°C, humidity 81%, UV index 0 (low) and wind from SSW at 16 km/h, so advise outdoor workers to stay hydrated and use sunglasses.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.519,
+          "text": "Chennai: cloudy with temperature 28°C, feels like 32.5°C, humidity 81%, UV index 0 (low) and wind from SSW at 16 km/h, so advise outdoor workers to stay hydrated and use sunglasses.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "window:chennai:general",
+      "kind": "window",
+      "persona": "general",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.142,
+      "answer": "Chennai: expect 30.9°C, 15% rain chance, light 8 km/h winds, best window from 16:00 to 16:00.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.142,
+          "text": "Chennai: expect 30.9°C, 15% rain chance, light 8 km/h winds, best window from 16:00 to 16:00.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "window:chennai:farmer",
+      "kind": "window",
+      "persona": "farmer",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.654,
+      "answer": "Chennai: temperature will be around 30.9°C with wind up to 8 km/h and a 15% rain chance, and from 16:00 to 16:00 the low rain probability and calm wind make it suitable for spraying.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.653,
+          "text": "Chennai: temperature will be around 30.9°C with wind up to 8 km/h and a 15% rain chance, and from 16:00 to 16:00 the low rain probability and calm wind make it suitable for spraying.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "window:chennai:traveller",
+      "kind": "window",
+      "persona": "traveller",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.638,
+      "answer": "Chennai: temperature 30.9°C, rain probability 15%, wind 8 km/h, so it’s fairly dry and only mildly breezy, making it fine to go out now, just carry water and sun protection.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.638,
+          "text": "Chennai: temperature 30.9°C, rain probability 15%, wind 8 km/h, so it’s fairly dry and only mildly breezy, making it fine to go out now, just carry water and sun protection.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "window:chennai:city_official",
+      "kind": "window",
+      "persona": "city_official",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.13,
+      "answer": "Chennai: temperature around 30.9°C, rain chance 15%, wind up to 8 km/h, so keep drainage systems clear and monitor trees and loose structures.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.13,
+          "text": "Chennai: temperature around 30.9°C, rain chance 15%, wind up to 8 km/h, so keep drainage systems clear and monitor trees and loose structures.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:coimbatore:general",
+      "kind": "persona",
+      "persona": "general",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.247,
+      "answer": "Coimbatore: cloudy, 24.6°C actual, feels like 26.9°C, humidity 87%, UV index 0 (low), wind SW at 11 km/h.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.246,
+          "text": "Coimbatore: cloudy, 24.6°C actual, feels like 26.9°C, humidity 87%, UV index 0 (low), wind SW at 11 km/h.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:coimbatore:farmer",
+      "kind": "persona",
+      "persona": "farmer",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.444,
+      "answer": "Coimbatore: cloudy, temperature 24.6°C, feels like 26.9°C, humidity 87%, UV index 0 (low, sunglasses helpful), wind from SW at 11 km/h, so spraying is possible with mild breeze and work in cooler hours.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.444,
+          "text": "Coimbatore: cloudy, temperature 24.6°C, feels like 26.9°C, humidity 87%, UV index 0 (low, sunglasses helpful), wind from SW at 11 km/h, so spraying is possible with mild breeze and work in cooler hours.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:coimbatore:traveller",
+      "kind": "persona",
+      "persona": "traveller",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.404,
+      "answer": "Coimbatore: cloudy, temperature 24.6°C, feels like 26.9°C, humidity 87%, wind from SW at 11 km/h, UV index 0 (low), so carry water and sunglasses.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.404,
+          "text": "Coimbatore: cloudy, temperature 24.6°C, feels like 26.9°C, humidity 87%, wind from SW at 11 km/h, UV index 0 (low), so carry water and sunglasses.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:coimbatore:fisherman",
+      "kind": "persona",
+      "persona": "fisherman",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.533,
+      "answer": "Coimbatore: cloudy with temperature 24.6°C feeling 26.9°C, humidity 87%, UV index 0 (low) and light SW wind at 11 km/h, so monitor conditions and check the official IMD fishermen warning before heading out.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.533,
+          "text": "Coimbatore: cloudy with temperature 24.6°C feeling 26.9°C, humidity 87%, UV index 0 (low) and light SW wind at 11 km/h, so monitor conditions and check the official IMD fishermen warning before heading out.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:coimbatore:aviation",
+      "kind": "persona",
+      "persona": "aviation",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.769,
+      "answer": "Coimbatore: windy SW at 11 km/h, cloudy with temperature 24.6°C, feels like 26.9°C, humidity 87%, UV index 0 (low – sunglasses helpful); this is a city forecast.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.769,
+          "text": "Coimbatore: windy SW at 11 km/h, cloudy with temperature 24.6°C, feels like 26.9°C, humidity 87%, UV index 0 (low – sunglasses helpful); this is a city forecast.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:coimbatore:city_official",
+      "kind": "persona",
+      "persona": "city_official",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.279,
+      "answer": "Coimbatore: cloudy with temperature 24.6°C, feels like 26.9°C, humidity 87%, UV index 0 and southwest wind at 11 km/h, so outdoor workers should stay hydrated and use shade.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.279,
+          "text": "Coimbatore: cloudy with temperature 24.6°C, feels like 26.9°C, humidity 87%, UV index 0 and southwest wind at 11 km/h, so outdoor workers should stay hydrated and use shade.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "window:coimbatore:general",
+      "kind": "window",
+      "persona": "general",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.257,
+      "answer": "Coimbatore: expect 30.1°C temperature, 5% rain chance, 11 km/h winds, from 10:00 to 10:00.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.257,
+          "text": "Coimbatore: expect 30.1°C temperature, 5% rain chance, 11 km/h winds, from 10:00 to 10:00.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "window:coimbatore:farmer",
+      "kind": "window",
+      "persona": "farmer",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.519,
+      "answer": "Coimbatore: temperature around 30.1°C, wind up to 11 km/h and rain chance 5% suggest it is calm enough for spraying and favorable for field work.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.519,
+          "text": "Coimbatore: temperature around 30.1°C, wind up to 11 km/h and rain chance 5% suggest it is calm enough for spraying and favorable for field work.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "window:coimbatore:traveller",
+      "kind": "window",
+      "persona": "traveller",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.846,
+      "answer": "Coimbatore: temperature around 30.1°C, rain chance 5%, wind up to 11 km/h, with conditions from 10:00 to 10:00, so it’s fine to go out now, just stay hydrated.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.846,
+          "text": "Coimbatore: temperature around 30.1°C, rain chance 5%, wind up to 11 km/h, with conditions from 10:00 to 10:00, so it’s fine to go out now, just stay hydrated.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "window:coimbatore:city_official",
+      "kind": "window",
+      "persona": "city_official",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.628,
+      "answer": "Coimbatore: average temperature 30.1°C, rain chance 5%, wind up to 11 km/h, so plan drainage checks and keep response teams ready while monitoring heat for outdoor workers.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.628,
+          "text": "Coimbatore: average temperature 30.1°C, rain chance 5%, wind up to 11 km/h, so plan drainage checks and keep response teams ready while monitoring heat for outdoor workers.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:delhi:general",
+      "kind": "persona",
+      "persona": "general",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.23,
+      "answer": "Delhi: clear skies, temperature 28°C, feels like 31.9°C, humidity 77%, UV index 0 (low), wind from ESE at 10 km/h.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.23,
+          "text": "Delhi: clear skies, temperature 28°C, feels like 31.9°C, humidity 77%, UV index 0 (low), wind from ESE at 10 km/h.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:delhi:farmer",
+      "kind": "persona",
+      "persona": "farmer",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.26,
+      "answer": "Delhi: clear skies with temperature 28°C, feels like 31.9°C, humidity 77%, UV index 0 and east‑southeast wind at 10 km/h, so spraying can proceed and sunglasses are advisable for bright light.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.26,
+          "text": "Delhi: clear skies with temperature 28°C, feels like 31.9°C, humidity 77%, UV index 0 and east‑southeast wind at 10 km/h, so spraying can proceed and sunglasses are advisable for bright light.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:delhi:traveller",
+      "kind": "persona",
+      "persona": "traveller",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.723,
+      "answer": "Delhi: clear with temperature 28°C, feels like 31.9°C, humidity 77%, UV index 0 (low) and east‑southeast wind 10 km/h, so carry water and sunglasses for the warm, sunny conditions.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.723,
+          "text": "Delhi: clear with temperature 28°C, feels like 31.9°C, humidity 77%, UV index 0 (low) and east‑southeast wind 10 km/h, so carry water and sunglasses for the warm, sunny conditions.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:delhi:fisherman",
+      "kind": "persona",
+      "persona": "fisherman",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.51,
+      "answer": "Delhi: clear with temperature 28°C feeling 31.9°C, humidity 77%, UV index 0 (low), wind from ESE at 10 km/h (light), so watch the light breeze and check the official IMD fishermen warning before heading out.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.51,
+          "text": "Delhi: clear with temperature 28°C feeling 31.9°C, humidity 77%, UV index 0 (low), wind from ESE at 10 km/h (light), so watch the light breeze and check the official IMD fishermen warning before heading out.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:delhi:aviation",
+      "kind": "persona",
+      "persona": "aviation",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.349,
+      "answer": "Delhi: ESE wind at 10 km/h, clear skies, temperature 28°C feeling like 31.9°C, humidity 77%, UV index 0 (low – sunglasses helpful), this is a city forecast, not an airport observation.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.349,
+          "text": "Delhi: ESE wind at 10 km/h, clear skies, temperature 28°C feeling like 31.9°C, humidity 77%, UV index 0 (low – sunglasses helpful), this is a city forecast, not an airport observation.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:delhi:city_official",
+      "kind": "persona",
+      "persona": "city_official",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.626,
+      "answer": "Delhi: clear skies with temperature 28°C, feels like 31.9°C, humidity 77%, UV index 0 (low) and east‑southeast wind at 10 km/h, so outdoor workers should stay hydrated and use sunglasses.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.626,
+          "text": "Delhi: clear skies with temperature 28°C, feels like 31.9°C, humidity 77%, UV index 0 (low) and east‑southeast wind at 10 km/h, so outdoor workers should stay hydrated and use sunglasses.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "window:delhi:general",
+      "kind": "window",
+      "persona": "general",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.371,
+      "answer": "Delhi: expect 28.9°C, 0% rain chance, light wind up to 13 km/h from 18:00 to 23:00.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.37,
+          "text": "Delhi: expect 28.9°C, 0% rain chance, light wind up to 13 km/h from 18:00 to 23:00.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "window:delhi:farmer",
+      "kind": "window",
+      "persona": "farmer",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.454,
+      "answer": "Delhi: temperature will be around 28.9°C, wind up to 13 km/h, and rain chance 0%, so you can plan field work in the cooler part of the day.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.453,
+          "text": "Delhi: temperature will be around 28.9°C, wind up to 13 km/h, and rain chance 0%, so you can plan field work in the cooler part of the day.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "window:delhi:traveller",
+      "kind": "window",
+      "persona": "traveller",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.611,
+      "answer": "Delhi: temperature 28.9°C, rain chance 0%, wind 13 km/h, so you can head out now and stay hydrated.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.611,
+          "text": "Delhi: temperature 28.9°C, rain chance 0%, wind 13 km/h, so you can head out now and stay hydrated.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "window:delhi:city_official",
+      "kind": "window",
+      "persona": "city_official",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.252,
+      "answer": "Delhi: average temperature 28.9°C, no rain probability (0%), light wind at 13 km/h, suitable for outdoor work but keep trees and structures secured.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.251,
+          "text": "Delhi: average temperature 28.9°C, no rain probability (0%), light wind at 13 km/h, suitable for outdoor work but keep trees and structures secured.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:hyderabad:general",
+      "kind": "persona",
+      "persona": "general",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.435,
+      "answer": "Hyderabad: light rain, temperature 24.4°C feels like 26.9°C, humidity 90%, wind 19 km/h WNW, UV index 0 (low).",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.435,
+          "text": "Hyderabad: light rain, temperature 24.4°C feels like 26.9°C, humidity 90%, wind 19 km/h WNW, UV index 0 (low).",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:hyderabad:farmer",
+      "kind": "persona",
+      "persona": "farmer",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.48,
+      "answer": "Hyderabad: temperature 24.4°C feels like 26.9°C, humidity 90%, light rain, wind from WNW at 19 km/h, UV index 0 (low) so work in cooler morning hours and avoid spraying now as rain and drift risk.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.48,
+          "text": "Hyderabad: temperature 24.4°C feels like 26.9°C, humidity 90%, light rain, wind from WNW at 19 km/h, UV index 0 (low) so work in cooler morning hours and avoid spraying now as rain and drift risk.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:hyderabad:traveller",
+      "kind": "persona",
+      "persona": "traveller",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.507,
+      "answer": "Hyderabad: light rain with temperature 24.4°C, feels like 26.9°C, humidity 90%, UV index 0 (low, no protection needed), wind 19 km/h from WNW, so you may go out now but carry water and a light raincoat.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.506,
+          "text": "Hyderabad: light rain with temperature 24.4°C, feels like 26.9°C, humidity 90%, UV index 0 (low, no protection needed), wind 19 km/h from WNW, so you may go out now but carry water and a light raincoat.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:hyderabad:fisherman",
+      "kind": "persona",
+      "persona": "fisherman",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.461,
+      "answer": "Hyderabad: light rain, temperature 24.4°C, feels like 26.9°C, humidity 90%, UV index 0 (low), wind from WNW at 19 km/h, so watch the rain and check the official IMD fishermen warning before going out.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.46,
+          "text": "Hyderabad: light rain, temperature 24.4°C, feels like 26.9°C, humidity 90%, UV index 0 (low), wind from WNW at 19 km/h, so watch the rain and check the official IMD fishermen warning before going out.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:hyderabad:aviation",
+      "kind": "persona",
+      "persona": "aviation",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.35,
+      "answer": "Hyderabad: WNW at 19 km/h, light rain, temperature 24.4°C feels like 26.9°C, humidity 90%, UV index 0 low; this is a city forecast, not an airport observation.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.35,
+          "text": "Hyderabad: WNW at 19 km/h, light rain, temperature 24.4°C feels like 26.9°C, humidity 90%, UV index 0 low; this is a city forecast, not an airport observation.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:hyderabad:city_official",
+      "kind": "persona",
+      "persona": "city_official",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.482,
+      "answer": "Hyderabad: light rain with temperature 24.4°C, feels like 26.9°C, humidity 90%, UV index 0 (low) and wind from WNW at 19 km/h, keep drainage clear to prevent waterlogging.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.482,
+          "text": "Hyderabad: light rain with temperature 24.4°C, feels like 26.9°C, humidity 90%, UV index 0 (low) and wind from WNW at 19 km/h, keep drainage clear to prevent waterlogging.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "window:hyderabad:general",
+      "kind": "window",
+      "persona": "general",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.366,
+      "answer": "Hyderabad: expect 27.3°C, 15% rain chance, 19 km/h winds from 15:00 to 17:00, ideal for farming and fishing.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.366,
+          "text": "Hyderabad: expect 27.3°C, 15% rain chance, 19 km/h winds from 15:00 to 17:00, ideal for farming and fishing.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "window:hyderabad:farmer",
+      "kind": "window",
+      "persona": "farmer",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.699,
+      "answer": "Hyderabad: temperature 27.3°C, rain probability 15%, wind 19 km/h between 15:00 and 17:00, spraying is advisable but watch for drift.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.699,
+          "text": "Hyderabad: temperature 27.3°C, rain probability 15%, wind 19 km/h between 15:00 and 17:00, spraying is advisable but watch for drift.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "window:hyderabad:traveller",
+      "kind": "window",
+      "persona": "traveller",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.735,
+      "answer": "Hyderabad: temperature around 27.3°C, rain chance 15% and wind up to 19 km/h, so it’s fine to go out now and stay hydrated.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.735,
+          "text": "Hyderabad: temperature around 27.3°C, rain chance 15% and wind up to 19 km/h, so it’s fine to go out now and stay hydrated.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "window:hyderabad:city_official",
+      "kind": "window",
+      "persona": "city_official",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.454,
+      "answer": "Hyderabad: temperature around 27.3°C, rain chance 15%, wind up to 19 km/h, so monitor drainage for possible waterlogging and keep response teams ready while securing trees, hoardings and loose structures.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.454,
+          "text": "Hyderabad: temperature around 27.3°C, rain chance 15%, wind up to 19 km/h, so monitor drainage for possible waterlogging and keep response teams ready while securing trees, hoardings and loose structures.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:madurai:general",
+      "kind": "persona",
+      "persona": "general",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.315,
+      "answer": "Madurai: cloudy, 27°C actual, feels like 30.4°C, humidity 81%, UV index 0 (low), wind NW at 5 km/h.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.314,
+          "text": "Madurai: cloudy, 27°C actual, feels like 30.4°C, humidity 81%, UV index 0 (low), wind NW at 5 km/h.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:madurai:farmer",
+      "kind": "persona",
+      "persona": "farmer",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.649,
+      "answer": "Madurai: cloudy, temperature 27°C feels like 30.4°C, humidity 81%, UV index 0 (low, sunglasses helpful), wind from NW at 5 km/h is calm enough for spraying, work in cooler morning hours.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.649,
+          "text": "Madurai: cloudy, temperature 27°C feels like 30.4°C, humidity 81%, UV index 0 (low, sunglasses helpful), wind from NW at 5 km/h is calm enough for spraying, work in cooler morning hours.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:madurai:traveller",
+      "kind": "persona",
+      "persona": "traveller",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.062,
+      "answer": "Madurai: cloudy, temperature 27°C feels like 30.4°C, humidity 81%, UV index 0 (low), wind from NW at 5 km/h, so carry water and sun protection.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.062,
+          "text": "Madurai: cloudy, temperature 27°C feels like 30.4°C, humidity 81%, UV index 0 (low), wind from NW at 5 km/h, so carry water and sun protection.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:madurai:fisherman",
+      "kind": "persona",
+      "persona": "fisherman",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.876,
+      "answer": "Madurai: cloudy with a temperature of 27°C, feels like 30.4°C, humidity 81%, UV index 0 (low) and a light NW wind at 5 km/h, so plan around rain and check official IMD fishermen warning before going out.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.876,
+          "text": "Madurai: cloudy with a temperature of 27°C, feels like 30.4°C, humidity 81%, UV index 0 (low) and a light NW wind at 5 km/h, so plan around rain and check official IMD fishermen warning before going out.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:madurai:aviation",
+      "kind": "persona",
+      "persona": "aviation",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.75,
+      "answer": "Madurai: NW 5 km/h winds, cloudy with temperature 27°C, feels like 30.4°C, humidity 81%, UV index 0 (low); this is a city forecast, not an airport observation.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.749,
+          "text": "Madurai: NW 5 km/h winds, cloudy with temperature 27°C, feels like 30.4°C, humidity 81%, UV index 0 (low); this is a city forecast, not an airport observation.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:madurai:city_official",
+      "kind": "persona",
+      "persona": "city_official",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.189,
+      "answer": "Madurai: cloudy with a temperature of 27°C, feels like 30.4°C, humidity 81%, UV index 0 (low, sunglasses helpful), wind from NW at 5 km/h, so outdoor workers should stay hydrated and use shade.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.189,
+          "text": "Madurai: cloudy with a temperature of 27°C, feels like 30.4°C, humidity 81%, UV index 0 (low, sunglasses helpful), wind from NW at 5 km/h, so outdoor workers should stay hydrated and use shade.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "window:madurai:general",
+      "kind": "window",
+      "persona": "general",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.429,
+      "answer": "Madurai: expect 25.2°C, 10% rain chance, light 5 km/h winds from 21:00 to 23:00, ideal for farming and fishing.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.429,
+          "text": "Madurai: expect 25.2°C, 10% rain chance, light 5 km/h winds from 21:00 to 23:00, ideal for farming and fishing.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "window:madurai:farmer",
+      "kind": "window",
+      "persona": "farmer",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.492,
+      "answer": "Madurai: temperature will be around 25.2°C with a gentle 5 km/h breeze and only 10% rain chance, so the 21:00‑23:00 period is suitable for spraying.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.491,
+          "text": "Madurai: temperature will be around 25.2°C with a gentle 5 km/h breeze and only 10% rain chance, so the 21:00‑23:00 period is suitable for spraying.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "window:madurai:traveller",
+      "kind": "window",
+      "persona": "traveller",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.516,
+      "answer": "Madurai: temperature 25.2°C, rain chance 10%, wind 5 km/h, window 21:00 to 23:00, so mild heat suggests carrying water and low rain favors heading out now.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.516,
+          "text": "Madurai: temperature 25.2°C, rain chance 10%, wind 5 km/h, window 21:00 to 23:00, so mild heat suggests carrying water and low rain favors heading out now.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "window:madurai:city_official",
+      "kind": "window",
+      "persona": "city_official",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.632,
+      "answer": "Madurai: temperature will be around 25.2°C with a 10% chance of rain and light winds of 5 km/h, so monitor drainage and keep trees and loose structures secured.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.631,
+          "text": "Madurai: temperature will be around 25.2°C with a 10% chance of rain and light winds of 5 km/h, so monitor drainage and keep trees and loose structures secured.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:mumbai:general",
+      "kind": "persona",
+      "persona": "general",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.14,
+      "answer": "Mumbai: partly cloudy, temperature 27.8°C, feels like 33.1°C, humidity 88%, UV index 0, wind from NW at 3 km/h.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.14,
+          "text": "Mumbai: partly cloudy, temperature 27.8°C, feels like 33.1°C, humidity 88%, UV index 0, wind from NW at 3 km/h.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:mumbai:farmer",
+      "kind": "persona",
+      "persona": "farmer",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.029,
+      "answer": "Mumbai: temperature 27.8°C, feels like 33.1°C, humidity 88%, UV index 0 (low) and a gentle NW breeze at 3 km/h, so you can plan field work in the cooler part of the day and spraying is calm enough.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.029,
+          "text": "Mumbai: temperature 27.8°C, feels like 33.1°C, humidity 88%, UV index 0 (low) and a gentle NW breeze at 3 km/h, so you can plan field work in the cooler part of the day and spraying is calm enough.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:mumbai:traveller",
+      "kind": "persona",
+      "persona": "traveller",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.594,
+      "answer": "Mumbai: partly cloudy with a temperature of 27.8°C, feels like 33.1°C, humidity 88%, UV index 0 (low) and a gentle NW wind of 3 km/h, so carry water and sun protection.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.593,
+          "text": "Mumbai: partly cloudy with a temperature of 27.8°C, feels like 33.1°C, humidity 88%, UV index 0 (low) and a gentle NW wind of 3 km/h, so carry water and sun protection.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:mumbai:fisherman",
+      "kind": "persona",
+      "persona": "fisherman",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.561,
+      "answer": "Mumbai: partly cloudy, temperature 27.8°C feeling like 33.1°C, humidity 88%, UV index 0 (low, sunglasses helpful), wind from NW at 3 km/h, so watch conditions and check the official IMD fishermen warning before going out.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.561,
+          "text": "Mumbai: partly cloudy, temperature 27.8°C feeling like 33.1°C, humidity 88%, UV index 0 (low, sunglasses helpful), wind from NW at 3 km/h, so watch conditions and check the official IMD fishermen warning before going out.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:mumbai:aviation",
+      "kind": "persona",
+      "persona": "aviation",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.538,
+      "answer": "Mumbai: NW wind at 3 km/h, temperature 27.8°C feeling like 33.1°C, humidity 88%, partly cloudy with UV index 0 (low – sunglasses optional), this is a city forecast, not an airport observation.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.537,
+          "text": "Mumbai: NW wind at 3 km/h, temperature 27.8°C feeling like 33.1°C, humidity 88%, partly cloudy with UV index 0 (low – sunglasses optional), this is a city forecast, not an airport observation.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:mumbai:city_official",
+      "kind": "persona",
+      "persona": "city_official",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.445,
+      "answer": "Mumbai: partly cloudy, temperature 27.8°C, feels like 33.1°C, humidity 88%, UV index 0 (low, sunglasses helpful), wind from NW at 3 km/h; advise outdoor workers stay hydrated and use sunglasses.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.445,
+          "text": "Mumbai: partly cloudy, temperature 27.8°C, feels like 33.1°C, humidity 88%, UV index 0 (low, sunglasses helpful), wind from NW at 3 km/h; advise outdoor workers stay hydrated and use sunglasses.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "window:mumbai:general",
+      "kind": "window",
+      "persona": "general",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.189,
+      "answer": "Mumbai: expect 29.6°C, 15% rain chance, winds up to 18 km/h, from 15:00 to 23:00.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.189,
+          "text": "Mumbai: expect 29.6°C, 15% rain chance, winds up to 18 km/h, from 15:00 to 23:00.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "window:mumbai:farmer",
+      "kind": "window",
+      "persona": "farmer",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 0.988,
+      "answer": "Mumbai: temperature 29.6°C, rain probability 15% favors spraying, wind 18 km/h may cause drift, so plan work in the cooler part of the day and watch for spray drift.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 0.987,
+          "text": "Mumbai: temperature 29.6°C, rain probability 15% favors spraying, wind 18 km/h may cause drift, so plan work in the cooler part of the day and watch for spray drift.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "window:mumbai:traveller",
+      "kind": "window",
+      "persona": "traveller",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.367,
+      "answer": "Mumbai: temperature around 29.6°C, rain chance 15% and wind up to 18 km/h, so it’s okay to go out now but bring water.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.366,
+          "text": "Mumbai: temperature around 29.6°C, rain chance 15% and wind up to 18 km/h, so it’s okay to go out now but bring water.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "window:mumbai:city_official",
+      "kind": "window",
+      "persona": "city_official",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.152,
+      "answer": "Mumbai: temperature 29.6°C, rain chance 15%, wind up to 18 km/h between 15:00 and 23:00, so monitor drainage and keep response teams ready.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.152,
+          "text": "Mumbai: temperature 29.6°C, rain chance 15%, wind up to 18 km/h between 15:00 and 23:00, so monitor drainage and keep response teams ready.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:thiruvananthapuram:general",
+      "kind": "persona",
+      "persona": "general",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.125,
+      "answer": "Thiruvananthapuram: light rain, temperature 27.2°C, feels like 31.8°C, humidity 87%, UV index 0, wind 18 km/h from WNW.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.125,
+          "text": "Thiruvananthapuram: light rain, temperature 27.2°C, feels like 31.8°C, humidity 87%, UV index 0, wind 18 km/h from WNW.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:thiruvananthapuram:farmer",
+      "kind": "persona",
+      "persona": "farmer",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.319,
+      "answer": "Thiruvananthapuram: temperature 27.2°C feels like 31.8°C, humidity 87%, light rain, UV index 0 (low), wind 18 km/h WNW, so plan field work in cooler hours and avoid spraying today due to drift risk.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.319,
+          "text": "Thiruvananthapuram: temperature 27.2°C feels like 31.8°C, humidity 87%, light rain, UV index 0 (low), wind 18 km/h WNW, so plan field work in cooler hours and avoid spraying today due to drift risk.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:thiruvananthapuram:traveller",
+      "kind": "persona",
+      "persona": "traveller",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 2.075,
+      "answer": "Thiruvananthapuram: light rain with temperature 27.2°C, feels like 31.8°C, humidity 87%, wind 18 km/h from WNW, UV index 0 (low), so carry water and sun protection and consider waiting if rain bothers you.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 2.075,
+          "text": "Thiruvananthapuram: light rain with temperature 27.2°C, feels like 31.8°C, humidity 87%, wind 18 km/h from WNW, UV index 0 (low), so carry water and sun protection and consider waiting if rain bothers you.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:thiruvananthapuram:fisherman",
+      "kind": "persona",
+      "persona": "fisherman",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 2.054,
+      "answer": "Thiruvananthapuram: rain with temperature 27.2°C, feels like 31.8°C, humidity 87%, UV index 0 (low, sunglasses helpful), wind from WNW at 18 km/h, plan around rain and check the official IMD fishermen warning before going out.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 2.054,
+          "text": "Thiruvananthapuram: rain with temperature 27.2°C, feels like 31.8°C, humidity 87%, UV index 0 (low, sunglasses helpful), wind from WNW at 18 km/h, plan around rain and check the official IMD fishermen warning before going out.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:thiruvananthapuram:aviation",
+      "kind": "persona",
+      "persona": "aviation",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.605,
+      "answer": "Thiruvananthapuram: WNW wind at 18 km/h, temperature 27.2°C feeling 31.8°C, humidity 87%, light rain may affect operations, UV index 0 (low – sunglasses helpful); this is a city forecast.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.605,
+          "text": "Thiruvananthapuram: WNW wind at 18 km/h, temperature 27.2°C feeling 31.8°C, humidity 87%, light rain may affect operations, UV index 0 (low – sunglasses helpful); this is a city forecast.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:thiruvananthapuram:city_official",
+      "kind": "persona",
+      "persona": "city_official",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.418,
+      "answer": "Thiruvananthapuram: light rain with temperature 27.2°C, feels like 31.8°C, humidity 87%, UV index 0 (low) and wind 18 km/h from WNW, so monitor drainage for waterlogging and protect outdoor workers from heat.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.417,
+          "text": "Thiruvananthapuram: light rain with temperature 27.2°C, feels like 31.8°C, humidity 87%, UV index 0 (low) and wind 18 km/h from WNW, so monitor drainage for waterlogging and protect outdoor workers from heat.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "window:thiruvananthapuram:general",
+      "kind": "window",
+      "persona": "general",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.879,
+      "answer": "Thiruvananthapuram: expect 29.4°C, 10% rain chance, 23 km/h winds from 13:00 to 13:00.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.879,
+          "text": "Thiruvananthapuram: expect 29.4°C, 10% rain chance, 23 km/h winds from 13:00 to 13:00.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "window:thiruvananthapuram:farmer",
+      "kind": "window",
+      "persona": "farmer",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.256,
+      "answer": "Thiruvananthapuram: temperature 29.4°C, rain probability 10%, wind up to 23 km/h, so plan field work now but watch for drift due to breezy wind.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.255,
+          "text": "Thiruvananthapuram: temperature 29.4°C, rain probability 10%, wind up to 23 km/h, so plan field work now but watch for drift due to breezy wind.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "window:thiruvananthapuram:traveller",
+      "kind": "window",
+      "persona": "traveller",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.31,
+      "answer": "Thiruvananthapuram: average 29.4°C, rain chance 10%, wind up to 23 km/h, window from 13:00 to 13:00, so plan to go out at that time and stay hydrated.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.309,
+          "text": "Thiruvananthapuram: average 29.4°C, rain chance 10%, wind up to 23 km/h, window from 13:00 to 13:00, so plan to go out at that time and stay hydrated.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "window:thiruvananthapuram:city_official",
+      "kind": "window",
+      "persona": "city_official",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.679,
+      "answer": "Thiruvananthapuram: average temperature 29.4°C, rain probability 10%, and wind up to 23 km/h, so keep drainage and response teams ready while monitoring outdoor work.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.679,
+          "text": "Thiruvananthapuram: average temperature 29.4°C, rain probability 10%, and wind up to 23 km/h, so keep drainage and response teams ready while monitoring outdoor work.",
+          "unmatched": []
+        }
+      ]
+    }
+  ]
+}

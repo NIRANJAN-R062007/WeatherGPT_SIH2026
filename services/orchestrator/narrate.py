@@ -28,6 +28,7 @@ import retrieval
 
 TIMEOUT = 10.0
 OLLAMA_TIMEOUT = 30.0
+GROQ_MAX_TOKENS = 1024  # reasoning + answer; see generate_groq()
 MAX_CHARS = 240
 _SKIP = ("source", "issued", "is_live", "day", "since", "days_requested",
          "days_counted", "hours_counted")
@@ -198,14 +199,17 @@ def generate_groq(prompt: str, *, model: str, key: str, timeout: float = TIMEOUT
     `reasoning` field but still counts against max_tokens, so a low budget
     truncates before `content` gets anything written (finish_reason="length",
     content=""). reasoning_effort="low" + a bigger budget avoids that — the
-    Groq equivalent of Gemini's thinkingBudget:0 above.
+    Groq equivalent of Gemini's thinkingBudget:0 above. Even on "low" a
+    persona prompt reasons for 245-425 tokens (WIE-16, 2026-10-05), so 300
+    cut the answer off on about half of them; the visible answer is still
+    capped by the prompt's word cap and _sanitize().
     """
     budget.charge("groq")  # SEC-N15 daily ceiling; raises an httpx.HTTPError
     body = {
         "model": model,
         "messages": [{"role": "user", "content": prompt}],
         "temperature": 0.2,
-        "max_tokens": 300,
+        "max_tokens": GROQ_MAX_TOKENS,
         "reasoning_effort": "low",
     }
     if response_schema is not None:

@@ -1,0 +1,1396 @@
+{
+  "summary": {
+    "persona": {
+      "rows": 48,
+      "first_try": 22,
+      "regenerated": 0,
+      "template": 0,
+      "no_llm": 26,
+      "tripped_guardrail": 0,
+      "providers": {
+        "groq": 22,
+        "none": 0
+      },
+      "p50_s": 1.3995,
+      "p95_s": 1.6460499999999998,
+      "max_s": 1.695
+    },
+    "window": {
+      "rows": 32,
+      "first_try": 15,
+      "regenerated": 0,
+      "template": 0,
+      "no_llm": 17,
+      "tripped_guardrail": 0,
+      "providers": {
+        "groq": 15,
+        "none": 0
+      },
+      "p50_s": 1.3530000000000002,
+      "p95_s": 1.6067000000000002,
+      "max_s": 1.83
+    }
+  },
+  "rows": [
+    {
+      "id": "persona:bengaluru:general",
+      "kind": "persona",
+      "persona": "general",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.695,
+      "answer": "Bengaluru: cloudy, temperature 21.6°C feels like 24.4°C, humidity 84%, wind WSW at 21 km/h, UV index 0 (low).",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.694,
+          "text": "Bengaluru: cloudy, temperature 21.6°C feels like 24.4°C, humidity 84%, wind WSW at 21 km/h, UV index 0 (low).",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:bengaluru:farmer",
+      "kind": "persona",
+      "persona": "farmer",
+      "outcome": "no_llm",
+      "provider": null,
+      "latency_s": 1.578,
+      "answer": null,
+      "tries": [
+        {
+          "provider": null,
+          "latency_s": 1.578,
+          "text": null,
+          "unmatched": null
+        }
+      ]
+    },
+    {
+      "id": "persona:bengaluru:traveller",
+      "kind": "persona",
+      "persona": "traveller",
+      "outcome": "no_llm",
+      "provider": null,
+      "latency_s": 1.228,
+      "answer": null,
+      "tries": [
+        {
+          "provider": null,
+          "latency_s": 1.228,
+          "text": null,
+          "unmatched": null
+        }
+      ]
+    },
+    {
+      "id": "persona:bengaluru:fisherman",
+      "kind": "persona",
+      "persona": "fisherman",
+      "outcome": "no_llm",
+      "provider": null,
+      "latency_s": 1.402,
+      "answer": null,
+      "tries": [
+        {
+          "provider": null,
+          "latency_s": 1.402,
+          "text": null,
+          "unmatched": null
+        }
+      ]
+    },
+    {
+      "id": "persona:bengaluru:aviation",
+      "kind": "persona",
+      "persona": "aviation",
+      "outcome": "no_llm",
+      "provider": null,
+      "latency_s": 1.521,
+      "answer": null,
+      "tries": [
+        {
+          "provider": null,
+          "latency_s": 1.52,
+          "text": null,
+          "unmatched": null
+        }
+      ]
+    },
+    {
+      "id": "persona:bengaluru:city_official",
+      "kind": "persona",
+      "persona": "city_official",
+      "outcome": "no_llm",
+      "provider": null,
+      "latency_s": 1.334,
+      "answer": null,
+      "tries": [
+        {
+          "provider": null,
+          "latency_s": 1.334,
+          "text": null,
+          "unmatched": null
+        }
+      ]
+    },
+    {
+      "id": "window:bengaluru:general",
+      "kind": "window",
+      "persona": "general",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.428,
+      "answer": "Bengaluru: expect 22.5°C, 10% rain chance, light 19 km/h winds from 18:00 to 23:00.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.428,
+          "text": "Bengaluru: expect 22.5°C, 10% rain chance, light 19 km/h winds from 18:00 to 23:00.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "window:bengaluru:farmer",
+      "kind": "window",
+      "persona": "farmer",
+      "outcome": "no_llm",
+      "provider": null,
+      "latency_s": 1.389,
+      "answer": null,
+      "tries": [
+        {
+          "provider": null,
+          "latency_s": 1.389,
+          "text": null,
+          "unmatched": null
+        }
+      ]
+    },
+    {
+      "id": "window:bengaluru:traveller",
+      "kind": "window",
+      "persona": "traveller",
+      "outcome": "no_llm",
+      "provider": null,
+      "latency_s": 1.627,
+      "answer": null,
+      "tries": [
+        {
+          "provider": null,
+          "latency_s": 1.627,
+          "text": null,
+          "unmatched": null
+        }
+      ]
+    },
+    {
+      "id": "window:bengaluru:city_official",
+      "kind": "window",
+      "persona": "city_official",
+      "outcome": "no_llm",
+      "provider": null,
+      "latency_s": 1.424,
+      "answer": null,
+      "tries": [
+        {
+          "provider": null,
+          "latency_s": 1.424,
+          "text": null,
+          "unmatched": null
+        }
+      ]
+    },
+    {
+      "id": "persona:chennai:general",
+      "kind": "persona",
+      "persona": "general",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.071,
+      "answer": "Chennai: cloudy, temperature 28°C, feels like 32.5°C, humidity 81%, UV index 0 (low), wind from SSW at 16 km/h.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.071,
+          "text": "Chennai: cloudy, temperature 28°C, feels like 32.5°C, humidity 81%, UV index 0 (low), wind from SSW at 16 km/h.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:chennai:farmer",
+      "kind": "persona",
+      "persona": "farmer",
+      "outcome": "no_llm",
+      "provider": null,
+      "latency_s": 1.506,
+      "answer": null,
+      "tries": [
+        {
+          "provider": null,
+          "latency_s": 1.506,
+          "text": null,
+          "unmatched": null
+        }
+      ]
+    },
+    {
+      "id": "persona:chennai:traveller",
+      "kind": "persona",
+      "persona": "traveller",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.211,
+      "answer": "Chennai: cloudy with temperature 28°C, feels like 32.5°C, humidity 81%, UV index 0 and wind from SSW at 16 km/h, so carry water and sunglasses are helpful.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.211,
+          "text": "Chennai: cloudy with temperature 28°C, feels like 32.5°C, humidity 81%, UV index 0 and wind from SSW at 16 km/h, so carry water and sunglasses are helpful.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:chennai:fisherman",
+      "kind": "persona",
+      "persona": "fisherman",
+      "outcome": "no_llm",
+      "provider": null,
+      "latency_s": 1.525,
+      "answer": null,
+      "tries": [
+        {
+          "provider": null,
+          "latency_s": 1.525,
+          "text": null,
+          "unmatched": null
+        }
+      ]
+    },
+    {
+      "id": "persona:chennai:aviation",
+      "kind": "persona",
+      "persona": "aviation",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.388,
+      "answer": "Chennai: SSW wind at 16 km/h, cloudy with temperature 28°C feeling 32.5°C, humidity 81%, UV index 0 (low); this is a city forecast, not an airport observation.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.388,
+          "text": "Chennai: SSW wind at 16 km/h, cloudy with temperature 28°C feeling 32.5°C, humidity 81%, UV index 0 (low); this is a city forecast, not an airport observation.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:chennai:city_official",
+      "kind": "persona",
+      "persona": "city_official",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.648,
+      "answer": "Chennai: cloudy with temperature 28°C, feels like 32.5°C, humidity 81%, UV index 0 (low) and wind from SSW at 16 km/h, so outdoor workers should stay hydrated and use sunglasses.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.648,
+          "text": "Chennai: cloudy with temperature 28°C, feels like 32.5°C, humidity 81%, UV index 0 (low) and wind from SSW at 16 km/h, so outdoor workers should stay hydrated and use sunglasses.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "window:chennai:general",
+      "kind": "window",
+      "persona": "general",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.323,
+      "answer": "Chennai: expect 30.9°C temperature, 15% rain chance, gentle 8 km/h winds, best window from 16:00 to 16:00.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.323,
+          "text": "Chennai: expect 30.9°C temperature, 15% rain chance, gentle 8 km/h winds, best window from 16:00 to 16:00.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "window:chennai:farmer",
+      "kind": "window",
+      "persona": "farmer",
+      "outcome": "no_llm",
+      "provider": null,
+      "latency_s": 1.587,
+      "answer": null,
+      "tries": [
+        {
+          "provider": null,
+          "latency_s": 1.587,
+          "text": null,
+          "unmatched": null
+        }
+      ]
+    },
+    {
+      "id": "window:chennai:traveller",
+      "kind": "window",
+      "persona": "traveller",
+      "outcome": "no_llm",
+      "provider": null,
+      "latency_s": 1.536,
+      "answer": null,
+      "tries": [
+        {
+          "provider": null,
+          "latency_s": 1.536,
+          "text": null,
+          "unmatched": null
+        }
+      ]
+    },
+    {
+      "id": "window:chennai:city_official",
+      "kind": "window",
+      "persona": "city_official",
+      "outcome": "no_llm",
+      "provider": null,
+      "latency_s": 1.333,
+      "answer": null,
+      "tries": [
+        {
+          "provider": null,
+          "latency_s": 1.333,
+          "text": null,
+          "unmatched": null
+        }
+      ]
+    },
+    {
+      "id": "persona:coimbatore:general",
+      "kind": "persona",
+      "persona": "general",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.439,
+      "answer": "Coimbatore: cloudy, temperature 24.6°C feels like 26.9°C, humidity 87%, UV index 0 (low), wind from SW at 11 km/h, no protection needed.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.439,
+          "text": "Coimbatore: cloudy, temperature 24.6°C feels like 26.9°C, humidity 87%, UV index 0 (low), wind from SW at 11 km/h, no protection needed.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:coimbatore:farmer",
+      "kind": "persona",
+      "persona": "farmer",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.52,
+      "answer": "Coimbatore: temperature 24.6°C, feels like 26.9°C, humidity 87%, UV index 0 (low) and wind from SW at 11 km/h, so work in cooler morning hours and expect calm conditions suitable for spraying.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.52,
+          "text": "Coimbatore: temperature 24.6°C, feels like 26.9°C, humidity 87%, UV index 0 (low) and wind from SW at 11 km/h, so work in cooler morning hours and expect calm conditions suitable for spraying.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:coimbatore:traveller",
+      "kind": "persona",
+      "persona": "traveller",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.609,
+      "answer": "Coimbatore: cloudy, temperature 24.6°C, feels like 26.9°C, humidity 87%, UV index 0 (low), wind from SW at 11 km/h, so carry water and sun protection.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.609,
+          "text": "Coimbatore: cloudy, temperature 24.6°C, feels like 26.9°C, humidity 87%, UV index 0 (low), wind from SW at 11 km/h, so carry water and sun protection.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:coimbatore:fisherman",
+      "kind": "persona",
+      "persona": "fisherman",
+      "outcome": "no_llm",
+      "provider": null,
+      "latency_s": 1.686,
+      "answer": null,
+      "tries": [
+        {
+          "provider": null,
+          "latency_s": 1.686,
+          "text": null,
+          "unmatched": null
+        }
+      ]
+    },
+    {
+      "id": "persona:coimbatore:aviation",
+      "kind": "persona",
+      "persona": "aviation",
+      "outcome": "no_llm",
+      "provider": null,
+      "latency_s": 1.585,
+      "answer": null,
+      "tries": [
+        {
+          "provider": null,
+          "latency_s": 1.585,
+          "text": null,
+          "unmatched": null
+        }
+      ]
+    },
+    {
+      "id": "persona:coimbatore:city_official",
+      "kind": "persona",
+      "persona": "city_official",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.293,
+      "answer": "Coimbatore: cloudy with temperature 24.6°C, feels like 26.9°C, humidity 87%, UV index 0 (low) and southwest wind at 11 km/h, so workers should stay hydrated and use shade or sunglasses.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.293,
+          "text": "Coimbatore: cloudy with temperature 24.6°C, feels like 26.9°C, humidity 87%, UV index 0 (low) and southwest wind at 11 km/h, so workers should stay hydrated and use shade or sunglasses.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "window:coimbatore:general",
+      "kind": "window",
+      "persona": "general",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.359,
+      "answer": "Coimbatore: expect 30.1°C temperature, 5% rain chance, 11 km/h winds, from 10:00 to 10:00.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.359,
+          "text": "Coimbatore: expect 30.1°C temperature, 5% rain chance, 11 km/h winds, from 10:00 to 10:00.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "window:coimbatore:farmer",
+      "kind": "window",
+      "persona": "farmer",
+      "outcome": "no_llm",
+      "provider": null,
+      "latency_s": 1.68,
+      "answer": null,
+      "tries": [
+        {
+          "provider": null,
+          "latency_s": 1.68,
+          "text": null,
+          "unmatched": null
+        }
+      ]
+    },
+    {
+      "id": "window:coimbatore:traveller",
+      "kind": "window",
+      "persona": "traveller",
+      "outcome": "no_llm",
+      "provider": null,
+      "latency_s": 1.595,
+      "answer": null,
+      "tries": [
+        {
+          "provider": null,
+          "latency_s": 1.595,
+          "text": null,
+          "unmatched": null
+        }
+      ]
+    },
+    {
+      "id": "window:coimbatore:city_official",
+      "kind": "window",
+      "persona": "city_official",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.426,
+      "answer": "Coimbatore: average temperature 30.1°C, rain chance 5%, wind up to 11 km/h, so keep drainage and response teams ready and monitor loose structures.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.425,
+          "text": "Coimbatore: average temperature 30.1°C, rain chance 5%, wind up to 11 km/h, so keep drainage and response teams ready and monitor loose structures.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:delhi:general",
+      "kind": "persona",
+      "persona": "general",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.248,
+      "answer": "Delhi: clear skies, temperature 28°C, feels like 31.9°C, humidity 77%, UV index 0, wind from ESE at 10 km/h.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.248,
+          "text": "Delhi: clear skies, temperature 28°C, feels like 31.9°C, humidity 77%, UV index 0, wind from ESE at 10 km/h.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:delhi:farmer",
+      "kind": "persona",
+      "persona": "farmer",
+      "outcome": "no_llm",
+      "provider": null,
+      "latency_s": 1.237,
+      "answer": null,
+      "tries": [
+        {
+          "provider": null,
+          "latency_s": 1.237,
+          "text": null,
+          "unmatched": null
+        }
+      ]
+    },
+    {
+      "id": "persona:delhi:traveller",
+      "kind": "persona",
+      "persona": "traveller",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.44,
+      "answer": "Delhi: clear skies with 28°C temperature, feels like 31.9°C, humidity 77%, UV index 0 (low) and east‑southeast wind 10 km/h, so carry water and sunglasses for the warm, sunny conditions.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.44,
+          "text": "Delhi: clear skies with 28°C temperature, feels like 31.9°C, humidity 77%, UV index 0 (low) and east‑southeast wind 10 km/h, so carry water and sunglasses for the warm, sunny conditions.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:delhi:fisherman",
+      "kind": "persona",
+      "persona": "fisherman",
+      "outcome": "no_llm",
+      "provider": null,
+      "latency_s": 1.579,
+      "answer": null,
+      "tries": [
+        {
+          "provider": null,
+          "latency_s": 1.579,
+          "text": null,
+          "unmatched": null
+        }
+      ]
+    },
+    {
+      "id": "persona:delhi:aviation",
+      "kind": "persona",
+      "persona": "aviation",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.506,
+      "answer": "Delhi: ESE wind 10 km/h, clear skies, temperature 28°C feeling 31.9°C, humidity 77%, UV index 0 (low – sunglasses helpful); this is a city forecast, not an airport observation.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.506,
+          "text": "Delhi: ESE wind 10 km/h, clear skies, temperature 28°C feeling 31.9°C, humidity 77%, UV index 0 (low – sunglasses helpful); this is a city forecast, not an airport observation.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:delhi:city_official",
+      "kind": "persona",
+      "persona": "city_official",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.495,
+      "answer": "Delhi: clear, temperature 28°C, feels like 31.9°C, humidity 77%, UV index 0 (low), wind from ESE at 10 km/h; advise outdoor workers to stay hydrated and consider sunglasses.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.495,
+          "text": "Delhi: clear, temperature 28°C, feels like 31.9°C, humidity 77%, UV index 0 (low), wind from ESE at 10 km/h; advise outdoor workers to stay hydrated and consider sunglasses.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "window:delhi:general",
+      "kind": "window",
+      "persona": "general",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.212,
+      "answer": "Delhi: expect 28.9°C, 0% rain chance, light winds up to 13 km/h from 18:00 to 23:00.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.212,
+          "text": "Delhi: expect 28.9°C, 0% rain chance, light winds up to 13 km/h from 18:00 to 23:00.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "window:delhi:farmer",
+      "kind": "window",
+      "persona": "farmer",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.02,
+      "answer": "Delhi: temperature will be 28.9°C, rain chance 0%, wind 13 km/h, with a window from 18:00 to 23:00, so plan field work in the cooler evening hours.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.02,
+          "text": "Delhi: temperature will be 28.9°C, rain chance 0%, wind 13 km/h, with a window from 18:00 to 23:00, so plan field work in the cooler evening hours.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "window:delhi:traveller",
+      "kind": "window",
+      "persona": "traveller",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.455,
+      "answer": "Delhi: temperature 28.9°C, rain probability 0%, wind 13 km/h, from 18:00 to 23:00, so go out now and carry water.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.455,
+          "text": "Delhi: temperature 28.9°C, rain probability 0%, wind 13 km/h, from 18:00 to 23:00, so go out now and carry water.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "window:delhi:city_official",
+      "kind": "window",
+      "persona": "city_official",
+      "outcome": "no_llm",
+      "provider": null,
+      "latency_s": 1.576,
+      "answer": null,
+      "tries": [
+        {
+          "provider": null,
+          "latency_s": 1.576,
+          "text": null,
+          "unmatched": null
+        }
+      ]
+    },
+    {
+      "id": "persona:hyderabad:general",
+      "kind": "persona",
+      "persona": "general",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.255,
+      "answer": "Hyderabad: light rain, temperature 24.4°C feels like 26.9°C, humidity 90%, UV index 0, wind from WNW at 19 km/h.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.255,
+          "text": "Hyderabad: light rain, temperature 24.4°C feels like 26.9°C, humidity 90%, UV index 0, wind from WNW at 19 km/h.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:hyderabad:farmer",
+      "kind": "persona",
+      "persona": "farmer",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.444,
+      "answer": "Hyderabad: light rain with temperature 24.4°C, feels like 26.9°C, humidity 90%, UV index 0 (low) and wind from WNW at 19 km/h, so field work should wait for drier conditions and avoid spraying now.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.443,
+          "text": "Hyderabad: light rain with temperature 24.4°C, feels like 26.9°C, humidity 90%, UV index 0 (low) and wind from WNW at 19 km/h, so field work should wait for drier conditions and avoid spraying now.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:hyderabad:traveller",
+      "kind": "persona",
+      "persona": "traveller",
+      "outcome": "no_llm",
+      "provider": null,
+      "latency_s": 1.387,
+      "answer": null,
+      "tries": [
+        {
+          "provider": null,
+          "latency_s": 1.387,
+          "text": null,
+          "unmatched": null
+        }
+      ]
+    },
+    {
+      "id": "persona:hyderabad:fisherman",
+      "kind": "persona",
+      "persona": "fisherman",
+      "outcome": "no_llm",
+      "provider": null,
+      "latency_s": 1.712,
+      "answer": null,
+      "tries": [
+        {
+          "provider": null,
+          "latency_s": 1.712,
+          "text": null,
+          "unmatched": null
+        }
+      ]
+    },
+    {
+      "id": "persona:hyderabad:aviation",
+      "kind": "persona",
+      "persona": "aviation",
+      "outcome": "no_llm",
+      "provider": null,
+      "latency_s": 1.531,
+      "answer": null,
+      "tries": [
+        {
+          "provider": null,
+          "latency_s": 1.531,
+          "text": null,
+          "unmatched": null
+        }
+      ]
+    },
+    {
+      "id": "persona:hyderabad:city_official",
+      "kind": "persona",
+      "persona": "city_official",
+      "outcome": "no_llm",
+      "provider": null,
+      "latency_s": 1.581,
+      "answer": null,
+      "tries": [
+        {
+          "provider": null,
+          "latency_s": 1.581,
+          "text": null,
+          "unmatched": null
+        }
+      ]
+    },
+    {
+      "id": "window:hyderabad:general",
+      "kind": "window",
+      "persona": "general",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.298,
+      "answer": "Hyderabad: expect 27.3°C, 15% rain chance, light 19 km/h winds from 15:00 to 17:00, ideal for farming and fishing.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.298,
+          "text": "Hyderabad: expect 27.3°C, 15% rain chance, light 19 km/h winds from 15:00 to 17:00, ideal for farming and fishing.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "window:hyderabad:farmer",
+      "kind": "window",
+      "persona": "farmer",
+      "outcome": "no_llm",
+      "provider": null,
+      "latency_s": 1.639,
+      "answer": null,
+      "tries": [
+        {
+          "provider": null,
+          "latency_s": 1.639,
+          "text": null,
+          "unmatched": null
+        }
+      ]
+    },
+    {
+      "id": "window:hyderabad:traveller",
+      "kind": "window",
+      "persona": "traveller",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.465,
+      "answer": "Hyderabad: temperature around 27.3°C, rain chance 15% and wind up to 19 km/h, so it’s fine to go out now and stay hydrated.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.465,
+          "text": "Hyderabad: temperature around 27.3°C, rain chance 15% and wind up to 19 km/h, so it’s fine to go out now and stay hydrated.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "window:hyderabad:city_official",
+      "kind": "window",
+      "persona": "city_official",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.511,
+      "answer": "Hyderabad: average temperature 27.3°C, rain probability 15%, wind up to 19 km/h between 15:00 and 17:00, so keep drainage and response teams ready and monitor loose structures.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.511,
+          "text": "Hyderabad: average temperature 27.3°C, rain probability 15%, wind up to 19 km/h between 15:00 and 17:00, so keep drainage and response teams ready and monitor loose structures.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:madurai:general",
+      "kind": "persona",
+      "persona": "general",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.046,
+      "answer": "Madurai: cloudy, temperature 27°C, feels like 30.4°C, humidity 81%, UV index 0 (low), wind from NW at 5 km/h.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.046,
+          "text": "Madurai: cloudy, temperature 27°C, feels like 30.4°C, humidity 81%, UV index 0 (low), wind from NW at 5 km/h.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:madurai:farmer",
+      "kind": "persona",
+      "persona": "farmer",
+      "outcome": "no_llm",
+      "provider": null,
+      "latency_s": 1.39,
+      "answer": null,
+      "tries": [
+        {
+          "provider": null,
+          "latency_s": 1.39,
+          "text": null,
+          "unmatched": null
+        }
+      ]
+    },
+    {
+      "id": "persona:madurai:traveller",
+      "kind": "persona",
+      "persona": "traveller",
+      "outcome": "no_llm",
+      "provider": null,
+      "latency_s": 1.561,
+      "answer": null,
+      "tries": [
+        {
+          "provider": null,
+          "latency_s": 1.561,
+          "text": null,
+          "unmatched": null
+        }
+      ]
+    },
+    {
+      "id": "persona:madurai:fisherman",
+      "kind": "persona",
+      "persona": "fisherman",
+      "outcome": "no_llm",
+      "provider": null,
+      "latency_s": 1.248,
+      "answer": null,
+      "tries": [
+        {
+          "provider": null,
+          "latency_s": 1.248,
+          "text": null,
+          "unmatched": null
+        }
+      ]
+    },
+    {
+      "id": "persona:madurai:aviation",
+      "kind": "persona",
+      "persona": "aviation",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.411,
+      "answer": "Madurai: NW 5 km/h wind, cloudy with temperature 27°C feeling 30.4°C, humidity 81%, UV index 0 (low); this is a city forecast, not an airport observation.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.41,
+          "text": "Madurai: NW 5 km/h wind, cloudy with temperature 27°C feeling 30.4°C, humidity 81%, UV index 0 (low); this is a city forecast, not an airport observation.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:madurai:city_official",
+      "kind": "persona",
+      "persona": "city_official",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.174,
+      "answer": "Madurai: cloudy with a temperature of 27°C, feels like 30.4°C, humidity 81%, UV index 0 (low, sunglasses helpful), wind from the NW at 5 km/h, so outdoor workers should stay hydrated and consider shade.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.173,
+          "text": "Madurai: cloudy with a temperature of 27°C, feels like 30.4°C, humidity 81%, UV index 0 (low, sunglasses helpful), wind from the NW at 5 km/h, so outdoor workers should stay hydrated and consider shade.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "window:madurai:general",
+      "kind": "window",
+      "persona": "general",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.329,
+      "answer": "Madurai: expect 25.2°C, 10% rain chance, light 5 km/h winds, best work window from 21:00 to 23:00.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.328,
+          "text": "Madurai: expect 25.2°C, 10% rain chance, light 5 km/h winds, best work window from 21:00 to 23:00.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "window:madurai:farmer",
+      "kind": "window",
+      "persona": "farmer",
+      "outcome": "no_llm",
+      "provider": null,
+      "latency_s": 1.547,
+      "answer": null,
+      "tries": [
+        {
+          "provider": null,
+          "latency_s": 1.547,
+          "text": null,
+          "unmatched": null
+        }
+      ]
+    },
+    {
+      "id": "window:madurai:traveller",
+      "kind": "window",
+      "persona": "traveller",
+      "outcome": "no_llm",
+      "provider": null,
+      "latency_s": 1.24,
+      "answer": null,
+      "tries": [
+        {
+          "provider": null,
+          "latency_s": 1.24,
+          "text": null,
+          "unmatched": null
+        }
+      ]
+    },
+    {
+      "id": "window:madurai:city_official",
+      "kind": "window",
+      "persona": "city_official",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.83,
+      "answer": "Madurai: average temperature 25.2°C, rain probability 10%, wind up to 5 km/h, so plan drainage checks and keep response teams ready.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.83,
+          "text": "Madurai: average temperature 25.2°C, rain probability 10%, wind up to 5 km/h, so plan drainage checks and keep response teams ready.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:mumbai:general",
+      "kind": "persona",
+      "persona": "general",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.239,
+      "answer": "Mumbai: partly cloudy, temperature 27.8°C, feels like 33.1°C, humidity 88%, UV index 0, wind from NW at 3 km/h.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.239,
+          "text": "Mumbai: partly cloudy, temperature 27.8°C, feels like 33.1°C, humidity 88%, UV index 0, wind from NW at 3 km/h.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:mumbai:farmer",
+      "kind": "persona",
+      "persona": "farmer",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.457,
+      "answer": "Mumbai: temperature 27.8°C, feels like 33.1°C, humidity 88%, UV index 0 (low, sunglasses helpful), wind from NW at 3 km/h, so field work can proceed in cooler morning hours.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.457,
+          "text": "Mumbai: temperature 27.8°C, feels like 33.1°C, humidity 88%, UV index 0 (low, sunglasses helpful), wind from NW at 3 km/h, so field work can proceed in cooler morning hours.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:mumbai:traveller",
+      "kind": "persona",
+      "persona": "traveller",
+      "outcome": "no_llm",
+      "provider": null,
+      "latency_s": 1.239,
+      "answer": null,
+      "tries": [
+        {
+          "provider": null,
+          "latency_s": 1.239,
+          "text": null,
+          "unmatched": null
+        }
+      ]
+    },
+    {
+      "id": "persona:mumbai:fisherman",
+      "kind": "persona",
+      "persona": "fisherman",
+      "outcome": "no_llm",
+      "provider": null,
+      "latency_s": 1.348,
+      "answer": null,
+      "tries": [
+        {
+          "provider": null,
+          "latency_s": 1.348,
+          "text": null,
+          "unmatched": null
+        }
+      ]
+    },
+    {
+      "id": "persona:mumbai:aviation",
+      "kind": "persona",
+      "persona": "aviation",
+      "outcome": "no_llm",
+      "provider": null,
+      "latency_s": 1.246,
+      "answer": null,
+      "tries": [
+        {
+          "provider": null,
+          "latency_s": 1.246,
+          "text": null,
+          "unmatched": null
+        }
+      ]
+    },
+    {
+      "id": "persona:mumbai:city_official",
+      "kind": "persona",
+      "persona": "city_official",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.274,
+      "answer": "Mumbai: partly cloudy, temperature 27.8°C, feels like 33.1°C, humidity 88%, UV index 0 (low, sunglasses helpful), wind from NW at 3 km/h; advise outdoor workers stay hydrated and consider shade.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.274,
+          "text": "Mumbai: partly cloudy, temperature 27.8°C, feels like 33.1°C, humidity 88%, UV index 0 (low, sunglasses helpful), wind from NW at 3 km/h; advise outdoor workers stay hydrated and consider shade.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "window:mumbai:general",
+      "kind": "window",
+      "persona": "general",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.2,
+      "answer": "Mumbai: expect 29.6°C, 15% rain chance, light 18 km/h winds from 15:00 to 23:00.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.199,
+          "text": "Mumbai: expect 29.6°C, 15% rain chance, light 18 km/h winds from 15:00 to 23:00.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "window:mumbai:farmer",
+      "kind": "window",
+      "persona": "farmer",
+      "outcome": "no_llm",
+      "provider": null,
+      "latency_s": 1.391,
+      "answer": null,
+      "tries": [
+        {
+          "provider": null,
+          "latency_s": 1.391,
+          "text": null,
+          "unmatched": null
+        }
+      ]
+    },
+    {
+      "id": "window:mumbai:traveller",
+      "kind": "window",
+      "persona": "traveller",
+      "outcome": "no_llm",
+      "provider": null,
+      "latency_s": 1.591,
+      "answer": null,
+      "tries": [
+        {
+          "provider": null,
+          "latency_s": 1.591,
+          "text": null,
+          "unmatched": null
+        }
+      ]
+    },
+    {
+      "id": "window:mumbai:city_official",
+      "kind": "window",
+      "persona": "city_official",
+      "outcome": "no_llm",
+      "provider": null,
+      "latency_s": 1.515,
+      "answer": null,
+      "tries": [
+        {
+          "provider": null,
+          "latency_s": 1.515,
+          "text": null,
+          "unmatched": null
+        }
+      ]
+    },
+    {
+      "id": "persona:thiruvananthapuram:general",
+      "kind": "persona",
+      "persona": "general",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.216,
+      "answer": "Thiruvananthapuram: light rain, temperature 27.2°C, feels like 31.8°C, humidity 87%, UV index 0, wind from WNW at 18 km/h.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.216,
+          "text": "Thiruvananthapuram: light rain, temperature 27.2°C, feels like 31.8°C, humidity 87%, UV index 0, wind from WNW at 18 km/h.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "persona:thiruvananthapuram:farmer",
+      "kind": "persona",
+      "persona": "farmer",
+      "outcome": "no_llm",
+      "provider": null,
+      "latency_s": 1.567,
+      "answer": null,
+      "tries": [
+        {
+          "provider": null,
+          "latency_s": 1.567,
+          "text": null,
+          "unmatched": null
+        }
+      ]
+    },
+    {
+      "id": "persona:thiruvananthapuram:traveller",
+      "kind": "persona",
+      "persona": "traveller",
+      "outcome": "no_llm",
+      "provider": null,
+      "latency_s": 1.535,
+      "answer": null,
+      "tries": [
+        {
+          "provider": null,
+          "latency_s": 1.535,
+          "text": null,
+          "unmatched": null
+        }
+      ]
+    },
+    {
+      "id": "persona:thiruvananthapuram:fisherman",
+      "kind": "persona",
+      "persona": "fisherman",
+      "outcome": "no_llm",
+      "provider": null,
+      "latency_s": 1.528,
+      "answer": null,
+      "tries": [
+        {
+          "provider": null,
+          "latency_s": 1.528,
+          "text": null,
+          "unmatched": null
+        }
+      ]
+    },
+    {
+      "id": "persona:thiruvananthapuram:aviation",
+      "kind": "persona",
+      "persona": "aviation",
+      "outcome": "no_llm",
+      "provider": null,
+      "latency_s": 1.639,
+      "answer": null,
+      "tries": [
+        {
+          "provider": null,
+          "latency_s": 1.638,
+          "text": null,
+          "unmatched": null
+        }
+      ]
+    },
+    {
+      "id": "persona:thiruvananthapuram:city_official",
+      "kind": "persona",
+      "persona": "city_official",
+      "outcome": "no_llm",
+      "provider": null,
+      "latency_s": 1.521,
+      "answer": null,
+      "tries": [
+        {
+          "provider": null,
+          "latency_s": 1.521,
+          "text": null,
+          "unmatched": null
+        }
+      ]
+    },
+    {
+      "id": "window:thiruvananthapuram:general",
+      "kind": "window",
+      "persona": "general",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.112,
+      "answer": "Thiruvananthapuram: expect 29.4°C, 10% rain chance, 23 km/h winds from 13:00 to 13:00.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.111,
+          "text": "Thiruvananthapuram: expect 29.4°C, 10% rain chance, 23 km/h winds from 13:00 to 13:00.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "window:thiruvananthapuram:farmer",
+      "kind": "window",
+      "persona": "farmer",
+      "outcome": "first_try",
+      "provider": "groq",
+      "latency_s": 1.353,
+      "answer": "Thiruvananthapuram: average temperature 29.4°C, rain chance 10%, wind up to 23 km/h, so plan field work around midday with modest wind and low rain probability.",
+      "tries": [
+        {
+          "provider": "groq",
+          "latency_s": 1.353,
+          "text": "Thiruvananthapuram: average temperature 29.4°C, rain chance 10%, wind up to 23 km/h, so plan field work around midday with modest wind and low rain probability.",
+          "unmatched": []
+        }
+      ]
+    },
+    {
+      "id": "window:thiruvananthapuram:traveller",
+      "kind": "window",
+      "persona": "traveller",
+      "outcome": "no_llm",
+      "provider": null,
+      "latency_s": 1.589,
+      "answer": null,
+      "tries": [
+        {
+          "provider": null,
+          "latency_s": 1.589,
+          "text": null,
+          "unmatched": null
+        }
+      ]
+    },
+    {
+      "id": "window:thiruvananthapuram:city_official",
+      "kind": "window",
+      "persona": "city_official",
+      "outcome": "no_llm",
+      "provider": null,
+      "latency_s": 1.486,
+      "answer": null,
+      "tries": [
+        {
+          "provider": null,
+          "latency_s": 1.486,
+          "text": null,
+          "unmatched": null
+        }
+      ]
+    }
+  ]
+}

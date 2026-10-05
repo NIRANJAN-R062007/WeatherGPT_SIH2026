@@ -137,15 +137,13 @@ def test_ask_best_window_farmer_and_traveller_get_identical_numbers(monkeypatch)
 # --- notices and language -----------------------------------------------------
 
 
-def test_ask_best_window_in_another_language_gets_an_english_notice(monkeypatch):
+def test_ask_best_window_answers_in_the_asked_language(monkeypatch):
+    # WIE-8: the template answer is in-language, with no "English only" notice.
     hours = [hour("09:00", rain=10, temp=26, wind=10)]
     monkeypatch.setattr(weather_data, "hourly_facts", lambda key, day: _hourly(hours))
     body = _ask("best time to go outside tomorrow in Chennai", lang="hi").json()
-    assert body["response"].startswith("Chennai:")  # English
-    # best_window_english_only has only an "en" entry so far (WIE-8 adds the
-    # rest); _msg() falls back to it for every other language, same as any
-    # key missing a language row.
-    assert body["notice"] == main._MESSAGES["best_window_english_only"]["en"]
+    assert "बाहर रहने के लिए सबसे उपयुक्त समय" in body["response"]
+    assert "09:00" in body["response"] and "notice" not in body
 
 
 def test_ask_best_window_uses_the_selected_city_when_none_is_named(monkeypatch):

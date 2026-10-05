@@ -150,11 +150,13 @@ def test_ask_uses_the_selected_city_when_none_is_named(monkeypatch):
     assert body["status"] == "ok"
 
 
-def test_ask_in_another_language_carries_the_english_only_notice(monkeypatch):
+def test_ask_in_another_language_answers_in_that_language(monkeypatch):
+    # WIE-8: in-language template, no "English only" notice any more.
     _seed(monkeypatch, earlier={14: 30}, now={14: 80})
     body = _ask("has the forecast changed in Chennai", lang="hi").json()
     assert body["intent"] == "forecast_change"
-    assert "notice" in body
+    assert "बारिश की संभावना में बढ़ोतरी: 30% से 80%" in body["response"]
+    assert "notice" not in body
 
 
 def test_ask_records_a_signed_in_users_change_question(monkeypatch):

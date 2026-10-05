@@ -197,31 +197,33 @@ _MESSAGES = {
         "mr": "विमानतळ अहवाल इंग्रजीत दाखवले आहेत.",  # TODO: native_qa
     },
     # WIE-4: no hourly forecast to score at all (fixtures hold one day; a
-    # fixture-mode "tomorrow" request genuinely has none). English only for
-    # now — the five-language versions of best_window's three answer shapes
-    # (ok / no_suitable_window / unavailable) are WIE-8's job (plan.md §8
-    # Phase 9); _msg() falls back to this "en" entry for every other
-    # language until then, same as any key missing a language row.
+    # fixture-mode "tomorrow" request genuinely has none). WIE-8 added the
+    # ta/hi/te/mr rows here and the answers themselves in i18n.py.
     "best_window_unavailable": {
         "en": "No hourly forecast is available to find a suitable window right now.",
-    },
-    # best_window's sentence is a deterministic template built straight from
-    # the engine's result (never free LLM narration — see main.py's
-    # best_window branch), so it is English-only like aviation's reports.
-    "best_window_english_only": {
-        "en": "The best-time answer is shown in English.",
+        "ta": "ஏற்ற நேரத்தைக் கண்டறிய இப்போது மணிநேர முன்னறிவிப்பு கிடைக்கவில்லை.",  # TODO: native_qa
+        "hi": "उपयुक्त समय खोजने के लिए अभी घंटेवार पूर्वानुमान उपलब्ध नहीं है।",  # TODO: native_qa
+        "te": "అనువైన సమయాన్ని కనుగొనడానికి ప్రస్తుతం గంటవారీ సూచన అందుబాటులో లేదు.",  # TODO: native_qa
+        "mr": "योग्य वेळ शोधण्यासाठी सध्या तासावार अंदाज उपलब्ध नाही.",  # TODO: native_qa
     },
     # WIE-11: no earlier forecast stored for these hours (a fresh start, a
-    # fixtures-mode demo, a baseline that has aged out). English only until
-    # WIE-8's five-language templates land.
+    # fixtures-mode demo, a baseline that has aged out).
     "changes_no_baseline": {
         "en": "There is no earlier forecast to compare with yet, so I can't say what has changed.",
+        "ta": "ஒப்பிட இன்னும் முந்தைய முன்னறிவிப்பு இல்லை, எனவே என்ன மாறியது என்று சொல்ல "  # TODO: native_qa
+        "முடியாது.",
+        "hi": "तुलना के लिए अभी कोई पिछला पूर्वानुमान नहीं है, इसलिए क्या बदला है यह नहीं "  # TODO: native_qa
+        "बता सकता।",
+        "te": "పోల్చడానికి ఇంకా మునుపటి సూచన లేదు, కాబట్టి ఏమి మారిందో చెప్పలేను.",  # TODO: native_qa
+        "mr": "तुलना करण्यासाठी अजून आधीचा अंदाज नाही, त्यामुळे काय बदलले ते "  # TODO: native_qa
+        "सांगू शकत नाही.",
     },
     "changes_unavailable": {
         "en": "No hourly forecast is available to check for changes right now.",
-    },
-    "changes_english_only": {
-        "en": "The forecast-change answer is shown in English.",
+        "ta": "மாற்றங்களைச் சரிபார்க்க இப்போது மணிநேர முன்னறிவிப்பு கிடைக்கவில்லை.",  # TODO: native_qa
+        "hi": "बदलाव जाँचने के लिए अभी घंटेवार पूर्वानुमान उपलब्ध नहीं है।",  # TODO: native_qa
+        "te": "మార్పులను తనిఖీ చేయడానికి ప్రస్తుతం గంటవారీ సూచన అందుబాటులో లేదు.",  # TODO: native_qa
+        "mr": "बदल तपासण्यासाठी सध्या तासावार अंदाज उपलब्ध नाही.",  # TODO: native_qa
     },
     "language_unsupported": {
         "en": "I couldn't recognise that language yet — answering in English.",
@@ -998,67 +1000,18 @@ def intelligence_changes(response: Response, city: str, day: str = "tomorrow"):
     return _cached(response, intelligence_cache.key("changes", key, day), compute)
 
 
-_CHANGE_LABELS = {
-    "rain_probability_pct": ("chance of rain", "%"),
-    "temp_c": ("temperature", "°C"),
-    "wind_kmh": ("wind speed", " km/h"),
-}
-
-
-def _fmt_num(value: float) -> str:
-    return f"{value:g}"
-
-
 def _utc_minute(iso: str) -> str:
     return f"{iso[:10]} {iso[11:16]} UTC"
 
 
 def _changes_text(city_name: str, day: str, result: dict, baseline: dict,
-                  current_retrieved_at: str) -> str:
-    """WIE-11: the forecast_change intent's deterministic English sentence,
-    built from the detector's structured result — every figure and both
-    retrieval times are the engine's own, like _best_window_text."""
-    since = (f"since the forecast retrieved {_utc_minute(baseline['retrieved_at'])} "
-             f"(now {_utc_minute(forecast_snapshots.normalize_time(current_retrieved_at))})")
-    if result["status"] == "no_significant_change":
-        return f"{city_name}: no significant change in {day}'s forecast {since}."
-    parts = []
-    for c in result["changes"]:
-        label, unit = _CHANGE_LABELS[c["metric"]]
-        span = (f"around {c['start_local']}" if c["start_local"] == c["end_local"]
-                else f"mostly {c['start_local']}–{c['end_local']}")
-        parts.append(
-            f"{label} {c['direction']} from {_fmt_num(c['from'])}{unit} to "
-            f"{_fmt_num(c['to'])}{unit} ({span})"
-        )
-    return f"{city_name}: {day}'s " + "; ".join(parts) + f" {since}."
-
-
-def _best_window_text(city_name: str, day: str, window: dict) -> str:
-    """WIE-4: the best_window intent's deterministic English sentence, built
-    straight from the engine's structured result (window_analyzer via
-    persona_advisor.advise()) — never from free LLM narration. The guardrail
-    does now ground clock times and ranges (WIE-5), and this very sentence
-    passes it (tests/test_guardrail.py), but an LLM-worded window waits on the
-    five-language templates (WIE-8) and WIE-16's live check; every word and
-    figure here is the engine's own, the same choice as warnings' verbatim
-    headline and aviation's METAR/TAF templates."""
-    day_phrase = "tomorrow" if day == "tomorrow" else "today"
-    return (
-        f"{city_name}: the most suitable window to be outdoors {day_phrase} is "
-        f"{window['start_local']}–{window['end_local']} "
-        f"(around {window['avg_temp_c']}°C, up to {window['max_rain_probability_pct']}% "
-        f"chance of rain, winds up to {window['max_wind_kmh']} km/h)."
-    )
-
-
-def _no_suitable_window_text(city_name: str, day: str) -> str:
-    """WIE-4: "no suitable window" is a valid, honest answer (R17) — never
-    replaced by the least-bad hour."""
-    day_phrase = "tomorrow" if day == "tomorrow" else "today"
-    return (
-        f"{city_name}: no suitable window to be outdoors {day_phrase} — every hour had "
-        f"too much rain, heat, cold or wind."
+                  current_retrieved_at: str, lang: str = "en") -> str:
+    """WIE-11: the forecast_change intent's deterministic sentence (i18n.py,
+    WIE-8), built from the detector's structured result — every figure and
+    both retrieval times are the engine's own."""
+    return i18n.changes_text(
+        city_name, day, result, _utc_minute(baseline["retrieved_at"]),
+        _utc_minute(forecast_snapshots.normalize_time(current_retrieved_at)), lang,
     )
 
 
@@ -1209,8 +1162,6 @@ def ask(text: str, lang: str = "en", city: str | None = None, persona: str = per
     point = _point(loc)
     key = google_weather.point_key(point["lat"], point["lon"])  # a demo key, or "@lat,lon"
     demo_key = key if key in cities.CITY_KEYS else None
-    label_en = point["label"] if lang == "en" else location.resolve_location(
-        query_place, lat, lon, "en", loc.get("place_id"))["label"]
 
     # Offline only the demo cities have saved data (§2 principle 5): a GPS
     # fix is answered for the nearest one, saying so; any other named place
@@ -1229,7 +1180,6 @@ def ask(text: str, lang: str = "en", city: str | None = None, persona: str = per
         loc = {"lat": demo.lat, "lon": demo.lon, "label": cities.display_name(demo.key, lang),
                "source": "demo_fixture", "place_id": demo.place_id}
         point, key, demo_key = _point(loc), demo.key, demo.key
-        label_en = cities.display_name(demo.key, "en")
         offline_note = _msg("offline_nearest_demo", lang, city=loc["label"])
         notice = f"{notice} {offline_note}" if notice else offline_note
 
@@ -1339,8 +1289,9 @@ def ask(text: str, lang: str = "en", city: str | None = None, persona: str = per
         return resp
 
     if pq.intent == "best_window":
-        # WIE-4: deterministic only, like warnings/aviation above — no free
-        # LLM narration of the window yet; if one is added it must pass
+        # WIE-4: deterministic only, like warnings/aviation above, worded by
+        # i18n.py's five-language templates (WIE-8) — no free LLM narration
+        # of the window yet; if one is added it must pass
         # guardrail.check(), which grounds clock times and ranges (WIE-5)
         # against `window`. fisherman/aviation personas get no
         # window verdict at all (R17), reusing WIE-7's persona_advisor
@@ -1356,18 +1307,18 @@ def ask(text: str, lang: str = "en", city: str | None = None, persona: str = per
 
         persona_key = persona_module.key(persona)
         advisory = advise(hourly["hours"], persona_key)
-        name = label_en
+        name = point["label"]  # in the asked language, like every other answer
         if wants_window(persona_key):
             window = advisory["window"]
             status = "ok" if window else "no_suitable_window"
             candidate = (
-                _best_window_text(name, hourly["day"], window) if window
-                else _no_suitable_window_text(name, hourly["day"])
+                i18n.best_window_text(name, hourly["day"], window, lang) if window
+                else i18n.no_suitable_window_text(name, hourly["day"], lang)
             )
         else:
             window = None
             status = "ok"
-            candidate = advisory["caveat"]
+            candidate = i18n.persona_caveat(persona_key, lang)
 
         grounding = {**asdict(guardrail.Report(ok=True, matched=0, total=0)),
                      "fallback_used": False, "narration": "verbatim", "attempts": 0,
@@ -1387,8 +1338,6 @@ def ask(text: str, lang: str = "en", city: str | None = None, persona: str = per
         }
         if notice:
             resp["notice"] = notice
-        elif lang != "en":
-            resp["notice"] = _msg("best_window_english_only", lang)
         resp.update(_persona_fields(persona, occ))
 
         if token is not None:
@@ -1419,8 +1368,8 @@ def ask(text: str, lang: str = "en", city: str | None = None, persona: str = per
                 resp["notice"] = notice
             return resp
 
-        candidate = _changes_text(label_en, hourly["day"], result, baseline,
-                                  hourly["retrieved_at"])
+        candidate = _changes_text(point["label"], hourly["day"], result, baseline,
+                                  hourly["retrieved_at"], lang)
         grounding = {**asdict(guardrail.Report(ok=True, matched=0, total=0)),
                      "fallback_used": False, "narration": "verbatim", "attempts": 0,
                      "provider": "feed"}
@@ -1439,8 +1388,6 @@ def ask(text: str, lang: str = "en", city: str | None = None, persona: str = per
         }
         if notice:
             resp["notice"] = notice
-        elif lang != "en":
-            resp["notice"] = _msg("changes_english_only", lang)
         resp.update(_persona_fields(persona, occ))
 
         if token is not None:
