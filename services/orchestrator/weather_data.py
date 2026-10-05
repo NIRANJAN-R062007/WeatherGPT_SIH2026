@@ -14,7 +14,7 @@ strip (GET /forecast/daily, /forecast/hourly) as figures, never narrated.
 """
 
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import cities
@@ -392,10 +392,19 @@ def hourly_facts(key: str, day: str = "today") -> dict | None:
     forecast_day()'s offsets — the series' own first hour is "today"
     regardless of the real calendar date, so fixture mode (whose hourly
     series is snapshotted, not live) behaves the same as forecast_day's
-    day-0 convention. A day the series doesn't reach (the live fetch and the
-    committed snapshots hold 24 h) is reported as unavailable, never guessed,
-    and so is a day label this function doesn't know — it used to fall back
-    to today's hours, which judged a trip two days out by today's wind.
+    day-0 convention.
+
+    A day is only returned whole. The series starts at the hour of the fetch,
+    so "today" legitimately starts then, but a day whose end the series does
+    not reach is unavailable (None), never a part-day judged as if it were the
+    whole day: a 24-hour series fetched at 10:00 ends at 09:00 tomorrow, and
+    "tomorrow" would be night and early morning only. A live fetch holds 48
+    hours (google_weather.FORECAST_HOURS_FETCHED), enough for "tomorrow"; the
+    committed snapshots hold 24, so there "tomorrow" is unavailable until they
+    are refreshed (snapshot_google_weather.py). A day the series never reaches,
+    and a day label this function doesn't know, are unavailable too — the
+    latter used to fall back to today's hours, which judged a trip two days
+    out by today's wind.
     """
     offset = _HOURLY_DAY_OFFSET.get(day)
     if offset is None:
@@ -423,6 +432,12 @@ def hourly_facts(key: str, day: str = "today") -> dict | None:
 
     anchor_date = decoded[0][0].date()  # the series' own first hour = "today"
     target_date = anchor_date + timedelta(days=offset)
+
+    # The day is whole only if the series runs to its end: its last hour must
+    # end at or after the next local midnight (an hour is 60 minutes long).
+    midnight = datetime.combine(target_date + timedelta(days=1), time.min, tzinfo=tz)
+    if max(local for local, _, _ in decoded) + timedelta(hours=1) < midnight:
+        return None
 
     hours: list[dict] = []
     for local, h, start in decoded:

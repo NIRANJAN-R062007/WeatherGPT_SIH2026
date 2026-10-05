@@ -125,6 +125,31 @@ def _calm_hourly(d: dict) -> None:
                     wind_kmh=CALM_WIND_KMH, temp_c=CALM_HOUR_C)
 
 
+def _pin_tomorrows_hours(facts: AdvisoryFacts) -> None:
+    """A whole calm day of hours for a trip tomorrow where the collector has none.
+
+    The committed fixtures hold 24 hours from one fetch, so their "tomorrow" is only the
+    start of the day and weather_data.hourly_facts() reports it unavailable (it never
+    returns a part-day). A live fetch holds 48 hours and does supply it, and the wind rules
+    for a trip tomorrow are about that day's hours, so the scenario pins them: the
+    eval rows then test the rules, not the fixtures' length. Once the fixtures are
+    refreshed with 48 hours the collector supplies the section and this does nothing."""
+    if facts.subject.get("day") != "tomorrow":
+        return
+    day = rubric.trip_date(facts)
+    for role in ("origin", "destination"):
+        section = facts.section(role, "hourly")
+        if section is None or section.available:
+            continue
+        hours = [{"time_iso": f"{day.isoformat()}T{h:02d}:00:00+05:30", "local_time": f"{h:02d}:00",
+                  "temp_c": CALM_HOUR_C, "rain_probability_pct": CALM_RAIN_PCT,
+                  "wind_kmh": CALM_WIND_KMH, "condition": "partly_cloudy"} for h in range(24)]
+        source = "EVAL FIXTURE - pinned calm hours, not a forecast"
+        _replace(facts, FactSection(role, "hourly", True, {
+            "source": source, "is_live": False, "retrieved_at": facts.collected_at,
+            "day": "tomorrow", "hours": hours}, source=source, is_live=False))
+
+
 _WEATHER_SENTENCE = re.compile(r" Weather: [^.]*\.")
 
 
@@ -161,6 +186,7 @@ def _calm_rain(d: dict) -> None:
 
 
 def _calm(facts: AdvisoryFacts) -> None:
+    _pin_tomorrows_hours(facts)
     _patch(facts, "current", _calm_current)
     _patch(facts, "forecast", _calm_forecast)
     _patch(facts, "hourly", _calm_hourly)

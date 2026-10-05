@@ -195,8 +195,143 @@ def test_params_history_hours_has_hours_param():
 
 
 def test_params_forecast_hours_has_hours_param():
+    # 48, not the 24 GET /forecast/hourly serves: 24 hours fetched at 10:00 end at 09:00
+    # tomorrow, which would make "tomorrow" a part-day.
     params = google_weather._params("forecast_hours", "chennai")
-    assert params["hours"] == google_weather.FORECAST_HOURS
+    assert params["hours"] == google_weather.FORECAST_HOURS_FETCHED == 48
+    assert google_weather.FORECAST_HOURS == 24
+
+
+# --- the hourly lookup's pages: 48 hours take two calls ------------------------------
+
+
+def _page(first_hour, n=24, token=""):
+    """A forecast/hours:lookup reply of `n` hours starting `first_hour` hours after the
+    fixture's first hour (so pages do not repeat each other), with `token` as its next page."""
+    from datetime import datetime, timedelta
+
+    hours = json.loads(json.dumps(_fixture_response(FH, "chennai")["forecastHours"]))[:n]
+    for h in hours:
+        start = datetime.fromisoformat(h["interval"]["startTime"].replace("Z", "+00:00"))
+        start += timedelta(hours=first_hour)
+        end = start + timedelta(hours=1)
+        h["interval"] = {"startTime": start.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                         "endTime": end.strftime("%Y-%m-%dT%H:%M:%SZ")}
+    return {"forecastHours": hours, "timeZone": {"id": "Asia/Calcutta"}, "nextPageToken": token}
+
+
+@pytest.fixture
+def paged(monkeypatch):
+    """fetch_json serving a two-page hourly series; every request is recorded."""
+    sent = []
+    pages = {None: _page(0, token="page-2"), "page-2": _page(24, token="")}
+
+    def _fetch(path, params, timeout=google_weather.TIMEOUT):
+        sent.append((path, dict(params)))
+        return pages[params.get("pageToken")]
+
+    monkeypatch.setattr(google_weather, "fetch_json", _fetch)
+    return sent
+
+
+def test_forecast_hours_follows_the_next_page_token_to_48_hours(paged):
+    snap = google_weather.snapshot(FH, "chennai")
+    assert snap.is_live is True
+    starts = [h["interval"]["startTime"] for h in snap.payload["forecastHours"]]
+    assert len(starts) == 48 and starts == sorted(starts) and len(set(starts)) == 48
+    assert "nextPageToken" not in snap.payload  # it was the first page's, not the series'
+    assert snap.payload["timeZone"] == {"id": "Asia/Calcutta"}
+    (_, first), (_, second) = paged
+    assert first["hours"] == 48 and "pageToken" not in first
+    assert second == {**first, "pageToken": "page-2"}  # the same query, one more key
+
+
+def test_the_snapshot_script_captures_48_hours_for_the_next_refresh(monkeypatch, tmp_path):
+    import snapshot_google_weather as script
+
+    pages = {None: _page(0, token="page-2"), "page-2": _page(24, token="")}
+    sent = []
+
+    def _fetch(endpoint, lat, lon, **params):
+        sent.append(params)
+        return 200, pages[params.get("pageToken")]
+
+    monkeypatch.setattr(script, "fetch", _fetch)
+    monkeypatch.setattr(script, "OUT_DIR", tmp_path)
+    monkeypatch.setattr(config, "REPO_ROOT", tmp_path)  # the script prints paths relative to it
+    cities_ = script._load_cities()
+    rows = script.snapshot("chennai", cities_, days=5, units="METRIC", force=True,
+                           dry_run=False, kind=FH)
+    assert [r[2] for r in rows] == [200]
+    saved = json.loads((tmp_path / "forecast_hours.chennai.json").read_text(encoding="utf-8"))
+    assert len(saved["response"]["forecastHours"]) == 48
+    assert "nextPageToken" not in saved["response"]
+    assert saved["_meta"]["request"]["hours"] == 48
+    assert [p.get("pageToken") for p in sent] == [None, "page-2"]
+
+
+def test_a_48_hour_live_series_gives_tomorrow_as_a_whole_day(paged):
+    import weather_data
+
+    tomorrow = weather_data.hourly_facts("chennai", "tomorrow")
+    assert tomorrow["is_live"] is True
+    times = [h["local_time"] for h in tomorrow["hours"]]
+    assert times == [f"{h:02d}:00" for h in range(24)]
+
+
+def test_a_reply_with_no_next_page_token_is_one_call(monkeypatch):
+    calls = []
+
+    def _fetch(path, params, timeout=google_weather.TIMEOUT):
+        calls.append(params)
+        return _fixture_response(FH, "chennai")  # nextPageToken is ""
+
+    monkeypatch.setattr(google_weather, "fetch_json", _fetch)
+    snap = google_weather.snapshot(FH, "chennai")
+    assert len(calls) == 1 and snap.payload == _fixture_response(FH, "chennai")
+
+
+def test_a_failed_later_page_keeps_the_hours_already_fetched(monkeypatch, caplog):
+    def _fetch(path, params, timeout=google_weather.TIMEOUT):
+        if params.get("pageToken"):
+            raise httpx.ConnectError(f"down https://x/y?key={params['key']}")
+        return _page(0, token="page-2")
+
+    monkeypatch.setattr(google_weather, "fetch_json", _fetch)
+    with caplog.at_level("WARNING"):
+        snap = google_weather.snapshot(FH, "chennai")
+    assert snap.is_live is True  # not the stale fixture
+    assert len(snap.payload["forecastHours"]) == 24
+    assert "test-key" not in caplog.text
+    import weather_data
+
+    assert weather_data.hourly_facts("chennai", "today") is not None
+    assert weather_data.hourly_facts("chennai", "tomorrow") is None  # the short series says so
+
+
+def test_paging_stops_once_48_hours_are_in_hand(monkeypatch):
+    calls = []
+
+    def _fetch(path, params, timeout=google_weather.TIMEOUT):
+        calls.append(params)
+        return _page(24 * (len(calls) - 1), token="more")  # a token on every page
+
+    monkeypatch.setattr(google_weather, "fetch_json", _fetch)
+    snap = google_weather.snapshot(FH, "chennai")
+    assert len(snap.payload["forecastHours"]) == 48 and len(calls) == 2
+
+
+def test_a_reply_that_never_stops_paging_is_cut_off(monkeypatch):
+    calls = []
+
+    def _fetch(path, params, timeout=google_weather.TIMEOUT):
+        calls.append(params)
+        return _page(len(calls) - 1, n=1, token="more")  # one hour a page, forever
+
+    monkeypatch.setattr(google_weather, "fetch_json", _fetch)
+    snap = google_weather.snapshot(FH, "chennai")
+    assert len(calls) == google_weather.MAX_HOUR_PAGES
+    assert len(snap.payload["forecastHours"]) == google_weather.MAX_HOUR_PAGES
 
 
 def test_forecast_hours_live_and_fixture(live_stub):

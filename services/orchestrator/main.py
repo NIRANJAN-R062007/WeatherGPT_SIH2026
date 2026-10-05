@@ -196,8 +196,9 @@ _MESSAGES = {
         "te": "విమానాశ్రయ నివేదికలు ఆంగ్లంలో చూపబడ్డాయి.",  # TODO: native_qa
         "mr": "विमानतळ अहवाल इंग्रजीत दाखवले आहेत.",  # TODO: native_qa
     },
-    # WIE-4: no hourly forecast to score at all (fixtures hold one day; a
-    # fixture-mode "tomorrow" request genuinely has none). WIE-8 added the
+    # WIE-4: no hourly forecast to score at all (the committed snapshots hold 24
+    # hours from one fetch, so a fixture-mode "tomorrow" is only its first hours
+    # and hourly_facts reports it unavailable; a live fetch holds 48). WIE-8 added the
     # ta/hi/te/mr rows here and the answers themselves in i18n.py.
     "best_window_unavailable": {
         "en": "No hourly forecast is available to find a suitable window right now.",
@@ -795,7 +796,8 @@ def intelligence_best_window(response: Response, city: str, day: str = "tomorrow
     "no_suitable_window" (every hour was checked and none passed — a real,
     honest negative result, never the least-bad hour), or "unavailable" (no
     hourly forecast to check at all — e.g. "tomorrow" against the committed
-    fixtures, which only snapshot a single day's hourly series)."""
+    snapshots, whose 24 hours end before tomorrow does; a day is never judged
+    from part of its hours)."""
     if day not in ("today", "tomorrow"):
         raise HTTPException(status_code=422, detail="day must be today or tomorrow")
     key = cities.resolve(city)

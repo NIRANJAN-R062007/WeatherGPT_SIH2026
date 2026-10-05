@@ -6,6 +6,10 @@ tested against these committed fixtures with no key and no network.
 
     python services/orchestrator/snapshot_google_weather.py --city all
     python services/orchestrator/snapshot_google_weather.py --city chennai --dry-run
+
+The hourly forecast is captured as 48 hours (two pages of the lookup), so the fixtures
+hold a whole "tomorrow" like a live fetch does; the older 24-hour ones do not. Refresh
+only those with `--kind forecast_hours --force`.
 """
 
 import argparse
@@ -15,7 +19,13 @@ from datetime import datetime, timezone
 
 import config
 import httpx
-from google_weather import ENDPOINTS, FORECAST_DAYS, FORECAST_HOURS, HISTORY_HOURS
+from google_weather import (
+    ENDPOINTS,
+    FORECAST_DAYS,
+    FORECAST_HOURS_FETCHED,
+    HISTORY_HOURS,
+    MAX_HOUR_PAGES,
+)
 
 CITIES_PATH = config.DATA_DIR / "cities.json"
 OUT_DIR = config.FIXTURES_DIR / "google_weather"
@@ -44,6 +54,27 @@ def fetch(path: str, lat: float, lon: float, **params) -> tuple[int, dict]:
     except ValueError:
         body = {"_raw": resp.text}
     return resp.status_code, body
+
+
+def _all_hour_pages(endpoint: str, lat: float, lon: float, extra: dict,
+                    status: int, body: dict) -> tuple[int, dict]:
+    """The hourly lookup pages (`nextPageToken`) at 24 hours, and the fixtures should hold 48
+    so a fixture-mode "tomorrow" is a whole day: follow the token, as google_weather._live
+    does. A failed later page fails the whole snapshot (status != 200), unlike a live fetch."""
+    token = body.get("nextPageToken") if status == 200 else None
+    if not token:
+        return status, body
+    hours = list(body.get("forecastHours") or [])
+    pages = 1
+    while token and len(hours) < FORECAST_HOURS_FETCHED and pages < MAX_HOUR_PAGES:
+        status, page = fetch(endpoint, lat, lon, **extra, pageToken=token)
+        if status != 200:
+            return status, page
+        hours.extend(page.get("forecastHours") or [])
+        token = page.get("nextPageToken")
+        pages += 1
+    joined = {k: v for k, v in body.items() if k != "nextPageToken"}
+    return 200, {**joined, "forecastHours": hours}
 
 
 def _envelope(name: str, endpoint: str, city: str, lat: float, lon: float,
@@ -75,10 +106,12 @@ def snapshot(city_key: str, cities: dict, *, days: int, units: str,
             extra["days"] = days
             extra["pageSize"] = days  # the API pages at 5 days by default
         if name == "forecast_hours":
-            extra["hours"] = FORECAST_HOURS
+            extra["hours"] = FORECAST_HOURS_FETCHED  # 48: a whole "tomorrow", like a live fetch
         if name == "history_hours":
             extra["hours"] = HISTORY_HOURS
         status, body = fetch(endpoint, lat, lon, **extra)
+        if name == "forecast_hours":
+            status, body = _all_hour_pages(endpoint, lat, lon, extra, status, body)
         env = _envelope(name, endpoint, city_key, lat, lon, extra, status, body)
 
         key = config.GOOGLE_WEATHER_API_KEY or ""

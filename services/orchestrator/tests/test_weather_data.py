@@ -304,15 +304,91 @@ def test_hourly_facts_today_is_the_series_first_hour_regardless_of_real_date():
     assert today["hours"][0]["time_iso"] == raw[0]["interval"]["startTime"]
 
 
-def test_hourly_facts_today_and_tomorrow_are_disjoint_calendar_days():
+def _serve_series(monkeypatch, start_utc: str, hours: int, *, live: bool = True):
+    """hourly_facts reads a synthetic `hours`-long hourly series starting at `start_utc`
+    (a test payload built here, not a committed fixture). Chennai is UTC+5:30, so
+    "2026-10-05T04:30:00+00:00" is 10:00 there."""
+    start = datetime.fromisoformat(start_utc)
+    entries = []
+    for i in range(hours):
+        t = start + timedelta(hours=i)
+        entries.append({
+            "interval": {"startTime": t.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                         "endTime": (t + timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%SZ")},
+            "temperature": {"degrees": 28.0}, "precipitation": {"probability": {"percent": 10}},
+            "wind": {"speed": {"value": 9.0}}, "weatherCondition": {"type": "CLEAR"},
+        })
+    snap = google_weather.Snapshot("forecast_hours", "chennai", {"forecastHours": entries}, live,
+                                   start_utc, "test series")
+    monkeypatch.setattr(google_weather, "snapshot",
+                        lambda kind, key, **kw: snap if kind == "forecast_hours" else None)
+
+
+def _clock_range(facts):
+    times = [h["local_time"] for h in facts["hours"]]
+    return times[0], times[-1], len(times)
+
+
+def test_hourly_facts_never_presents_a_part_day_as_the_whole_day(monkeypatch):
+    # Issue #65: 24 hours fetched at 10:00 end at 09:00 tomorrow, so "tomorrow" was
+    # 00:00-09:00 and was judged as if it were the whole day.
+    _serve_series(monkeypatch, "2026-10-05T04:30:00+00:00", 24)
+    assert _clock_range(weather_data.hourly_facts("chennai", "today")) == ("10:00", "23:00", 14)
+    assert weather_data.hourly_facts("chennai", "tomorrow") is None
+    assert weather_data.hourly_facts("chennai", "day_after_tomorrow") is None
+
+
+def test_hourly_facts_tomorrow_is_the_whole_day_in_a_48_hour_series(monkeypatch):
+    _serve_series(monkeypatch, "2026-10-05T04:30:00+00:00", 48)
+    assert _clock_range(weather_data.hourly_facts("chennai", "today")) == ("10:00", "23:00", 14)
+    assert _clock_range(weather_data.hourly_facts("chennai", "tomorrow")) == ("00:00", "23:00", 24)
+    assert weather_data.hourly_facts("chennai", "day_after_tomorrow") is None  # 00:00-09:00 only
+
+
+@pytest.mark.parametrize("start_utc, today, tomorrow", [
+    ("2026-10-04T18:30:00+00:00", ("00:00", "23:00", 24), ("00:00", "23:00", 24)),  # 00:00 IST
+    ("2026-10-05T17:30:00+00:00", ("23:00", "23:00", 1), ("00:00", "23:00", 24)),   # 23:00 IST
+    ("2026-10-05T05:00:00+00:00", ("10:30", "23:30", 14), ("00:30", "23:30", 24)),  # :30 hours
+])
+def test_hourly_facts_48_hours_cover_tomorrow_from_any_hour_of_the_day(
+        monkeypatch, start_utc, today, tomorrow):
+    _serve_series(monkeypatch, start_utc, 48)
+    assert _clock_range(weather_data.hourly_facts("chennai", "today")) == today
+    assert _clock_range(weather_data.hourly_facts("chennai", "tomorrow")) == tomorrow
+
+
+def test_hourly_facts_a_day_whose_end_the_series_does_not_reach_is_unavailable(monkeypatch):
+    _serve_series(monkeypatch, "2026-10-05T04:30:00+00:00", 6)  # 10:00-15:00
+    assert weather_data.hourly_facts("chennai", "today") is None
+    _serve_series(monkeypatch, "2026-10-05T04:30:00+00:00", 13)  # to 22:00, no 23:00 hour
+    assert weather_data.hourly_facts("chennai", "today") is None
+    _serve_series(monkeypatch, "2026-10-05T04:30:00+00:00", 14)  # to 23:00: the day is whole
+    assert _clock_range(weather_data.hourly_facts("chennai", "today")) == ("10:00", "23:00", 14)
+
+
+def test_hourly_facts_of_the_committed_snapshots_is_never_a_part_day():
+    # The snapshots hold 24 hours from one fetch, so today is the rest of the day and
+    # tomorrow is unavailable until they are refreshed with 48 (snapshot_google_weather.py).
+    # Whatever a refresh brings, a day is returned whole or not at all.
+    for city in ("chennai", "madurai", "coimbatore"):
+        assert weather_data.hourly_facts(city, "today") is not None
+        for day in ("today", "tomorrow", "day_after_tomorrow"):
+            facts = weather_data.hourly_facts(city, day)
+            if facts is not None:
+                assert facts["hours"][-1]["local_time"].startswith("23:"), (city, day)
+                if day != "today":
+                    assert facts["hours"][0]["local_time"].startswith("00:"), (city, day)
+
+
+def test_hourly_facts_today_and_tomorrow_are_disjoint_calendar_days(monkeypatch):
     # Partitioned by LOCAL (Chennai) calendar date, not UTC — late UTC hours
     # are already the next local day at IST (+5:30), so the UTC date alone
     # isn't the right disjointness check.
+    _serve_series(monkeypatch, "2026-10-05T04:30:00+00:00", 48)
     tz = weather_data._city_timezone("chennai")
     today = weather_data.hourly_facts("chennai", "today")
     tomorrow = weather_data.hourly_facts("chennai", "tomorrow")
-    if tomorrow is None:
-        pytest.skip("this fixture's hourly series doesn't reach a second day")
+
     def _local_date(h):
         return weather_data._parse_ts(h["time_iso"]).astimezone(tz).date()
 

@@ -63,7 +63,16 @@ FORECAST_DAYS = 5
 # (`pageSize` defaults to 5, so it is sent as well). GET /forecast/daily
 # serves up to this many; fixture mode serves what was snapshotted.
 FORECAST_DAYS_FETCHED = 10
+# GET /forecast/hourly serves up to this many hours...
 FORECAST_HOURS = 24
+# ...but a live hourly call fetches twice that. The series starts at the hour of
+# the fetch, so 24 hours end before tomorrow does (a fetch at 10:00 reaches
+# 09:00 tomorrow) and "tomorrow" would be a part-day. 48 hours from any hour of
+# the day always reach the end of tomorrow (weather_data.hourly_facts).
+FORECAST_HOURS_FETCHED = 48
+# The hourly lookup pages (`nextPageToken`) at 24 hours, so 48 take two calls;
+# the cap keeps a misbehaving reply from looping.
+MAX_HOUR_PAGES = 4
 HISTORY_HOURS = 24
 TIMEOUT = 10.0
 
@@ -166,14 +175,47 @@ def _params(kind: str, city_key: str) -> dict:
         params["days"] = FORECAST_DAYS_FETCHED
         params["pageSize"] = FORECAST_DAYS_FETCHED
     if kind == "forecast_hours":
-        params["hours"] = FORECAST_HOURS
+        params["hours"] = FORECAST_HOURS_FETCHED
     if kind == "history_hours":
         params["hours"] = HISTORY_HOURS
     return params
 
 
+def _more_hours(first: dict, params: dict) -> dict:
+    """`first` (the hourly lookup's first page) with the pages after it joined on:
+    follow `nextPageToken`, with the same query plus `pageToken`, until the
+    reply has none or FORECAST_HOURS_FETCHED hours are in hand. A later page that
+    fails keeps the hours already fetched rather than throwing a good live
+    series away for a stale fixture: hourly_facts() reports a day the series
+    does not reach as unavailable, so a short series costs "tomorrow", not a
+    wrong answer."""
+    token = first.get("nextPageToken")
+    if not token:
+        return first  # one page held it all
+    hours = list(first.get("forecastHours") or [])
+    pages = 1
+    while token and len(hours) < FORECAST_HOURS_FETCHED and pages < MAX_HOUR_PAGES:
+        try:
+            page = fetch_json(ENDPOINTS["forecast_hours"], {**params, "pageToken": token})
+        except (httpx.HTTPError, ValueError) as exc:
+            _LOG.warning("hourly forecast page %d failed (%s); keeping the first %d hours",
+                         pages + 1, _redacted(exc), len(hours))
+            break
+        more = page.get("forecastHours") or []
+        if not more:
+            break
+        hours.extend(more)
+        token = page.get("nextPageToken")
+        pages += 1
+    # Not "nextPageToken": that token belonged to the first page, not to this series.
+    return {**{k: v for k, v in first.items() if k != "nextPageToken"}, "forecastHours": hours}
+
+
 def _live(kind: str, city_key: str) -> Snapshot:
-    payload = fetch_json(ENDPOINTS[kind], _params(kind, city_key))
+    params = _params(kind, city_key)
+    payload = fetch_json(ENDPOINTS[kind], params)
+    if kind == "forecast_hours":
+        payload = _more_hours(payload, params)
     return Snapshot(
         kind=kind,
         city=city_key,

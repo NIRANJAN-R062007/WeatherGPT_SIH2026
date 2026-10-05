@@ -79,13 +79,32 @@ def test_out_of_scope_returns_none():
     assert data is None
 
 
-def test_best_window_today_and_tomorrow():
+def test_best_window_today_and_tomorrow(monkeypatch):
     # WIE-4: route() resolves which weather_data call answers best_window —
     # the day's decoded hourly facts — never scores the window itself.
+    asked = []
+
+    def hourly_facts(key, day):
+        asked.append(day)
+        return {"day": day, "hours": [{"local_time": "09:00"}]}
+
+    monkeypatch.setattr(weather_data, "hourly_facts", hourly_facts)
     for tw in ("today", "tomorrow"):
         data = router.route(_pq(intent="best_window", time_window=tw), _CHENNAI)
         assert data is not None and "hours" in data
         assert data["day"] == tw
+    assert asked == ["today", "tomorrow"]
+
+
+def test_best_window_tomorrow_is_none_when_the_series_does_not_cover_it():
+    # The committed hourly snapshots hold 24 hours from one fetch, so only the start of
+    # tomorrow is in them; hourly_facts reports that as unavailable, not as a whole day.
+    today = router.route(_pq(intent="best_window", time_window="today"), _CHENNAI)
+    assert today is not None and today["day"] == "today"
+    tomorrow = router.route(_pq(intent="best_window", time_window="tomorrow"), _CHENNAI)
+    if tomorrow is not None:  # snapshots refreshed with 48 hours: then it is the whole day
+        times = [h["local_time"] for h in tomorrow["hours"]]
+        assert times[0].startswith("00:") and times[-1].startswith("23:")
 
 
 def test_best_window_other_time_windows_fall_back_to_today():
