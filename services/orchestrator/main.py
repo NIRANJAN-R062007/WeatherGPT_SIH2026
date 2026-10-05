@@ -493,7 +493,7 @@ async def clear_history(user: dict = Depends(get_current_user),
         history.clear_for_user(token, user["id"])
     except config.ConfigError as e:
         raise HTTPException(status_code=503, detail="History is not configured") from e
-    except httpx.HTTPStatusError as e:
+    except httpx.HTTPError as e:  # an error status from Supabase, or no answer from it at all
         raise HTTPException(status_code=502, detail="Could not clear history") from e
     return {"cleared": True}
 
