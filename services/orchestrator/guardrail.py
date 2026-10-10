@@ -143,7 +143,21 @@ class Report:
     figures: list[dict] = field(default_factory=list)
 
 
-def check(answer: str, raw: dict) -> Report:
+def _strip_place_names(text: str, place_names) -> str:
+    """Blank out the place's own name ("7LC", "No.2 Goreswar") so its digits
+    aren't read as weather figures (issue #61). Only whole names that contain
+    a digit, longest first, never a bare number on its own, so a made-up
+    figure elsewhere in the sentence is still checked."""
+    names = sorted({_normalize_digits(n) for n in place_names
+                    if n and any(ch.isdigit() for ch in n)}, key=len, reverse=True)
+    for name in names:
+        if name.strip().isdigit():
+            continue
+        text = re.sub(rf"(?<!\w){re.escape(name)}(?!\w)", " ", text, flags=re.IGNORECASE)
+    return text
+
+
+def check(answer: str, raw: dict, place_names: tuple[str, ...] = ()) -> Report:
     """Validate every numeric token in `answer` against `raw`'s numeric leaves.
 
     Unit-aware: a figure only matches a field of a compatible unit (see
@@ -156,9 +170,12 @@ def check(answer: str, raw: dict) -> Report:
     answer first, so their digits never reach the numeric matcher, and each
     must ground against the "HH:MM" strings / `start_local`+`end_local` pairs
     in `raw` — see `_extract_clock` and `_index_times`.
+
+    `place_names` are the answer's own place names; see _strip_place_names.
     """
     index = _index(raw)
-    clock, remainder = _extract_clock(_normalize_digits(answer))
+    clock, remainder = _extract_clock(
+        _strip_place_names(_normalize_digits(answer), place_names))
     times, windows = _index_times(raw)
 
     figures = _extract(remainder)

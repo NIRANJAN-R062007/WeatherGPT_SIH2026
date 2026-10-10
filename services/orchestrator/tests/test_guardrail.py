@@ -8,7 +8,7 @@ import guardrail
 import pytest
 from fastapi.testclient import TestClient
 from i18n import render
-from main import app
+from main import _place_names, app
 from weather_data import get_weather
 
 CHENNAI = get_weather("chennai")                              # current facts
@@ -506,3 +506,38 @@ def test_a_utc_time_in_a_report_cannot_ground_a_local_time():
     assert guardrail.check("Clear at 10:00.", {"hours": [{"local_time": "10:00"}]}).ok
     assert guardrail.check("Window 8 AM–11 AM.",
                            {"w": {"start_local": "08:00", "end_local": "11:00"}}).ok
+
+
+# ---- issue #61: digits in the place's own name ------------------------------
+
+@pytest.mark.parametrize("label", ["7LC, Rajasthan", "No.2 Goreswar, Assam", "3 B, Rajasthan"])
+def test_a_place_name_with_digits_is_not_read_as_a_figure(label):
+    facts = get_weather("chennai")
+    text = render("current_weather", label, facts, "en")
+    assert not guardrail.check(text, facts).ok  # the bug: the name's digits are ungrounded
+    names = (label, label.split(", ")[0])
+    report = guardrail.check(text, facts, names)
+    assert report.ok and report.total > 0
+
+
+def test_a_made_up_figure_beside_a_digit_place_name_is_still_caught():
+    raw = {"temp_c": 31.0}
+    names = ("No.2 Goreswar, Assam", "No.2 Goreswar")
+    assert guardrail.check("In No.2 Goreswar it is 31°C.", raw, names).ok
+    report = guardrail.check("In No.2 Goreswar it is 31°C, with 47 mm of rain.", raw, names)
+    assert not report.ok
+    assert [f["reading"] for f in report.figures if not f["matched"]] == ["47 mm"]
+
+
+def test_only_whole_place_names_are_stripped():
+    # "3 B" must not blank a bare "3" elsewhere, nor match inside "13 B".
+    raw = {"temp_c": 31.0}
+    names = ("3 B",)
+    assert not guardrail.check("In 3 B it is 31°C and 3 km/h winds.", raw, names).ok
+    assert not guardrail.check("It is 31°C at 13 B.", raw, names).ok
+
+
+def test_gps_answer_strips_the_nearest_town():
+    loc = {"label": "your location (near 1A)", "nearest": {"label": "1A, Rajasthan"}}
+    assert _place_names(loc) == (
+        "your location (near 1A)", "your location (near 1A)", "1A, Rajasthan", "1A")

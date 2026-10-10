@@ -1,0 +1,23 @@
+# Response headers for the web/ app on Amplify (weathergpt-web, d10pzixgivjom4,
+# ap-southeast-1). plan.md SEC-N13 / finding F12. The app is a manual zip deploy, not
+# a git-connected build, so Amplify never reads this file by itself; apply it after
+# editing it:
+#
+#   aws amplify update-app --region ap-southeast-1 --app-id d10pzixgivjom4 \
+#     --custom-headers "$(cat web/customHttp.yml)"
+#
+# The CSP is stricter than the prototype's (root customHttp.yml): the Vite build has
+# no inline or eval'd scripts and self-hosts its fonts, and the API is same-origin
+# through the /api rewrite, so only Supabase (auth, history) is a third-party origin.
+# Inline styles stay allowed because React sets style attributes.
+customHeaders:
+  - pattern: "**"
+    headers:
+      - key: Strict-Transport-Security
+        value: "max-age=31536000; includeSubDomains"
+      - key: X-Content-Type-Options
+        value: "nosniff"
+      - key: Referrer-Policy
+        value: "strict-origin-when-cross-origin"
+      - key: Content-Security-Policy
+        value: "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self' https://bkohiigdngppywnzakvg.supabase.co; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"

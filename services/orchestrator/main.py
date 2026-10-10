@@ -391,8 +391,19 @@ def health():
     }
 
 
+def _place_names(loc: dict) -> tuple[str, ...]:
+    """The answer's place as it may appear in the text: the label, and the
+    bare name without its ", State" — for a GPS answer the nearest town's too.
+    guardrail.check() leaves these out of the figures it counts (issue #61)."""
+    names = []
+    for label in (loc.get("label"), (loc.get("nearest") or {}).get("label")):
+        if label:
+            names += [label, label.split(", ")[0]]
+    return tuple(names)
+
+
 def _narrate_grounded(intent: str, name: str, data: dict, prompt_facts: dict,
-                       persona: str | None = None):
+                       persona: str | None = None, place_names: tuple[str, ...] = ()):
     """Try narration, and once more with feedback if the first answer doesn't
     ground. The guardrail always checks against the FULL facts (`data`), never
     the parameter-trimmed `prompt_facts` sent to the prompt. Returns
@@ -402,7 +413,7 @@ def _narrate_grounded(intent: str, name: str, data: dict, prompt_facts: dict,
     if text is None:  # no provider / all failed — nothing to regenerate from
         return None, None, False, 1, None
     provider = narrate_module.last_provider or "llm"
-    report = guardrail.check(text, data)
+    report = guardrail.check(text, data, place_names)
     if (report.ok and report.total > 0
             and not persona_module.makes_unsafe_claim(persona, text)):
         return text, report, True, 1, provider
@@ -412,7 +423,7 @@ def _narrate_grounded(intent: str, name: str, data: dict, prompt_facts: dict,
                      feedback=", ".join(unmatched) or None, persona=persona)
     if text2 is not None:
         provider = narrate_module.last_provider or "llm"
-        report2 = guardrail.check(text2, data)
+        report2 = guardrail.check(text2, data, place_names)
         if (report2.ok and report2.total > 0
                 and not persona_module.makes_unsafe_claim(persona, text2)):
             return text2, report2, True, 2, provider
@@ -421,7 +432,7 @@ def _narrate_grounded(intent: str, name: str, data: dict, prompt_facts: dict,
 
 
 def _llm_attempt(intent: str, name: str, data: dict, lang: str, prompt_facts: dict,
-                  persona: str | None = None):
+                  persona: str | None = None, place_names: tuple[str, ...] = ()):
     """Try LLM narration (EN, with one regenerate-on-ungrounded retry),
     translating via Bhashini if the requested language isn't English (plan.md
     §13: ta/hi/te/mr). Returns (candidate, report, attempted, attempts, provider):
@@ -440,7 +451,7 @@ def _llm_attempt(intent: str, name: str, data: dict, lang: str, prompt_facts: di
     if lang != "en" and not bhashini.is_configured():
         return None, None, False, 0, None  # English narration would only be thrown away
     english, eng_report, attempted, attempts, provider = \
-        _narrate_grounded(intent, name, data, prompt_facts, persona)
+        _narrate_grounded(intent, name, data, prompt_facts, persona, place_names)
     if not english:
         return None, None, attempted, attempts, provider
 
@@ -451,7 +462,7 @@ def _llm_attempt(intent: str, name: str, data: dict, lang: str, prompt_facts: di
     if not translated:
         return None, None, attempted, attempts, provider  # no credentials / translation failed
 
-    report = guardrail.check(translated, data)
+    report = guardrail.check(translated, data, place_names)
     ok = report.ok and report.total > 0
     return (translated, report, attempted, attempts, provider) if ok \
         else (None, None, attempted, attempts, provider)
@@ -483,6 +494,8 @@ def get_history(token: str | None = Depends(get_bearer_token)):
             status_code=status if status in (401, 403) else 502,
             detail="Could not load history",
         ) from e
+    except httpx.HTTPError as e:  # no answer from Supabase at all (refused, timed out)
+        raise HTTPException(status_code=502, detail="Could not load history") from e
     return {"history": rows}
 
 
@@ -1432,10 +1445,11 @@ def ask(text: str, lang: str = "en", city: str | None = None, persona: str = per
         return resp
 
     name = point["label"]
+    place_names = _place_names(loc)
     prompt_facts = router.narration_facts(data, pq.parameter)
 
     candidate, report, attempted, attempts, provider = \
-        _llm_attempt(pq.intent, name, data, lang, prompt_facts, persona)
+        _llm_attempt(pq.intent, name, data, lang, prompt_facts, persona, place_names)
 
     if candidate:
         narration = "llm+bhashini" if lang != "en" else "llm"
@@ -1445,7 +1459,7 @@ def ask(text: str, lang: str = "en", city: str | None = None, persona: str = per
         fallback_used = attempted
         provider = "template"
         candidate = render(pq.intent, name, data, lang)
-        report = guardrail.check(candidate, data)
+        report = guardrail.check(candidate, data, place_names)
 
     grounding = {**asdict(report), "fallback_used": fallback_used, "narration": narration,
                  "attempts": attempts, "provider": provider}

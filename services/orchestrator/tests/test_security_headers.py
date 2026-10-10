@@ -60,6 +60,17 @@ def test_page_csp_matches_amplify():
         assert f"key: {name}" in custom
 
 
+def test_web_app_headers_are_complete_and_script_strict():
+    # web/ is a manual Amplify deploy; web/customHttp.yml is what gets applied to it.
+    custom = (REPO / "web" / "customHttp.yml").read_text()
+    for name in ("Strict-Transport-Security", "X-Content-Type-Options", "Referrer-Policy",
+                 "Content-Security-Policy"):
+        assert f"key: {name}" in custom
+    csp = custom.split("key: Content-Security-Policy")[1]
+    assert "script-src 'self';" in csp and "unsafe-eval" not in csp
+    assert "frame-ancestors 'none'" in csp and "object-src 'none'" in csp
+
+
 @pytest.mark.skipif(security_headers.DOCS_ENABLED, reason="API_DOCS_ENABLED is on in this env")
 @pytest.mark.parametrize("path", ["/docs", "/redoc", "/openapi.json"])
 def test_docs_are_off_by_default(path):

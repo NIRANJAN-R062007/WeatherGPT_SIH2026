@@ -98,6 +98,23 @@ def test_get_history_propagates_auth_failure(monkeypatch):
     assert r.status_code == 401
 
 
+@pytest.mark.parametrize("error", [
+    httpx.HTTPStatusError("nope", request=httpx.Request("GET", "https://x"),
+                          response=httpx.Response(500)),
+    httpx.ConnectError("supabase unreachable"),
+    httpx.ReadTimeout("supabase too slow"),
+], ids=["upstream-error", "connect-error", "timeout"])
+def test_get_history_is_a_502_when_supabase_fails(monkeypatch, error):
+    # Issue #62: a connection error or timeout used to escape as a 500.
+    def _boom(token, **k):
+        raise error
+
+    monkeypatch.setattr(history, "list_for_user", _boom)
+    r = client.get("/history", headers={"Authorization": "Bearer user-token"})
+    assert r.status_code == 502
+    assert r.json() == {"detail": "Could not load history"}
+
+
 @pytest.fixture
 def signed_in():
     """DELETE /history verifies the session against Supabase first; stand in for that."""
