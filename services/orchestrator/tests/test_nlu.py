@@ -603,3 +603,25 @@ def test_llm_best_window_with_an_unknown_city_is_a_refusal():
         '"parameter":"general","language":"en","confidence":0.9}'
     )
     assert pq.intent == "unsupported_city"
+
+
+@pytest.mark.parametrize("q", ["will it rain tomorrow?", "weather tomorrow"])
+def test_selected_city_answers_a_placeless_question_without_the_llm(monkeypatch, q):
+    # Issue #59 (regression from d704a33): no place named + the app's city
+    # hint is enough; the LLM parser must not run again.
+    monkeypatch.setattr(nlu.narrate, "is_configured", lambda: True)
+
+    def _boom(text):
+        raise AssertionError("_llm_parse was called")
+
+    monkeypatch.setattr(nlu, "_llm_parse", _boom)
+    pq = nlu.parse(q, lang_hint="en", city_hint="chennai")
+    assert (pq.city, pq.place, pq.source) == ("chennai", None, "rules")
+
+
+def test_an_unknown_named_place_still_goes_to_the_llm(monkeypatch):
+    monkeypatch.setattr(nlu.narrate, "is_configured", lambda: True)
+    calls = []
+    monkeypatch.setattr(nlu, "_llm_parse", lambda text: calls.append(text))
+    nlu.parse("will it rain in Qwertyabad tomorrow?", lang_hint="en", city_hint="chennai")
+    assert calls  # the hint must not hide a place the rules couldn't place

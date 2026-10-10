@@ -403,7 +403,8 @@ def _bare_place(text: str) -> bool:
     return _is_gazetteer_name(text)
 
 
-def _rule_accepted(pq: ParsedQuery, keyword_hit: bool, text: str) -> bool:
+def _rule_accepted(pq: ParsedQuery, keyword_hit: bool, text: str,
+                   city_from_hint: bool = False) -> bool:
     # A warning word or an unsupported product decides on its own — no city or
     # weather keyword needed, and no LLM round trip to confirm it.
     no_city_needed = ("out_of_scope", "warnings", "aviation", "best_window", "forecast_change")
@@ -414,7 +415,9 @@ def _rule_accepted(pq: ParsedQuery, keyword_hit: bool, text: str) -> bool:
     return (
         pq.intent in _P0_INTENTS
         and keyword_hit
-        and (pq.here or place_known(pq.place))
+        # No place named and the city came from the selected-city hint: the
+        # LLM has no place to find either (issue #59).
+        and (pq.here or place_known(pq.place) or (city_from_hint and pq.place is None))
         and pq.language in ("en", "ta")
     )
 
@@ -486,6 +489,14 @@ def parse(text: str, lang_hint: str | None = None, city_hint: str | None = None)
     pq = parse_rules(text, script)
     pq.language = language
 
+    keyword_hit = bool(_KEYWORD_HIT_RE.search(text))
+    if (pq.intent == "unrecognized" and pq.place is None and not pq.here
+            and keyword_hit and cities.resolve(city_hint) is not None):
+        # "weather tomorrow": a weather word, no place — the selected city is
+        # the place, the same way "here" stands in for one (issue #59).
+        pq.intent = "will_it_rain" if _RAIN_WORD_RE.search(text) else "current_weather"
+
+    city_from_hint = False
     # No city named in the text (e.g. "will it rain tomorrow?") but the intent
     # is clearly weather-shaped: fall back to the UI's currently selected city
     # rather than paying for a full LLM round trip just to learn there's no
@@ -496,9 +507,9 @@ def parse(text: str, lang_hint: str | None = None, city_hint: str | None = None)
         resolved_hint = cities.resolve(city_hint)
         if resolved_hint is not None:
             pq.city = resolved_hint
+            city_from_hint = True
 
-    keyword_hit = bool(_KEYWORD_HIT_RE.search(text))
-    if _rule_accepted(pq, keyword_hit, text):
+    if _rule_accepted(pq, keyword_hit, text, city_from_hint):
         pq.source, pq.confidence = "rules", 0.9
         return pq
 
