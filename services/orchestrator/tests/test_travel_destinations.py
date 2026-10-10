@@ -104,6 +104,22 @@ def test_a_route_beyond_the_demo_cities_gets_a_grounded_verdict(text, origin, de
     assert guardrail.check_advisory(answer, facts).ok
 
 
+def test_a_multi_leg_route_through_the_destinations_is_judged_at_every_stop():
+    # TFA-8's route legs (TFA-6): travel-only places as a stop and as the end.
+    body = client.post("/advisory/travel", json={
+        "text": "Chennai to Guwahati via Kolkata tomorrow by flight"}).json()
+    assert body["status"] == "ok"
+    slots = body["slots"]
+    assert (slots["origin"], slots.get("via"), slots["destination"]) == (
+        "chennai", "kolkata", "guwahati")
+    answer = body["answer"]
+    assert answer["verdict"] in ("go", "caution", "avoid")
+    provenance = {p["section"] for p in body["provenance"]}
+    assert {"origin.forecast", "stop_1.forecast", "destination.forecast"} <= provenance
+    facts = agent.COLLECTORS["travel"].collect(slots)
+    assert guardrail.check_advisory(answer, facts).ok
+
+
 def test_a_place_still_not_covered_is_named_back():
     body = client.post("/advisory/travel", json={"text": "to Shimla today from Chennai"}).json()
     assert body["status"] == "ask_back" and body["unsupported"] == {"destination": "shimla"}
