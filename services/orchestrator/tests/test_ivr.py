@@ -276,8 +276,10 @@ def test_answer_cache_expires(monkeypatch):
     ivr._answer_cache.clear()
     monkeypatch.setattr(config, "IVR_ANSWER_TTL_SECONDS", 0)
     ivr._cache_put("CA999", b"wavbytes")
-    import time
-    time.sleep(0.01)
+    # Move the clock past expiry rather than sleeping: Windows' monotonic
+    # clock only ticks every ~15.6 ms, so a short sleep may not advance it (#57).
+    later = ivr.time.monotonic() + 1
+    monkeypatch.setattr(ivr.time, "monotonic", lambda: later)
     assert ivr._cache_get("CA999") is None
 
 
