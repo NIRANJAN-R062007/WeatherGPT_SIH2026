@@ -23,6 +23,13 @@ def _allow_private_webhooks(monkeypatch):
     monkeypatch.setattr(config, "ALERT_WEBHOOK_ALLOW_PRIVATE", True)
 
 
+@pytest.fixture(autouse=True)
+def _clear_retry_state():
+    alert_engine._retry.clear()
+    yield
+    alert_engine._retry.clear()
+
+
 def _sub(**overrides):
     base = {
         "id": 1, "city_key": "chennai", "lat": None, "lon": None, "radius_km": None,
@@ -232,3 +239,91 @@ def test_check_once_survives_one_subscription_raising(monkeypatch):
     monkeypatch.setattr(alert_engine, "_dispatch_webhook", _flaky)
     assert alert_engine.check_once() == 1  # only `good` counted; `bad`'s dispatch raised
     assert len(sent) == 1
+
+
+class _Clock:
+    def __init__(self):
+        self.now = 1000.0
+
+    def __call__(self):
+        return self.now
+
+
+def test_check_once_retries_a_failed_dispatch(monkeypatch):
+    # Issue #60: a failed webhook must not be marked as notified, so the next
+    # poll after the backoff sends the alert again.
+    sub = _sub(last_notified_colour=None)
+    monkeypatch.setattr(alert_engine, "_all_subscriptions", lambda: [sub])
+    monkeypatch.setattr(imd_warnings, "public", lambda city, lang: _verdict("red"))
+    clock = _Clock()
+    monkeypatch.setattr(alert_engine, "_monotonic", clock)
+    marked = []
+    monkeypatch.setattr(alert_engine, "_mark_notified", _marker(marked))
+    outcomes = [False, True]
+    calls = []
+
+    def _dispatch(target, payload):
+        calls.append(payload["colour"])
+        return outcomes.pop(0)
+
+    monkeypatch.setattr(alert_engine, "_dispatch_webhook", _dispatch)
+
+    assert alert_engine.check_once() == 1
+    assert marked == []  # failed, so not marked
+    assert alert_engine.check_once() == 0  # still inside the backoff
+    clock.now += alert_engine._RETRY_BASE_SECONDS
+    assert alert_engine.check_once() == 1  # retried, and it went through
+    assert calls == ["red", "red"]
+    assert marked == [(1, "red")]
+    assert 1 not in alert_engine._retry
+
+
+def test_check_once_backoff_doubles_and_is_capped(monkeypatch):
+    sub = _sub(last_notified_colour=None)
+    monkeypatch.setattr(alert_engine, "_all_subscriptions", lambda: [sub])
+    monkeypatch.setattr(imd_warnings, "public", lambda city, lang: _verdict("red"))
+    clock = _Clock()
+    monkeypatch.setattr(alert_engine, "_monotonic", clock)
+    monkeypatch.setattr(alert_engine, "_mark_notified", _refuse_dispatch)
+    monkeypatch.setattr(alert_engine, "_dispatch_webhook", lambda t, p: False)
+
+    delays = []
+    for _ in range(10):
+        assert alert_engine.check_once() == 1
+        delay = alert_engine._retry[1][2] - clock.now
+        delays.append(delay)
+        clock.now += delay - 1
+        assert alert_engine.check_once() == 0  # one second early: not yet
+        clock.now += 1
+    assert delays[:3] == [60.0, 120.0, 240.0]
+    assert max(delays) == alert_engine._RETRY_MAX_SECONDS
+
+
+def test_check_once_new_colour_skips_the_backoff(monkeypatch):
+    sub = _sub(last_notified_colour=None)
+    monkeypatch.setattr(alert_engine, "_all_subscriptions", lambda: [sub])
+    colour = {"now": "orange"}
+    monkeypatch.setattr(imd_warnings, "public", lambda city, lang: _verdict(colour["now"]))
+    monkeypatch.setattr(alert_engine, "_monotonic", _Clock())
+    marked = []
+    monkeypatch.setattr(alert_engine, "_mark_notified", _marker(marked))
+    outcomes = [False, True]
+    monkeypatch.setattr(alert_engine, "_dispatch_webhook", lambda t, p: outcomes.pop(0))
+
+    assert alert_engine.check_once() == 1
+    colour["now"] = "red"  # escalated while the orange one was backing off
+    assert alert_engine.check_once() == 1
+    assert marked == [(1, "red")]
+
+
+def test_check_once_fcm_row_is_not_marked(monkeypatch):
+    # _dispatch_fcm always fails until FCM is wired up, so the row keeps
+    # its old colour and gets the current alert once it is.
+    sub = _sub(channel="fcm", target="device-token", last_notified_colour=None)
+    monkeypatch.setattr(alert_engine, "_all_subscriptions", lambda: [sub])
+    monkeypatch.setattr(imd_warnings, "public", lambda city, lang: _verdict("red"))
+    monkeypatch.setattr(alert_engine, "_monotonic", _Clock())
+    monkeypatch.setattr(alert_engine, "_mark_notified", _refuse_dispatch)
+
+    assert alert_engine.check_once() == 1
+    assert alert_engine.check_once() == 0  # backing off, not posting every tick

@@ -24,12 +24,18 @@ Dispatch is a small pluggable interface, one channel implemented:
   order of the Exotel/Bhashini accounts this project already needed, out of
   scope for this pass. Subscribing with channel="fcm" is accepted (the row
   is stored, so it's ready once FCM is wired up) but every dispatch attempt
-  logs and no-ops — see _dispatch_fcm.
+  logs and no-ops — see _dispatch_fcm. It counts as a failed dispatch, so
+  the row is retried with backoff (at most hourly) and gets the current
+  alert once FCM is wired up.
 
 Change detection is colour-based, not "is there a warning": a subscription's
-`last_notified_colour` only updates on dispatch, so a standing alert doesn't
-re-fire every poll tick, but any change (new alert, escalation,
-de-escalation, or clearing back to green/unavailable) does.
+`last_notified_colour` only updates on a dispatch that succeeded, so a
+standing alert doesn't re-fire every poll tick, but any change (new alert,
+escalation, de-escalation, or clearing back to green/unavailable) does.
+A failed dispatch leaves it unchanged and is retried on a later poll, with
+backoff (_RETRY_BASE_SECONDS doubling up to _RETRY_MAX_SECONDS) so a target
+that is down for good isn't posted to every tick. The backoff state is per
+process and resets on restart, which only costs one early retry.
 """
 
 import hashlib
@@ -53,6 +59,11 @@ _worker: threading.Thread | None = None
 _worker_pid: int | None = None
 _worker_lock = threading.Lock()
 _monotonic = time.monotonic  # test seam
+
+_RETRY_BASE_SECONDS = 60.0
+_RETRY_MAX_SECONDS = 3600.0
+# subscription id -> (colour that failed, failures so far, monotonic time of next try)
+_retry: dict[int, tuple[str | None, int, float]] = {}
 
 
 class SubscriptionError(ValueError):
@@ -265,13 +276,32 @@ def _mark_notified(sub_id: int, colour: str | None) -> None:
         )
 
 
+def _backing_off(sub_id: int, colour: str | None) -> bool:
+    entry = _retry.get(sub_id)
+    if entry is None:
+        return False
+    failed_colour, _, retry_at = entry
+    if failed_colour != colour:  # the alert changed: try the new one now
+        del _retry[sub_id]
+        return False
+    return _monotonic() < retry_at
+
+
+def _record_failure(sub_id: int, colour: str | None) -> None:
+    entry = _retry.get(sub_id)
+    failures = entry[1] + 1 if entry and entry[0] == colour else 1
+    delay = min(_RETRY_BASE_SECONDS * 2 ** (failures - 1), _RETRY_MAX_SECONDS)
+    _retry[sub_id] = (colour, failures, _monotonic() + delay)
+
+
 def check_once() -> int:
     """One pass over every subscription: resolve its city, check
-    imd_warnings for a colour change, dispatch and update dedupe state if so.
-    Returns how many dispatches were attempted (sent or not — a failed
-    webhook still counts as "the engine tried", distinct from "nothing to
-    report" for check_once()'s caller/tests). Never raises: one subscription
-    failing (bad city, dispatch error, DB hiccup) must not stop the rest.
+    imd_warnings for a colour change, dispatch and update dedupe state if
+    the dispatch succeeded. Returns how many dispatches were attempted (sent
+    or not — a failed webhook still counts as "the engine tried", distinct
+    from "nothing to report" for check_once()'s caller/tests). Never raises:
+    one subscription failing (bad city, dispatch error, DB hiccup) must not
+    stop the rest.
     """
     attempted = 0
     for sub in _all_subscriptions():
@@ -282,12 +312,19 @@ def check_once() -> int:
             verdict = imd_warnings.public(city_key, sub["lang"])
             colour = verdict["warning"]["colour"] if verdict["warning"] else verdict["status"]
             if colour == sub["last_notified_colour"]:
+                _retry.pop(sub["id"], None)
                 continue  # no change since we last told this subscriber anything
+            if _backing_off(sub["id"], colour):
+                continue
             payload = _build_payload(sub, city_key, verdict)
             dispatcher = globals()[_DISPATCHERS[sub["channel"]]]
-            dispatcher(sub["target"], payload)
+            sent = dispatcher(sub["target"], payload)
             attempted += 1
-            _mark_notified(sub["id"], colour)
+            if sent:
+                _retry.pop(sub["id"], None)
+                _mark_notified(sub["id"], colour)
+            else:  # not marked, so a later poll retries it
+                _record_failure(sub["id"], colour)
         except Exception:
             _LOG.exception("alert_engine: check failed for subscription %s", sub.get("id"))
     return attempted
