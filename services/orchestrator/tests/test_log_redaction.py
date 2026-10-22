@@ -35,6 +35,8 @@ def test_gateway_copy_is_identical():
     ("caller +91 98765 43210", "[phone …10]", "98765"),
     ("caller 9876543210 again", "[phone …10] again", "9876543210"),
     ("GET /facts?lat=13.082712&lon=80.270718", "lat=13.08&lon=80.27", "082712"),
+    ("GET /whatsapp/webhook?hub.mode=subscribe&hub.verify_token=vt-s3cr3t&hub.challenge=7",
+     "hub.verify_token=[redacted]&hub.challenge=7", "vt-s3cr3t"),
 ])
 def test_redact(raw, kept, gone):
     out = log_redaction.redact(raw)

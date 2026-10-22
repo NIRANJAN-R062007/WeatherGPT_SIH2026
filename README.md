@@ -37,7 +37,7 @@ The key rule: **the LLM routes questions, the data answers them.** Every number 
 | **Grounded answers** | Every figure is checked against the raw weather data before it reaches the user. If the LLM's answer doesn't match, it is regenerated once, then replaced with a fixed template answer. |
 | **Provenance on every answer** | Each answer says which data product it came from, when it was issued, and whether it is live or cached. |
 | **Five languages** | English, Hindi, Tamil, Telugu and Marathi as text, with voice input and output through [Bhashini](https://bhashini.gov.in). |
-| **Many channels** | Flutter mobile app, React web dashboard, HTML demo page, and an IVR phone line (Exotel). |
+| **Many channels** | Flutter mobile app, React web dashboard, HTML demo page, an IVR phone line (Exotel), and a WhatsApp bot (Meta Cloud API). |
 | **Weather Intelligence Engine** | Rule-based, no LLM: finds the **best time window** for an activity, compares **what-if** times ("5 PM vs 9 AM"), and gives **persona advice** (farmer, traveller, general…). |
 | **Travel and sowing advice** | `POST /advisory/travel` ("can I go from Chennai to Madurai tomorrow?", with up to two stops: "…via Trichy") answers **go / caution / avoid**; `POST /advisory/sowing` ("when should I sow groundnut in Madurai?") answers **suitable / not suitable**, with pros, cons and a time window. A Strands agent (Gemini, then Groq) writes the answer from facts the code collected first. Code then enforces two safety rules: a red warning or a thunderstorm report always means "avoid", and the guardrail checks every number. If the agent is off or fails, a rule-based template answers. |
 | **Personas** | General citizen, farmer, fisherman, aviation, city official and traveller. Same data, framed for each user. Each persona also sets the app's colour theme. |
@@ -214,7 +214,7 @@ All settings live in `.env` (see `.env.example` for the full list with comments)
 | `SUPABASE_URL`, `SUPABASE_ANON_KEY` | Accounts and query history |
 | `ALLOWED_ORIGINS` | CORS allow-list |
 | `RATE_LIMIT_PER_MINUTE`, `TRUSTED_PROXY_HOPS` | Per-client rate limiting |
-| `WARNINGS_ENABLED`, `IVR_ENABLED`, `ALERT_ENGINE_ENABLED` | Feature switches (off by default) |
+| `WARNINGS_ENABLED`, `IVR_ENABLED`, `WHATSAPP_ENABLED`, `ALERT_ENGINE_ENABLED` | Feature switches (off by default) |
 
 Never commit `.env`; it is gitignored, and CI runs gitleaks on every push.
 
@@ -256,7 +256,7 @@ Tests block real network calls and use the saved fixtures, so they run without A
 - **IVR is built but not live.** The Exotel number is waiting on KYC; a simulated call path (`ivr_simulate.py`) is used for demos.
 - **Sowing advice covers only a draft crop file.** `data/crops/crops.json` has groundnut for Madurai and Coimbatore, plus ragi for Tamil Nadu. Ragi has sowing months only, with no temperature range, so it answers "not available". No agronomist has reviewed the file yet. Any other crop or district answers `not_available`; the agent never fills the gap from memory.
 - **Forecast change detection** ("what changed since this morning?") works from stored forecast snapshots (`GET /intelligence/changes`). With `WEATHER_MODE=fixtures` it compares the forecast with a sample earlier forecast for each demo city, and the answer says the baseline is a sample.
-- **WhatsApp bot, cyclone map and climate trends** are on the roadmap.
+- **WhatsApp bot is built but not live.** Typed questions and shared locations work offline (`whatsapp_simulate.py`); going live needs a Meta app. Voice notes are not built. Cyclone map and climate trends are on the roadmap.
 - **LLM-path latency:** p95 measured at 8.3 s on free-tier keys (target 2 s). The template path is p95 16 ms at 150 req/s.
 
 The full task list and history are in [`plan.md`](plan.md).

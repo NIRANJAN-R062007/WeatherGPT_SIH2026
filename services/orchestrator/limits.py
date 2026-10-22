@@ -80,6 +80,8 @@ _IVR_PATH = "/ivr/recording"
 # Fetched by Exotel during a call: one global bucket, like _IVR_PATH.
 _IVR_AUDIO_PATH = "/ivr/menu.wav"
 _IVR_ANSWER_PREFIX = "/ivr/answer/"
+# Meta posts every inbound message here from a few IPs: one global bucket.
+_WHATSAPP_PATH = "/whatsapp/webhook"
 _WINDOW_SECONDS = 60.0
 # Long enough that a flapping Redis doesn't add a connect timeout to every
 # request, short enough to pick a restarted one back up within a window.
@@ -175,6 +177,8 @@ def _rule(path: str) -> tuple[str, int, bool]:
     per_client = config.RATE_LIMIT_PER_MINUTE
     if path == _IVR_PATH:
         return "ivr", config.IVR_GLOBAL_RATE_PER_MIN, False
+    if path == _WHATSAPP_PATH:
+        return "whatsapp", config.WHATSAPP_GLOBAL_RATE_PER_MIN, False
     if path == _IVR_AUDIO_PATH or path.startswith(_IVR_ANSWER_PREFIX):
         return "ivr-audio", config.IVR_AUDIO_RATE_PER_MIN, False
     if path == _WRITE_PREFIX or path.startswith(_WRITE_PREFIX + "/"):
