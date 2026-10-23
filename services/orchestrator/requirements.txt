@@ -10,3 +10,8 @@ psycopg2-binary==2.9.13
 redis==5.0.8
 python-multipart==0.0.31
 strands-agents[gemini,ollama,openai]==1.57.2
+# mcp comes in only through strands-agents (which caps it below 2.2, up to at
+# least 1.62.0) and is never imported by this app. 2.1.1 has CVE-2026-59951;
+# 1.30.0 carries the fix and is inside strands' range. Drop this pin once
+# strands-agents allows mcp>=2.2.
+mcp==1.30.0
