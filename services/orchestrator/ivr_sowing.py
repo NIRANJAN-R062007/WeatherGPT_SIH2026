@@ -12,6 +12,12 @@ recording on the same call answers the question. That needs the Exotel flow to
 loop from the answer Greeting back to the Record applet; a flow without the
 loop just ends after the question.
 
+The WhatsApp channel (whatsapp.py) reuses the same flow over chat:
+`reply(..., channel="whatsapp")` with "wa:<sender key>" in place of a CallSid.
+Its open conversations live in their own table with their own lifetime
+(WHATSAPP_CONVERSATION_TTL_SECONDS), so chat users can't push open calls out,
+and its answer is sent as a text message instead of spoken.
+
 The advisory's sentences are English (TFA-23 owns the other languages), so for
 any other language the spoken text goes through Bhashini translation and the
 guardrail re-checks its numbers against the facts, as /ask does. If either
@@ -99,10 +105,12 @@ CHANNELS = ("ivr", "whatsapp")
 
 def _table(channel: str) -> tuple[dict, int, int]:
     """(pending table, lifetime in seconds, max entries) for a channel."""
+    if channel == "ivr":
+        return _pending, config.IVR_ANSWER_TTL_SECONDS, config.IVR_ANSWER_CACHE_MAX
     if channel == "whatsapp":
         return (_pending_whatsapp, config.WHATSAPP_CONVERSATION_TTL_SECONDS,
                 config.WHATSAPP_STATE_MAX)
-    return _pending, config.IVR_ANSWER_TTL_SECONDS, config.IVR_ANSWER_CACHE_MAX
+    raise ValueError(f"channel must be one of {CHANNELS}")
 
 
 def is_sowing_question(text: str) -> bool:
@@ -112,8 +120,11 @@ def is_sowing_question(text: str) -> bool:
 def _remember(call_sid: str, slots: dict, asking: str | None, channel: str = "ivr") -> None:
     pending, ttl, cap = _table(channel)
     with _lock:
+        now = time.monotonic()
+        for stale in [k for k, entry in pending.items() if now >= entry[0]]:
+            del pending[stale]  # expired turns are never read again; don't keep them
         pending.pop(call_sid, None)
-        pending[call_sid] = (time.monotonic() + ttl, dict(slots), asking)
+        pending[call_sid] = (now + ttl, dict(slots), asking)
         while len(pending) > cap:
             pending.pop(next(iter(pending)))
 

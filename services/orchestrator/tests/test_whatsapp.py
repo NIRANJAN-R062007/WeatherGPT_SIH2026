@@ -647,3 +647,70 @@ def test_handle_message_looks_up_send_text_at_call_time(monkeypatch):
     monkeypatch.setattr(whatsapp, "send_text", sent)
     whatsapp.handle_message(_text("rain in Chennai"), _ask_recorder()[0], _msg)
     assert sent.out == [("919876543210", "It is sunny.")]
+
+
+# --- privacy fixes (2026-10-23 review) ----------------------------------------
+
+def test_sender_key_is_an_hmac_with_the_app_secret(monkeypatch):
+    expected = hmac.new(SECRET.encode(), b"919876543210", hashlib.sha256).hexdigest()[:16]
+    assert whatsapp.sender_key("919876543210") == expected
+    assert whatsapp.sender_key("919876543210") != (
+        hashlib.sha256(b"919876543210").hexdigest()[:16])  # not a bare hash
+    monkeypatch.setattr(config, "WHATSAPP_APP_SECRET", "another-secret")
+    assert whatsapp.sender_key("919876543210") != expected
+
+
+def test_expired_entries_are_dropped_on_the_next_write(monkeypatch):
+    clock = [1000.0]
+    monkeypatch.setattr(whatsapp, "_monotonic", lambda: clock[0])
+    whatsapp._put(whatsapp._here, "gone", 10, 13.1, 80.25)
+    whatsapp._put(whatsapp._waiting, "gone", 10, "location", "q", "en", None)
+    clock[0] += 11
+    whatsapp._put(whatsapp._here, "other", 10, 1.0, 2.0)
+    whatsapp._put(whatsapp._waiting, "other", 10, "location", "q", "en", None)
+    assert "gone" not in whatsapp._here and "gone" not in whatsapp._waiting
+    assert "other" in whatsapp._here and "other" in whatsapp._waiting
+
+
+def test_idle_send_times_are_dropped(monkeypatch):
+    clock = [1000.0]
+    monkeypatch.setattr(whatsapp, "_monotonic", lambda: clock[0])
+    whatsapp._within_sender_limit("idle-sender")
+    clock[0] += 61
+    whatsapp._within_sender_limit("active-sender")
+    assert "idle-sender" not in whatsapp._sender_hits
+    assert "active-sender" in whatsapp._sender_hits
+
+
+def test_marathi_greeting_gets_help():
+    ask, calls = _ask_recorder()
+    sent = _run(_text("नमस्कार", "a"), ask=ask)
+    assert sent.out[0][1] == whatsapp._HELP["hi"] and calls == []  # Devanagari: Hindi first
+    _run(_text("marathi", "b"), ask=ask)
+    sent = _run(_text("नमस्कार", "c"), ask=ask)
+    assert sent.out[0][1] == whatsapp._HELP["mr"]
+
+
+def test_ivr_default_channel_leaves_the_whatsapp_table_alone():
+    ivr_sowing._pending.clear()
+    try:
+        ivr_sowing.reply("CA-x", "when should I sow groundnut", "en")
+        assert "CA-x" in ivr_sowing._pending and ivr_sowing._pending_whatsapp == {}
+    finally:
+        ivr_sowing._pending.clear()
+
+
+def test_sowing_table_lookup_rejects_an_unknown_channel():
+    with pytest.raises(ValueError):
+        ivr_sowing._table("sms")
+
+
+def test_expired_sowing_turns_are_dropped_on_the_next_write(monkeypatch):
+    clock = [0.0]
+    monkeypatch.setattr(ivr_sowing.time, "monotonic", lambda: clock[0])
+    monkeypatch.setattr(config, "WHATSAPP_CONVERSATION_TTL_SECONDS", 10)
+    ivr_sowing.reply("wa:old", "when should I sow groundnut", "en", channel="whatsapp")
+    clock[0] = 11
+    ivr_sowing.reply("wa:new", "when should I sow groundnut", "en", channel="whatsapp")
+    assert "wa:old" not in ivr_sowing._pending_whatsapp
+    assert "wa:new" in ivr_sowing._pending_whatsapp
