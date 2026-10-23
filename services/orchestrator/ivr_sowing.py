@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import logging
 import re
+import threading
 import time
 
 import bhashini
@@ -88,42 +89,69 @@ _FALLBACK_DISCLAIMER = {
 # CallSid -> (expires_at, slots, asking): a sowing conversation waiting for the
 # caller's next recording. In memory, like ivr.py's answer cache, for the same reason.
 _pending: dict[str, tuple[float, dict, str | None]] = {}
+# The same for WhatsApp senders (whatsapp.py, keys "wa:<sender hash>"): its own
+# table, lifetime and cap, so chat users can't push open IVR calls out.
+_pending_whatsapp: dict[str, tuple[float, dict, str | None]] = {}
+# reply() runs on several threads at once (IVR requests, WhatsApp webhook tasks).
+_lock = threading.Lock()
+CHANNELS = ("ivr", "whatsapp")
+
+
+def _table(channel: str) -> tuple[dict, int, int]:
+    """(pending table, lifetime in seconds, max entries) for a channel."""
+    if channel == "whatsapp":
+        return (_pending_whatsapp, config.WHATSAPP_CONVERSATION_TTL_SECONDS,
+                config.WHATSAPP_STATE_MAX)
+    return _pending, config.IVR_ANSWER_TTL_SECONDS, config.IVR_ANSWER_CACHE_MAX
 
 
 def is_sowing_question(text: str) -> bool:
     return bool(_SOWING_CUES.search(text or ""))
 
 
-def _remember(call_sid: str, slots: dict, asking: str | None) -> None:
-    _pending.pop(call_sid, None)
-    _pending[call_sid] = (time.monotonic() + config.IVR_ANSWER_TTL_SECONDS, dict(slots), asking)
-    while len(_pending) > config.IVR_ANSWER_CACHE_MAX:
-        _pending.pop(next(iter(_pending)))
+def _remember(call_sid: str, slots: dict, asking: str | None, channel: str = "ivr") -> None:
+    pending, ttl, cap = _table(channel)
+    with _lock:
+        pending.pop(call_sid, None)
+        pending[call_sid] = (time.monotonic() + ttl, dict(slots), asking)
+        while len(pending) > cap:
+            pending.pop(next(iter(pending)))
 
 
-def _recall(call_sid: str) -> tuple[dict, str | None] | None:
-    entry = _pending.get(call_sid)
-    if entry is None:
-        return None
-    expires, slots, asking = entry
-    if time.monotonic() >= expires:
-        _pending.pop(call_sid, None)
-        return None
-    return slots, asking
+def _recall(call_sid: str, channel: str = "ivr") -> tuple[dict, str | None] | None:
+    pending, _, _ = _table(channel)
+    with _lock:
+        entry = pending.get(call_sid)
+        if entry is None:
+            return None
+        expires, slots, asking = entry
+        if time.monotonic() >= expires:
+            pending.pop(call_sid, None)
+            return None
+        return slots, asking
 
 
-def reply(call_sid: str, transcript: str, lang: str) -> str | None:
+def _forget(call_sid: str, channel: str = "ivr") -> None:
+    pending, _, _ = _table(channel)
+    with _lock:
+        pending.pop(call_sid, None)
+
+
+def reply(call_sid: str, transcript: str, lang: str, channel: str = "ivr") -> str | None:
     """What to say back for this recording, or None when it isn't a sowing question
-    (and no sowing conversation is open on this call), so /ask answers it."""
-    open_turn = _recall(call_sid)
+    (and no sowing conversation is open on this call), so /ask answers it.
+    `channel` picks the table the open conversation is kept in (CHANNELS)."""
+    if channel not in CHANNELS:
+        raise ValueError(f"channel must be one of {CHANNELS}")
+    open_turn = _recall(call_sid, channel)
     if open_turn is None and not is_sowing_question(transcript):
         return None
     have, asking = open_turn or ({}, None)
     parsed = advisory_slots.parse(KIND, transcript, have=have, asking=asking)
     if not parsed.complete:
-        _remember(call_sid, parsed.slots, parsed.asking)
+        _remember(call_sid, parsed.slots, parsed.asking, channel)
         return advisory_slots.ask_back(parsed, lang)
-    _pending.pop(call_sid, None)
+    _forget(call_sid, channel)
     # In English: spoken() translates the whole answer, then re-grounds it.
     advice = advisory_agent.advise(KIND, parsed.slots, "en")
     return spoken(advice.answer, parsed.slots, advice.facts.raw(), lang)

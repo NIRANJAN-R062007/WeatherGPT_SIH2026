@@ -268,6 +268,39 @@ IVR_ANSWER_CACHE_MAX: int = 500
 IVR_ANSWER_TTL_SECONDS: int = _int_env("IVR_ANSWER_TTL_SECONDS", 300)
 
 
+# WhatsApp channel (plan.md §8 Phase 5 — Mahesh): the Meta WhatsApp Cloud API
+# posts each inbound message to POST /whatsapp/webhook, signed with the app
+# secret; we answer through the Graph API. WHATSAPP_ENABLED gates the routes,
+# and all four credentials below are REQUIRED with it (empty -> not mounted,
+# fail closed, see whatsapp.mount).
+WHATSAPP_ENABLED: bool = (os.getenv("WHATSAPP_ENABLED") or "").strip().lower() in (
+    "1", "true", "yes")
+# Meta app dashboard: App settings -> Basic -> App secret. Signs every webhook POST.
+WHATSAPP_APP_SECRET: str | None = os.getenv("WHATSAPP_APP_SECRET")
+# A string we choose; Meta echoes it on the GET handshake when the webhook is registered.
+WHATSAPP_VERIFY_TOKEN: str | None = os.getenv("WHATSAPP_VERIFY_TOKEN")
+# System-user (or temporary) access token with whatsapp_business_messaging.
+WHATSAPP_ACCESS_TOKEN: str | None = os.getenv("WHATSAPP_ACCESS_TOKEN")
+# WhatsApp -> API setup -> "Phone number ID" (not the phone number itself).
+WHATSAPP_PHONE_NUMBER_ID: str | None = os.getenv("WHATSAPP_PHONE_NUMBER_ID")
+WHATSAPP_GRAPH_BASE: str = os.getenv("WHATSAPP_GRAPH_BASE") or "https://graph.facebook.com"
+WHATSAPP_GRAPH_VERSION: str = os.getenv("WHATSAPP_GRAPH_VERSION") or "v21.0"
+# Webhook POSTs, all senders combined (Meta calls from a few IPs): limits.py.
+WHATSAPP_GLOBAL_RATE_PER_MIN: int = int(_float_env("WHATSAPP_GLOBAL_RATE_PER_MIN", 300))
+# Messages answered per sender per minute; the rest are dropped. 0 disables.
+WHATSAPP_SENDER_RATE_PER_MIN: int = int(_float_env("WHATSAPP_SENDER_RATE_PER_MIN", 6))
+# Meta retries a webhook it thinks failed; a message id seen inside this window is ignored.
+WHATSAPP_DEDUPE_TTL_SECONDS: int = _int_env("WHATSAPP_DEDUPE_TTL_SECONDS", 600)
+# How long a question waiting on the sender stays open: a numbered place choice,
+# a shared location, or the sowing advisory's crop/district ask-back.
+WHATSAPP_CONVERSATION_TTL_SECONDS: int = _int_env("WHATSAPP_CONVERSATION_TTL_SECONDS", 900)
+# How long a shared location (snapped to 0.05°, in memory only) answers questions
+# that name no place.
+WHATSAPP_LOCATION_TTL_SECONDS: int = _int_env("WHATSAPP_LOCATION_TTL_SECONDS", 3600)
+# Max senders held in each in-memory WhatsApp table (oldest evicted).
+WHATSAPP_STATE_MAX: int = 5000
+
+
 # Proactive alerts (plan.md §8 Phase 4 — Niranjan): a background poller
 # checks imd_warnings.public() for every city with a subscriber and dispatches
 # a push when the colour changes (new alert, escalation, de-escalation, or

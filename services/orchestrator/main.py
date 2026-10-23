@@ -46,6 +46,7 @@ import router
 import security_headers
 import taf
 import weather_data
+import whatsapp
 from advisory import agent as advisory_agent
 from advisory import cache as advisory_cache
 from advisory import slots as advisory_slots
@@ -1510,6 +1511,7 @@ def ask(text: str, lang: str = "en", city: str | None = None, persona: str = per
 
 
 ivr.mount(app, ask, _msg)
+whatsapp.mount(app, ask, _msg)
 alert_engine.ensure_worker()
 
 # Serves the frontend on the same origin/tunnel as the API (plan.md §14 host

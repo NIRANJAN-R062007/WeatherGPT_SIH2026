@@ -4,7 +4,8 @@ Phase 8, SEC-N8; risk R16).
 `install()` wraps the global LogRecord factory, so it covers every logger in
 the process — this app's, httpx's, and uvicorn's access log, which writes
 each request line with its query string (the IVR's `?key=<webhook secret>`,
-`/alerts/subscriptions?target=<webhook URL or FCM token>`). Records are
+WhatsApp's `hub.verify_token`, `/alerts/subscriptions?target=<webhook URL or
+FCM token>`). Records are
 cleaned when they are created, before any handler or formatter sees them:
 
 - `Authorization: Bearer <token>`, bare JWTs, and the values of sensitive
@@ -34,7 +35,7 @@ _JWT = re.compile(r"\beyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]*")
 _URL = re.compile(
     r"\b([a-z][a-z0-9+.-]*://)(?:[^/\s?#@'\"<>)]*@)?([^/\s?#'\"<>)]+)[^\s'\"<>)]*", re.I)
 _SECRET_PARAM = re.compile(
-    r"(?i)([?&;](?:key|api_?key|token|access_token|refresh_token|manage_token|secret"
+    r"(?i)([?&;](?:key|api_?key|token|access_token|refresh_token|manage_token|secret|hub\.verify_token"
     r"|password|signature|sig|target|recordingurl|from|to|phone|callfrom|callto)=)[^&#\s\"']*"
 )
 _COORD_PARAM = re.compile(r"(?i)([?&;](?:lat|lon|lng|latitude|longitude)=)(-?\d+(?:\.\d+)?)")
