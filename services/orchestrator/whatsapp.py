@@ -29,10 +29,15 @@ What the web and app do with taps, the chat does with replies:
   for one, and is used for questions that name no place for the next hour;
 - a sowing question asks back for a missing crop or district (ivr_sowing.py).
 
-All of this is kept in memory only, keyed by a hash of the sender's number,
-never by the number itself; a shared location is snapped to 0.05° (~5 km), as
-the app does, and never logged. Webhook tasks run on several threads at once,
-so every table here is read and written under one lock.
+All of this is kept in memory only, keyed by an HMAC of the sender's number
+(keyed with the app secret, so a key can't be reversed by hashing every Indian
+mobile number), never by the number itself. Expired entries are dropped on the
+next write to their table, so nothing outlives its lifetime by more than one
+message. A shared location is snapped to 0.05° (~5 km), as the app does, and
+this module never logs it; the 5 km cell it falls in is what the weather layer
+fetches and caches, and can appear in its failure warnings, tied to no sender.
+Webhook tasks run on several threads at once, so every table here is read and
+written under one lock.
 
 Not handled: voice notes (OGG/Opus needs ffmpeg and Bhashini ASR), images and
 other message types (the sender is told to type), and proactive alerts
@@ -70,8 +75,8 @@ _LANG_WORDS = {
     "5": "mr", "marathi": "mr", "मराठी": "mr",
 }
 _HELP_WORDS = frozenset({
-    "hi", "hello", "help", "start", "menu", "namaste",
-    "नमस्ते", "வணக்கம்", "నమస్కారం",
+    "hi", "hello", "help", "start", "menu", "namaste", "namaskar",
+    "नमस्ते", "नमस्कार", "வணக்கம்", "నమస్కారం",
 })
 
 # TODO: native_qa (all hi/ta/te/mr strings below)
@@ -156,8 +161,11 @@ _monotonic = time.monotonic  # test seam
 
 
 def sender_key(wa_id: str) -> str:
-    """What identifies a sender in memory and in logs. Never the number."""
-    return hashlib.sha256(wa_id.encode()).hexdigest()[:16]
+    """What identifies a sender in memory and in logs. Never the number, and
+    not a bare hash of it either: India's ~4 billion mobile numbers can all be
+    hashed in hours, so the key is an HMAC with the app secret."""
+    secret = (config.WHATSAPP_APP_SECRET or "").encode()
+    return hmac.new(secret, wa_id.encode(), hashlib.sha256).hexdigest()[:16]
 
 
 def _get(table: dict, key: str) -> tuple | None:
@@ -174,8 +182,11 @@ def _get(table: dict, key: str) -> tuple | None:
 
 def _put(table: dict, key: str, ttl: float, *value) -> None:
     with _lock:
+        now = _monotonic()
+        for stale in [k for k, entry in table.items() if now > entry[0]]:
+            del table[stale]  # expired entries don't wait for their sender to return
         table.pop(key, None)  # re-insert so it counts as newest
-        table[key] = (_monotonic() + ttl, *value)
+        table[key] = (now + ttl, *value)
         while len(table) > config.WHATSAPP_STATE_MAX:
             table.pop(next(iter(table)), None)  # dicts keep insertion order
 
@@ -223,6 +234,8 @@ def _within_sender_limit(key: str) -> bool:
         return True
     with _lock:
         now = _monotonic()
+        for idle in [k for k, hits in _sender_hits.items() if not hits or now - hits[-1] > 60.0]:
+            del _sender_hits[idle]  # nobody's send times outlive the minute they count for
         # popped and re-inserted, so the active sender is never the one evicted
         window = [t for t in _sender_hits.pop(key, []) if now - t <= 60.0]
         allowed = len(window) < limit
