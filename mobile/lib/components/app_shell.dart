@@ -13,6 +13,7 @@ import '../advisory_client.dart';
 import '../auth_client.dart';
 import '../pages/advisory_page.dart';
 import '../pages/aviation_page.dart';
+import '../pages/climate_page.dart';
 import '../pages/cyclone_page.dart';
 import '../pages/best_window_page.dart';
 import '../pages/history_page.dart';
@@ -189,6 +190,10 @@ class _AppShellState extends State<AppShell> {
                             Navigator.of(context).pop();
                             openCycloneMap(context);
                           },
+                          onClimate: () {
+                            Navigator.of(context).pop();
+                            openClimate(context);
+                          },
                           onTravel: () {
                             Navigator.of(context).pop();
                             openAdvisory(context, AdvisoryKind.travel);
@@ -219,6 +224,7 @@ class _AppShellState extends State<AppShell> {
                               onAviation: aviation ? () => openAviation(context) : null,
                               onBestWindow: () => openBestWindow(context),
                               onCyclones: () => openCycloneMap(context),
+                              onClimate: () => openClimate(context),
                               onTravel: () => openAdvisory(context, AdvisoryKind.travel),
                               onSowing: farmer ? () => openAdvisory(context, AdvisoryKind.sowing) : null,
                               onHistory: () => openHistory(context, onAskAgain: _askInChat),
@@ -360,6 +366,9 @@ class Sidebar extends StatelessWidget {
   /// Opens the Cyclone map (GDACS) — pushed on top, like Best Time.
   final VoidCallback? onCyclones;
 
+  /// Opens Climate trends (Open-Meteo / ERA5) — pushed on top too.
+  final VoidCallback? onClimate;
+
   /// Opens Query history (pushed on top too); a guest sees an invitation to
   /// sign in there.
   final VoidCallback? onHistory;
@@ -376,6 +385,7 @@ class Sidebar extends StatelessWidget {
     this.onAviation,
     this.onBestWindow,
     this.onCyclones,
+    this.onClimate,
     this.onHistory,
     this.onTravel,
     this.onSowing,
@@ -463,6 +473,16 @@ class Sidebar extends StatelessWidget {
                         label: 'Cyclone map',
                         active: false,
                         onTap: onCyclones!,
+                      ),
+                    ),
+                  if (onClimate != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: _NavTile(
+                        icon: Icons.show_chart,
+                        label: 'Climate trends',
+                        active: false,
+                        onTap: onClimate!,
                       ),
                     ),
                   if (onTravel != null)
