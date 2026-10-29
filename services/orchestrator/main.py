@@ -23,6 +23,7 @@ import bhashini
 import cities
 import config
 import forecast_snapshots
+import gdacs
 import glossary
 import google_weather
 import guardrail
@@ -784,6 +785,18 @@ def aviation_route(city: str | None = None, station: str | None = None):
     if icao is None:
         raise HTTPException(status_code=404, detail="unknown city or station")
     return aviation.public(icao)
+
+
+@app.get("/cyclones")
+def cyclones_route():
+    """Tropical cyclones near India from GDACS (fixture snapshot when offline),
+    with each event's track, cone and wind areas (gdacs.py). Not an IMD product,
+    and the payload carries GDACS's attribution and not-an-official-alert
+    disclaimer, which every surface shows. `status` "unavailable" (`events`
+    null) means the fetch failed — a UI must show that as "not available",
+    never as "no cyclones" (plan.md §2 principle 3). Takes no parameters, so
+    no user text reaches GDACS."""
+    return gdacs.public()
 
 
 def _cached(response: Response, cache_key: str | None, compute) -> dict:
