@@ -1,6 +1,6 @@
 """GDACS tropical-cyclone events near India: fetch, parse, cache, and fall back
 to fixtures (plan.md §3.3, §6 P2 item 11, task CYC-2). The source is GDACS, the
-UN / European Commission Global Disaster Alert and Coordination System. It is
+UN / European Commission Global Disaster Awareness and Coordination System. It is
 free and needs no key. It is NOT an IMD product: for this region GDACS builds
 its events from JTWC / NOAA / Météo-France bulletins, so every result carries
 `source` "GDACS" and the attribution GDACS asks for, and nothing here may be
@@ -21,7 +21,9 @@ taken.
 A failed fetch is never an empty list. `public()` answers status "unavailable"
 with `events` None when nothing could be read, and "no cyclones" may only be
 said when `no_cyclones_confirmed()` is true: a live, complete, successful
-answer with no event near India. A snapshot can never confirm that.
+answer with no event near India. A snapshot can never confirm that, and neither
+can an answer holding any feature we could not read: it might have been a
+cyclone, so it is counted in `unreadable_features` and `complete` is False.
 
 "Near India" is a geographic test, not just GDACS's country tag, because many
 events carry no `iso3` until GDACS expects an effect on a country. An event is
@@ -62,7 +64,8 @@ _LOG = logging.getLogger("weathergpt.gdacs")
 HOST = "www.gdacs.org"
 API_BASE = f"https://{HOST}/gdacsapi/api"
 SOURCE = "GDACS"
-SOURCE_NAME = "Global Disaster Alert and Coordination System, GDACS"
+#: The wording GDACS's API quick-start asks us to acknowledge the source with.
+SOURCE_NAME = "Global Disaster Awareness and Coordination System, GDACS"
 SOURCE_URL = f"https://{HOST}/"
 TERMS_URL = f"https://{HOST}/documents/2025/GDACS_Terms_of_use_Mar_25.pdf"
 ATTRIBUTION = f"Cyclone data: {SOURCE_NAME}. Not an IMD product."
@@ -108,8 +111,12 @@ class Snapshot:
     is_live: bool
     #: When this data was fetched (a fixture's own date when it is a fixture).
     retrieved_at: str
-    #: False when the search stopped at MAX_PAGES with more records left.
+    #: False when the search stopped at MAX_PAGES with more records left, or when
+    #: any feature could not be read (see `unreadable`).
     complete: bool
+    #: Features that were neither read as a cyclone nor recognisably another hazard,
+    #: plus any past MAX_FEATURES. Each might have been a cyclone near India.
+    unreadable: int = 0
 
 
 class FetchError(Exception):
@@ -348,12 +355,27 @@ def india_match(event: dict) -> list[str]:
     return why
 
 
-def _events_from(search: dict) -> list[dict]:
+def _is_other_hazard(feature) -> bool:
+    """True for a feature that says, in a readable `eventtype`, that it is not a
+    tropical cyclone. Anything else we cannot read might have been one."""
+    props = feature.get("properties") if isinstance(feature, dict) else None
+    kind = props.get("eventtype") if isinstance(props, dict) else None
+    return isinstance(kind, str) and kind.strip().upper() != "TC"
+
+
+def _read_events(search: dict) -> tuple[list[dict], int]:
+    """The events near India in one search document, and how many features could
+    not be read. A feature that is dropped without being a recognisable other
+    hazard counts, so a cyclone lost to a bad field is never mistaken for none."""
     features = search.get("features")
+    features = features if isinstance(features, list) else []
+    unreadable = max(0, len(features) - MAX_FEATURES)
     events, seen = [], set()
-    for feature in (features[:MAX_FEATURES] if isinstance(features, list) else []):
+    for feature in features[:MAX_FEATURES]:
         event = parse_event(feature)
         if event is None:
+            if not _is_other_hazard(feature):
+                unreadable += 1
             continue
         event["matched_by"] = india_match(event)
         key = (event["event_id"], event["episode_id"])
@@ -363,7 +385,11 @@ def _events_from(search: dict) -> list[dict]:
         events.append(event)
     events.sort(key=lambda e: (e["date_modified"] or "", e["event_id"]), reverse=True)
     events.sort(key=lambda e: not e["is_current"])  # stable: current events first
-    return events
+    return events, unreadable
+
+
+def _events_from(search: dict) -> list[dict]:
+    return _read_events(search)[0]
 
 
 def _line(coords) -> list[list[float]] | None:
@@ -446,11 +472,12 @@ def _snapshot_from_raw(raw: dict, is_live: bool) -> Snapshot | None:
     if fetched_at is None:
         return None
     geometry = raw.get("geometry") if isinstance(raw.get("geometry"), dict) else {}
-    events = _events_from(raw["search"])
+    events, unreadable = _read_events(raw["search"])
     for event in events:
         doc = geometry.get(str(event["event_id"]))
         event["track"] = parse_track(doc) if doc is not None else None
-    return Snapshot(events, is_live, fetched_at, raw.get("complete") is True)
+    return Snapshot(events, is_live, fetched_at,
+                    raw.get("complete") is True and unreadable == 0, unreadable)
 
 
 def _live() -> Snapshot:
@@ -507,7 +534,13 @@ def public() -> dict:
     `is_live` is false) was read and "unavailable" when none could be — then
     `events` is None, which a UI must show as "not available", never as "no
     cyclones" (plan.md §2 principle 3). Use no_cyclones_confirmed() before
-    saying there are none."""
+    saying there are none.
+
+    `unreadable_features` counts search features that could not be read (None
+    when unavailable); when it is above zero `complete` is False, though the
+    readable events are still returned. A snapshot says so in `notice` (None for
+    live data and when unavailable) and on each event's `is_live`, because an
+    event's `is_current` only describes the moment the snapshot was taken."""
     snap = snapshot()
     result = {
         "status": "unavailable",
@@ -516,6 +549,8 @@ def public() -> dict:
         "is_live": False,
         "retrieved_at": None,
         "complete": False,
+        "unreadable_features": None,
+        "notice": None,
         "source": SOURCE,
         "source_name": SOURCE_NAME,
         "source_url": SOURCE_URL,
@@ -527,16 +562,24 @@ def public() -> dict:
         "window_days": LOOKBACK_DAYS,
     }
     if snap is not None:
+        events = copy.deepcopy(snap.events)  # the cache and fixture data stay unmarked
+        for event in events:
+            event["is_live"] = snap.is_live
         result.update(
-            status="ok", events=copy.deepcopy(snap.events), count=len(snap.events),
+            status="ok", events=events, count=len(events),
             is_live=snap.is_live, retrieved_at=snap.retrieved_at, complete=snap.complete,
+            unreadable_features=snap.unreadable,
+            notice=None if snap.is_live else (
+                f"Snapshot taken {snap.retrieved_at}, not live; events may have ended "
+                "or changed."),
         )
     return result
 
 
 def no_cyclones_confirmed(result: dict) -> bool:
     """True only for a live, complete, successful answer with no event near
-    India. A failed fetch, a snapshot or a truncated search never confirms it."""
+    India. A failed fetch, a snapshot, a truncated search or one with features
+    we could not read (`complete` is then False) never confirms it."""
     return (result.get("status") == "ok" and result.get("is_live") is True
             and result.get("complete") is True and result.get("events") == [])
 

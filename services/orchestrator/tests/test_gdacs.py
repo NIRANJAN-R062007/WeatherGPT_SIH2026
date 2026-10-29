@@ -182,6 +182,8 @@ def test_fixture_is_the_snapshot_these_tests_pin():
 
 
 def test_fixture_is_raw_gdacs_data_with_its_provenance():
+    # The fixture's own provenance, written when the file was saved (2026-10-29), before
+    # SOURCE_NAME was corrected to "Awareness"; saved data is not rewritten.
     assert RAW["source"].startswith("Global Disaster Alert and Coordination System, GDACS")
     assert RAW["request"]["url"] == f"{gdacs.API_BASE}/events/geteventlist/SEARCH"
     assert RAW["request"]["params"]["eventlist"] == "TC"
@@ -713,6 +715,141 @@ def test_no_cyclones_confirmed_needs_every_condition(result):
     assert not gdacs.no_cyclones_confirmed(result)
 
 
+# --- a response we could not read in full never confirms "no cyclones" (synthetic) ------
+# Found in the post-merge audit: a feature the parser drops (a TC with a bad id or
+# coordinates, a non-object) left `events` empty and `complete` True, so a live
+# answer that may have held an Indian cyclone confirmed there was none.
+
+UNREADABLE_FEATURES = {
+    "not_an_object": "oops",
+    "null": None,
+    "number": 42,
+    "empty_object": {},
+    "properties_null": {"type": "Feature", "properties": None,
+                        "geometry": {"type": "Point", "coordinates": [81.8, 16.4]}},
+    "geometry_missing": {"type": "Feature", "properties": {"eventtype": "TC", "eventid": 7}},
+    "eventtype_missing": broken(eventtype=None),
+    "eventid_string": broken(eventid="1001345"),
+    "eventid_zero": broken(eventid=0),
+    "eventid_too_big": broken(eventid=gdacs.MAX_ID),
+    "coordinates_missing": broken(geometry={"type": "Point"}),
+    "coordinates_strings": broken(geometry={"type": "Point", "coordinates": ["81.8", "16.4"]}),
+    "coordinates_out_of_range": broken(geometry={"type": "Point", "coordinates": [81.8, 91.0]}),
+    "not_a_point": broken(geometry={"type": "MultiPoint", "coordinates": [[81.8, 16.4]]}),
+}
+
+
+@pytest.mark.parametrize("bad", UNREADABLE_FEATURES.values(), ids=UNREADABLE_FEATURES.keys())
+def test_an_unreadable_feature_never_confirms_no_cyclones(auto_mode, net, bad):
+    net.search = lambda params: (200, search_doc([bad]))
+    result = gdacs.public()
+    assert result["status"] == "ok" and result["events"] == [] and result["is_live"] is True
+    assert result["unreadable_features"] == 1
+    assert result["complete"] is False
+    assert not gdacs.no_cyclones_confirmed(result)
+
+
+def test_unreadable_features_are_counted_among_valid_events(auto_mode, net):
+    page = [india_feature(500), "oops", far_feature(2), broken(eventid="x"), india_feature(501)]
+    net.search = lambda params: (200, search_doc(page))
+    net.geometry = (404, {})
+    result = gdacs.public()
+    assert sorted(e["event_id"] for e in result["events"]) == [500, 501]  # nothing lost
+    assert result["unreadable_features"] == 2 and result["complete"] is False
+    assert not gdacs.no_cyclones_confirmed(result)
+
+
+def test_a_well_formed_non_cyclone_feature_is_ignored_not_unreadable(auto_mode, net):
+    net.search = lambda params: (200, search_doc([broken(eventtype="EQ"), far_feature(1)]))
+    result = gdacs.public()
+    assert result["unreadable_features"] == 0 and result["complete"] is True
+    assert gdacs.no_cyclones_confirmed(result)
+
+
+def test_a_genuinely_empty_live_answer_still_confirms_no_cyclones(auto_mode, net):
+    net.search = lambda params: (200, search_doc([]))
+    result = gdacs.public()
+    assert result["events"] == [] and result["unreadable_features"] == 0
+    assert result["complete"] is True
+    assert gdacs.no_cyclones_confirmed(result)
+
+
+def test_features_past_the_read_limit_are_unreadable_not_ignored():
+    search = search_doc([far_feature(i) for i in range(1, gdacs.MAX_FEATURES + 4)])
+    raw = {"fetched_at": SNAPSHOT_TIME, "complete": True, "search": search}
+    snap = gdacs._snapshot_from_raw(raw, True)
+    assert snap.unreadable == 3 and snap.complete is False
+
+
+def test_an_unreadable_feature_in_a_snapshot_is_reported(fixtures_mode, fixture_file):
+    fixture_file({"fetched_at": SNAPSHOT_TIME, "complete": True,
+                  "search": search_doc([india_feature(500), "oops"])})
+    result = gdacs.public()
+    assert result["is_live"] is False and result["unreadable_features"] == 1
+    assert result["complete"] is False and not gdacs.no_cyclones_confirmed(result)
+
+
+def test_the_real_fixture_has_no_unreadable_features(fixtures_mode):
+    result = gdacs.public()
+    assert result["unreadable_features"] == 0 and result["complete"] is True
+
+
+def test_unavailable_result_has_no_unreadable_count(live_mode, net):
+    net.search = FAILURES["timeout"]
+    result = gdacs.public()
+    assert result["status"] == "unavailable" and result["unreadable_features"] is None
+
+
+# --- a snapshot says so, on the result and on every event (real fixture) --------------
+
+
+def test_a_snapshot_carries_a_notice_and_marks_every_event_not_live(fixtures_mode):
+    result = gdacs.public()
+    assert result["is_live"] is False
+    assert "not live" in result["notice"].lower()
+    assert result["retrieved_at"] in result["notice"]
+    assert result["events"] and all(e["is_live"] is False for e in result["events"])
+
+
+def test_a_live_result_has_no_notice_and_marks_events_live(auto_mode, net):
+    result = gdacs.public()
+    assert result["is_live"] is True and result["notice"] is None
+    assert result["events"] and all(e["is_live"] is True for e in result["events"])
+
+
+def test_an_unavailable_result_has_no_notice(live_mode, net):
+    net.search = FAILURES["timeout"]
+    assert gdacs.public()["notice"] is None
+
+
+def test_a_failed_live_fetch_replaying_the_fixture_is_marked_as_a_snapshot(auto_mode, net):
+    net.search = FAILURES["timeout"]
+    result = gdacs.public()
+    assert result["is_live"] is False and "not live" in result["notice"].lower()
+    assert all(e["is_live"] is False for e in result["events"])
+
+
+def test_marking_events_never_changes_cached_or_fixture_data(auto_mode, net):
+    first = gdacs.public()
+    first["events"][0]["is_live"] = "tampered"
+    first["events"].clear()
+    cached = gdacs._CACHE["events"][1]
+    assert cached.events and all("is_live" not in e for e in cached.events)
+    assert all(e["is_live"] is True for e in gdacs.public()["events"])
+    assert all("is_live" not in e for e in gdacs._fixture().events)
+
+
+def test_existing_result_and_event_fields_are_kept(fixtures_mode):
+    result = gdacs.public()
+    for key in ("status", "events", "count", "is_live", "retrieved_at", "complete", "source",
+                "source_name", "source_url", "terms_url", "attribution", "disclaimer", "area",
+                "window_days"):
+        assert key in result
+    event = result["events"][0]
+    assert event["is_current"] is True and event["source"] == "GDACS"
+    assert event["alert_level"] == "Red" and event["track"] is not None
+
+
 # --- paging and bounds -------------------------------------------------------------
 
 
@@ -784,8 +921,10 @@ def test_attribution_and_source_are_always_present(request, net, mode_fixture):
     net.search = FAILURES["timeout"]
     result = gdacs.public()
     assert result["source"] == "GDACS"
-    assert result["source_name"] == "Global Disaster Alert and Coordination System, GDACS"
+    assert result["source_name"] == "Global Disaster Awareness and Coordination System, GDACS"
     assert result["source_name"] in result["attribution"]
+    assert result["attribution"] == ("Cyclone data: Global Disaster Awareness and Coordination "
+                                     "System, GDACS. Not an IMD product.")
     assert "Not an IMD product" in result["attribution"]
     assert result["source_url"] == "https://www.gdacs.org/"
     assert result["terms_url"].startswith("https://www.gdacs.org/documents/2025/")
