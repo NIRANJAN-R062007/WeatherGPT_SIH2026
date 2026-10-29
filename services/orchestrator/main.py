@@ -21,6 +21,7 @@ import alert_engine
 import aviation
 import bhashini
 import cities
+import climate
 import config
 import forecast_snapshots
 import gdacs
@@ -797,6 +798,23 @@ def cyclones_route():
     never as "no cyclones" (plan.md §2 principle 3). Takes no parameters, so
     no user text reaches GDACS."""
     return gdacs.public()
+
+
+@app.get("/climate")
+def climate_route(city: str):
+    """Climate history for a demo city from Open-Meteo's ERA5 reanalysis (dated
+    fixture snapshot when offline): monthly, seasonal and annual rainfall and
+    mean temperature, and a trend for each, all computed in climate.py — never by
+    an LLM. Not IMD station data, and the payload carries the label, credit link
+    and "computed by WeatherGPT" note every surface must show. `status`
+    "unavailable" (every data field null) means the fetch failed or no snapshot
+    exists for that city — a UI must show that as "not available", never as zero
+    rain or "no change" (plan.md §2 principle 3). Only demo cities are served: an
+    unknown city is a 404, and the upstream call is always ours."""
+    result = climate.public(city)
+    if result["status"] == "unsupported_city":
+        raise HTTPException(status_code=404, detail="unknown city")
+    return result
 
 
 def _cached(response: Response, cache_key: str | None, compute) -> dict:

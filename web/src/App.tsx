@@ -6,6 +6,7 @@ import AlertsPage from './pages/AlertsPage';
 import AuthPage from './pages/AuthPage';
 import AviationPage from './pages/AviationPage';
 import BestWindowPage from './pages/BestWindowPage';
+import ClimatePage from './pages/ClimatePage';
 import ChatPage from './pages/ChatPage';
 import EditProfilePage from './pages/EditProfilePage';
 import ForecastPage from './pages/ForecastPage';
@@ -67,6 +68,7 @@ function Gate() {
             {/* Airport weather is the Aviation persona's page only. */}
             <Route path="aviation" element={persona === 'aviation' ? <AviationPage /> : <Navigate to="/" replace />} />
             <Route path="best-window" element={<BestWindowPage />} />
+            <Route path="climate" element={<ClimatePage />} />
             <Route path="travel" element={<AdvisoryPage key="travel" kind="travel" />} />
             {/* Sowing advice is the Farmer persona's page only. */}
             <Route
