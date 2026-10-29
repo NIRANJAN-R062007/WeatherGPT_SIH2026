@@ -57,6 +57,10 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           <Icon name="schedule" size={20} />
           <span>{t('Best Time & What-if')}</span>
         </NavLink>
+        <NavLink to="/climate" onClick={onNavigate} className={({ isActive }) => tile(isActive)}>
+          <Icon name="show_chart" size={20} />
+          <span>{t('Climate trends')}</span>
+        </NavLink>
         <NavLink to="/travel" onClick={onNavigate} className={({ isActive }) => tile(isActive)}>
           <Icon name="route" size={20} />
           <span>{t('Travel advice')}</span>
